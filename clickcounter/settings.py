@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,9 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-4kej=1toi&@-lykpnan(d7%yctg0posv6312a60k2a0v%lr&5v'
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# ===== ЛОКАЛЬНАЯ РАЗРАБОТКА - ИЗМЕНИТЕ НА False ДЛЯ PRODUCTION! =====
 DEBUG = True
 
+# Для локальной разработки разрешаем всем
 ALLOWED_HOSTS = ['*']
 
 
@@ -41,6 +43,7 @@ INSTALLED_APPS = [
     'channels',
     'counter',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -73,16 +76,29 @@ TEMPLATES = [
 WSGI_APPLICATION = 'clickcounter.wsgi.application'
 ASGI_APPLICATION = 'clickcounter.asgi.application'
 
+# ===== CHANNEL LAYERS - ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ =====
+# Используем InMemory (не требует Redis)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'
     }
 }
 
+# Для production используйте Redis:
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
+
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# ===== БАЗА ДАННЫХ - ОТНОСИТЕЛЬНЫЙ ПУТЬ ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ =====
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -125,9 +141,45 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# ===== СТАТИЧЕСКИЕ ФАЙЛЫ - ОТНОСИТЕЛЬНЫЙ ПУТЬ =====
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Для локальной разработки не используем WhiteNoise
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ===== МЕДИА ФАЙЛЫ =====
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ===== ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ - ОТКЛЮЧАЕМ SSL/HTTPS =====
+# Для production включите эти строки:
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SECURE_SSL_REDIRECT = True
+# CSRF_COOKIE_SECURE = True
+# SESSION_COOKIE_SECURE = True
+
+# ===== ЛОГИРОВАНИЕ - РАБОТАЕТ НА ВСЕХ ОС =====
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
