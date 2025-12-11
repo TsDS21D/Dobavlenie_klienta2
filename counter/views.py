@@ -1,53 +1,171 @@
 """
-views.py
-View-функции Django - обработчики HTTP запросов.
-Определяют, что возвращать в ответ на запросы к разным URL.
+views.py - обновленная версия с аутентификацией
 """
 
-from django.shortcuts import render  # Функция для рендеринга HTML шаблонов
-from django.views.decorators.cache import never_cache  # Декоратор для отключения кэширования
-from .models import Order  # Импорт модели Order для работы с базой данных
+from django.shortcuts import render, redirect
+from django.views.decorators.cache import never_cache
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib import messages
+from .models import Order
+from .forms import LoginForm, RegistrationForm
 
 
-@never_cache  # Декоратор, который отключает кэширование для этой страницы
-def index(request):
+def login_view(request):
     """
-    View-функция для главной страницы приложения.
-    Обрабатывает GET запросы к корневому URL ('/').
+    Представление для входа пользователя в систему.
     
     Параметры:
-    - request: объект HTTP запроса от клиента
+    - request: HTTP запрос
     
     Возвращает:
-    - HTTP ответ с отрендеренным HTML шаблоном
+    - При успешном входе: перенаправление на главную страницу
+    - При ошибке: страницу входа с сообщением об ошибке
     """
     
-    # Получаем ВСЕ заказы из базы данных
-    # Order.objects.all() возвращает QuerySet - набор всех объектов Order
+    # Если пользователь уже аутентифицирован, перенаправляем на главную
+    if request.user.is_authenticated:
+        return redirect('index')
+    
+    # Если запрос POST - обрабатываем данные формы
+    if request.method == 'POST':
+        # Создаем форму с данными из запроса
+        form = LoginForm(data=request.POST)
+        
+        # Проверяем валидность формы
+        if form.is_valid():
+            # Извлекаем очищенные данные
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            
+            # Аутентифицируем пользователя
+            user = authenticate(request, username=username, password=password)
+            
+            # Если аутентификация успешна
+            if user is not None:
+                # Входим в систему (создаем сессию)
+                login(request, user)
+                
+                # Добавляем сообщение об успехе
+                messages.success(request, f'Добро пожаловать, {user.username}!')
+                
+                # Перенаправляем на главную страницу
+                return redirect('index')
+            else:
+                # Если аутентификация не удалась
+                messages.error(request, 'Неверное имя пользователя или пароль.')
+        else:
+            # Если форма невалидна
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
+    
+    else:
+        # Если запрос GET - создаем пустую форму
+        form = LoginForm()
+    
+    # Рендерим страницу входа с формой
+    return render(request, 'counter/login.html', {
+        'form': form,
+        'title': 'Вход в систему'
+    })
+
+
+def register_view(request):
+    """
+    Представление для регистрации нового пользователя.
+    
+    Параметры:
+    - request: HTTP запрос
+    
+    Возвращает:
+    - При успешной регистрации: перенаправление на страницу входа
+    - При ошибке: страницу регистрации с сообщением об ошибке
+    """
+    
+    # Если пользователь уже аутентифицирован, перенаправляем на главную
+    if request.user.is_authenticated:
+        return redirect('index')
+    
+    # Если запрос POST - обрабатываем данные формы
+    if request.method == 'POST':
+        # Создаем форму с данными из запроса
+        form = RegistrationForm(request.POST)
+        
+        # Проверяем валидность формы
+        if form.is_valid():
+            # Сохраняем пользователя
+            user = form.save()
+            
+            # Добавляем сообщение об успехе
+            messages.success(
+                request, 
+                f'Аккаунт {user.username} успешно создан! Теперь вы можете войти.'
+            )
+            
+            # Перенаправляем на страницу входа
+            return redirect('login')
+        else:
+            # Если форма невалидна
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
+    
+    else:
+        # Если запрос GET - создаем пустую форму
+        form = RegistrationForm()
+    
+    # Рендерим страницу регистрации с формой
+    return render(request, 'counter/register.html', {
+        'form': form,
+        'title': 'Регистрация'
+    })
+
+
+def logout_view(request):
+    """
+    Представление для выхода пользователя из системы.
+    
+    Параметры:
+    - request: HTTP запрос
+    
+    Возвращает:
+    - Перенаправление на страницу входа
+    """
+    
+    # Выходим из системы (удаляем сессию)
+    logout(request)
+    
+    # Добавляем сообщение об успешном выходе
+    messages.info(request, 'Вы успешно вышли из системы.')
+    
+    # Перенаправляем на страницу входа
+    return redirect('login')
+
+
+@login_required(login_url='/login/')  # Декоратор требует аутентификации
+@never_cache
+def index(request):
+    """
+    Главная страница системы управления заказами.
+    Доступна только аутентифицированным пользователям.
+    
+    Параметры:
+    - request: HTTP запрос
+    
+    Возвращает:
+    - HTTP ответ с главной страницей
+    """
+    
+    # Получаем все заказы из базы данных
     orders = Order.objects.all()
     
-    # Рендерим HTML шаблон с контекстом данных
-    # Параметры:
-    # 1. request - объект запроса
-    # 2. 'counter/index.html' - путь к шаблону относительно папки templates приложения
-    # 3. {'orders': orders} - словарь контекста (данные для передачи в шаблон)
-    response = render(request, 'counter/index.html', {'orders': orders})
+    # Рендерим главную страницу с дополнительным контекстом
+    response = render(request, 'counter/index.html', {
+        'orders': orders,
+        'user': request.user,  # Передаем объект пользователя в шаблон
+    })
     
-    # Добавляем HTTP заголовки для предотвращения кэширования страницы
-    # Это важно, чтобы браузер всегда получал свежие данные
-    
-    # Cache-Control - основной заголовок управления кэшированием
-    # no-cache: кэш должен проверять актуальность данных с сервером
-    # no-store: запрещает сохранять данные в кэш
-    # must-revalidate: требует повторной валидации устаревших ресурсов
-    # max-age=0: время жизни кэша 0 секунд
+    # Добавляем заголовки для предотвращения кэширования
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    
-    # Pragma - устаревший заголовок для совместимости с HTTP/1.0
     response['Pragma'] = 'no-cache'
-    
-    # Expires - дата истечения срока действия кэша (0 = сразу истекает)
     response['Expires'] = '0'
     
-    # Возвращаем подготовленный HTTP ответ
     return response

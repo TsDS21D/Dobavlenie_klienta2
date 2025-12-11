@@ -183,3 +183,22 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# ===== НАСТРОЙКИ АУТЕНТИФИКАЦИИ =====
+# URL для перенаправления при необходимости входа
+LOGIN_URL = '/login/'
+
+# URL для перенаправления после успешного входа
+LOGIN_REDIRECT_URL = '/'
+
+# URL для перенаправления после выхода
+LOGOUT_REDIRECT_URL = '/login/'
+
+# Время жизни сессии в секундах (30 дней)
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
+
+# Сохранять сессию при закрытии браузера
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Использовать сессии для хранения данных аутентификации
+SESSION_SAVE_EVERY_REQUEST = True

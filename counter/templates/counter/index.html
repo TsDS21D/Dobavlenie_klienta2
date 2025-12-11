@@ -815,6 +815,46 @@ index.html
     </style>
 </head>
 <body>
+
+<!-- Панель пользователя -->
+<div class="user-panel" style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; padding: 10px 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px;">
+    <div class="user-info" style="font-size: 0.9rem;">
+        <strong style="color: #0B8661;">{{ user.username }}</strong>
+        <div style="font-size: 0.8rem; color: #666;">{{ user.email|default:"Типография Буква А" }}</div>
+    </div>
+    <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+        {% csrf_token %}
+        <button type="submit" style="background: #f44336; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 600; transition: background 0.3s;">
+            Выйти
+        </button>
+    </form>
+</div>
+
+<script>
+    // Добавляем обработку панели пользователя в JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        const userPanel = document.querySelector('.user-panel');
+        
+        // Скрываем панель пользователя, если пользователь не аутентифицирован
+        // (на всякий случай, хотя доступ к странице уже защищен)
+        if (!userPanel.querySelector('.user-info strong').textContent.trim()) {
+            userPanel.style.display = 'none';
+        }
+        
+        // Добавляем обработчик для кнопки выхода
+        const logoutForm = userPanel.querySelector('form');
+        if (logoutForm) {
+            logoutForm.addEventListener('submit', function(e) {
+                if (!confirm('Вы уверены, что хотите выйти?')) {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+
+
+
     <!-- Основной контейнер страницы -->
     <div class="container">
         <!-- Заголовок страницы с логотипом -->

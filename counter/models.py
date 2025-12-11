@@ -218,3 +218,44 @@ class Order(models.Model):
             # Флаг, является ли заказ активным (для удобства на фронтенде)
             'is_active': self.is_active(),
         }
+    
+    # ===== ДОПОЛНИТЕЛЬНЫЕ МОДЕЛИ =====
+
+class UserProfile(models.Model):
+    """
+    Модель профиля пользователя (расширяет стандартную модель User Django).
+    Связывается один-к-одному со встроенной моделью User.
+    """
+    
+    # Связь один-к-одному с моделью User Django
+    # on_delete=models.CASCADE - при удалении User удаляется и профиль
+    user = models.OneToOneField(
+        'auth.User',  # Ссылка на встроенную модель пользователя Django
+        on_delete=models.CASCADE,
+        verbose_name='Пользователь'
+    )
+    
+    # Дополнительные поля для профиля
+    department = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Отдел'
+    )
+    
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Телефон'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания профиля'
+    )
+    
+    class Meta:
+        verbose_name = 'Профиль пользователя'
+        verbose_name_plural = 'Профили пользователей'
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.department if self.department else 'Без отдела'}"
