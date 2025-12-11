@@ -1,16 +1,32 @@
 <!DOCTYPE html>
-<html lang="ru">
+<!-- 
+index.html
+Главный HTML шаблон приложения.
+Определяет структуру и внешний вид веб-страницы.
+-->
+
+<html lang="ru"> <!-- Язык страницы - русский -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Система управления заказами</title>
+    <!-- Мета-теги для правильного отображения в браузере -->
+    <meta charset="UTF-8"> <!-- Кодировка UTF-8 для поддержки русских символов -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Адаптивность для мобильных -->
+    
+    <title>Система управления заказами типографии</title> <!-- Заголовок вкладки браузера -->
+    
     <style>
+        /* 
+        Встроенные стили CSS.
+        Определяют внешний вид всех элементов на странице.
+        */
+        
+        /* Сброс стандартных отступов и использование border-box модели */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* Стили для всего тела страницы */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
@@ -18,6 +34,7 @@
             padding: 2rem;
         }
 
+        /* Основной контейнер страницы */
         .container {
             max-width: 900px;
             margin: 0 auto;
@@ -27,6 +44,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
+        /* Заголовок первого уровня */
         h1 {
             color: #333;
             margin-bottom: 2rem;
@@ -34,6 +52,7 @@
             font-size: 2rem;
         }
 
+        /* Стили для блока статуса подключения */
         .status {
             text-align: center;
             margin-bottom: 2rem;
@@ -44,16 +63,19 @@
             width: 100%;
         }
 
+        /* Стили для подключенного состояния */
         .status.connected {
             background: #c8e6c9;
             color: #2e7d32;
         }
 
+        /* Стили для отключенного состояния */
         .status.disconnected {
             background: #ffcdd2;
             color: #c62828;
         }
 
+        /* Стили для секции формы добавления заказа */
         .form-section {
             background: #f5f5f5;
             padding: 2rem;
@@ -61,18 +83,21 @@
             margin-bottom: 2rem;
         }
 
+        /* Заголовок второго уровня в секции формы */
         .form-section h2 {
             color: #333;
             margin-bottom: 1.5rem;
             font-size: 1.5rem;
         }
 
+        /* Группа полей ввода в форме */
         .form-group {
             margin-bottom: 1rem;
             display: flex;
             flex-direction: column;
         }
 
+        /* Подписи к полям ввода */
         label {
             color: #555;
             margin-bottom: 0.5rem;
@@ -80,6 +105,7 @@
             font-size: 0.95rem;
         }
 
+        /* Стили для полей ввода и текстовых областей */
         input, textarea {
             padding: 0.8rem;
             border: 2px solid #e0e0e0;
@@ -89,23 +115,27 @@
             transition: border-color 0.3s ease;
         }
 
+        /* Стили при фокусе на поле ввода */
         input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
         }
 
+        /* Дополнительные стили для текстовых областей */
         textarea {
             resize: vertical;
             min-height: 80px;
         }
 
+        /* Группа кнопок в форме */
         .button-group {
             display: flex;
             gap: 1rem;
             margin-top: 1.5rem;
         }
 
+        /* Базовые стили для всех кнопок */
         button {
             padding: 1rem;
             border: none;
@@ -116,6 +146,7 @@
             transition: all 0.3s ease;
         }
 
+        /* Стили для кнопки отправки формы */
         .btn-submit {
             flex: 1;
             background: #0B8661;
@@ -123,50 +154,76 @@
             box-shadow: 0 4px 15px rgba(99, 122, 86, 0.6);
         }
 
+        /* Эффект при наведении на активную кнопку отправки */
         .btn-submit:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(99, 122, 86, 0.6);
         }
 
+        /* Стили для отключенной кнопки отправки */
         .btn-submit:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
 
+        /* Стили для кнопки очистки формы */
         .btn-clear {
             flex: 1;
             background: #e0e0e0;
             color: #333;
         }
 
+        /* Эффект при наведении на кнопку очистки */
         .btn-clear:hover {
             background: #bdbdbd;
         }
 
+        /* Заголовок секции с заказами */
         .orders-section h2 {
             color: #333;
             margin-bottom: 1.5rem;
             font-size: 1.5rem;
         }
 
+        /* Стили для списка заказов */
         .orders-list {
             list-style: none;
         }
 
+        /* Стили для отдельного элемента заказа */
         .order-item {
             background: #f9f9f9;
             padding: 1.5rem;
             margin-bottom: 1rem;
-            border-left: 2px solid #0B8661;
+            border-left: 4px solid; /* Цвет будет задаваться в зависимости от статуса */
             border-radius: 8px;
             transition: all 0.3s ease;
         }
         
+        /* Эффект при наведении на заказ */
         .order-item:hover {
             transform: translateY(-1px); 
             box-shadow: 0 3px 10px rgba(99, 122, 86, 0.6); 
         }
 
+        /* Цвета границы в зависимости от статуса заказа */
+        .order-item.status-accepted {
+            border-left-color: #2196F3; /* Синий для "Принят" */
+        }
+        
+        .order-item.status-in_progress {
+            border-left-color: #FF9800; /* Оранжевый для "В работе" */
+        }
+        
+        .order-item.status-ready {
+            border-left-color: #4CAF50; /* Зеленый для "Готов" */
+        }
+        
+        .order-item.status-completed {
+            border-left-color: #9E9E9E; /* Серый для "Выдан" */
+        }
+
+        /* Анимация появления нового заказа */
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -178,6 +235,7 @@
             }
         }
 
+        /* Шапка заказа (номер и часы) */
         .order-header {
             display: flex;
             justify-content: space-between;
@@ -185,12 +243,14 @@
             margin-bottom: 0.5rem;
         }
 
+        /* Номер заказа */
         .order-number {
             color: #0B8661;
             font-weight: bold;
             font-size: 1.2rem;
         }
 
+        /* Блок с оставшимися рабочими часами */
         .order-hours {
             background: #0B8661;
             color: white;
@@ -200,20 +260,24 @@
             font-weight: bold;
         }
 
+        /* Предупреждение при малом количестве часов */
         .order-hours.warning {
             background: #ff9800;
         }
 
+        /* Критическое значение часов */
         .order-hours.critical {
             background: #f44336;
         }
 
+        /* Имя клиента */
         .customer-name {
             color: #333;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
 
+        /* Описание заказа */
         .description {
             color: #666;
             margin-bottom: 0.5rem;
@@ -221,6 +285,7 @@
             word-wrap: break-word;
         }
 
+        /* Блок с дополнительной информацией о заказе */
         .order-details {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -231,22 +296,49 @@
             margin-bottom: 1rem;
         }
 
+        /* Отдельный элемент деталей */
         .detail-item {
             display: flex;
             align-items: center;
         }
 
+        /* Метка для деталей */
         .detail-label {
             font-weight: 600;
             margin-right: 0.5rem;
         }
 
+        /* Блок со статусом заказа */
+        .order-status {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        /* Стили для выпадающего списка статусов */
+        .status-select {
+            padding: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        /* Эффект при фокусе на выпадающем списке */
+        .status-select:focus {
+            outline: none;
+            border-color: #0B8661;
+        }
+
+        /* Блок с кнопками действий */
         .order-actions {
             display: flex;
             gap: 0.5rem;
             margin-top: 1rem;
         }
 
+        /* Кнопка редактирования */
         .btn-edit {
             flex: 1;
             padding: 0.6rem;
@@ -260,11 +352,13 @@
             font-size: 0.9rem;
         }
 
+        /* Эффект при наведении на кнопку редактирования */
         .btn-edit:hover {
             background: #0B8661;
             transform: translateY(-2px);
         }
 
+        /* Кнопка удаления */
         .btn-delete {
             flex: 1;
             padding: 0.6rem;
@@ -278,11 +372,13 @@
             font-size: 0.9rem;
         }
 
+        /* Эффект при наведении на кнопку удаления */
         .btn-delete:hover {
             background: #b3080b;
             transform: translateY(-2px);
         }
 
+        /* Сообщение при отсутствии заказов */
         .empty-message {
             text-align: center;
             color: #999;
@@ -290,7 +386,7 @@
             font-style: italic;
         }
 
-        /* Модальное окно */
+        /* Модальное окно для редактирования */
         .modal {
             display: none;
             position: fixed;
@@ -302,12 +398,14 @@
             background-color: rgba(0, 0, 0, 0.5);
         }
 
+        /* Класс для отображения модального окна */
         .modal.show {
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
+        /* Содержимое модального окна */
         .modal-content {
             background: white;
             padding: 2rem;
@@ -317,18 +415,21 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
+        /* Заголовок в модальном окне */
         .modal-content h2 {
             color: #333;
             margin-bottom: 1.5rem;
             font-size: 1.5rem;
         }
 
+        /* Кнопки в модальном окне */
         .modal-buttons {
             display: flex;
             gap: 1rem;
             margin-top: 2rem;
         }
 
+        /* Кнопка сохранения в модальном окне */
         .btn-modal-save {
             flex: 1;
             padding: 1rem;
@@ -341,11 +442,13 @@
             transition: all 0.3s ease;
         }
 
+        /* Эффект при наведении на кнопку сохранения */
         .btn-modal-save:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
+        /* Кнопка отмены в модальном окне */
         .btn-modal-cancel {
             flex: 1;
             padding: 1rem;
@@ -358,16 +461,19 @@
             transition: all 0.3s ease;
         }
 
+        /* Эффект при наведении на кнопку отмены */
         .btn-modal-cancel:hover {
             background: #bdbdbd;
         }
 
+        /* Кнопки сортировки */
         .sort-buttons {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1rem;
         }
 
+        /* Стили для кнопок сортировки */
         .btn-sort {
             padding: 0.6rem 1rem;
             background: #F9F9F9;
@@ -375,25 +481,51 @@
             border: none;
             border-radius: 6px;
             font-weight: 600;
-
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 0.9rem;
         }
 
+        /* Эффект при наведении на кнопку сортировки */
         .btn-sort:hover {
             background: #E9ECEB;
             transform: translateY(-2px);
         }
 
+        /* Стили для активной кнопки сортировки */
         .btn-sort.active {
             background: #0B8661;
             color: white;
             box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
         }
 
-        /* ===== МОБИЛЬНЫЙ ДИЗАЙН (768px и ниже) ===== */
+        /* Секция для выполненных заказов */
+        .completed-orders-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid #eee;
+        }
+
+        /* Заголовок секции выполненных заказов */
+        .completed-orders-section h2 {
+            color: #666;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Стили для выполненных заказов */
+        .completed-order-item {
+            background: #f0f0f0;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            border-left: 4px solid #9E9E9E;
+            border-radius: 6px;
+            opacity: 0.8;
+        }
+
+        /* Мобильный дизайн (ширина экрана до 768px) */
         @media (max-width: 768px) {
+            /* Адаптивные стили для мобильных устройств */
             body {
                 padding: 1rem;
             }
@@ -534,7 +666,7 @@
             }
         }
 
-        /* ===== МАЛЕНЬКИЕ МОБИЛЬНЫЕ (480px и ниже) ===== */
+        /* Маленькие мобильные устройства (ширина до 480px) */
         @media (max-width: 480px) {
             body {
                 padding: 0.5rem;
@@ -683,7 +815,9 @@
     </style>
 </head>
 <body>
+    <!-- Основной контейнер страницы -->
     <div class="container">
+        <!-- Заголовок страницы с логотипом -->
         <h1>
             <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
                 alt="Типография &quot;Буква А&quot;" 
@@ -692,11 +826,14 @@
             Система управления заказами
         </h1>
         
+        <!-- Блок для отображения статуса подключения WebSocket -->
         <div id="status" class="status disconnected">Подключение...</div>
 
+        <!-- Секция формы для добавления нового заказа -->
         <div class="form-section">
             <h2>Добавить новый заказ</h2>
             
+            <!-- Поле для имени клиента -->
             <div class="form-group">
                 <label for="customer-name">Клиент:</label>
                 <input 
@@ -707,6 +844,7 @@
                 >
             </div>
 
+            <!-- Поле для описания заказа -->
             <div class="form-group">
                 <label for="description">Описание заказа:</label>
                 <textarea 
@@ -716,6 +854,7 @@
                 ></textarea>
             </div>
 
+            <!-- Поле для выбора даты готовности -->
             <div class="form-group">
                 <label for="ready-datetime">Дата и время готовности:</label>
                 <input 
@@ -725,29 +864,46 @@
                 >
             </div>
 
+            <!-- Группа кнопок формы -->
             <div class="button-group">
                 <button class="btn-submit" id="submit-btn">Добавить заказ</button>
                 <button type="button" class="btn-clear" id="clear-btn">Очистить</button>
             </div>
         </div>
 
+        <!-- Секция с активными заказами -->
         <div class="orders-section">
-            <h2>Список заказов</h2>
+            <h2>Активные заказы</h2>
+            
+            <!-- Кнопки для сортировки -->
             <div class="sort-buttons">
                 <button class="btn-sort" id="sort-by-number">📊 По номеру</button>
                 <button class="btn-sort active" id="sort-by-deadline">⏰ По дедлайну</button>
             </div>
-            <ul class="orders-list" id="orders-list">
-                <li class="empty-message">Еще нет заказов. Добавьте первый заказ выше.</li>
+            
+            <!-- Список активных заказов (будет заполняться JavaScript) -->
+            <ul class="orders-list" id="active-orders-list">
+                <li class="empty-message">Нет активных заказов</li>
+            </ul>
+        </div>
+
+        <!-- Секция с выполненными заказами -->
+        <div class="orders-section completed-orders-section">
+            <h2>Выполненные заказы</h2>
+            
+            <!-- Список выполненных заказов (будет заполняться JavaScript) -->
+            <ul class="orders-list" id="completed-orders-list">
+                <li class="empty-message">Нет выполненных заказов</li>
             </ul>
         </div>
     </div>
 
-    <!-- Модальное окно для редактирования -->
+    <!-- Модальное окно для редактирования заказа (скрыто по умолчанию) -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h2>Редактировать заказ</h2>
             
+            <!-- Форма редактирования в модальном окне -->
             <div class="form-group">
                 <label for="edit-customer-name">Клиент:</label>
                 <input type="text" id="edit-customer-name" required>
@@ -770,15 +926,25 @@
         </div>
     </div>
 
+    <!-- JavaScript код для работы страницы -->
     <script>
+        // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
+        
+        // DOM элементы - ссылки на HTML элементы страницы
         const customerNameInput = document.getElementById('customer-name');
         const descriptionInput = document.getElementById('description');
         const readyDatetimeInput = document.getElementById('ready-datetime');
         const submitBtn = document.getElementById('submit-btn');
         const clearBtn = document.getElementById('clear-btn');
-        const ordersList = document.getElementById('orders-list');
+        
+        // Списки заказов
+        const activeOrdersList = document.getElementById('active-orders-list');
+        const completedOrdersList = document.getElementById('completed-orders-list');
+        
+        // Элемент статуса подключения
         const statusElement = document.getElementById('status');
         
+        // Элементы модального окна редактирования
         const editModal = document.getElementById('editModal');
         const editCustomerNameInput = document.getElementById('edit-customer-name');
         const editDescriptionInput = document.getElementById('edit-description');
@@ -786,45 +952,69 @@
         const saveEditBtn = document.getElementById('save-edit-btn');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
 
+        // Определяем URL для WebSocket соединения
+        // Если страница загружена по HTTPS, используем WSS, иначе WS
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/order`;
 
-        let socket;
-        let reconnectInterval;
-        let editingOrderNumber = null;
-        let currentOrders = [];
-        let sortBy = 'deadline'; // 'number' или 'deadline'
-        let sortDirection = 1; // 1 для возрастания, -1 для убывания
+        // Переменные для управления состоянием приложения
+        let socket;                    // Объект WebSocket соединения
+        let reconnectInterval;         // Таймер для переподключения
+        let editingOrderNumber = null; // Номер заказа, который редактируется
+        let currentActiveOrders = [];  // Массив активных заказов
+        let currentCompletedOrders = []; // Массив выполненных заказов
+        let sortBy = 'deadline';       // Текущий способ сортировки
+        let sortDirection = 1;         // Направление сортировки (1 - по возрастанию, -1 - по убыванию)
 
+        // ===== WEB SOCKET ФУНКЦИИ =====
+
+        /**
+         * Устанавливает соединение с WebSocket сервером
+         */
         function connect() {
-            console.log('Подключение к WebSocket:', wsUrl);
+            console.log('Попытка подключения к WebSocket:', wsUrl);
+            
+            // Создаем новое WebSocket соединение
             socket = new WebSocket(wsUrl);
 
+            // Обработчик успешного подключения
             socket.onopen = function(e) {
-                console.log('✅ WebSocket подключен');
+                console.log('✅ WebSocket подключен успешно');
+                
+                // Обновляем статус на странице
                 statusElement.textContent = '✅ Подключено';
                 statusElement.className = 'status connected';
                 
+                // Останавливаем попытки переподключения, если они были
                 if (reconnectInterval) {
                     clearInterval(reconnectInterval);
                     reconnectInterval = null;
                 }
             };
 
+            // Обработчик входящих сообщений от сервера
             socket.onmessage = function(event) {
-                console.log('Получено сообщение:', event.data);
+                console.log('Получено сообщение от сервера:', event.data);
+                
+                // Парсим JSON данные
                 const data = JSON.parse(event.data);
-
+                
+                // В зависимости от типа сообщения обрабатываем его
                 if (data.type === 'initial_load' || data.type === 'order_update') {
-                    updateOrdersList(data.orders);
+                    // Обновляем списки заказов на странице
+                    updateOrdersLists(data.active_orders, data.completed_orders);
                 }
             };
 
+            // Обработчик закрытия соединения
             socket.onclose = function(event) {
-                console.log('❌ WebSocket отключен');
+                console.log('❌ WebSocket соединение закрыто');
+                
+                // Обновляем статус на странице
                 statusElement.textContent = '⏳ Переподключение...';
                 statusElement.className = 'status disconnected';
 
+                // Запускаем переподключение каждые 3 секунды
                 if (!reconnectInterval) {
                     reconnectInterval = setInterval(() => {
                         console.log('Попытка переподключения...');
@@ -833,33 +1023,57 @@
                 }
             };
 
+            // Обработчик ошибок соединения
             socket.onerror = function(error) {
                 console.error('❌ Ошибка WebSocket:', error);
             };
         }
 
+        // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С ЗАКАЗАМИ =====
+
+        /**
+         * Определяет CSS класс для блока с часами в зависимости от количества часов
+         * @param {number} hours - количество оставшихся рабочих часов
+         * @returns {string} CSS класс
+         */
         function getHoursClassName(hours) {
-            if (hours <= 1) return 'order-hours critical';
-            if (hours <= 3) return 'order-hours warning';
-            return 'order-hours';
+            if (hours <= 1) return 'order-hours critical';    // Меньше 1 часа - критично (красный)
+            if (hours <= 3) return 'order-hours warning';     // Меньше 3 часов - предупреждение (оранжевый)
+            return 'order-hours';                              // Нормально (зеленый)
         }
 
-        function updateOrdersList(orders) {
-            console.log('Обновляем список заказов:', orders);
+        /**
+         * Обновляет списки заказов на странице
+         * @param {Array} activeOrders - массив активных заказов
+         * @param {Array} completedOrders - массив выполненных заказов
+         */
+        function updateOrdersLists(activeOrders, completedOrders) {
+            console.log('Обновление списков заказов:', {activeOrders, completedOrders});
             
-            currentOrders = orders;
-            renderOrders();
+            // Сохраняем заказы в глобальные переменные
+            currentActiveOrders = activeOrders;
+            currentCompletedOrders = completedOrders;
+            
+            // Отображаем заказы на странице
+            renderActiveOrders();
+            renderCompletedOrders();
         }
 
-        function renderOrders() {
-            ordersList.innerHTML = '';
+        /**
+         * Отображает активные заказы на странице
+         */
+        function renderActiveOrders() {
+            // Очищаем список перед рендерингом
+            activeOrdersList.innerHTML = '';
 
-            if (currentOrders.length === 0) {
-                ordersList.innerHTML = '<li class="empty-message">Еще нет заказов. Добавьте первый заказ выше.</li>';
+            // Если нет активных заказов - показываем сообщение
+            if (currentActiveOrders.length === 0) {
+                activeOrdersList.innerHTML = '<li class="empty-message">Нет активных заказов</li>';
                 return;
             }
 
-            let sortedOrders = [...currentOrders];
+            // Сортируем заказы в соответствии с выбранным способом
+            let sortedOrders = [...currentActiveOrders];
             
             if (sortBy === 'number') {
                 // Сортировка по номеру заказа
@@ -867,9 +1081,9 @@
                     return (parseInt(a.order_number) - parseInt(b.order_number)) * sortDirection;
                 });
             } else if (sortBy === 'deadline') {
-                // Сортировка по дедлайну
+                // Сортировка по дедлайну (дате готовности)
                 sortedOrders.sort((a, b) => {
-                    // Преобразуем формат "02.12.2025 15:30" в дату
+                    // Преобразуем строку даты в объект Date для сравнения
                     const [dateA, timeA] = a.ready_datetime.split(' ');
                     const [dateB, timeB] = b.ready_datetime.split(' ');
                     const [dayA, monthA, yearA] = dateA.split('.');
@@ -882,20 +1096,26 @@
                 });
             }
 
+            // Для каждого заказа создаём HTML элемент
             sortedOrders.forEach((order) => {
                 const li = document.createElement('li');
-                li.className = 'order-item';
-
+                
+                // Добавляем классы в зависимости от статуса
+                li.className = `order-item status-${order.status}`;
+                
+                // Определяем класс для блока с часами
                 const hours = order.working_hours_remaining;
                 const hoursClass = getHoursClassName(hours);
 
+                // Создаём HTML содержимое элемента заказа
                 li.innerHTML = `
                     <div class="order-header">
                         <div class="order-number">№${order.order_number}</div>
                         <div class="${hoursClass}">⏱️ ${hours}ч</div>
                     </div>
-                    <div class="customer-name"><h2>👤 ${order.customer_name}<h2></div>
+                    <div class="customer-name"><h2>👤 ${order.customer_name}</h2></div>
                     <div class="description">📝 ${order.description}</div>
+                    
                     <div class="order-details">
                         <div class="detail-item">
                             <span class="detail-label">📅 Готовность:</span>
@@ -906,73 +1126,199 @@
                             <span>${order.created_at}</span>
                         </div>
                     </div>
+                    
+                    <div class="order-status">
+                        <span class="detail-label">📊 Статус:</span>
+                        <select class="status-select" data-order-number="${order.order_number}">
+                            <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>Принят</option>
+                            <option value="in_progress" ${order.status === 'in_progress' ? 'selected' : ''}>В работе</option>
+                            <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Готов</option>
+                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Выдан</option>
+                        </select>
+                        <span class="status-display">(${order.status_display})</span>
+                    </div>
+                    
                     <div class="order-actions">
-                        <button class="btn-edit" data-order-number="${order.order_number}" data-customer-name="${order.customer_name}" data-description="${order.description}" data-ready-datetime="${order.ready_datetime}">✏️ Редактировать</button>
+                        <button class="btn-edit" data-order-number="${order.order_number}">✏️ Редактировать</button>
                         <button class="btn-delete" data-order-number="${order.order_number}">🗑️ Удалить</button>
                     </div>
                 `;
 
-                ordersList.appendChild(li);
+                // Добавляем элемент в список
+                activeOrdersList.appendChild(li);
 
-                // Обработчик кнопки редактирования
-                li.querySelector('.btn-edit').addEventListener('click', function() {
-                    openEditModal(order);
+                // Назначаем обработчик изменения статуса
+                li.querySelector('.status-select').addEventListener('change', function() {
+                    const orderNumber = this.getAttribute('data-order-number');
+                    const newStatus = this.value;
+                    changeOrderStatus(orderNumber, newStatus);
                 });
 
-                // Обработчик кнопки удаления
+                // Назначаем обработчик кнопки редактирования
+                li.querySelector('.btn-edit').addEventListener('click', function() {
+                    const orderNumber = this.getAttribute('data-order-number');
+                    const order = currentActiveOrders.find(o => o.order_number === orderNumber);
+                    if (order) {
+                        openEditModal(order);
+                    }
+                });
+
+                // Назначаем обработчик кнопки удаления
                 li.querySelector('.btn-delete').addEventListener('click', function() {
-                    if (confirm(`Вы уверены, что хотите удалить заказ №${order.order_number}?`)) {
-                        deleteOrder(order.order_number);
+                    const orderNumber = this.getAttribute('data-order-number');
+                    if (confirm(`Вы уверены, что хотите удалить заказ №${orderNumber}?`)) {
+                        deleteOrder(orderNumber);
                     }
                 });
             });
         }
 
+        /**
+         * Отображает выполненные заказы на странице
+         */
+        function renderCompletedOrders() {
+            // Очищаем список перед рендерингом
+            completedOrdersList.innerHTML = '';
+
+            // Если нет выполненных заказов - показываем сообщение
+            if (currentCompletedOrders.length === 0) {
+                completedOrdersList.innerHTML = '<li class="empty-message">Нет выполненных заказов</li>';
+                return;
+            }
+
+            // Для каждого выполненного заказа создаём HTML элемент
+            currentCompletedOrders.forEach((order) => {
+                const li = document.createElement('li');
+                li.className = 'completed-order-item';
+                
+                // Создаём HTML содержимое элемента выполненного заказа
+                li.innerHTML = `
+                    <div class="order-header">
+                        <div class="order-number">№${order.order_number} (Выдан)</div>
+                        <div class="order-hours" style="background: #9E9E9E;">✓</div>
+                    </div>
+                    <div class="customer-name">👤 ${order.customer_name}</div>
+                    <div class="description">📝 ${order.description}</div>
+                    
+                    <div class="order-details">
+                        <div class="detail-item">
+                            <span class="detail-label">📅 Был готов:</span>
+                            <span>${order.ready_datetime}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">🕐 Добавлен:</span>
+                            <span>${order.created_at}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Добавляем элемент в список выполненных заказов
+                completedOrdersList.appendChild(li);
+            });
+        }
+
+        /**
+         * Открывает модальное окно для редактирования заказа
+         * @param {Object} order - объект заказа для редактирования
+         */
         function openEditModal(order) {
+            // Сохраняем номер редактируемого заказа
             editingOrderNumber = order.order_number;
+            
+            // Заполняем поля формы данными заказа
             editCustomerNameInput.value = order.customer_name;
             editDescriptionInput.value = order.description;
-            // Преобразуем формат даты обратно для datetime-local
-            const dateStr = order.ready_datetime.replace(' ', 'T').split(' ')[0];
-            const [day, month, year] = order.ready_datetime.split(' ')[0].split('.');
-            const [time] = order.ready_datetime.split(' ')[1].split(':');
-            const [hour, minute] = order.ready_datetime.split(':');
+            
+            // Преобразуем формат даты для поля datetime-local
+            const [dateStr, timeStr] = order.ready_datetime.split(' ');
+            const [day, month, year] = dateStr.split('.');
+            const [hour, minute] = timeStr.split(':');
+            
+            // Устанавливаем значение в формате YYYY-MM-DDTHH:MM
             editReadyDatetimeInput.value = `${year}-${month}-${day}T${hour}:${minute}`;
+            
+            // Показываем модальное окно
             editModal.classList.add('show');
         }
 
+        /**
+         * Закрывает модальное окно редактирования
+         */
         function closeEditModal() {
+            // Скрываем модальное окно
             editModal.classList.remove('show');
+            
+            // Сбрасываем номер редактируемого заказа
             editingOrderNumber = null;
+            
+            // Очищаем поля формы
+            editCustomerNameInput.value = '';
+            editDescriptionInput.value = '';
+            editReadyDatetimeInput.value = '';
         }
 
-        function deleteOrder(orderNumber) {
+        // ===== ФУНКЦИИ ДЛЯ ОТПРАВКИ СООБЩЕНИЙ НА СЕРВЕР =====
+
+        /**
+         * Отправляет запрос на изменение статуса заказа
+         * @param {string} orderNumber - номер заказа
+         * @param {string} newStatus - новый статус
+         */
+        function changeOrderStatus(orderNumber, newStatus) {
+            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером.');
                 return;
             }
 
+            // Отправляем запрос на сервер
+            socket.send(JSON.stringify({
+                action: 'change_status',
+                order_number: parseInt(orderNumber),
+                status: newStatus
+            }));
+        }
+
+        /**
+         * Отправляет запрос на удаление заказа
+         * @param {string} orderNumber - номер заказа для удаления
+         */
+        function deleteOrder(orderNumber) {
+            // Проверяем, что соединение активно
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('❌ Нет соединения с сервером.');
+                return;
+            }
+
+            // Отправляем запрос на сервер
             socket.send(JSON.stringify({
                 action: 'delete_order',
                 order_number: parseInt(orderNumber)
             }));
         }
 
+        // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
+
+        // Обработчик кнопки "Добавить заказ"
         submitBtn.addEventListener('click', function() {
+            // Получаем значения из полей формы
             const customerName = customerNameInput.value.trim();
             const description = descriptionInput.value.trim();
             const readyDatetime = readyDatetimeInput.value;
 
+            // Проверяем, что все поля заполнены
             if (!customerName || !description || !readyDatetime) {
                 alert('⚠️ Пожалуйста, заполните все поля!');
                 return;
             }
 
+            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером. Попробуйте позже.');
                 return;
             }
 
+            // Отправляем запрос на сервер
             socket.send(JSON.stringify({
                 action: 'add_order',
                 customer_name: customerName,
@@ -980,28 +1326,35 @@
                 ready_datetime: readyDatetime
             }));
 
+            // Очищаем форму после отправки
             clearForm();
         });
 
+        // Обработчик кнопки "Очистить"
         clearBtn.addEventListener('click', function() {
             clearForm();
         });
 
+        // Обработчик кнопки "Сохранить" в модальном окне
         saveEditBtn.addEventListener('click', function() {
+            // Получаем значения из полей формы редактирования
             const customerName = editCustomerNameInput.value.trim();
             const description = editDescriptionInput.value.trim();
             const readyDatetime = editReadyDatetimeInput.value;
 
+            // Проверяем, что все поля заполнены
             if (!customerName || !description || !readyDatetime) {
                 alert('⚠️ Пожалуйста, заполните все поля!');
                 return;
             }
 
+            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером.');
                 return;
             }
 
+            // Отправляем запрос на обновление заказа
             socket.send(JSON.stringify({
                 action: 'update_order',
                 order_number: editingOrderNumber,
@@ -1010,11 +1363,14 @@
                 ready_datetime: readyDatetime
             }));
 
+            // Закрываем модальное окно
             closeEditModal();
         });
 
+        // Обработчик кнопки "Отменить" в модальном окне
         cancelEditBtn.addEventListener('click', closeEditModal);
 
+        // Обработчик клика по фону модального окна (для закрытия)
         editModal.addEventListener('click', function(e) {
             if (e.target === editModal) {
                 closeEditModal();
@@ -1026,84 +1382,113 @@
             const btnNumber = document.getElementById('sort-by-number');
             const btnDeadline = document.getElementById('sort-by-deadline');
             
+            // Если уже сортируем по номеру, меняем направление
             if (sortBy === 'number') {
-                // Если уже сортируем по номеру, меняем направление
                 sortDirection *= -1;
             } else {
-                // Переключаемся на сортировку по номеру (устанавливаем -1 для видимого изменения)
+                // Переключаемся на сортировку по номеру
                 sortBy = 'number';
-                sortDirection = -1;
+                sortDirection = 1;
                 btnDeadline.classList.remove('active');
+                btnNumber.classList.add('active');
             }
             
-            btnNumber.classList.add('active');
-            renderOrders();
+            // Перерисовываем активные заказы
+            renderActiveOrders();
         });
 
         document.getElementById('sort-by-deadline').addEventListener('click', function() {
             const btnNumber = document.getElementById('sort-by-number');
             const btnDeadline = document.getElementById('sort-by-deadline');
             
+            // Если уже сортируем по дедлайну, меняем направление
             if (sortBy === 'deadline') {
-                // Если уже сортируем по дедлайну, меняем направление
                 sortDirection *= -1;
             } else {
-                // Переключаемся на сортировку по дедлайну (устанавливаем -1 для видимого изменения)
+                // Переключаемся на сортировку по дедлайну
                 sortBy = 'deadline';
-                sortDirection = -1;
+                sortDirection = 1;
                 btnNumber.classList.remove('active');
+                btnDeadline.classList.add('active');
             }
             
-            btnDeadline.classList.add('active');
-            renderOrders();
+            // Перерисовываем активные заказы
+            renderActiveOrders();
         });
 
+        // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+
+        /**
+         * Очищает форму добавления заказа
+         */
         function clearForm() {
             customerNameInput.value = '';
             descriptionInput.value = '';
             readyDatetimeInput.value = '';
-            setDefaultDateTime();
-            customerNameInput.focus();
+            setDefaultDateTime();  // Устанавливаем дату по умолчанию
+            customerNameInput.focus();  // Ставим фокус на первое поле
         }
 
+        /**
+         * Определяет следующий рабочий день (пн-пт)
+         * @returns {Date} дата следующего рабочего дня в 15:00
+         */
         function getNextBusinessDay() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             
+            // Пропускаем выходные (суббота=6, воскресенье=0)
             while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6) {
                 tomorrow.setDate(tomorrow.getDate() + 1);
             }
             
+            // Устанавливаем время на 15:00
             tomorrow.setHours(15, 0, 0, 0);
             
             return tomorrow;
         }
 
+        /**
+         * Устанавливает дату по умолчанию в поле "Дата готовности"
+         */
         function setDefaultDateTime() {
             const nextBusinessDay = getNextBusinessDay();
             
+            // Форматируем дату для поля datetime-local
             const year = nextBusinessDay.getFullYear();
             const month = String(nextBusinessDay.getMonth() + 1).padStart(2, '0');
             const day = String(nextBusinessDay.getDate()).padStart(2, '0');
             const hours = String(nextBusinessDay.getHours()).padStart(2, '0');
             const minutes = String(nextBusinessDay.getMinutes()).padStart(2, '0');
             
+            // Устанавливаем значение в поле
             readyDatetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
         }
 
+        /**
+         * Запускает автоматическое обновление списка заказов
+         * (для пересчета рабочих часов)
+         */
         function startAutoRefresh() {
-            // Автоматически обновляем список заказов каждые 30 секунд для пересчета рабочих часов
+            // Обновляем список каждые 60 секунд
             setInterval(() => {
                 if (socket.readyState === WebSocket.OPEN) {
                     socket.send(JSON.stringify({
                         action: 'refresh_orders'
                     }));
                 }
-            }, 60000); // 60 секунд
+            }, 60000); // 60 секунд = 60000 миллисекунд
         }
 
+        // ===== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ =====
+
+        // Запускаем подключение к WebSocket
         connect();
+        
+        // Устанавливаем дату по умолчанию в форме
         setDefaultDateTime();
+        
+        // Запускаем автоматическое обновление
         startAutoRefresh();
     </script>
 </body>
