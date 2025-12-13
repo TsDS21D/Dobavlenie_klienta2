@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <!-- 
 index.html
-Главный HTML шаблон приложения.
-Определяет структуру и внешний вид веб-страницы.
+Главный HTML шаблон приложения системы управления заказами типографии.
+Включает базу клиентов, WebSocket обновления и адаптивный дизайн.
 -->
 
-<html lang="ru"> <!-- Язык страницы - русский -->
+<html lang="ru">
 <head>
-    <!-- Мета-теги для правильного отображения в браузере -->
-    <meta charset="UTF-8"> <!-- Кодировка UTF-8 для поддержки русских символов -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Адаптивность для мобильных -->
-    
-    <title>Система управления заказами типографии</title> <!-- Заголовок вкладки браузера -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления заказами типографии</title>
     
     <style>
         /* 
@@ -32,6 +30,34 @@ index.html
             background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
             min-height: 100vh;
             padding: 2rem;
+        }
+
+        /* Панель пользователя (фиксированная вверху справа) */
+        .user-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            font-size: 0.9rem;
+        }
+
+        .user-info strong {
+            color: #0B8661;
+        }
+
+        .user-info div {
+            font-size: 0.8rem;
+            color: #666;
         }
 
         /* Основной контейнер страницы */
@@ -106,7 +132,7 @@ index.html
         }
 
         /* Стили для полей ввода и текстовых областей */
-        input, textarea {
+        input, textarea, select {
             padding: 0.8rem;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
@@ -116,7 +142,7 @@ index.html
         }
 
         /* Стили при фокусе на поле ввода */
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
@@ -195,7 +221,7 @@ index.html
             background: #f9f9f9;
             padding: 1.5rem;
             margin-bottom: 1rem;
-            border-left: 4px solid; /* Цвет будет задаваться в зависимости от статуса */
+            border-left: 4px solid;
             border-radius: 8px;
             transition: all 0.3s ease;
         }
@@ -221,18 +247,6 @@ index.html
         
         .order-item.status-completed {
             border-left-color: #9E9E9E; /* Серый для "Выдан" */
-        }
-
-        /* Анимация появления нового заказа */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
         }
 
         /* Шапка заказа (номер и часы) */
@@ -270,11 +284,40 @@ index.html
             background: #f44336;
         }
 
-        /* Имя клиента */
-        .customer-name {
-            color: #333;
+        /* Информация о клиенте */
+        .client-info {
+            background: #f0f7ff;
+            padding: 0.8rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            border-left: 3px solid #2196F3;
+        }
+
+        .client-info-item {
+            display: flex;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+
+        .client-info-label {
             font-weight: 600;
-            margin-bottom: 0.5rem;
+            min-width: 80px;
+            color: #555;
+        }
+
+        .client-info-value {
+            color: #333;
+        }
+
+        .client-edo-badge {
+            display: inline-block;
+            background: #FF9800;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
         }
 
         /* Описание заказа */
@@ -386,7 +429,7 @@ index.html
             font-style: italic;
         }
 
-        /* Модальное окно для редактирования */
+        /* Модальное окно */
         .modal {
             display: none;
             position: fixed;
@@ -499,6 +542,37 @@ index.html
             box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
         }
 
+        /* Стили для выпадающего списка клиентов */
+        #client-select option[data-uses-edo="true"] {
+            font-weight: bold;
+            color: #0B8661;
+        }
+
+        #client-select option[data-uses-edo="true"]::after {
+            content: " [ЭДО]";
+            color: #FF9800;
+            font-weight: normal;
+        }
+
+        /* Стили для кнопки добавления клиента */
+        #add-client-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        #add-client-btn:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+        }
+
         /* Секция для выполненных заказов */
         .completed-orders-section {
             margin-top: 3rem;
@@ -525,7 +599,6 @@ index.html
 
         /* Мобильный дизайн (ширина экрана до 768px) */
         @media (max-width: 768px) {
-            /* Адаптивные стили для мобильных устройств */
             body {
                 padding: 1rem;
             }
@@ -560,7 +633,7 @@ index.html
                 margin-bottom: 0.3rem;
             }
 
-            input, textarea {
+            input, textarea, select {
                 padding: 0.6rem;
                 font-size: 1rem;
             }
@@ -615,8 +688,13 @@ index.html
                 padding: 0.2rem 0.6rem;
             }
 
-            .customer-name {
-                font-size: 0.95rem;
+            .client-info-item {
+                flex-direction: column;
+            }
+
+            .client-info-label {
+                min-width: auto;
+                margin-bottom: 0.2rem;
             }
 
             .description {
@@ -664,6 +742,14 @@ index.html
                 padding: 0.8rem;
                 font-size: 0.95rem;
             }
+
+            .user-panel {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 1rem;
+                justify-content: space-between;
+            }
         }
 
         /* Маленькие мобильные устройства (ширина до 480px) */
@@ -705,7 +791,7 @@ index.html
                 font-size: 0.85rem;
             }
 
-            input, textarea {
+            input, textarea, select {
                 padding: 0.5rem;
                 font-size: 16px;
             }
@@ -758,9 +844,12 @@ index.html
                 padding: 0.2rem 0.5rem;
             }
 
-            .customer-name {
-                font-size: 0.9rem;
-                margin-bottom: 0.3rem;
+            .client-info {
+                padding: 0.6rem;
+            }
+
+            .client-info-item {
+                font-size: 0.8rem;
             }
 
             .description {
@@ -815,45 +904,19 @@ index.html
     </style>
 </head>
 <body>
-
-<!-- Панель пользователя -->
-<div class="user-panel" style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; padding: 10px 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px;">
-    <div class="user-info" style="font-size: 0.9rem;">
-        <strong style="color: #0B8661;">{{ user.username }}</strong>
-        <div style="font-size: 0.8rem; color: #666;">{{ user.email|default:"Типография Буква А" }}</div>
+    <!-- Панель пользователя -->
+    <div class="user-panel">
+        <div class="user-info">
+            <strong>{{ user.username }}</strong>
+            <div>{{ user.email|default:"Типография Буква А" }}</div>
+        </div>
+        <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" style="background: #f44336; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 600; transition: background 0.3s;">
+                Выйти
+            </button>
+        </form>
     </div>
-    <form action="{% url 'logout' %}" method="post" style="margin: 0;">
-        {% csrf_token %}
-        <button type="submit" style="background: #f44336; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 600; transition: background 0.3s;">
-            Выйти
-        </button>
-    </form>
-</div>
-
-<script>
-    // Добавляем обработку панели пользователя в JavaScript
-    document.addEventListener('DOMContentLoaded', function() {
-        const userPanel = document.querySelector('.user-panel');
-        
-        // Скрываем панель пользователя, если пользователь не аутентифицирован
-        // (на всякий случай, хотя доступ к странице уже защищен)
-        if (!userPanel.querySelector('.user-info strong').textContent.trim()) {
-            userPanel.style.display = 'none';
-        }
-        
-        // Добавляем обработчик для кнопки выхода
-        const logoutForm = userPanel.querySelector('form');
-        if (logoutForm) {
-            logoutForm.addEventListener('submit', function(e) {
-                if (!confirm('Вы уверены, что хотите выйти?')) {
-                    e.preventDefault();
-                }
-            });
-        }
-    });
-</script>
-
-
 
     <!-- Основной контейнер страницы -->
     <div class="container">
@@ -873,35 +936,38 @@ index.html
         <div class="form-section">
             <h2>Добавить новый заказ</h2>
             
-            <!-- Поле для имени клиента -->
+            <!-- Поле для выбора клиента -->
             <div class="form-group">
-                <label for="customer-name">Клиент:</label>
-                <input 
-                    type="text" 
-                    id="customer-name" 
-                    placeholder="Название и контактные данные" 
-                    required
-                >
+                <label for="client-select">Клиент:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="client-select" class="form-control" style="flex: 1;">
+                        <option value="">-- Загрузка клиентов... --</option>
+                    </select>
+                    <button type="button" id="add-client-btn" class="btn-edit" style="width: auto; padding: 0.8rem 1.5rem;">
+                        + Добавить клиента
+                    </button>
+                </div>
+                <div class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">
+                    Выберите клиента из базы или добавьте нового
+                </div>
+            </div>
+
+            <!-- Поле для ручного ввода клиента (скрыто по умолчанию) -->
+            <div class="form-group" id="manual-client-group" style="display: none;">
+                <label for="customer-name">Или введите имя клиента вручную:</label>
+                <input type="text" id="customer-name" class="form-control" placeholder="Название и контактные данные">
             </div>
 
             <!-- Поле для описания заказа -->
             <div class="form-group">
                 <label for="description">Описание заказа:</label>
-                <textarea 
-                    id="description" 
-                    placeholder="Опишите что нужно сделать в этом заказе..." 
-                    required
-                ></textarea>
+                <textarea id="description" placeholder="Опишите что нужно сделать в этом заказе..." required></textarea>
             </div>
 
             <!-- Поле для выбора даты готовности -->
             <div class="form-group">
                 <label for="ready-datetime">Дата и время готовности:</label>
-                <input 
-                    type="datetime-local" 
-                    id="ready-datetime" 
-                    required
-                >
+                <input type="datetime-local" id="ready-datetime" required>
             </div>
 
             <!-- Группа кнопок формы -->
@@ -921,7 +987,7 @@ index.html
                 <button class="btn-sort active" id="sort-by-deadline">⏰ По дедлайну</button>
             </div>
             
-            <!-- Список активных заказов (будет заполняться JavaScript) -->
+            <!-- Список активных заказов -->
             <ul class="orders-list" id="active-orders-list">
                 <li class="empty-message">Нет активных заказов</li>
             </ul>
@@ -931,14 +997,14 @@ index.html
         <div class="orders-section completed-orders-section">
             <h2>Выполненные заказы</h2>
             
-            <!-- Список выполненных заказов (будет заполняться JavaScript) -->
+            <!-- Список выполненных заказов -->
             <ul class="orders-list" id="completed-orders-list">
                 <li class="empty-message">Нет выполненных заказов</li>
             </ul>
         </div>
     </div>
 
-    <!-- Модальное окно для редактирования заказа (скрыто по умолчанию) -->
+    <!-- Модальное окно для редактирования заказа -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h2>Редактировать заказ</h2>
@@ -966,12 +1032,52 @@ index.html
         </div>
     </div>
 
+    <!-- Модальное окно для добавления клиента -->
+    <div id="addClientModal" class="modal">
+        <div class="modal-content">
+            <h2>📋 Добавить нового клиента</h2>
+            
+            <div class="form-group">
+                <label for="new-client-name">Название клиента*:</label>
+                <input type="text" id="new-client-name" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-phone">Телефон:</label>
+                <input type="tel" id="new-client-phone" class="form-control" placeholder="+7 (999) 123-45-67">
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-email">Email:</label>
+                <input type="email" id="new-client-email" class="form-control" placeholder="email@example.com">
+            </div>
+            
+            <div class="form-group" style="display: flex; align-items: center; margin: 1rem 0;">
+                <input type="checkbox" id="new-client-edo" style="margin-right: 10px;">
+                <label for="new-client-edo" style="margin: 0;">Работает через ЭДО</label>
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-notes">Дополнительная информация:</label>
+                <textarea id="new-client-notes" class="form-control" rows="3" placeholder="Дополнительные сведения о клиенте"></textarea>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-modal-save" id="save-client-btn">💾 Сохранить клиента</button>
+                <button class="btn-modal-cancel" id="cancel-client-btn">❌ Отменить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript код для работы страницы -->
     <script>
         // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
         
         // DOM элементы - ссылки на HTML элементы страницы
+        const clientSelect = document.getElementById('client-select');
+        const addClientBtn = document.getElementById('add-client-btn');
         const customerNameInput = document.getElementById('customer-name');
+        const manualClientGroup = document.getElementById('manual-client-group');
         const descriptionInput = document.getElementById('description');
         const readyDatetimeInput = document.getElementById('ready-datetime');
         const submitBtn = document.getElementById('submit-btn');
@@ -984,27 +1090,31 @@ index.html
         // Элемент статуса подключения
         const statusElement = document.getElementById('status');
         
-        // Элементы модального окна редактирования
+        // Элементы модальных окон
         const editModal = document.getElementById('editModal');
         const editCustomerNameInput = document.getElementById('edit-customer-name');
         const editDescriptionInput = document.getElementById('edit-description');
         const editReadyDatetimeInput = document.getElementById('edit-ready-datetime');
         const saveEditBtn = document.getElementById('save-edit-btn');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
+        const addClientModal = document.getElementById('addClientModal');
+        const saveClientBtn = document.getElementById('save-client-btn');
+        const cancelClientBtn = document.getElementById('cancel-client-btn');
 
         // Определяем URL для WebSocket соединения
-        // Если страница загружена по HTTPS, используем WSS, иначе WS
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/order`;
 
         // Переменные для управления состоянием приложения
-        let socket;                    // Объект WebSocket соединения
-        let reconnectInterval;         // Таймер для переподключения
-        let editingOrderNumber = null; // Номер заказа, который редактируется
-        let currentActiveOrders = [];  // Массив активных заказов
-        let currentCompletedOrders = []; // Массив выполненных заказов
-        let sortBy = 'deadline';       // Текущий способ сортировки
-        let sortDirection = 1;         // Направление сортировки (1 - по возрастанию, -1 - по убыванию)
+        let socket;
+        let reconnectInterval;
+        let editingOrderNumber = null;
+        let currentActiveOrders = [];
+        let currentCompletedOrders = [];
+        let currentClients = [];
+        let sortBy = 'deadline';
+        let sortDirection = 1;
 
         // ===== WEB SOCKET ФУНКЦИИ =====
 
@@ -1014,47 +1124,47 @@ index.html
         function connect() {
             console.log('Попытка подключения к WebSocket:', wsUrl);
             
-            // Создаем новое WebSocket соединение
             socket = new WebSocket(wsUrl);
 
-            // Обработчик успешного подключения
             socket.onopen = function(e) {
                 console.log('✅ WebSocket подключен успешно');
                 
-                // Обновляем статус на странице
                 statusElement.textContent = '✅ Подключено';
                 statusElement.className = 'status connected';
                 
-                // Останавливаем попытки переподключения, если они были
                 if (reconnectInterval) {
                     clearInterval(reconnectInterval);
                     reconnectInterval = null;
                 }
             };
 
-            // Обработчик входящих сообщений от сервера
             socket.onmessage = function(event) {
                 console.log('Получено сообщение от сервера:', event.data);
                 
-                // Парсим JSON данные
                 const data = JSON.parse(event.data);
                 
-                // В зависимости от типа сообщения обрабатываем его
+                // Обновление заказов
                 if (data.type === 'initial_load' || data.type === 'order_update') {
-                    // Обновляем списки заказов на странице
                     updateOrdersLists(data.active_orders, data.completed_orders);
+                    
+                    // Если в сообщении есть клиенты, обновляем их список
+                    if (data.clients) {
+                        updateClientsList(data.clients);
+                    }
+                }
+                
+                // Обновление списка клиентов
+                if (data.type === 'clients_update') {
+                    updateClientsList(data.clients);
                 }
             };
 
-            // Обработчик закрытия соединения
             socket.onclose = function(event) {
                 console.log('❌ WebSocket соединение закрыто');
                 
-                // Обновляем статус на странице
                 statusElement.textContent = '⏳ Переподключение...';
                 statusElement.className = 'status disconnected';
 
-                // Запускаем переподключение каждые 3 секунды
                 if (!reconnectInterval) {
                     reconnectInterval = setInterval(() => {
                         console.log('Попытка переподключения...');
@@ -1063,10 +1173,158 @@ index.html
                 }
             };
 
-            // Обработчик ошибок соединения
             socket.onerror = function(error) {
                 console.error('❌ Ошибка WebSocket:', error);
             };
+        }
+
+        // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С КЛИЕНТАМИ =====
+
+        /**
+         * Обновляет выпадающий список клиентов
+         * @param {Array} clients - массив клиентов
+         */
+        function updateClientsList(clients) {
+            console.log('Обновление списка клиентов:', clients);
+            
+            currentClients = clients;
+            
+            // Сохраняем текущее выбранное значение
+            const selectedValue = clientSelect.value;
+            
+            // Очищаем список
+            clientSelect.innerHTML = '<option value="">-- Выберите клиента --</option>';
+            
+            // Добавляем клиентов в список
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = `${client.name}${client.uses_edo ? ' [ЭДО]' : ''}`;
+                
+                // Добавляем дополнительную информацию в data-атрибуты
+                option.dataset.phone = client.phone;
+                option.dataset.email = client.email;
+                option.dataset.usesEdo = client.uses_edo;
+                
+                clientSelect.appendChild(option);
+            });
+            
+            // Восстанавливаем выбранное значение, если оно было
+            if (selectedValue) {
+                clientSelect.value = selectedValue;
+            }
+            
+            // Добавляем опцию для ручного ввода
+            const manualOption = document.createElement('option');
+            manualOption.value = 'manual';
+            manualOption.textContent = '-- Ввести вручную --';
+            clientSelect.appendChild(manualOption);
+            
+            // Обновляем отображение поля ручного ввода
+            toggleManualClientInput();
+        }
+
+        /**
+         * Показывает/скрывает поле для ручного ввода клиента
+         */
+        function toggleManualClientInput() {
+            if (clientSelect.value === 'manual') {
+                manualClientGroup.style.display = 'block';
+                customerNameInput.focus();
+            } else {
+                manualClientGroup.style.display = 'none';
+                customerNameInput.value = '';
+            }
+        }
+
+        /**
+         * Открывает модальное окно для добавления клиента
+         */
+        function openAddClientModal() {
+            // Очищаем поля формы
+            document.getElementById('new-client-name').value = '';
+            document.getElementById('new-client-phone').value = '';
+            document.getElementById('new-client-email').value = '';
+            document.getElementById('new-client-edo').checked = false;
+            document.getElementById('new-client-notes').value = '';
+            
+            // Показываем модальное окно
+            addClientModal.classList.add('show');
+        }
+
+        /**
+         * Закрывает модальное окно добавления клиента
+         */
+        function closeAddClientModal() {
+            addClientModal.classList.remove('show');
+        }
+
+        /**
+         * Отправляет данные нового клиента на сервер
+         */
+        function saveNewClient() {
+            const name = document.getElementById('new-client-name').value.trim();
+            const phone = document.getElementById('new-client-phone').value.trim();
+            const email = document.getElementById('new-client-email').value.trim();
+            const usesEdo = document.getElementById('new-client-edo').checked;
+            const notes = document.getElementById('new-client-notes').value.trim();
+            
+            // Валидация
+            if (!name) {
+                alert('⚠️ Пожалуйста, введите название клиента!');
+                return;
+            }
+            
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('❌ Нет соединения с сервером.');
+                return;
+            }
+            
+            // Отправляем данные на сервер
+            socket.send(JSON.stringify({
+                action: 'add_client',
+                client_data: {
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    uses_edo: usesEdo,
+                    notes: notes
+                }
+            }));
+            
+            // Закрываем модальное окно
+            closeAddClientModal();
+            
+            // Показываем уведомление
+            alert(`✅ Клиент "${name}" добавлен в базу данных!`);
+        }
+
+        /**
+         * Получает выбранного клиента для формы заказа
+         * @returns {Object} объект с данными клиента или null
+         */
+        function getSelectedClient() {
+            const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+            
+            if (clientSelect.value && clientSelect.value !== 'manual') {
+                return {
+                    id: clientSelect.value,
+                    name: selectedOption.textContent.replace(' [ЭДО]', ''),
+                    phone: selectedOption.dataset.phone,
+                    email: selectedOption.dataset.email,
+                    uses_edo: selectedOption.dataset.usesEdo === 'true'
+                };
+            } else if (clientSelect.value === 'manual' && customerNameInput.value.trim()) {
+                return {
+                    id: null,
+                    name: customerNameInput.value.trim(),
+                    phone: '',
+                    email: '',
+                    uses_edo: false
+                };
+            }
+            
+            return null;
         }
 
         // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С ЗАКАЗАМИ =====
@@ -1077,9 +1335,9 @@ index.html
          * @returns {string} CSS класс
          */
         function getHoursClassName(hours) {
-            if (hours <= 1) return 'order-hours critical';    // Меньше 1 часа - критично (красный)
-            if (hours <= 3) return 'order-hours warning';     // Меньше 3 часов - предупреждение (оранжевый)
-            return 'order-hours';                              // Нормально (зеленый)
+            if (hours <= 1) return 'order-hours critical';
+            if (hours <= 3) return 'order-hours warning';
+            return 'order-hours';
         }
 
         /**
@@ -1090,11 +1348,9 @@ index.html
         function updateOrdersLists(activeOrders, completedOrders) {
             console.log('Обновление списков заказов:', {activeOrders, completedOrders});
             
-            // Сохраняем заказы в глобальные переменные
             currentActiveOrders = activeOrders;
             currentCompletedOrders = completedOrders;
             
-            // Отображаем заказы на странице
             renderActiveOrders();
             renderCompletedOrders();
         }
@@ -1103,27 +1359,21 @@ index.html
          * Отображает активные заказы на странице
          */
         function renderActiveOrders() {
-            // Очищаем список перед рендерингом
             activeOrdersList.innerHTML = '';
 
-            // Если нет активных заказов - показываем сообщение
             if (currentActiveOrders.length === 0) {
                 activeOrdersList.innerHTML = '<li class="empty-message">Нет активных заказов</li>';
                 return;
             }
 
-            // Сортируем заказы в соответствии с выбранным способом
             let sortedOrders = [...currentActiveOrders];
             
             if (sortBy === 'number') {
-                // Сортировка по номеру заказа
                 sortedOrders.sort((a, b) => {
                     return (parseInt(a.order_number) - parseInt(b.order_number)) * sortDirection;
                 });
             } else if (sortBy === 'deadline') {
-                // Сортировка по дедлайну (дате готовности)
                 sortedOrders.sort((a, b) => {
-                    // Преобразуем строку даты в объект Date для сравнения
                     const [dateA, timeA] = a.ready_datetime.split(' ');
                     const [dateB, timeB] = b.ready_datetime.split(' ');
                     const [dayA, monthA, yearA] = dateA.split('.');
@@ -1136,24 +1386,46 @@ index.html
                 });
             }
 
-            // Для каждого заказа создаём HTML элемент
             sortedOrders.forEach((order) => {
                 const li = document.createElement('li');
-                
-                // Добавляем классы в зависимости от статуса
                 li.className = `order-item status-${order.status}`;
                 
-                // Определяем класс для блока с часами
                 const hours = order.working_hours_remaining;
                 const hoursClass = getHoursClassName(hours);
 
-                // Создаём HTML содержимое элемента заказа
                 li.innerHTML = `
                     <div class="order-header">
                         <div class="order-number">№${order.order_number}</div>
                         <div class="${hoursClass}">⏱️ ${hours}ч</div>
                     </div>
-                    <div class="customer-name"><h2>👤 ${order.customer_name}</h2></div>
+                `;
+
+                // Добавляем информацию о клиенте
+                if (order.client) {
+                    li.innerHTML += `
+                        <div class="client-info">
+                            <div class="client-info-item">
+                                <span class="client-info-label">👤 Клиент:</span>
+                                <span class="client-info-value">
+                                    ${order.client.name}
+                                    ${order.client.uses_edo ? '<span class="client-edo-badge">ЭДО</span>' : ''}
+                                </span>
+                            </div>
+                            ${order.client.phone ? `<div class="client-info-item">
+                                <span class="client-info-label">📞 Телефон:</span>
+                                <span class="client-info-value">${order.client.phone}</span>
+                            </div>` : ''}
+                            ${order.client.email ? `<div class="client-info-item">
+                                <span class="client-info-label">✉️ Email:</span>
+                                <span class="client-info-value">${order.client.email}</span>
+                            </div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    li.innerHTML += `<div class="customer-name"><h2>👤 ${order.customer_name}<h2></div>`;
+                }
+
+                li.innerHTML += `
                     <div class="description">📝 ${order.description}</div>
                     
                     <div class="order-details">
@@ -1184,7 +1456,6 @@ index.html
                     </div>
                 `;
 
-                // Добавляем элемент в список
                 activeOrdersList.appendChild(li);
 
                 // Назначаем обработчик изменения статуса
@@ -1217,27 +1488,23 @@ index.html
          * Отображает выполненные заказы на странице
          */
         function renderCompletedOrders() {
-            // Очищаем список перед рендерингом
             completedOrdersList.innerHTML = '';
 
-            // Если нет выполненных заказов - показываем сообщение
             if (currentCompletedOrders.length === 0) {
                 completedOrdersList.innerHTML = '<li class="empty-message">Нет выполненных заказов</li>';
                 return;
             }
 
-            // Для каждого выполненного заказа создаём HTML элемент
             currentCompletedOrders.forEach((order) => {
                 const li = document.createElement('li');
                 li.className = 'completed-order-item';
                 
-                // Создаём HTML содержимое элемента выполненного заказа
                 li.innerHTML = `
                     <div class="order-header">
                         <div class="order-number">№${order.order_number} (Выдан)</div>
                         <div class="order-hours" style="background: #9E9E9E;">✓</div>
                     </div>
-                    <div class="customer-name">👤 ${order.customer_name}</div>
+                    <div class="customer-name">👤 ${order.client_display}</div>
                     <div class="description">📝 ${order.description}</div>
                     
                     <div class="order-details">
@@ -1252,7 +1519,6 @@ index.html
                     </div>
                 `;
 
-                // Добавляем элемент в список выполненных заказов
                 completedOrdersList.appendChild(li);
             });
         }
@@ -1262,22 +1528,17 @@ index.html
          * @param {Object} order - объект заказа для редактирования
          */
         function openEditModal(order) {
-            // Сохраняем номер редактируемого заказа
             editingOrderNumber = order.order_number;
             
-            // Заполняем поля формы данными заказа
-            editCustomerNameInput.value = order.customer_name;
+            editCustomerNameInput.value = order.client_display;
             editDescriptionInput.value = order.description;
             
-            // Преобразуем формат даты для поля datetime-local
             const [dateStr, timeStr] = order.ready_datetime.split(' ');
             const [day, month, year] = dateStr.split('.');
             const [hour, minute] = timeStr.split(':');
             
-            // Устанавливаем значение в формате YYYY-MM-DDTHH:MM
             editReadyDatetimeInput.value = `${year}-${month}-${day}T${hour}:${minute}`;
             
-            // Показываем модальное окно
             editModal.classList.add('show');
         }
 
@@ -1285,13 +1546,8 @@ index.html
          * Закрывает модальное окно редактирования
          */
         function closeEditModal() {
-            // Скрываем модальное окно
             editModal.classList.remove('show');
-            
-            // Сбрасываем номер редактируемого заказа
             editingOrderNumber = null;
-            
-            // Очищаем поля формы
             editCustomerNameInput.value = '';
             editDescriptionInput.value = '';
             editReadyDatetimeInput.value = '';
@@ -1305,13 +1561,11 @@ index.html
          * @param {string} newStatus - новый статус
          */
         function changeOrderStatus(orderNumber, newStatus) {
-            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером.');
                 return;
             }
 
-            // Отправляем запрос на сервер
             socket.send(JSON.stringify({
                 action: 'change_status',
                 order_number: parseInt(orderNumber),
@@ -1324,13 +1578,11 @@ index.html
          * @param {string} orderNumber - номер заказа для удаления
          */
         function deleteOrder(orderNumber) {
-            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером.');
                 return;
             }
 
-            // Отправляем запрос на сервер
             socket.send(JSON.stringify({
                 action: 'delete_order',
                 order_number: parseInt(orderNumber)
@@ -1339,34 +1591,57 @@ index.html
 
         // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
 
+        // Обработчик изменения выбора клиента
+        clientSelect.addEventListener('change', toggleManualClientInput);
+
+        // Обработчик кнопки добавления клиента
+        addClientBtn.addEventListener('click', openAddClientModal);
+
+        // Обработчик кнопки сохранения клиента
+        saveClientBtn.addEventListener('click', saveNewClient);
+
+        // Обработчик кнопки отмены добавления клиента
+        cancelClientBtn.addEventListener('click', closeAddClientModal);
+
         // Обработчик кнопки "Добавить заказ"
         submitBtn.addEventListener('click', function() {
-            // Получаем значения из полей формы
-            const customerName = customerNameInput.value.trim();
+            const client = getSelectedClient();
             const description = descriptionInput.value.trim();
             const readyDatetime = readyDatetimeInput.value;
-
-            // Проверяем, что все поля заполнены
-            if (!customerName || !description || !readyDatetime) {
-                alert('⚠️ Пожалуйста, заполните все поля!');
+            
+            if (!client) {
+                alert('⚠️ Пожалуйста, выберите или введите клиента!');
                 return;
             }
-
-            // Проверяем, что соединение активно
+            
+            if (!description || !readyDatetime) {
+                alert('⚠️ Пожалуйста, заполните описание и дату готовности!');
+                return;
+            }
+            
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером. Попробуйте позже.');
                 return;
             }
-
-            // Отправляем запрос на сервер
-            socket.send(JSON.stringify({
-                action: 'add_order',
-                customer_name: customerName,
-                description: description,
-                ready_datetime: readyDatetime
-            }));
-
-            // Очищаем форму после отправки
+            
+            // Если клиент выбран из базы
+            if (client.id) {
+                socket.send(JSON.stringify({
+                    action: 'add_order',
+                    client_id: parseInt(client.id),
+                    description: description,
+                    ready_datetime: readyDatetime
+                }));
+            } else {
+                // Если клиент введен вручную
+                socket.send(JSON.stringify({
+                    action: 'add_order',
+                    customer_name: client.name,
+                    description: description,
+                    ready_datetime: readyDatetime
+                }));
+            }
+            
             clearForm();
         });
 
@@ -1375,26 +1650,22 @@ index.html
             clearForm();
         });
 
-        // Обработчик кнопки "Сохранить" в модальном окне
+        // Обработчик кнопки "Сохранить" в модальном окне редактирования
         saveEditBtn.addEventListener('click', function() {
-            // Получаем значения из полей формы редактирования
             const customerName = editCustomerNameInput.value.trim();
             const description = editDescriptionInput.value.trim();
             const readyDatetime = editReadyDatetimeInput.value;
 
-            // Проверяем, что все поля заполнены
             if (!customerName || !description || !readyDatetime) {
                 alert('⚠️ Пожалуйста, заполните все поля!');
                 return;
             }
 
-            // Проверяем, что соединение активно
             if (socket.readyState !== WebSocket.OPEN) {
                 alert('❌ Нет соединения с сервером.');
                 return;
             }
 
-            // Отправляем запрос на обновление заказа
             socket.send(JSON.stringify({
                 action: 'update_order',
                 order_number: editingOrderNumber,
@@ -1403,17 +1674,23 @@ index.html
                 ready_datetime: readyDatetime
             }));
 
-            // Закрываем модальное окно
             closeEditModal();
         });
 
-        // Обработчик кнопки "Отменить" в модальном окне
+        // Обработчик кнопки "Отменить" в модальном окне редактирования
         cancelEditBtn.addEventListener('click', closeEditModal);
 
-        // Обработчик клика по фону модального окна (для закрытия)
+        // Обработчик клика по фону модального окна редактирования
         editModal.addEventListener('click', function(e) {
             if (e.target === editModal) {
                 closeEditModal();
+            }
+        });
+
+        // Обработчик клика по фону модального окна добавления клиента
+        addClientModal.addEventListener('click', function(e) {
+            if (e.target === addClientModal) {
+                closeAddClientModal();
             }
         });
 
@@ -1422,18 +1699,15 @@ index.html
             const btnNumber = document.getElementById('sort-by-number');
             const btnDeadline = document.getElementById('sort-by-deadline');
             
-            // Если уже сортируем по номеру, меняем направление
             if (sortBy === 'number') {
                 sortDirection *= -1;
             } else {
-                // Переключаемся на сортировку по номеру
                 sortBy = 'number';
                 sortDirection = 1;
                 btnDeadline.classList.remove('active');
                 btnNumber.classList.add('active');
             }
             
-            // Перерисовываем активные заказы
             renderActiveOrders();
         });
 
@@ -1441,18 +1715,15 @@ index.html
             const btnNumber = document.getElementById('sort-by-number');
             const btnDeadline = document.getElementById('sort-by-deadline');
             
-            // Если уже сортируем по дедлайну, меняем направление
             if (sortBy === 'deadline') {
                 sortDirection *= -1;
             } else {
-                // Переключаемся на сортировку по дедлайну
                 sortBy = 'deadline';
                 sortDirection = 1;
                 btnNumber.classList.remove('active');
                 btnDeadline.classList.add('active');
             }
             
-            // Перерисовываем активные заказы
             renderActiveOrders();
         });
 
@@ -1462,11 +1733,12 @@ index.html
          * Очищает форму добавления заказа
          */
         function clearForm() {
+            clientSelect.value = '';
             customerNameInput.value = '';
             descriptionInput.value = '';
             readyDatetimeInput.value = '';
-            setDefaultDateTime();  // Устанавливаем дату по умолчанию
-            customerNameInput.focus();  // Ставим фокус на первое поле
+            setDefaultDateTime();
+            toggleManualClientInput();
         }
 
         /**
@@ -1477,12 +1749,10 @@ index.html
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             
-            // Пропускаем выходные (суббота=6, воскресенье=0)
             while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6) {
                 tomorrow.setDate(tomorrow.getDate() + 1);
             }
             
-            // Устанавливаем время на 15:00
             tomorrow.setHours(15, 0, 0, 0);
             
             return tomorrow;
@@ -1494,42 +1764,45 @@ index.html
         function setDefaultDateTime() {
             const nextBusinessDay = getNextBusinessDay();
             
-            // Форматируем дату для поля datetime-local
             const year = nextBusinessDay.getFullYear();
             const month = String(nextBusinessDay.getMonth() + 1).padStart(2, '0');
             const day = String(nextBusinessDay.getDate()).padStart(2, '0');
             const hours = String(nextBusinessDay.getHours()).padStart(2, '0');
             const minutes = String(nextBusinessDay.getMinutes()).padStart(2, '0');
             
-            // Устанавливаем значение в поле
             readyDatetimeInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
         }
 
         /**
          * Запускает автоматическое обновление списка заказов
-         * (для пересчета рабочих часов)
          */
         function startAutoRefresh() {
-            // Обновляем список каждые 60 секунд
             setInterval(() => {
                 if (socket.readyState === WebSocket.OPEN) {
                     socket.send(JSON.stringify({
                         action: 'refresh_orders'
                     }));
                 }
-            }, 60000); // 60 секунд = 60000 миллисекунд
+            }, 60000);
         }
 
         // ===== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ =====
 
-        // Запускаем подключение к WebSocket
         connect();
-        
-        // Устанавливаем дату по умолчанию в форме
         setDefaultDateTime();
-        
-        // Запускаем автоматическое обновление
         startAutoRefresh();
+        
+        // Загружаем клиентов при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (socket.readyState === WebSocket.OPEN) {
+                    // Запрашиваем обновление данных (включая клиентов)
+                    socket.send(JSON.stringify({
+                        action: 'refresh_orders'
+                    }));
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>

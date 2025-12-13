@@ -1,76 +1,64 @@
 """
 forms.py
-Формы Django для ввода данных пользователями.
-Используются для валидации и отображения HTML форм.
+Формы Django для аутентификации пользователей и работы с данными.
 """
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
+from .models import Client, Order
 
 
 class LoginForm(AuthenticationForm):
     """
     Форма для входа пользователя в систему.
-    Наследуется от стандартной формы AuthenticationForm Django.
     """
     
-    # Переопределяем поля для добавления атрибутов и классов CSS
     username = forms.CharField(
-        label='Имя пользователя',  # Текст метки поля
-        widget=forms.TextInput(attrs={  # Виджет для отображения поля
-            'class': 'form-control',  # CSS класс для стилизации
-            'placeholder': 'Введите имя пользователя',  # Текст-подсказка
-            'autofocus': True  # Автоматический фокус на поле при загрузке
+        label='Имя пользователя',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите имя пользователя',
+            'autofocus': True
         }),
-        max_length=150,  # Максимальная длина имени пользователя
-        required=True  # Поле обязательно для заполнения
+        max_length=150,
     )
     
     password = forms.CharField(
         label='Пароль',
-        widget=forms.PasswordInput(attrs={  # Виджет для поля пароля (скрывает ввод)
+        widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': 'Введите пароль'
         }),
-        required=True
+        strip=False,
     )
     
     def __init__(self, *args, **kwargs):
-        """
-        Конструктор формы. Вызывается при создании экземпляра формы.
-        Здесь мы можем настроить дополнительные параметры.
-        """
         super().__init__(*args, **kwargs)
         
-        # Убираем стандартные сообщения об ошибках Django
-        # Мы будем показывать свои сообщения в шаблоне
-        self.error_messages['invalid_login'] = 'Неверное имя пользователя или пароль.'
-        
+        self.error_messages = {
+            'invalid_login': 'Неверное имя пользователя или пароль.',
+            'inactive': 'Аккаунт неактивен.',
+        }
+    
     class Meta:
-        """
-        Метаданные формы.
-        Определяют модель и поля для работы.
-        """
-        model = User  # Модель, с которой работает форма
-        fields = ['username', 'password']  # Поля, которые использует форма
+        model = User
+        fields = ['username', 'password']
 
 
 class RegistrationForm(forms.ModelForm):
     """
     Форма для регистрации новых пользователей.
-    Наследуется от ModelForm для работы с моделью User.
     """
     
-    # Дополнительные поля для подтверждения пароля
     password1 = forms.CharField(
         label='Пароль',
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': 'Введите пароль'
         }),
-        min_length=8,  # Минимальная длина пароля
-        help_text='Минимум 8 символов'  # Подсказка под полем
+        min_length=8,
+        help_text='Минимум 8 символов'
     )
     
     password2 = forms.CharField(
@@ -82,7 +70,6 @@ class RegistrationForm(forms.ModelForm):
         help_text='Введите пароль еще раз для подтверждения'
     )
     
-    # Поле email для пользователя
     email = forms.EmailField(
         label='Email',
         widget=forms.EmailInput(attrs={
@@ -93,12 +80,9 @@ class RegistrationForm(forms.ModelForm):
     )
     
     class Meta:
-        """
-        Метаданные формы регистрации.
-        """
-        model = User  # Работаем с моделью User Django
-        fields = ['username', 'email', 'first_name', 'last_name']  # Поля из модели
-        widgets = {  # Виджеты для полей модели
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name']
+        widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Введите имя пользователя'
@@ -112,65 +96,104 @@ class RegistrationForm(forms.ModelForm):
                 'placeholder': 'Введите фамилию'
             }),
         }
-        labels = {  # Человекочитаемые названия полей
+        labels = {
             'username': 'Имя пользователя',
             'first_name': 'Имя',
             'last_name': 'Фамилия',
         }
     
     def clean_username(self):
-        """
-        Валидация имени пользователя.
-        Проверяет, что имя пользователя не занято.
-        """
         username = self.cleaned_data.get('username')
         
-        # Проверяем, существует ли пользователь с таким именем
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError('Пользователь с таким именем уже существует.')
         
         return username
     
     def clean_email(self):
-        """
-        Валидация email.
-        Проверяет, что email не занят.
-        """
         email = self.cleaned_data.get('email')
         
-        # Проверяем, существует ли пользователь с таким email
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError('Пользователь с таким email уже существует.')
         
         return email
     
     def clean_password2(self):
-        """
-        Валидация подтверждения пароля.
-        Проверяет, что пароли совпадают.
-        """
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
         
-        # Проверяем, что пароли не пустые и совпадают
         if password1 and password2 and password1 != password2:
             raise forms.ValidationError('Пароли не совпадают.')
         
         return password2
     
     def save(self, commit=True):
-        """
-        Сохранение пользователя.
-        Создает пользователя с хешированным паролем.
-        """
-        # Создаем пользователя, но пока не сохраняем в БД
         user = super().save(commit=False)
-        
-        # Устанавливаем хешированный пароль
         user.set_password(self.cleaned_data['password1'])
         
-        # Сохраняем пользователя в БД, если commit=True
         if commit:
             user.save()
         
         return user
+
+
+class ClientForm(forms.ModelForm):
+    """
+    Форма для добавления и редактирования клиентов.
+    """
+    
+    class Meta:
+        model = Client
+        fields = ['name', 'phone', 'email', 'uses_edo', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Название компании или ФИО',
+                'required': True
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '+7 (999) 123-45-67'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'email@example.com'
+            }),
+            'uses_edo': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Дополнительная информация о клиенте',
+                'rows': 3
+            }),
+        }
+        labels = {
+            'name': 'Название клиента*',
+            'phone': 'Телефон',
+            'email': 'Email',
+            'uses_edo': 'Работает через ЭДО',
+            'notes': 'Дополнительная информация',
+        }
+        help_texts = {
+            'name': 'Обязательное поле',
+            'phone': 'Формат: +7 (XXX) XXX-XX-XX',
+        }
+    
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        
+        if phone and not any(char.isdigit() for char in phone):
+            raise forms.ValidationError('Телефон должен содержать цифры')
+        
+        return phone
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        
+        if email and Client.objects.filter(email=email).exists():
+            if self.instance and self.instance.email == email:
+                return email
+            raise forms.ValidationError('Клиент с таким email уже существует')
+        
+        return email
