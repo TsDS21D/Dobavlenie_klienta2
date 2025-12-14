@@ -77,16 +77,14 @@ index.html
                         + Добавить клиента
                     </button>
                 </div>
+                <!-- Обновленная подсказка: убрали упоминание ручного ввода -->
                 <div class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">
-                    Выберите клиента из базы или добавьте нового
+                    Выберите клиента из базы данных
                 </div>
             </div>
 
-            <!-- Поле для ручного ввода клиента (скрыто по умолчанию) -->
-            <div class="form-group" id="manual-client-group" style="display: none;">
-                <label for="customer-name">Или введите имя клиента вручную:</label>
-                <input type="text" id="customer-name" class="form-control" placeholder="Название и контактные данные">
-            </div>
+            <!-- ВАЖНО: Убираем блок для ручного ввода клиента -->
+            <!-- Ранее здесь был блок с id="manual-client-group" -->
 
             <!-- Поле для описания заказа -->
             <div class="form-group">
@@ -119,16 +117,14 @@ index.html
     </div>
 
     <!-- Модальное окно для редактирования заказа -->
+    <!-- ВАЖНО: Убираем поле для клиента из модального окна редактирования -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h2>Редактировать заказ</h2>
             
             <!-- Форма редактирования в модальном окне -->
-            <div class="form-group">
-                <label for="edit-customer-name">Клиент:</label>
-                <input type="text" id="edit-customer-name" required>
-            </div>
-
+            <!-- ВАЖНО: Поле для клиента больше не нужно, так как клиент из базы и не изменяется -->
+            
             <div class="form-group">
                 <label for="edit-description">Описание заказа:</label>
                 <textarea id="edit-description" required></textarea>

@@ -63,20 +63,21 @@ class OrderConsumer(AsyncWebsocketConsumer):
         
         # ===== ДОБАВЛЕНИЕ НОВОГО ЗАКАЗА =====
         if action == 'add_order':
-            # Обработка с клиентом из базы
+            # Обработка с клиентом из базы - теперь это единственный способ
             if 'client_id' in data:
                 client_id = data.get('client_id')
                 description = data.get('description')
                 ready_datetime_str = data.get('ready_datetime')
                 
                 await self.add_order_with_client(client_id, description, ready_datetime_str)
-            # Обработка с ручным вводом клиента
             else:
-                customer_name = data.get('customer_name')
-                description = data.get('description')
-                ready_datetime_str = data.get('ready_datetime')
-                
-                await self.add_order_with_customer_name(customer_name, description, ready_datetime_str)
+                # Если клиент не выбран, отправляем ошибку
+                print(f"❌ Ошибка: клиент не выбран при создании заказа")
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Необходимо выбрать клиента из базы данных'
+                }))
+                return  # Прерываем выполнение, так как клиент обязателен
             
             # Отправляем обновления всем
             active_orders, completed_orders = await self.get_orders_by_status()
@@ -134,11 +135,12 @@ class OrderConsumer(AsyncWebsocketConsumer):
         # ===== ОБНОВЛЕНИЕ ЗАКАЗА =====
         elif action == 'update_order':
             order_number = data.get('order_number')
-            customer_name = data.get('customer_name')
             description = data.get('description')
             ready_datetime_str = data.get('ready_datetime')
             
-            await self.update_order(order_number, customer_name, description, ready_datetime_str)
+            # Теперь мы не передаем customer_name, так как клиент всегда из базы
+            # и не может быть изменен через редактирование заказа
+            await self.update_order(order_number, description, ready_datetime_str)
             
             active_orders, completed_orders = await self.get_orders_by_status()
             
@@ -205,18 +207,25 @@ class OrderConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def add_order_with_client(self, client_id, description, ready_datetime_str):
-        """Добавляет заказ с клиентом из базы данных."""
+        """
+        Добавляет заказ с клиентом из базы данных.
+        Это теперь единственный способ добавления заказов.
+        """
         try:
+            # Получаем клиента по ID
             client = Client.objects.get(id=client_id)
             
+            # Преобразуем строку даты в объект datetime с учетом часового пояса
             ready_dt_naive = timezone.datetime.fromisoformat(ready_datetime_str)
             if ready_dt_naive.tzinfo is None:
                 ready_dt = timezone.make_aware(ready_dt_naive)
             else:
                 ready_dt = ready_dt_naive
             
+            # Создаем заказ с клиентом из базы
+            # Поле customer_name больше не используется
             order = Order.objects.create(
-                client=client,
+                client=client,  # Клиент всегда из базы
                 description=description,
                 ready_datetime=ready_dt
             )
@@ -225,25 +234,10 @@ class OrderConsumer(AsyncWebsocketConsumer):
             
         except Client.DoesNotExist:
             print(f"⚠️ Клиент с ID {client_id} не найден")
+            raise  # Пробрасываем исключение дальше
         except Exception as e:
             print(f"❌ Ошибка при создании заказа: {e}")
-    
-    @database_sync_to_async
-    def add_order_with_customer_name(self, customer_name, description, ready_datetime_str):
-        """Добавляет заказ с ручным вводом имени клиента."""
-        ready_dt_naive = timezone.datetime.fromisoformat(ready_datetime_str)
-        if ready_dt_naive.tzinfo is None:
-            ready_dt = timezone.make_aware(ready_dt_naive)
-        else:
-            ready_dt = ready_dt_naive
-        
-        order = Order.objects.create(
-            customer_name=customer_name,
-            description=description,
-            ready_datetime=ready_dt
-        )
-        
-        print(f"📝 Создан заказ №{order.order_number} для клиента {customer_name} (ручной ввод)")
+            raise  # Пробрасываем исключение дальше
     
     @database_sync_to_async
     def add_client(self, name, phone, email, uses_edo, notes):
@@ -258,14 +252,18 @@ class OrderConsumer(AsyncWebsocketConsumer):
         return client
     
     @database_sync_to_async
-    def update_order(self, order_number, customer_name, description, ready_datetime_str):
-        """Обновляет существующий заказ."""
+    def update_order(self, order_number, description, ready_datetime_str):
+        """
+        Обновляет существующий заказ.
+        Теперь не обновляем customer_name, так как клиент всегда из базы.
+        """
         try:
             order = Order.objects.get(order_number=int(order_number))
             
-            order.customer_name = customer_name
+            # Обновляем только описание и дату готовности
             order.description = description
             
+            # Преобразуем строку даты в объект datetime
             ready_dt_naive = timezone.datetime.fromisoformat(ready_datetime_str)
             if ready_dt_naive.tzinfo is None:
                 ready_dt = timezone.make_aware(ready_dt_naive)
@@ -276,7 +274,9 @@ class OrderConsumer(AsyncWebsocketConsumer):
             order.save()
             
         except Order.DoesNotExist:
-            pass
+            print(f"⚠️ Заказ №{order_number} не найден")
+        except Exception as e:
+            print(f"❌ Ошибка при обновлении заказа: {e}")
     
     @database_sync_to_async
     def change_order_status(self, order_number, new_status):
@@ -291,7 +291,7 @@ class OrderConsumer(AsyncWebsocketConsumer):
                 order.save()
                 
         except Order.DoesNotExist:
-            pass
+            print(f"⚠️ Заказ №{order_number} не найден")
     
     @database_sync_to_async
     def delete_order(self, order_number):
@@ -299,9 +299,10 @@ class OrderConsumer(AsyncWebsocketConsumer):
         try:
             order = Order.objects.get(order_number=int(order_number))
             order.delete()
+            print(f"🗑️ Удален заказ №{order_number}")
             
         except Order.DoesNotExist:
-            pass
+            print(f"⚠️ Заказ №{order_number} не найден")
     
     @database_sync_to_async
     def get_orders_by_status(self):

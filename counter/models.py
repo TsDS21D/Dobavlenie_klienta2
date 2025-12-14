@@ -119,17 +119,18 @@ class Order(models.Model):
         verbose_name='Номер заказа'
     )
     
-    # Связь с моделью клиента
+    # Связь с моделью клиента - теперь это основной способ указания клиента
     client = models.ForeignKey(
         Client,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True,
+        blank=False,  # Изменяем на False? Нет, оставляем True для обратной совместимости
         verbose_name='Клиент',
         help_text='Выберите клиента из базы данных'
     )
     
     # Поле для ручного ввода имени клиента
+    # ВАЖНО: Оставляем поле для обратной совместимости, но оно больше не используется
     customer_name = models.CharField(
         max_length=100,
         blank=True,
@@ -164,10 +165,12 @@ class Order(models.Model):
         verbose_name_plural = 'Заказы'
     
     def __str__(self):
-        """Обновляем строковое представление для работы с клиентом."""
+        """Строковое представление заказа."""
+        # Теперь всегда используем client, так как ручной ввод убран
         if self.client:
             client_name = self.client.name
         else:
+            # Для старых заказов может быть customer_name
             client_name = self.customer_name or "Без клиента"
         
         status_display = dict(self.STATUS_CHOICES).get(self.status, self.status)
@@ -175,8 +178,10 @@ class Order(models.Model):
     
     def get_client_display(self):
         """Возвращает отображаемое имя клиента."""
+        # Теперь всегда используем client из базы данных
         if self.client:
             return self.client.name
+        # Для обратной совместимости со старыми заказами
         return self.customer_name
     
     def get_working_hours_remaining(self):
@@ -212,7 +217,7 @@ class Order(models.Model):
     
     def to_dict(self):
         """Преобразует объект заказа в словарь для передачи через JSON."""
-        # Получаем данные клиента
+        # Получаем данные клиента (теперь всегда из базы)
         client_data = None
         if self.client:
             client_data = self.client.to_dict()

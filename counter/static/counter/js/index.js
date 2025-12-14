@@ -9,8 +9,6 @@ JavaScript для главной страницы системы управле�
 // DOM элементы - получаем ссылки на HTML элементы страницы для дальнейшей работы с ними
 const clientSelect = document.getElementById('client-select'); // Выпадающий список клиентов
 const addClientBtn = document.getElementById('add-client-btn'); // Кнопка добавления клиента
-const customerNameInput = document.getElementById('customer-name'); // Поле для ручного ввода клиента
-const manualClientGroup = document.getElementById('manual-client-group'); // Группа полей ручного ввода
 const descriptionInput = document.getElementById('description'); // Поле описания заказа
 const readyDatetimeInput = document.getElementById('ready-datetime'); // Поле даты готовности
 const submitBtn = document.getElementById('submit-btn'); // Кнопка отправки формы
@@ -25,7 +23,6 @@ const statusElement = document.getElementById('status'); // Блок стату�
 
 // Элементы модальных окон - ссылки на элементы окон редактирования и добавления клиента
 const editModal = document.getElementById('editModal'); // Модальное окно редактирования заказа
-const editCustomerNameInput = document.getElementById('edit-customer-name'); // Поле клиента в модальном окне
 const editDescriptionInput = document.getElementById('edit-description'); // Поле описания в модальном окне
 const editReadyDatetimeInput = document.getElementById('edit-ready-datetime'); // Поле даты в модальном окне
 const saveEditBtn = document.getElementById('save-edit-btn'); // Кнопка сохранения в модальном окне
@@ -108,6 +105,11 @@ function connect() {
         if (data.type === 'clients_update') {
             updateClientsList(data.clients); // Обновляем только список клиентов
         }
+        
+        // Обработка ошибок
+        if (data.type === 'error') {
+            alert(`❌ Ошибка: ${data.message}`); // Показываем сообщение об ошибке
+        }
     };
 
     /**
@@ -180,29 +182,8 @@ function updateClientsList(clients) {
         clientSelect.value = selectedValue;
     }
     
-    // Добавляем опцию для ручного ввода клиента
-    const manualOption = document.createElement('option'); // Создаем option для ручного ввода
-    manualOption.value = 'manual'; // Устанавливаем специальное значение
-    manualOption.textContent = '-- Ввести вручную --'; // Устанавливаем текст
-    clientSelect.appendChild(manualOption); // Добавляем option в select
-    
-    // Обновляем отображение поля ручного ввода (показываем/скрываем)
-    toggleManualClientInput();
-}
-
-/**
- * Показывает или скрывает поле для ручного ввода клиента
- * Вызывается при изменении выбора в выпадающем списке клиентов
- */
-function toggleManualClientInput() {
-    // Если выбрана опция "Ввести вручную"
-    if (clientSelect.value === 'manual') {
-        manualClientGroup.style.display = 'block'; // Показываем поле ручного ввода
-        customerNameInput.focus(); // Устанавливаем фокус на поле ввода
-    } else {
-        manualClientGroup.style.display = 'none'; // Скрываем поле ручного ввода
-        customerNameInput.value = ''; // Очищаем значение поля
-    }
+    // ВАЖНО: Опцию для ручного ввода клиента больше не добавляем
+    // Теперь заказ можно создать только для клиента из базы данных
 }
 
 /**
@@ -281,24 +262,14 @@ function getSelectedClient() {
     // Получаем выбранный option из select
     const selectedOption = clientSelect.options[clientSelect.selectedIndex];
     
-    // Если выбран клиент из базы данных (не "ручной ввод")
-    if (clientSelect.value && clientSelect.value !== 'manual') {
+    // Если клиент выбран (значение не пустое)
+    if (clientSelect.value) {
         return { // Возвращаем объект с данными клиента из базы
             id: clientSelect.value, // ID клиента
             name: selectedOption.textContent.replace(' [ЭДО]', ''), // Имя клиента (убираем пометку ЭДО)
             phone: selectedOption.dataset.phone, // Телефон из data-атрибута
             email: selectedOption.dataset.email, // Email из data-атрибута
             uses_edo: selectedOption.dataset.usesEdo === 'true' // Флаг ЭДО из data-атрибута
-        };
-    } 
-    // Если выбран ручной ввод и поле заполнено
-    else if (clientSelect.value === 'manual' && customerNameInput.value.trim()) {
-        return { // Возвращаем объект с данными ручного ввода
-            id: null, // ID нет (клиент не сохранен в базе)
-            name: customerNameInput.value.trim(), // Имя из поля ввода
-            phone: '', // Телефон не указан
-            email: '', // Email не указан
-            uses_edo: false // ЭДО не используется
         };
     }
     
@@ -474,7 +445,7 @@ function renderActiveOrders() {
             </div>
         `;
 
-        // Добавляем информацию о клиенте (если есть в базе)
+        // Добавляем информацию о клиенте (теперь всегда из базы)
         if (order.client) {
             fullView.innerHTML += `
                 <div class="client-info">
@@ -496,8 +467,9 @@ function renderActiveOrders() {
                 </div>
             `;
         } else {
-            // Если клиент не из базы (ручной ввод)
-            fullView.innerHTML += `<div class="customer-name"><h2>👤 ${order.customer_name}</h2></div>`;
+            // ВАЖНО: Теперь этого случая не должно быть, так как все заказы создаются с клиентом из базы
+            // Оставляем на случай существующих заказов с ручным вводом
+            fullView.innerHTML += `<div class="customer-name"><h2>👤 ${order.customer_name || "Клиент не указан"}</h2></div>`;
         }
 
         // Добавляем остальную информацию о заказе
@@ -685,8 +657,8 @@ function renderCompletedOrders() {
 function openEditModal(order) {
     editingOrderNumber = order.order_number; // Сохраняем номер редактируемого заказа
     
-    // Заполняем поля формы данными заказа
-    editCustomerNameInput.value = order.client_display; // Имя клиента
+    // ВАЖНО: Теперь мы не заполняем поле клиента, так как клиент из базы и не изменяется
+    // Заполняем только описание и дату
     editDescriptionInput.value = order.description; // Описание
     
     // Преобразуем дату из формата "дд.мм.гггг чч:мм" в формат "гггг-мм-ддTчч:мм"
@@ -707,7 +679,6 @@ function openEditModal(order) {
 function closeEditModal() {
     editModal.classList.remove('show'); // Скрываем модальное окно
     editingOrderNumber = null; // Сбрасываем номер редактируемого заказа
-    editCustomerNameInput.value = ''; // Очищаем поле клиента
     editDescriptionInput.value = ''; // Очищаем поле описания
     editReadyDatetimeInput.value = ''; // Очищаем поле даты
 }
@@ -754,9 +725,6 @@ function deleteOrder(orderNumber) {
 
 // ===== ОБРАБОТЧИКИ СОБЫТИЙ (назначение обработчиков на DOM элементы) =====
 
-// Обработчик изменения выбора клиента в выпадающем списке
-clientSelect.addEventListener('change', toggleManualClientInput);
-
 // Обработчик клика по кнопке добавления клиента
 addClientBtn.addEventListener('click', openAddClientModal);
 
@@ -769,13 +737,13 @@ cancelClientBtn.addEventListener('click', closeAddClientModal);
 // Обработчик клика по кнопке "Добавить заказ" в основной форме
 submitBtn.addEventListener('click', function() {
     // Получаем данные из формы
-    const client = getSelectedClient(); // Выбранный клиент
+    const client = getSelectedClient(); // Выбранный клиент (теперь всегда из базы)
     const description = descriptionInput.value.trim(); // Описание заказа
     const readyDatetime = readyDatetimeInput.value; // Дата готовности
     
     // Валидация формы
     if (!client) {
-        alert('⚠️ Пожалуйста, выберите или введите клиента!'); // Проверяем клиента
+        alert('⚠️ Пожалуйста, выберите клиента из базы данных!'); // Проверяем клиента
         return; // Прерываем если клиент не выбран
     }
     
@@ -790,25 +758,13 @@ submitBtn.addEventListener('click', function() {
         return; // Прерываем если нет соединения
     }
     
-    // Отправляем данные на сервер в зависимости от типа клиента
-    
-    // Если клиент выбран из базы данных (есть ID)
-    if (client.id) {
-        socket.send(JSON.stringify({ // Преобразуем объект в JSON
-            action: 'add_order', // Действие: добавление заказа
-            client_id: parseInt(client.id), // ID клиента (преобразуем в число)
-            description: description, // Описание заказа
-            ready_datetime: readyDatetime // Дата готовности
-        }));
-    } else {
-        // Если клиент введен вручную (нет ID)
-        socket.send(JSON.stringify({ // Преобразуем объект в JSON
-            action: 'add_order', // Действие: добавление заказа
-            customer_name: client.name, // Имя клиента (ручной ввод)
-            description: description, // Описание заказа
-            ready_datetime: readyDatetime // Дата готовности
-        }));
-    }
+    // Отправляем данные на сервер - теперь только через клиента из базы
+    socket.send(JSON.stringify({ // Преобразуем объект в JSON
+        action: 'add_order', // Действие: добавление заказа
+        client_id: parseInt(client.id), // ID клиента (преобразуем в число)
+        description: description, // Описание заказа
+        ready_datetime: readyDatetime // Дата готовности
+    }));
     
     clearForm(); // Очищаем форму после отправки
 });
@@ -821,12 +777,11 @@ clearBtn.addEventListener('click', function() {
 // Обработчик клика по кнопке "Сохранить" в модальном окне редактирования
 saveEditBtn.addEventListener('click', function() {
     // Получаем данные из формы редактирования
-    const customerName = editCustomerNameInput.value.trim(); // Имя клиента
     const description = editDescriptionInput.value.trim(); // Описание
     const readyDatetime = editReadyDatetimeInput.value; // Дата готовности
 
     // Валидация формы редактирования
-    if (!customerName || !description || !readyDatetime) {
+    if (!description || !readyDatetime) {
         alert('⚠️ Пожалуйста, заполните все поля!'); // Проверяем все поля
         return; // Прерываем если не все поля заполнены
     }
@@ -838,10 +793,10 @@ saveEditBtn.addEventListener('click', function() {
     }
 
     // Отправляем запрос на обновление заказа через WebSocket
+    // ВАЖНО: Теперь не отправляем customer_name, так как клиент всегда из базы
     socket.send(JSON.stringify({ // Преобразуем объект в JSON
         action: 'update_order', // Действие: обновление заказа
         order_number: editingOrderNumber, // Номер редактируемого заказа
-        customer_name: customerName, // Новое имя клиента
         description: description, // Новое описание
         ready_datetime: readyDatetime // Новая дата готовности
     }));
@@ -914,11 +869,9 @@ document.getElementById('sort-by-deadline').addEventListener('click', function()
  */
 function clearForm() {
     clientSelect.value = ''; // Сбрасываем выбор клиента
-    customerNameInput.value = ''; // Очищаем поле ручного ввода клиента
     descriptionInput.value = ''; // Очищаем поле описания
     readyDatetimeInput.value = ''; // Очищаем поле даты готовности
     setDefaultDateTime(); // Устанавливаем дату по умолчанию
-    toggleManualClientInput(); // Обновляем отображение поля ручного ввода
 }
 
 /**
