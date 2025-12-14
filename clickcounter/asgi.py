@@ -8,35 +8,33 @@ import os
 import django
 
 # 1. ВЫПОЛНЯЕМ ПЕРВОЙ СТРОКОЙ: настраиваем Django
-# Устанавливаем переменную окружения для настроек Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'clickcounter.settings')
 
-# 2. Инициализируем Django (это загружает все приложения и настройки)
+# 2. Инициализируем Django
 django.setup()
 
-# 3. ТОЛЬКО ПОСЛЕ инициализации Django импортируем остальные модули
+# 3. Импортируем после инициализации Django
 from django.core.asgi import get_asgi_application
+from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from channels.sessions import SessionMiddlewareStack
-from counter.routing import websocket_urlpatterns
+import counter.routing
 
-# Получаем стандартное Django ASGI приложение для обработки HTTP
+# Получаем стандартное Django ASGI приложение
 django_asgi_app = get_asgi_application()
 
-# Основное ASGI приложение, которое распределяет соединения по протоколам
+# Основное ASGI приложение
 application = ProtocolTypeRouter({
     # HTTP запросы обрабатываются стандартным Django приложением
-    "http": django_asgi_app,
+    # Обернутым в ASGIStaticFilesHandler для обслуживания статических файлов
+    "http": ASGIStaticFilesHandler(django_asgi_app),
     
-    # WebSocket соединения проходят через стек middleware:
-    # 1. SessionMiddlewareStack: добавляет поддержку сессий Django
-    # 2. AuthMiddlewareStack: добавляет аутентификацию пользователя
-    # 3. URLRouter: маршрутизирует соединения по URL
+    # WebSocket соединения
     "websocket": SessionMiddlewareStack(
         AuthMiddlewareStack(
             URLRouter(
-                websocket_urlpatterns
+                counter.routing.websocket_urlpatterns
             )
         )
     ),

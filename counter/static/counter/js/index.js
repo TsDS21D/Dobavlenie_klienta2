@@ -38,7 +38,7 @@ const cancelClientBtn = document.getElementById('cancel-client-btn'); // Кно�
 // Определяем URL для WebSocket соединения
 // Используем безопасный протокол wss:// если страница загружена по https://, иначе ws://
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsUrl = `${protocol}//${window.location.host}/ws/order`; // Полный URL WebSocket
+const wsUrl = `${protocol}//${window.location.host}/ws/order/`; // Полный URL WebSocket
 
 // Переменные для управления состоянием приложения
 let socket; // Объект WebSocket соединения

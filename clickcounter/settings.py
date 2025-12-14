@@ -144,6 +144,7 @@ USE_TZ = True
 # ===== СТАТИЧЕСКИЕ ФАЙЛЫ - ОТНОСИТЕЛЬНЫЙ ПУТЬ =====
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Для локальной разработки не используем WhiteNoise
 # STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

@@ -1,6 +1,11 @@
+"""
+counter/routing.py
+WebSocket URL маршруты для Channels.
+"""
+
 from django.urls import re_path
 from . import consumers
 
 websocket_urlpatterns = [
-    re_path(r'ws/order', consumers.OrderConsumer.as_asgi()),
+    re_path(r'^ws/order/?$', consumers.OrderConsumer.as_asgi()),  # ^ - начало строки, ? - необязательный слэш
 ]
