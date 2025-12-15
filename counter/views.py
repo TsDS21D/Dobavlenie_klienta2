@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Order
-from .forms import LoginForm, RegistrationForm
+from .forms import LoginForm
 
 
 def login_view(request):
@@ -41,32 +41,6 @@ def login_view(request):
     
     return render(request, 'counter/login.html', {'form': form, 'title': 'Вход в систему'})
 
-
-def register_view(request):
-    """Представление для регистрации нового пользователя."""
-    
-    if request.user.is_authenticated:
-        return redirect('index')
-    
-    if request.method == 'POST':
-        form = RegistrationForm(request.POST)
-        
-        if form.is_valid():
-            user = form.save()
-            
-            messages.success(
-                request, 
-                f'Аккаунт {user.username} успешно создан! Теперь вы можете войти.'
-            )
-            
-            return redirect('login')
-        else:
-            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
-    
-    else:
-        form = RegistrationForm()
-    
-    return render(request, 'counter/register.html', {'form': form, 'title': 'Регистрация'})
 
 
 def logout_view(request):
