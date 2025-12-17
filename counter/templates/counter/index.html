@@ -114,6 +114,25 @@ index.html
                 <li class="empty-message">Нет выполненных заказов</li>
             </ul>
         </div>
+
+        <!-- Секция с навигацией между приложениями -->
+        <div class="form-section" style="text-align: center; margin-top: 3rem;">
+            <h2>🔗 Навигация по приложениям</h2>
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 1.5rem;">
+                <a href="{% url 'index' %}" style="display: inline-block; padding: 12px 24px; background: #0B8661; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s;">
+                    📋 Управление заказами (текущая страница)
+                </a>
+                <a href="{% url 'calculator:index' %}" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s;">
+                    🧮 Перейти в калькулятор заказов
+                </a>
+            </div>
+            <p style="color: #666; margin-top: 1rem; font-size: 0.9rem;">
+                Используйте кнопки выше для переключения между приложениями
+            </p>
+        </div>
+
+
+
     </div>
 
     <!-- Модальное окно для редактирования заказа -->

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<!-- 
+calculator/templates/calculator/index.html
+Главный HTML шаблон приложения "Калькулятор заказов" типографии.
+Наследует общий дизайн от приложения counter.
+-->
+
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- Атрибут viewport обеспечивает корректное отображение на мобильных устройствах -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор заказов - Типография Буква А</title>
+    
+    <!-- Загружаем статические файлы Django (CSS, JS, изображения) -->
+    {% load static %}
+    
+    <!-- Подключаем внешний CSS файл со стилями главной страницы -->
+    <!-- Используем те же стили, что и в приложении counter для единого дизайна -->
+    <link rel="stylesheet" href="{% static 'counter/css/index.css' %}">
+</head>
+<body>
+    <!-- Панель пользователя (аналогична приложению counter) -->
+    <div class="user-panel">
+        <div class="user-info">
+            <!-- Отображаем имя текущего пользователя -->
+            <strong>{{ user.username }}</strong>
+            <!-- Email пользователя или название типографии по умолчанию -->
+            <div>{{ user.email|default:"Типография Буква А" }}</div>
+        </div>
+        <!-- Форма для выхода из системы -->
+        <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+            {% csrf_token %}  <!-- Токен защиты от CSRF-атак -->
+            <button type="submit" style="background: #f44336; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 600; transition: background 0.3s;">
+                Выйти
+            </button>
+        </form>
+    </div>
+
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        <!-- Заголовок страницы с логотипом типографии -->
+        <h1>
+            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+                alt="Типография &quot;Буква А&quot;" 
+                title="Типография &quot;Буква А&quot;"
+                width="150">
+            Калькулятор заказов
+        </h1>
+        
+        <!-- Навигационное меню для переключения между приложениями -->
+        <div style="text-align: center; margin: 2rem 0;">
+            <h2 style="color: #0B8661; margin-bottom: 1rem;">Навигация по приложениям</h2>
+            <div style="display: flex; justify-content: center; gap: 20px;">
+                <!-- Кнопка для перехода в приложение "Управление заказами" -->
+                <a href="{% url 'index' %}" style="display: inline-block; padding: 12px 24px; background: #0B8661; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s;">
+                    📋 Перейти к управлению заказами
+                </a>
+                <!-- Кнопка для перехода в приложение "Калькулятор" (текущая страница, неактивна) -->
+                <a href="{% url 'calculator:index' %}" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s;">
+                    🧮 Калькулятор заказов (текущая страница)
+                </a>
+            </div>
+        </div>
+        
+        <!-- Основной контент калькулятора -->
+        <div class="form-section" style="text-align: center;">
+            <h2>📈 Калькулятор стоимости заказов</h2>
+            
+            <!-- Информационное сообщение о статусе разработки -->
+            <div style="background: #e8f5e9; padding: 1.5rem; border-radius: 10px; margin: 2rem 0; border-left: 4px solid #4CAF50;">
+                <h3 style="color: #2e7d32; margin-bottom: 1rem;">🚧 Страница в разработке</h3>
+                <p style="color: #555; line-height: 1.6;">
+                    В этом разделе будет реализован калькулятор для расчёта стоимости различных 
+                    типографских услуг. Вы сможете рассчитать стоимость:
+                </p>
+                <ul style="text-align: left; display: inline-block; margin: 1rem 0; color: #555;">
+                    <li>Печати визиток, буклетов, брошюр</li>
+                    <li>Изготовления наружной рекламы</li>
+                    <li>Стоимости дизайнерских услуг</li>
+                    <li>Срочности выполнения заказа</li>
+                </ul>
+                <p style="color: #777; font-style: italic;">
+                    Раздел будет доступен в ближайшее время.
+                </p>
+            </div>
+            
+            <!-- Заглушка для будущего калькулятора -->
+            <div style="margin: 3rem 0;">
+                <h3 style="color: #333; margin-bottom: 1.5rem;">🔧 Пример будущего калькулятора</h3>
+                
+                <!-- Упрощённая форма калькулятора (заглушка) -->
+                <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 2rem; border-radius: 10px;">
+                    <div class="form-group">
+                        <label for="product-type">Тип продукции:</label>
+                        <select id="product-type" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            <option value="">-- Выберите тип продукции --</option>
+                            <option value="visiting-card">Визитки</option>
+                            <option value="booklet">Буклеты</option>
+                            <option value="flyer">Флаеры</option>
+                            <option value="poster">Плакаты</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantity">Тираж (шт.):</label>
+                        <input type="number" id="quantity" min="10" max="10000" value="100" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="paper-type">Тип бумаги:</label>
+                        <select id="paper-type" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            <option value="standard">Стандартная (мелованная)</option>
+                            <option value="premium">Премиум (картон)</option>
+                            <option value="eco">Эко (переработанная)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Блок с результатом расчёта -->
+                    <div style="margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 8px; border: 2px dashed #0B8661;">
+                        <h4 style="color: #0B8661; margin-bottom: 1rem;">💎 Примерная стоимость:</h4>
+                        <div style="font-size: 2rem; font-weight: bold; color: #333;">5 000 ₽</div>
+                        <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
+                            * Итоговая стоимость зависит от дополнительных услуг
+                        </p>
+                    </div>
+                    
+                    <!-- Кнопка расчёта (заглушка) -->
+                    <button style="width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; margin-top: 1.5rem; cursor: not-allowed;" disabled>
+                        🧮 Рассчитать (скоро будет доступно)
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Дополнительная информация -->
+        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid #eee;">
+            <h3 style="color: #333; margin-bottom: 1rem;">ℹ️ Как работает калькулятор</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                <div style="background: #f0f7ff; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #2196F3;">
+                    <h4 style="color: #1976D2; margin-bottom: 0.5rem;">📊 Учёт материалов</h4>
+                    <p style="color: #555;">Расчёт стоимости бумаги, красок, ламинации и других материалов.</p>
+                </div>
+                <div style="background: #f9f0ff; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9C27B0;">
+                    <h4 style="color: #7B1FA2; margin-bottom: 0.5rem;">⚙️ Услуги печати</h4>
+                    <p style="color: #555;">Стоимость печати в зависимости от технологии и сложности.</p>
+                </div>
+                <div style="background: #f0fff4; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #4CAF50;">
+                    <h4 style="color: #388E3C; margin-bottom: 0.5rem;">🚚 Доставка</h4>
+                    <p style="color: #555;">Расчёт стоимости доставки готовой продукции клиенту.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем JavaScript файлы (те же, что и в приложении counter) -->
+    <!-- Используем общие скрипты для единообразия интерфейса -->
+    <script src="{% static 'counter/js/index.js' %}"></script>
+    
+    <!-- Дополнительный скрипт для калькулятора -->
+    <script>
+        // Простой скрипт для демонстрации работы калькулятора
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Калькулятор заказов загружен');
+            
+            // Получаем элементы формы калькулятора
+            const productType = document.getElementById('product-type');
+            const quantity = document.getElementById('quantity');
+            const paperType = document.getElementById('paper-type');
+            
+            // Функция для обновления примерной стоимости
+            function updatePrice() {
+                // Базовая стоимость в зависимости от типа продукции
+                let basePrice = 0;
+                switch(productType.value) {
+                    case 'visiting-card': basePrice = 1000; break;
+                    case 'booklet': basePrice = 3000; break;
+                    case 'flyer': basePrice = 1500; break;
+                    case 'poster': basePrice = 2000; break;
+                    default: basePrice = 0;
+                }
+                
+                // Множитель тиража
+                const qty = parseInt(quantity.value) || 100;
+                const quantityMultiplier = qty / 100; // На каждые 100 штук
+                
+                // Множитель типа бумаги
+                let paperMultiplier = 1;
+                switch(paperType.value) {
+                    case 'premium': paperMultiplier = 1.5; break;
+                    case 'eco': paperMultiplier = 1.2; break;
+                    default: paperMultiplier = 1;
+                }
+                
+                // Рассчитываем итоговую стоимость
+                const totalPrice = basePrice * quantityMultiplier * paperMultiplier;
+                
+                // Форматируем и отображаем цену
+                if (totalPrice > 0) {
+                    document.querySelector('div[style*="Примерная стоимость"] div').textContent = 
+                        Math.round(totalPrice).toLocaleString('ru-RU') + ' ₽';
+                }
+            }
+            
+            // Назначаем обработчики событий на изменение значений
+            if (productType) productType.addEventListener('change', updatePrice);
+            if (quantity) quantity.addEventListener('input', updatePrice);
+            if (paperType) paperType.addEventListener('change', updatePrice);
+            
+            // Инициализируем начальную цену
+            updatePrice();
+        });
+    </script>
+</body>
+</html>

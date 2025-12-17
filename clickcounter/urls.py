@@ -1,19 +1,44 @@
 """
 clickcounter/urls.py
-Основные URL маршруты проекта.
+Главный файл URL-маршрутов проекта.
+Определяет, какие URL ведут к каким приложениям.
 """
 
-from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
+# Импортируем необходимые модули Django
+from django.contrib import admin  # Модуль административной панели
+from django.urls import path, include  # Функции для работы с URL
+from django.conf import settings  # Настройки проекта
+from django.conf.urls.static import static  # Функция для обслуживания статических файлов
+from django.views.generic.base import RedirectView  # Класс для перенаправления
+from counter import views as counter_views  # Импортируем views из counter
 
+# Список URL-шаблонов проекта
 urlpatterns = [
+    # Перенаправление с корневого URL на страницу управления заказами
+    # permanent=True означает постоянное перенаправление (код 301)
+    path('', RedirectView.as_view(url='/counter/', permanent=True)),
+    
+    # Административная панель Django (доступна по адресу /admin/)
     path('admin/', admin.site.urls),
-    path('', include('counter.urls')),
+    
+    # URL-адреса приложения counter (Управление заказами)
+    # Все URL, начинающиеся с /counter/, будут обрабатываться в counter.urls
+    path('counter/', include('counter.urls')),
+    
+    # URL-адреса нового приложения calculator (Калькулятор заказов)
+    # Все URL, начинающиеся с /calculator/, будут обрабатываться в calculator.urls
+    # namespace='calculator' позволяет обращаться к URL по имени с префиксом 'calculator:'
+    path('calculator/', include(('calculator.urls', 'calculator'), namespace='calculator')),
+    
+    # Маршруты для аутентификации пользователей
+    # Вход в систему - используем кастомную view из приложения counter
+    path('login/', counter_views.login_view, name='login'),
+    
+    # Выход из системы - используем кастомную view из приложения counter
+    path('logout/', counter_views.logout_view, name='logout'),
 ]
 
-# Добавляем маршруты для статических файлов в режиме разработки
+# В режиме отладки добавляем обслуживание статических и медиа файлов
 if settings.DEBUG:
+    # static() добавляет маршруты для обслуживания статических файлов
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

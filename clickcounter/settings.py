@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'counter',
+    'calculator',
 ]
 
 
@@ -187,13 +188,13 @@ LOGGING = {
 
 # ===== НАСТРОЙКИ АУТЕНТИФИКАЦИИ =====
 # URL для перенаправления при необходимости входа
-LOGIN_URL = '/login/'
+LOGIN_URL = '/counter/login/'  # Изменяем с '/login/' на '/counter/login/'
 
 # URL для перенаправления после успешного входа
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/'  # Оставляем как есть (будет перенаправлять на /counter/)
 
 # URL для перенаправления после выхода
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/counter/login/'  # Изменяем с '/login/' на '/counter/login/'
 
 # Время жизни сессии в секундах (30 дней)
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
