@@ -4,6 +4,23 @@ index.css
 Содержит стили для отображения заказов, форм, модальных окон и адаптивный дизайн.
 */
 
+
+/* Сброс старых стилей панелей */
+.user-panel, .calculator-panel, .counter-panel,
+.panels-container, .app-panel, .panel-btn,
+.btn-active, .btn-inactive, .btn-logout {
+    all: unset !important;
+}
+
+/* Явное скрытие старых панелей */
+.user-panel:not(.nav-user), 
+.calculator-panel:not(.nav-calculator), 
+.counter-panel:not(.nav-counter) {
+    display: none !important;
+}
+
+
+
 /* ===== БАЗОВЫЕ СТИЛИ ===== */
 
 /* Сброс стандартных отступов и использование border-box модели */
@@ -1236,5 +1253,253 @@ button {
     .btn-modal-save, .btn-modal-cancel {
         padding: 0.7rem;   /* Меньшие внутренние отступы */
         font-size: 0.9rem; /* Меньший размер шрифта */
+    }
+}
+
+/* ===== ПАНЕЛИ ПРИЛОЖЕНИЙ ===== */
+
+/* Контейнер для всех панелей */
+.panels-container {
+    position: fixed;    /* Фиксированное позиционирование */
+    top: 20px;          /* Отступ сверху */
+    right: 20px;        /* Отступ справа */
+    z-index: 1000;      /* Высокий z-index чтобы быть поверх других элементов */
+    display: flex;      /* Используем flexbox */
+    flex-direction: column; /* Вертикальное расположение */
+    gap: 10px;          /* Расстояние между панелями */
+    width: 300px;       /* Фиксированная ширина для всех панелей */
+}
+
+/* Общий стиль для всех панелей */
+.app-panel {
+    background: white;  /* Белый фон */
+    padding: 10px 20px; /* Внутренние отступы: 10px сверху/снизу, 20px слева/справа */
+    border-radius: 10px; /* Закругленные углы */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* Легкая тень */
+    display: flex;      /* Используем flexbox для расположения элементов */
+    align-items: center; /* Вертикальное выравнивание по центру */
+    justify-content: space-between; /* Распределяем пространство между элементами */
+    width: 100%;        /* Занимает всю ширину контейнера */
+    box-sizing: border-box; /* Учитываем padding в общей ширине */
+}
+
+/* Информация в панели */
+.app-info {
+    font-size: 0.9rem;  /* Уменьшенный размер шрифта */
+    flex: 1;            /* Занимает доступное пространство */
+    min-width: 0;       /* Позволяет тексту переноситься */
+}
+
+/* Название приложения в панели */
+.app-info strong {
+    color: #333;        /* Темно-серый цвет */
+    display: block;     /* Блочный элемент для переноса */
+    white-space: nowrap; /* Запрещаем перенос текста */
+    overflow: hidden;   /* Скрываем переполнение */
+    text-overflow: ellipsis; /* Добавляем многоточие */
+}
+
+/* Описание в панели (необязательное) */
+.app-info div {
+    font-size: 0.8rem;  /* Еще меньший размер шрифта */
+    color: #666;        /* Серый цвет */
+    white-space: nowrap; /* Запрещаем перенос текста */
+    overflow: hidden;   /* Скрываем переполнение */
+    text-overflow: ellipsis; /* Добавляем многоточие */
+}
+
+/* Кнопки в панелях */
+.panel-btn {
+    padding: 8px 15px;  /* Внутренние отступы */
+    border: none;       /* Без рамки */
+    border-radius: 5px; /* Закругленные углы */
+    cursor: pointer;    /* Курсор-указатель при наведении */
+    font-weight: 600;   /* Жирное начертание */
+    transition: all 0.3s ease; /* Плавные анимации */
+    white-space: nowrap; /* Запрещаем перенос текста */
+    text-decoration: none; /* Убираем подчеркивание */
+    display: inline-block; /* Отображаем как строчно-блочный элемент */
+    font-size: 0.85rem; /* Немного уменьшаем размер шрифта */
+}
+
+/* Зеленая кнопка (активная приложение) */
+.btn-active {
+    background: #0B8661; /* Зеленый фон */
+    color: white;       /* Белый текст */
+}
+
+/* Серая кнопка (неактивное приложение) */
+.btn-inactive {
+    background: #e0e0e0; /* Светло-серый фон */
+    color: #333;        /* Темно-серый текст */
+}
+
+/* Эффект при наведении на кнопку */
+.panel-btn:hover {
+    transform: translateY(-2px); /* Сдвиг вверх на 2px */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Увеличенная тень */
+}
+
+/* Красная кнопка для выхода */
+.btn-logout {
+    background: #f44336; /* Красный фон */
+    color: white;       /* Белый текст */
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+    .panels-container {
+        position: relative; /* Относительное позиционирование на мобильных */
+        top: auto;
+        right: auto;
+        margin-bottom: 1rem; /* Отступ снизу */
+        width: 100%;         /* Ширина 100% на мобильных */
+    }
+    
+    .app-panel {
+        width: 100%;     /* Ширина 100% */
+    }
+    
+    .app-info strong {
+        white-space: normal; /* Разрешаем перенос текста на мобильных */
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    .panels-container {
+        gap: 8px;        /* Уменьшаем расстояние между панелями */
+    }
+    
+    .app-panel {
+        padding: 8px 15px; /* Уменьшаем отступы */
+    }
+    
+    .panel-btn {
+        padding: 6px 12px; /* Уменьшаем отступы кнопок */
+        font-size: 0.8rem; /* Еще меньше размер шрифта */
+    }
+}
+
+/* ===== НОВЫЕ ПАНЕЛИ ПРИЛОЖЕНИЙ (без конфликтов) ===== */
+
+/* Контейнер для всех панелей */
+.app-nav-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
+}
+
+/* Общий стиль для всех навигационных панелей */
+.nav-panel {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 60px;
+}
+
+/* Информация в навигационной панели */
+.nav-info {
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
+}
+
+/* Название приложения в навигационной панели */
+.nav-info strong {
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+/* Описание в навигационной панели */
+.nav-info div {
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Кнопки в навигационных панелях */
+.nav-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 0.85rem;
+    min-width: 70px;
+    text-align: center;
+}
+
+/* Кнопка выхода */
+.nav-btn-logout {
+    background: #f44336;
+    color: white;
+}
+
+/* Активная кнопка (текущее приложение) */
+.nav-btn-active {
+    background: #0B8661;
+    color: white;
+}
+
+/* Неактивная кнопка */
+.nav-btn-inactive {
+    background: #e0e0e0;
+    color: #333;
+}
+
+/* Эффект при наведении на кнопку */
+.nav-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .app-nav-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-panel {
+        padding: 10px 12px;
+        min-height: 55px;
+    }
+    
+    .nav-info strong {
+        font-size: 0.9rem;
+    }
+    
+    .nav-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        min-width: 60px;
     }
 }

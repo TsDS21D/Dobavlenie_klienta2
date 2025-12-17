@@ -15,7 +15,7 @@ auth.css
 /* Стили для всего тела страницы */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; /* Современный стек шрифтов */
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Градиентный фон */
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png); /* Фоновая текстура */
     min-height: 100vh;  /* Минимальная высота - весь экран */
     display: flex;      /* Используем flexbox для центрирования */
     justify-content: center; /* Центрируем по горизонтали */

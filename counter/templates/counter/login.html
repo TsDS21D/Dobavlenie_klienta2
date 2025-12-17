@@ -21,16 +21,7 @@
         </div>
         
         <h1>Вход в систему</h1>
-        
-        <!-- Информация о доступных приложениях -->
-        <div style="text-align: center; margin: 1rem 0; padding: 1rem; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #2196F3;">
-            <p style="color: #1976D2; font-weight: 600;">Доступные приложения:</p>
-            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 0.5rem;">
-                <span style="background: #0B8661; color: white; padding: 4px 8px; border-radius: 4px;">📋 Управление заказами</span>
-                <span style="background: #667eea; color: white; padding: 4px 8px; border-radius: 4px;">🧮 Калькулятор заказов</span>
-            </div>
-        </div>
-        
+                
         <!-- Отображение системных сообщений -->
         <div class="messages">
             {% if messages %}
@@ -65,10 +56,6 @@
             <button type="submit" class="btn">Войти</button>
         </form>
         
-        <div class="links">
-            <p>Для получения доступа обратитесь к администратору системы</p>
-            <p><a href="/">Вернуться на главную</a> | <a href="{% url 'calculator:index' %}">Перейти в калькулятор</a></p>
-        </div>
     </div>
 </body>
 </html>

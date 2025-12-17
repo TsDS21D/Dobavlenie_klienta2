@@ -1,0 +1,46 @@
+<!-- counter/templates/counter/app_panels.html -->
+{% load static %}
+
+<!-- Контейнер для всех панелей навигации -->
+<div class="app-nav-container">
+    
+    <!-- Панель калькулятора -->
+    <div class="nav-panel nav-calculator">
+        <div class="nav-info">
+            <strong>Калькулятор заказов</strong>
+            <div>Расчет стоимости печати</div>
+        </div>
+        <a href="{% url 'calculator:index' %}" 
+           class="nav-btn {% if active_app == 'calculator' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'calculator' %}Открыто{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
+    <!-- Панель списка заказов -->
+    <div class="nav-panel nav-counter">
+        <div class="nav-info">
+            <strong>Список заказов</strong>
+            <div>Управление и отслеживание</div>
+        </div>
+        <a href="{% url 'index' %}" 
+           class="nav-btn {% if active_app == 'counter' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'counter' %}Открыто{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
+    <!-- Панель пользователя -->
+    <div class="nav-panel nav-user">
+        <div class="nav-info">
+            <strong>{{ user.username }}</strong>
+            <div>{{ user.email|default:"Типография Буква А" }}</div>
+        </div>
+        <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="nav-btn nav-btn-logout">
+                Выйти
+            </button>
+        </form>
+    </div>
+
+
+</div>
