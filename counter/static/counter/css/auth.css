@@ -120,7 +120,7 @@ label {
 .btn {
     width: 100%;        /* Ширина 100% */
     padding: 1rem;      /* Внутренние отступы */
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Градиентный фон */
+    background: #0B8661 !important;
     color: white;       /* Белый текст */
     border: none;       /* Без рамки */
     border-radius: 8px; /* Закругленные углы */
