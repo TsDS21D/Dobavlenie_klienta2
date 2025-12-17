@@ -12,7 +12,7 @@
         </div>
         <a href="{% url 'calculator:index' %}" 
            class="nav-btn {% if active_app == 'calculator' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
-            {% if active_app == 'calculator' %}Открыто{% else %}Открыть{% endif %}
+            {% if active_app == 'calculator' %}На экране{% else %}Открыть{% endif %}
         </a>
     </div>
 
@@ -24,7 +24,7 @@
         </div>
         <a href="{% url 'index' %}" 
            class="nav-btn {% if active_app == 'counter' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
-            {% if active_app == 'counter' %}Открыто{% else %}Открыть{% endif %}
+            {% if active_app == 'counter' %}На экране{% else %}Открыть{% endif %}
         </a>
     </div>
 

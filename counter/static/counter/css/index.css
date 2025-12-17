@@ -1436,44 +1436,56 @@ button {
     text-overflow: ellipsis;
 }
 
-/* Кнопки в навигационных панелях */
+/* ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КНОПОК (и button, и a) */
 .nav-btn {
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 0.85rem;
-    min-width: 70px;
-    text-align: center;
+    padding: 8px 15px !important; /* !important чтобы перебить возможные другие стили */
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    font-size: 0.85rem !important;
+    min-width: 80px !important; /* Фиксированная минимальная ширина */
+    width: 80px !important; /* Фиксированная ширина для всех кнопок */
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important; /* Наследуем шрифт от body */
+    line-height: normal !important; /* Сбрасываем line-height */
+    margin: 0 !important; /* Убираем все отступы */
 }
 
 /* Кнопка выхода */
 .nav-btn-logout {
-    background: #f44336;
-    color: white;
+    background: #f44336 !important;
+    color: white !important;
 }
 
 /* Активная кнопка (текущее приложение) */
 .nav-btn-active {
-    background: #0B8661;
-    color: white;
+    background: #0B8661 !important;
+    color: white !important;
 }
 
 /* Неактивная кнопка */
 .nav-btn-inactive {
-    background: #e0e0e0;
-    color: #333;
+    background: #e0e0e0 !important;
+    color: #333 !important;
 }
 
 /* Эффект при наведении на кнопку */
 .nav-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15) !important;
+}
+
+/* Особые стили для ссылок (a) */
+a.nav-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 /* Адаптивность */
@@ -1498,8 +1510,9 @@ button {
     }
     
     .nav-btn {
-        padding: 6px 12px;
-        font-size: 0.8rem;
-        min-width: 60px;
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+        min-width: 70px !important;
+        width: 70px !important;
     }
 }
