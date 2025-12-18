@@ -28,6 +28,18 @@
         </a>
     </div>
 
+    <!-- Панель справочников -->
+    <div class="nav-panel nav-directories">
+        <div class="nav-info">
+            <strong>Справочники</strong>
+            <div>Управление данными</div>
+        </div>
+        <a href="{% url 'directories:index' %}" 
+           class="nav-btn {% if active_app == 'directories' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'directories' %}На экране{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
     <!-- Панель пользователя -->
     <div class="nav-panel nav-user">
         <div class="nav-info">
@@ -41,6 +53,5 @@
             </button>
         </form>
     </div>
-
 
 </div>

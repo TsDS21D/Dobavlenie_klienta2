@@ -29,7 +29,19 @@ urlpatterns = [
     # Все URL, начинающиеся с /calculator/, будут обрабатываться в calculator.urls
     # namespace='calculator' позволяет обращаться к URL по имени с префиксом 'calculator:'
     path('calculator/', include(('calculator.urls', 'calculator'), namespace='calculator')),
-    
+
+    # НОВЫЙ МАРШРУТ: подключаем URL приложения product_templates
+    # Все URL, начинающиеся с /product_templates/, будут обрабатываться в product_templates.urls
+    # namespace='product_templates' позволяет обращаться к URL по имени с префиксом 'product_templates:'
+    path('product_templates/', include(('product_templates.urls', 'product_templates'), namespace='product_templates')),
+
+    # НОВОЕ ПРИЛОЖЕНИЕ: directories (справочники)
+    # Все URL, начинающиеся с /directories/, передаются на обработку в directories.urls
+    # namespace='directories' создает пространство имен для этого приложения
+    # В шаблонах можно использовать: {% url 'directories:index' %}
+    path('directories/', include(('directories.urls', 'directories'), namespace='directories')),
+
+
     # Маршруты для аутентификации пользователей
     # Вход в систему - используем кастомную view из приложения counter
     path('login/', counter_views.login_view, name='login'),

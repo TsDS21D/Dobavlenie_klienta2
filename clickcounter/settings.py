@@ -33,17 +33,24 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'channels',
-    'counter',
-    'calculator',
+    'daphne',                    # ASGI-сервер для WebSocket
+    'django.contrib.admin',      # Административная панель Django
+    'django.contrib.auth',       # Система аутентификации и авторизации
+    'django.contrib.contenttypes', # Система типов контента
+    'django.contrib.sessions',   # Механизм сессий
+    'django.contrib.messages',   # Система сообщений
+    'django.contrib.staticfiles', # Обработка статических файлов (CSS, JS, изображения)
+    'channels',                  # Поддержка WebSocket и асинхронных запросов
+    'counter',                   # Приложение "Список заказов" (управление заказами)
+    'calculator',                # Приложение "Калькулятор заказов"
+    'product_templates',         # Приложение "Шаблоны изделий" (создали ранее)
+    'directories',               # НОВОЕ ПРИЛОЖЕНИЕ: "Справочники" (базы данных оборудования, материалов и т.д.)
 ]
+# Важно: порядок приложений имеет значение!
+# Приложения, от которых зависят другие, должны быть выше в списке.
+# Наше новое приложение directories может зависеть от counter (аутентификация),
+# поэтому размещаем его после counter.
+
 
 
 MIDDLEWARE = [

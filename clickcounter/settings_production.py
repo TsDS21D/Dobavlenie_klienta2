@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'counter',
+    'calculator',
+    'product_templates',
 ]
 
 

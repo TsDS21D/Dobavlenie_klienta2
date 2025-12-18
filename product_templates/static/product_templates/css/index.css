@@ -1,0 +1,289 @@
+/*
+index.css - главный файл стилей для приложения "Шаблоны изделий".
+Содержит все CSS-правила для оформления страницы.
+*/
+
+/* ===== БАЗОВЫЕ СТИЛИ (сброс и настройки по умолчанию) ===== */
+
+/* Звездочка (*) означает "все элементы на странице" */
+* {
+    /* Убираем все внешние и внутренние отступы по умолчанию */
+    margin: 0;
+    padding: 0;
+    
+    /* Border-box означает, что padding и border включаются в общую ширину элемента */
+    /* Это упрощает расчеты размеров элементов */
+    box-sizing: border-box;
+}
+
+/* Стили для всего тела (body) страницы */
+body {
+    /* Семейство шрифтов: сначала пробуем системные, затем стандартные */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    
+    /* Фоновая текстура (внешняя ссылка) */
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
+    
+    /* Минимальная высота - весь видимый экран (viewport height) */
+    min-height: 100vh;
+    
+    /* Отступы от краев экрана */
+    padding: 2rem;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+
+/* Класс .container центрирует контент и задает максимальную ширину */
+.container {
+    /* Максимальная ширина контента (на широких экранах не растягивается бесконечно) */
+    max-width: 1200px;
+    
+    /* Автоматические отступы слева и справа центрируют блок */
+    margin: 0 auto;
+    
+    /* Белый фон для контента */
+    background: white;
+    
+    /* Закругленные углы (20 пикселей) */
+    border-radius: 20px;
+    
+    /* Внутренние отступы внутри контейнера */
+    padding: 3rem;
+    
+    /* Тень для эффекта "поднятости" над фоном */
+    /* Значения: смещение по X, смещение по Y, размытие, цвет */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ЗАГОЛОВКИ ===== */
+
+/* Заголовок первого уровня (h1) */
+h1 {
+    /* Темно-серый цвет текста */
+    color: #333;
+    
+    /* Отступ снизу (2 раза от размера шрифта) */
+    margin-bottom: 2rem;
+    
+    /* Центрируем текст по горизонтали */
+    text-align: center;
+    
+    /* Размер шрифта (2 раза больше базового) */
+    font-size: 2rem;
+}
+
+/* Заголовок второго уровня (h2) внутри секций */
+h2 {
+    /* Темно-серый цвет текста */
+    color: #333;
+    
+    /* Отступ снизу (1.5 раза от размера шрифта) */
+    margin-bottom: 1.5rem;
+    
+    /* Размер шрифта (1.5 раза больше базового) */
+    font-size: 1.5rem;
+}
+
+/* ===== СЕКЦИИ ФОРМ ===== */
+
+/* Класс .form-section для стилизации секций с контентом */
+.form-section {
+    /* Светло-серый фон для визуального выделения секции */
+    background: #f5f5f5;
+    
+    /* Внутренние отступы (2 раза от размера шрифта со всех сторон) */
+    padding: 2rem;
+    
+    /* Закругленные углы (немного меньше, чем у основного контейнера) */
+    border-radius: 15px;
+    
+    /* Отступ снизу между секциями */
+    margin-bottom: 2rem;
+}
+
+/* ===== АДАПТИВНЫЕ СТИЛИ (для мобильных устройств) ===== */
+
+/* Медиа-запрос для экранов меньше 768px (планшеты и смартфоны) */
+@media (max-width: 768px) {
+    /* Уменьшаем отступы body на мобильных */
+    body {
+        padding: 1rem;
+    }
+    
+    /* Уменьшаем отступы и скругление основного контейнера */
+    .container {
+        padding: 1.5rem;
+        border-radius: 15px;
+    }
+    
+    /* Уменьшаем размер заголовков на мобильных */
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+    }
+    
+    h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Уменьшаем отступы в секциях */
+    .form-section {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+}
+
+/* Медиа-запрос для экранов меньше 480px (смартфоны) */
+@media (max-width: 480px) {
+    /* Еще больше уменьшаем отступы */
+    body {
+        padding: 0.5rem;
+    }
+    
+    .container {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.8rem;
+    }
+}
+
+/* ===== НОВЫЕ ПАНЕЛИ ПРИЛОЖЕНИЙ (без конфликтов) ===== */
+
+/* Контейнер для всех панелей */
+.app-nav-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
+}
+
+/* Общий стиль для всех навигационных панелей */
+.nav-panel {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 60px;
+}
+
+/* Информация в навигационной панели */
+.nav-info {
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
+}
+
+/* Название приложения в навигационной панели */
+.nav-info strong {
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+/* Описание в навигационной панели */
+.nav-info div {
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КНОПОК (и button, и a) */
+.nav-btn {
+    padding: 8px 15px !important; /* !important чтобы перебить возможные другие стили */
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    font-size: 0.85rem !important;
+    min-width: 80px !important; /* Фиксированная минимальная ширина */
+    width: 80px !important; /* Фиксированная ширина для всех кнопок */
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important; /* Наследуем шрифт от body */
+    line-height: normal !important; /* Сбрасываем line-height */
+    margin: 0 !important; /* Убираем все отступы */
+}
+
+/* Кнопка выхода */
+.nav-btn-logout {
+    background: #f44336 !important;
+    color: white !important;
+}
+
+/* Активная кнопка (текущее приложение) */
+.nav-btn-active {
+    background: #0B8661 !important;
+    color: white !important;
+}
+
+/* Неактивная кнопка */
+.nav-btn-inactive {
+    background: #e0e0e0 !important;
+    color: #333 !important;
+}
+
+/* Эффект при наведении на кнопку */
+.nav-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15) !important;
+}
+
+/* Особые стили для ссылок (a) */
+a.nav-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .app-nav-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-panel {
+        padding: 10px 12px;
+        min-height: 55px;
+    }
+    
+    .nav-info strong {
+        font-size: 0.9rem;
+    }
+    
+    .nav-btn {
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+        min-width: 70px !important;
+        width: 70px !important;
+    }
+}
