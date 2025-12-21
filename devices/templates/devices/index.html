@@ -1,0 +1,232 @@
+<!--
+index.html
+Главная страница приложения devices - управление принтерами типографии.
+Наследуется от базового шаблона base.html.
+-->
+
+{% extends "devices/base.html" %}
+
+<!-- Заголовок страницы -->
+{% block title %}Принтеры{% endblock %}
+
+<!-- Основной контент страницы -->
+{% block content %}
+    <!-- Заголовок страницы с логотипом -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        Управление принтерами
+    </h1>
+    
+    <!-- Отображение системных сообщений (успех, ошибки, предупреждения) -->
+    <div class="messages">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    <!-- Кнопка для открытия/закрытия формы добавления принтера -->
+    <div class="form-toggle-section">
+        <button type="button" id="toggle-form-btn" class="btn-toggle-form">
+            Добавить принтер
+        </button>
+    </div>
+    
+    <!-- Секция с формой для добавления нового принтера (изначально скрыта) -->
+    <div class="form-section" id="printer-form-section" style="display: none;">
+        <h2>Добавить новый принтер</h2>
+        
+        <!-- Форма добавления принтера -->
+        <form method="post" action="{% url 'devices:index' %}" id="printer-form">
+            {% csrf_token %}
+            
+            <!-- Поле для названия принтера -->
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="errorlist">{{ form.name.errors }}</div>
+                {% endif %}
+                <div class="help-text">{{ form.name.help_text }}</div>
+            </div>
+            
+            <!-- Поле для формата листа -->
+            <div class="form-group">
+                <label for="{{ form.sheet_format.id_for_label }}">{{ form.sheet_format.label }}</label>
+                {{ form.sheet_format }}
+                {% if form.sheet_format.errors %}
+                    <div class="errorlist">{{ form.sheet_format.errors }}</div>
+                {% endif %}
+                <div class="help-text">{{ form.sheet_format.help_text }}</div>
+            </div>
+            
+            <!-- Двухколоночный контейнер для ширины и высоты -->
+            <div class="dimensions-container">
+                <!-- Поле для ширины листа -->
+                <div class="form-group dimension-group">
+                    <label for="{{ form.width_mm.id_for_label }}">{{ form.width_mm.label }}</label>
+                    {{ form.width_mm }}
+                    {% if form.width_mm.errors %}
+                        <div class="errorlist">{{ form.width_mm.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.width_mm.help_text }}</div>
+                </div>
+                
+                <!-- Поле для высоты листа -->
+                <div class="form-group dimension-group">
+                    <label for="{{ form.height_mm.id_for_label }}">{{ form.height_mm.label }}</label>
+                    {{ form.height_mm }}
+                    {% if form.height_mm.errors %}
+                        <div class="errorlist">{{ form.height_mm.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.height_mm.help_text }}</div>
+                </div>
+            </div>
+            
+            <!-- Двухколоночный контейнер для полей и коэффициента -->
+            <div class="additional-params-container">
+                <!-- Поле для полей (незапечатываемых областей) -->
+                <div class="form-group param-group">
+                    <label for="{{ form.margin_mm.id_for_label }}">{{ form.margin_mm.label }}</label>
+                    {{ form.margin_mm }}
+                    {% if form.margin_mm.errors %}
+                        <div class="errorlist">{{ form.margin_mm.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.margin_mm.help_text }}</div>
+                </div>
+                
+                <!-- Поле для коэффициента двусторонней печати -->
+                <div class="form-group param-group">
+                    <label for="{{ form.duplex_coefficient.id_for_label }}">{{ form.duplex_coefficient.label }}</label>
+                    {{ form.duplex_coefficient }}
+                    {% if form.duplex_coefficient.errors %}
+                        <div class="errorlist">{{ form.duplex_coefficient.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.duplex_coefficient.help_text }}</div>
+                </div>
+            </div>
+            
+            <!-- Кнопки формы -->
+            <div class="button-group">
+                <button type="submit" class="btn-submit">Сохранить принтер</button>
+                <button type="reset" class="btn-clear">Очистить форму</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Секция со списком принтеров -->
+    <div class="printers-section">
+        <h2>Список принтеров ({{ printers|length }})</h2>
+        
+        <!-- Сообщение, если принтеров нет -->
+        {% if not printers %}
+            <div class="empty-message">
+                В базе данных нет принтеров. Нажмите кнопку "Добавить принтер" выше.
+            </div>
+        {% else %}
+            <!-- Таблица со списком принтеров -->
+            <div class="printers-table">
+                <!-- Заголовок таблицы -->
+                <div class="table-header">
+                    <div class="col-name">Название принтера</div>
+                    <div class="col-format">Формат</div>
+                    <div class="col-dimensions">Размеры</div>
+                    <div class="col-margin">Поля</div>
+                    <div class="col-duplex">Коэфф.</div>
+                    <div class="col-actions">Действия</div>
+                </div>
+                
+                <!-- Цикл по всем принтерам в базе данных -->
+                {% for printer in printers %}
+                    <div class="table-row">
+                        <!-- Название принтера -->
+                        <div class="col-name">
+                            <div class="printer-name">{{ printer.name }}</div>
+                        </div>
+                        
+                        <!-- Формат листа -->
+                        <div class="col-format">
+                            <span class="param-badge">{{ printer.sheet_format }}</span>
+                        </div>
+                        
+                        <!-- Размеры листа в миллиметрах -->
+                        <div class="col-dimensions">
+                            <span class="param-badge">{{ printer.get_dimensions_display }}</span>
+                        </div>
+                        
+                        <!-- Поля (незапечатываемые области) -->
+                        <div class="col-margin">
+                            <span class="param-badge">{{ printer.get_margin_display }}</span>
+                        </div>
+                        
+                        <!-- Коэффициент двусторонней печати -->
+                        <div class="col-duplex">
+                            <span class="param-badge">{{ printer.get_duplex_display }}</span>
+                        </div>
+                        
+                        <!-- Кнопки действий -->
+                        <div class="col-actions">
+                            <!-- Кнопка удаления с подтверждением -->
+                            <a href="{% url 'devices:delete_printer' printer.id %}" 
+                               class="btn-action btn-delete"
+                               onclick="return confirm('Вы уверены, что хотите удалить принтер \"{{ printer.name }}\" ({{ printer.sheet_format }})?');">
+                                Удалить
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+        {% endif %}
+    </div>
+{% endblock %}
+
+<!-- Дополнительный JavaScript -->
+{% block extra_js %}
+<script>
+    /**
+     * Функция для показа/скрытия формы добавления принтера.
+     * Вызывается при клике на кнопку "Добавить принтер" и "Закрыть".
+     */
+    function toggleForm() {
+        const formSection = document.getElementById('printer-form-section');
+        const toggleButton = document.getElementById('toggle-form-btn');
+        
+        if (formSection.style.display === 'none') {
+            // Если форма скрыта - показываем ее
+            formSection.style.display = 'block';
+            toggleButton.textContent = 'Скрыть форму';
+            toggleButton.classList.add('active');
+        } else {
+            // Если форма показана - скрываем ее
+            formSection.style.display = 'none';
+            toggleButton.textContent = 'Добавить принтер';
+            toggleButton.classList.remove('active');
+        }
+    }
+    
+    /**
+     * Инициализация при загрузке страницы.
+     * Назначает обработчик события на кнопку показа/скрытия формы.
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButton = document.getElementById('toggle-form-btn');
+        
+        if (toggleButton) {
+            toggleButton.addEventListener('click', toggleForm);
+        }
+        
+        // Если есть сообщения об ошибках в форме, показываем форму автоматически
+        const errorMessages = document.querySelectorAll('.errorlist');
+        if (errorMessages.length > 0) {
+            toggleForm();
+        }
+    });
+</script>
+{% endblock %}

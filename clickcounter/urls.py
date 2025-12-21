@@ -41,6 +41,12 @@ urlpatterns = [
     # В шаблонах можно использовать: {% url 'directories:index' %}
     path('directories/', include(('directories.urls', 'directories'), namespace='directories')),
 
+     # НОВОЕ ПРИЛОЖЕНИЕ: devices (устройства)
+    # Все URL, начинающиеся с /devices/, передаются на обработку в devices.urls
+    # namespace='devices' создает пространство имен для этого приложения
+    # В шаблонах можно использовать: {% url 'devices:index' %}
+    path('devices/', include(('devices.urls', 'devices'), namespace='devices')),
+
 
     # Маршруты для аутентификации пользователей
     # Вход в систему - используем кастомную view из приложения counter

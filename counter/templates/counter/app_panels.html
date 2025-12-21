@@ -39,6 +39,19 @@
             {% if active_app == 'directories' %}На экране{% else %}Открыть{% endif %}
         </a>
     </div>
+    <!-- Панель устройств -->
+    <div class="nav-panel nav-devices">
+        <div class="nav-info">
+            <strong>Устройства</strong>
+            <div>Управление принтерами</div>
+        </div>
+        <a href="{% url 'devices:index' %}" 
+           class="nav-btn {% if active_app == 'devices' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'devices' %}На экране{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
+    
 
     <!-- Панель пользователя -->
     <div class="nav-panel nav-user">
