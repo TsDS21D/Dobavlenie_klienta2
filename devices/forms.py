@@ -1,13 +1,15 @@
 """
 forms.py
 Формы Django для приложения devices.
-Содержит формы для добавления и редактирования принтеров.
+Содержит формы для добавления, редактирования и inline-редактирования принтеров.
 """
 
+# ===== ИМПОРТЫ =====
 from django import forms
 from .models import Printer
 
 
+# ===== ОСНОВНАЯ ФОРМА ДЛЯ ДОБАВЛЕНИЯ ПРИНТЕРА =====
 class PrinterForm(forms.ModelForm):
     """
     Форма для добавления и редактирования принтеров.
@@ -194,3 +196,96 @@ class PrinterForm(forms.ModelForm):
             raise forms.ValidationError('Коэффициент должен быть не меньше 1.0')
         
         return duplex_coefficient
+
+
+# ===== ФОРМА ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ПРИНТЕРА =====
+class PrinterEditForm(forms.ModelForm):
+    """
+    Форма для редактирования принтеров через AJAX.
+    
+    Отличается от PrinterForm тем, что:
+    1. Используется для редактирования существующих записей
+    2. Имеет упрощенную валидацию для AJAX-запросов
+    3. Поддерживает частичное обновление полей
+    """
+    
+    class Meta:
+        """
+        Мета-класс для настройки формы редактирования.
+        
+        Attributes:
+            model: Модель Printer
+            fields: Те же поля, что и в основной форме
+            widgets: Специальные виджеты для inline-редактирования
+        """
+        model = Printer
+        fields = ['name', 'sheet_format', 'width_mm', 'height_mm', 'margin_mm', 'duplex_coefficient']
+        
+        # Упрощенные виджеты для inline-редактирования
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'edit-input',  # Специальный класс для inline-редактирования
+                'data-field': 'name',   # Data-атрибут для идентификации поля в JavaScript
+            }),
+            'sheet_format': forms.TextInput(attrs={
+                'class': 'edit-input',
+                'data-field': 'sheet_format',
+            }),
+            'width_mm': forms.NumberInput(attrs={
+                'class': 'edit-input edit-number',
+                'data-field': 'width_mm',
+                'min': '1',
+                'step': '1',
+            }),
+            'height_mm': forms.NumberInput(attrs={
+                'class': 'edit-input edit-number',
+                'data-field': 'height_mm',
+                'min': '1',
+                'step': '1',
+            }),
+            'margin_mm': forms.NumberInput(attrs={
+                'class': 'edit-input edit-number',
+                'data-field': 'margin_mm',
+                'min': '0',
+                'step': '1',
+            }),
+            'duplex_coefficient': forms.NumberInput(attrs={
+                'class': 'edit-input edit-number',
+                'data-field': 'duplex_coefficient',
+                'min': '1.0',
+                'step': '0.1',
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        """
+        Инициализация формы редактирования.
+        
+        Args:
+            *args: Аргументы формы
+            **kwargs: Ключевые аргументы формы, включая instance для редактирования
+        """
+        super().__init__(*args, **kwargs)
+        
+        # Убираем подписи для компактного отображения в таблице
+        for field_name in self.fields:
+            self.fields[field_name].label = ''
+            self.fields[field_name].help_text = ''
+    
+    def clean(self):
+        """
+        Упрощенная валидация для AJAX-запросов.
+        
+        Returns:
+            dict: Очищенные данные формы
+        
+        Note:
+            Для AJAX-запросов мы можем быть более снисходительными,
+            так как пользователь видит результаты сразу
+        """
+        cleaned_data = super().clean()
+        
+        # Дополнительная валидация может быть добавлена здесь
+        # Но для inline-редактирования мы минимизируем валидацию
+        
+        return cleaned_data

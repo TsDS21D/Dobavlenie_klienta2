@@ -1,0 +1,91 @@
+<!--
+edit_row.html
+Шаблон для строки таблицы в режиме редактирования.
+Используется для генерации формы редактирования принтера.
+-->
+
+{% load static %}
+
+<!-- Форма для редактирования принтера (изначально скрыта) -->
+<form class="edit-form" data-printer-id="{{ printer.id }}" style="display: none;">
+    {% csrf_token %}
+    
+    <!-- Название принтера -->
+    <div class="col-name">
+        <input type="text" 
+               name="name" 
+               value="{{ printer.name }}" 
+               class="edit-input"
+               data-field="name"
+               placeholder="Название принтера">
+    </div>
+    
+    <!-- Формат листа -->
+    <div class="col-format">
+        <input type="text" 
+               name="sheet_format" 
+               value="{{ printer.sheet_format }}" 
+               class="edit-input"
+               data-field="sheet_format"
+               placeholder="Формат">
+    </div>
+    
+    <!-- Размеры листа -->
+    <div class="col-dimensions">
+        <div class="dimensions-inputs">
+            <input type="number" 
+                   name="width_mm" 
+                   value="{{ printer.width_mm }}" 
+                   class="edit-input edit-number"
+                   data-field="width_mm"
+                   placeholder="Ширина"
+                   min="1"
+                   step="1">
+            <span class="dimensions-separator">×</span>
+            <input type="number" 
+                   name="height_mm" 
+                   value="{{ printer.height_mm }}" 
+                   class="edit-input edit-number"
+                   data-field="height_mm"
+                   placeholder="Высота"
+                   min="1"
+                   step="1">
+            <span class="dimensions-unit">мм</span>
+        </div>
+    </div>
+    
+    <!-- Поля (незапечатываемые области) -->
+    <div class="col-margin">
+        <input type="number" 
+               name="margin_mm" 
+               value="{{ printer.margin_mm }}" 
+               class="edit-input edit-number"
+               data-field="margin_mm"
+               placeholder="Поля"
+               min="0"
+               step="1">
+        <span class="margin-unit">мм</span>
+    </div>
+    
+    <!-- Коэффициент двусторонней печати -->
+    <div class="col-duplex">
+        <input type="number" 
+               name="duplex_coefficient" 
+               value="{{ printer.duplex_coefficient }}" 
+               class="edit-input edit-number"
+               data-field="duplex_coefficient"
+               placeholder="Коэфф."
+               min="1.0"
+               step="0.1">
+    </div>
+    
+    <!-- Кнопки действий в режиме редактирования -->
+    <div class="col-actions edit-actions">
+        <button type="submit" class="btn-action btn-save" title="Сохранить изменения">
+            Сохранить
+        </button>
+        <button type="button" class="btn-action btn-cancel" title="Отменить редактирование">
+            Отмена
+        </button>
+    </div>
+</form>

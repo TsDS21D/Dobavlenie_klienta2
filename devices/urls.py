@@ -24,5 +24,9 @@ urlpatterns = [
     # Пример: /devices/delete/1/ - удалить принтер с ID=1
     path('delete/<int:printer_id>/', views.delete_printer, name='delete_printer'),
     
-    # Примечание: маршрут toggle_printer_status удален, так как мы больше не используем статус принтера
+    # ОБНОВЛЕНИЕ ПРИНТЕРА (НОВЫЙ МАРШРУТ)
+    # URL: /devices/update/<printer_id>/
+    # Пример: /devices/update/1/ - обновить принтер с ID=1
+    # Метод: POST (только для AJAX-запросов)
+    path('update/<int:printer_id>/', views.update_printer, name='update_printer'),
 ]

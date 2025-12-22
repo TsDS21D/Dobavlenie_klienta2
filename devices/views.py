@@ -4,14 +4,19 @@ View-функции Django для приложения devices.
 Обработчики HTTP запросов для страницы управления принтерами.
 """
 
+# ===== ИМПОРТЫ =====
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.views.decorators.cache import never_cache
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from .models import Printer
-from .forms import PrinterForm
+from .forms import PrinterForm, PrinterEditForm
 
 
+# ===== ГЛАВНАЯ СТРАНИЦА =====
 @login_required(login_url='/counter/login/')
 @never_cache
 def index(request):
@@ -59,10 +64,14 @@ def index(request):
         # Для GET запроса создаем пустую форму
         form = PrinterForm()
     
+    # Создаем пустую форму редактирования для использования в шаблоне
+    edit_form = PrinterEditForm()
+    
     # Создаем контекст для передачи в шаблон
     context = {
         'printers': printers,  # Список всех принтеров
         'form': form,          # Форма для добавления принтера
+        'edit_form': edit_form,# Форма для редактирования принтера
         'user': request.user,  # Текущий пользователь
         'active_app': 'devices',  # Для выделения активного приложения в панели навигации
     }
@@ -78,6 +87,7 @@ def index(request):
     return response
 
 
+# ===== УДАЛЕНИЕ ПРИНТЕРА =====
 @login_required(login_url='/counter/login/')
 def delete_printer(request, printer_id):
     """
@@ -111,3 +121,81 @@ def delete_printer(request, printer_id):
     
     # Перенаправляем на главную страницу
     return redirect('devices:index')
+
+
+# ===== ОБНОВЛЕНИЕ ПРИНТЕРА (AJAX) =====
+@login_required(login_url='/counter/login/')
+@require_POST
+@csrf_exempt
+def update_printer(request, printer_id):
+    """
+    Обрабатывает AJAX-запрос на обновление параметров принтера.
+    
+    Эта функция:
+    1. Принимает POST-запрос с данными для обновления
+    2. Валидирует данные через PrinterEditForm
+    3. Сохраняет изменения в базе данных
+    4. Возвращает JSON-ответ с результатом операции
+    
+    Args:
+        request: HTTP запрос с данными для обновления
+        printer_id: ID принтера, который нужно обновить
+    
+    Returns:
+        JsonResponse: JSON-ответ с результатом операции
+    """
+    try:
+        # Получаем принтер по ID или возвращаем 404
+        printer = Printer.objects.get(id=printer_id)
+        
+        # Создаем форму редактирования с данными из запроса
+        form = PrinterEditForm(request.POST, instance=printer)
+        
+        if form.is_valid():
+            # Сохраняем изменения
+            updated_printer = form.save()
+            
+            # Подготавливаем данные для ответа
+            response_data = {
+                'success': True,
+                'message': f'Принтер "{updated_printer.name}" успешно обновлен',
+                'printer': {
+                    'id': updated_printer.id,
+                    'name': updated_printer.name,
+                    'sheet_format': updated_printer.sheet_format,
+                    'width_mm': updated_printer.width_mm,
+                    'height_mm': updated_printer.height_mm,
+                    'margin_mm': updated_printer.margin_mm,
+                    'duplex_coefficient': updated_printer.duplex_coefficient,
+                    'dimensions_display': updated_printer.get_dimensions_display(),
+                    'margin_display': updated_printer.get_margin_display(),
+                    'duplex_display': updated_printer.get_duplex_display(),
+                }
+            }
+            
+            return JsonResponse(response_data)
+        else:
+            # Если форма невалидна, возвращаем ошибки
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = error_list
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Ошибка валидации данных',
+                'errors': errors
+            }, status=400)
+            
+    except Printer.DoesNotExist:
+        # Если принтер не найден
+        return JsonResponse({
+            'success': False,
+            'message': f'Принтер с ID {printer_id} не найден'
+        }, status=404)
+        
+    except Exception as e:
+        # Обработка неожиданных ошибок
+        return JsonResponse({
+            'success': False,
+            'message': f'Внутренняя ошибка сервера: {str(e)}'
+        }, status=500)

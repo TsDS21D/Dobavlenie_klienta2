@@ -6,6 +6,12 @@ index.css
 
 /* ===== БАЗОВЫЕ СТИЛИ ===== */
 
+/* всегда показываем скроллбар */
+html {
+    overflow-y: scroll;
+}
+
+
 /* Сброс стандартных отступов и использование border-box модели */
 * {
     margin: 0;
@@ -1520,4 +1526,201 @@ a.nav-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+
+/* ===== СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Стили для редактируемых полей в режиме просмотра */
+.editable-field {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.editable-field:hover {
+    background-color: #f0f8ff;
+}
+
+/* Стили для строки в режиме редактирования */
+.table-row.edit-mode {
+    background-color: #f8fff8 !important;
+    border-left: 3px solid #0B8661;
+}
+
+/* Стили для полей ввода в режиме редактирования */
+.edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 5px rgba(11, 134, 97, 0.3);
+}
+
+.edit-input.error {
+    border-color: #f44336;
+    background-color: #fff8f8;
+}
+
+/* Стили для числовых полей ввода */
+.edit-number {
+    width: 80px;
+    text-align: center;
+}
+
+/* Контейнер для полей размеров в режиме редактирования */
+.dimensions-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dimensions-separator {
+    color: #666;
+    font-weight: bold;
+}
+
+.dimensions-unit {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Стили для единиц измерения */
+.margin-unit {
+    margin-left: 0.5rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-save {
+    background: #0B8661 !important;
+    color: white !important;
+}
+
+.btn-cancel {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+.btn-save:hover {
+    background: #096c4f !important;
+}
+
+.btn-cancel:hover {
+    background: #5a6268 !important;
+}
+
+/* Стили для сообщений об ошибках валидации */
+.error-message {
+    color: #f44336;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+/* Стили для уведомлений */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease;
+    max-width: 400px;
+}
+
+.notification-success {
+    background-color: #4caf50;
+    border-left: 4px solid #2e7d32;
+}
+
+.notification-error {
+    background-color: #f44336;
+    border-left: 4px solid #c62828;
+}
+
+.notification-info {
+    background-color: #2196f3;
+    border-left: 4px solid #0d47a1;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Стили для подсказок */
+.hint-icon {
+    font-size: 1.2rem;
+}
+
+.hint-text {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+    .edit-input {
+        font-size: 16px; /* Увеличиваем размер шрифта на мобильных для удобства */
+        padding: 0.8rem;
+    }
+    
+    .edit-number {
+        width: 100%;
+    }
+    
+    .dimensions-inputs {
+        flex-wrap: wrap;
+    }
+    
+    .edit-actions {
+        flex-direction: column;
+    }
+    
+    .notification {
+        left: 20px;
+        right: 20px;
+        max-width: calc(100% - 40px);
+    }
+}
+
+/* Анимация появления формы редактирования */
+@keyframes fadeInEdit {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.table-row.edit-mode {
+    animation: fadeInEdit 0.3s ease;
 }
