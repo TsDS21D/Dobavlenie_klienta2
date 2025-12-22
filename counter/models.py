@@ -5,7 +5,7 @@ models.py
 """
 
 from django.db import models
-from django.utils import timezone
+from django.utils import timezone  # Импортируем timezone из Django
 from datetime import timedelta
 
 
@@ -81,6 +81,11 @@ class Client(models.Model):
     
     def to_dict(self):
         """Преобразует объект клиента в словарь для JSON."""
+        # ВАЖНО: Django автоматически конвертирует время из UTC в текущий часовой пояс (Europe/Moscow)
+        # при вызове timezone.localtime()
+        # Используем текущий часовой пояс, указанный в настройках Django (TIME_ZONE = 'Europe/Moscow')
+        moscow_created_at = timezone.localtime(self.created_at)
+        
         return {
             'id': self.id,
             'name': self.name,
@@ -88,7 +93,8 @@ class Client(models.Model):
             'email': self.email,
             'uses_edo': self.uses_edo,
             'notes': self.notes,
-            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M'),
+            # ИСПОЛЬЗУЕМ МОСКОВСКОЕ ВРЕМЯ (конвертировано из UTC)
+            'created_at': moscow_created_at.strftime('%d.%m.%Y %H:%M'),
         }
 
 
@@ -222,15 +228,23 @@ class Order(models.Model):
         if self.client:
             client_data = self.client.to_dict()
         
+        # ВАЖНО: Django автоматически конвертирует время из UTC в текущий часовой пояс (Europe/Moscow)
+        # при вызове timezone.localtime()
+        # Используем текущий часовой пояс, указанный в настройках Django (TIME_ZONE = 'Europe/Moscow')
+        moscow_ready_datetime = timezone.localtime(self.ready_datetime)
+        moscow_created_at = timezone.localtime(self.created_at)
+        
         return {
             'order_number': f'{self.order_number:04d}',
             'client': client_data,
             'customer_name': self.customer_name,
             'client_display': self.get_client_display(),
             'description': self.description,
-            'ready_datetime': self.ready_datetime.strftime('%d.%m.%Y %H:%M'),
+            # ИСПОЛЬЗУЕМ МОСКОВСКОЕ ВРЕМЯ (конвертировано из UTC)
+            'ready_datetime': moscow_ready_datetime.strftime('%d.%m.%Y %H:%M'),
             'working_hours_remaining': self.get_working_hours_remaining(),
-            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M:%S'),
+            # ИСПОЛЬЗУЕМ МОСКОВСКОЕ ВРЕМЯ (конвертировано из UTC)
+            'created_at': moscow_created_at.strftime('%d.%m.%Y %H:%M:%S'),
             'status': self.status,
             'status_display': self.get_status_display_name(),
             'is_active': self.is_active(),

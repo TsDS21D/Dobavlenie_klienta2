@@ -4,11 +4,12 @@ WebSocket обработчики для реального обновления 
 """
 
 import json
+from datetime import datetime  # Импортируем стандартный модуль datetime
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from .models import Order, Client
-from django.utils import timezone
+from django.utils import timezone  # Используем timezone из Django
 
 
 class OrderConsumer(AsyncWebsocketConsumer):
@@ -215,19 +216,27 @@ class OrderConsumer(AsyncWebsocketConsumer):
             # Получаем клиента по ID
             client = Client.objects.get(id=client_id)
             
-            # Преобразуем строку даты в объект datetime с учетом часового пояса
-            ready_dt_naive = timezone.datetime.fromisoformat(ready_datetime_str)
-            if ready_dt_naive.tzinfo is None:
-                ready_dt = timezone.make_aware(ready_dt_naive)
-            else:
-                ready_dt = ready_dt_naive
+            # ВАЖНО: Клиент вводит время в московском часовом поясе (локальное время браузера)
+            # Преобразуем строку формата 'YYYY-MM-DDTHH:MM' в объект datetime
             
-            # Создаем заказ с клиентом из базы
-            # Поле customer_name больше не используется
+            # 1. Создаем naive datetime (без информации о часовом поясе) из строки
+            ready_dt_naive = datetime.strptime(ready_datetime_str, '%Y-%m-%dT%H:%M')
+            
+            # 2. Предполагаем, что это московское время (так как клиент вводит в московском поясе)
+            # Получаем московский часовой пояс из настроек Django
+            moscow_tz = timezone.get_current_timezone()  # Вернет 'Europe/Moscow' если в настройках TIME_ZONE = 'Europe/Moscow'
+            
+            # 3. Делаем naive datetime aware (с часовым поясом) в московском времени
+            ready_dt_moscow = timezone.make_aware(ready_dt_naive, moscow_tz)
+            
+            # 4. Конвертируем московское время в UTC для хранения в базе данных
+            ready_dt_utc = ready_dt_moscow.astimezone(timezone.utc)
+            
+            # 5. Создаем заказ с клиентом из базы
             order = Order.objects.create(
                 client=client,  # Клиент всегда из базы
                 description=description,
-                ready_datetime=ready_dt
+                ready_datetime=ready_dt_utc  # Сохраняем в UTC
             )
             
             print(f"📝 Создан заказ №{order.order_number} для клиента {client.name}")
@@ -263,14 +272,21 @@ class OrderConsumer(AsyncWebsocketConsumer):
             # Обновляем только описание и дату готовности
             order.description = description
             
-            # Преобразуем строку даты в объект datetime
-            ready_dt_naive = timezone.datetime.fromisoformat(ready_datetime_str)
-            if ready_dt_naive.tzinfo is None:
-                ready_dt = timezone.make_aware(ready_dt_naive)
-            else:
-                ready_dt = ready_dt_naive
+            # ВАЖНО: Та же логика конвертации времени, что и при создании заказа
             
-            order.ready_datetime = ready_dt
+            # 1. Создаем naive datetime из строки
+            ready_dt_naive = datetime.strptime(ready_datetime_str, '%Y-%m-%dT%H:%M')
+            
+            # 2. Получаем московский часовой пояс
+            moscow_tz = timezone.get_current_timezone()
+            
+            # 3. Делаем naive datetime aware в московском времени
+            ready_dt_moscow = timezone.make_aware(ready_dt_naive, moscow_tz)
+            
+            # 4. Конвертируем в UTC для хранения в базе данных
+            ready_dt_utc = ready_dt_moscow.astimezone(timezone.utc)
+            
+            order.ready_datetime = ready_dt_utc
             order.save()
             
         except Order.DoesNotExist:
