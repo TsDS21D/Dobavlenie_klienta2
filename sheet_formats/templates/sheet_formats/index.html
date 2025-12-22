@@ -1,0 +1,601 @@
+<!--
+index.html для приложения sheet_formats
+Главная страница приложения sheet_formats с поддержкой inline-редактирования
+Наследуется от базового шаблона base.html
+-->
+
+{% extends "sheet_formats/base.html" %}
+
+<!-- Заголовок страницы -->
+{% block title %}Форматы листов{% endblock %}
+
+<!-- Основной контент страницы -->
+{% block content %}
+    <!-- Заголовок страницы с логотипом -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        Управление форматами печатных листов
+    </h1>
+    
+    <!-- Отображение системных сообщений (успех, ошибки, предупреждения) -->
+    <div class="messages">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    <!-- Кнопка для открытия/закрытия формы добавления формата -->
+    <div class="form-toggle-section">
+        <button type="button" id="toggle-form-btn" class="btn-toggle-form">
+            Добавить формат
+        </button>
+    </div>
+    
+    <!-- Секция с формой для добавления нового формата (изначально скрыта) -->
+    <div class="form-section" id="format-form-section" style="display: none;">
+        <h2>Добавить новый формат</h2>
+        
+        <!-- Форма добавления формата -->
+        <form method="post" action="{% url 'sheet_formats:index' %}" id="format-form">
+            {% csrf_token %}
+            
+            <!-- Поле для названия формата -->
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="errorlist">{{ form.name.errors }}</div>
+                {% endif %}
+                <div class="help-text">{{ form.name.help_text }}</div>
+            </div>
+            
+            <!-- Двухколоночный контейнер для ширины и высоты -->
+            <div class="dimensions-container">
+                <!-- Поле для ширины листа -->
+                <div class="form-group dimension-group">
+                    <label for="{{ form.width_mm.id_for_label }}">{{ form.width_mm.label }}</label>
+                    {{ form.width_mm }}
+                    {% if form.width_mm.errors %}
+                        <div class="errorlist">{{ form.width_mm.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.width_mm.help_text }}</div>
+                </div>
+                
+                <!-- Поле для высоты листа -->
+                <div class="form-group dimension-group">
+                    <label for="{{ form.height_mm.id_for_label }}">{{ form.height_mm.label }}</label>
+                    {{ form.height_mm }}
+                    {% if form.height_mm.errors %}
+                        <div class="errorlist">{{ form.height_mm.errors }}</div>
+                    {% endif %}
+                    <div class="help-text">{{ form.height_mm.help_text }}</div>
+                </div>
+            </div>
+            
+            <!-- Кнопки формы -->
+            <div class="button-group">
+                <button type="submit" class="btn-submit">Сохранить формат</button>
+                <button type="reset" class="btn-clear">Очистить форму</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Секция со списком форматов -->
+    <div class="printers-section">
+        <h2>Список форматов ({{ formats|length }})</h2>
+        
+        <!-- Сообщение, если форматов нет -->
+        {% if not formats %}
+            <div class="empty-message">
+                В базе данных нет форматов. Нажмите кнопку "Добавить формат" выше.
+            </div>
+        {% else %}
+            <!-- Таблица со списком форматов -->
+            <div class="printers-table">
+                <!-- Заголовок таблицы -->
+                <div class="table-header">
+                    <div class="col-name">Наименование формата</div>
+                    <div class="col-dimensions">Размеры</div>
+                    <div class="col-actions">Действия</div>
+                </div>
+                
+                <!-- Цикл по всем форматам в базе данных -->
+                {% for format in formats %}
+                    <!-- Обычная строка таблицы (режим просмотра) -->
+                    <div class="table-row view-mode" 
+                         data-format-id="{{ format.id }}" 
+                         id="format-row-{{ format.id }}">
+                        
+                        <!-- Название формата (кликабельное) -->
+                        <div class="col-name editable-field" data-field="name">
+                            <div class="printer-name">{{ format.name }}</div>
+                        </div>
+                        
+                        <!-- Размеры листа в миллиметрах (кликабельные) -->
+                        <div class="col-dimensions editable-field" data-field="dimensions">
+                            <span class="param-badge">{{ format.get_dimensions_display }}</span>
+                        </div>
+                        
+                        <!-- Кнопки действий -->
+                        <div class="col-actions">
+                            <!-- Кнопка удаления с подтверждением -->
+                            <a href="{% url 'sheet_formats:delete_format' format.id %}" 
+                               class="btn-action btn-delete"
+                               onclick="return confirm('Вы уверены, что хотите удалить формат \"{{ format.name }}\" ({{ format.get_dimensions_display }})?');">
+                                Удалить
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Строка таблицы в режиме редактирования (скрыта по умолчанию) -->
+                    <div class="table-row edit-mode" 
+                         data-format-id="{{ format.id }}" 
+                         id="format-edit-{{ format.id }}"
+                         style="display: none;">
+                        
+                        <!-- Форма для редактирования формата -->
+                        <form class="edit-form" data-format-id="{{ format.id }}">
+                            {% csrf_token %}
+                            
+                            <!-- Название формата -->
+                            <div class="col-name">
+                                <input type="text" 
+                                    name="name" 
+                                    value="{{ format.name }}" 
+                                    class="edit-input"
+                                    data-field="name"
+                                    placeholder="Название формата"
+                                    required>
+                            </div>
+                            
+                            <!-- Размеры листа -->
+                            <div class="col-dimensions">
+                                <div class="dimensions-inputs">
+                                    <input type="number" 
+                                        name="width_mm" 
+                                        value="{{ format.width_mm }}" 
+                                        class="edit-input edit-number"
+                                        data-field="width_mm"
+                                        placeholder="Ширина"
+                                        min="1"
+                                        step="1"
+                                        required>
+                                    <span class="dimensions-separator">×</span>
+                                    <input type="number" 
+                                        name="height_mm" 
+                                        value="{{ format.height_mm }}" 
+                                        class="edit-input edit-number"
+                                        data-field="height_mm"
+                                        placeholder="Высота"
+                                        min="1"
+                                        step="1"
+                                        required>
+                                    <span class="dimensions-unit">мм</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Кнопки действий в режиме редактирования -->
+                            <div class="col-actions edit-actions">
+                                <button type="submit" class="btn-action btn-save" title="Сохранить изменения">
+                                    Сохранить
+                                </button>
+                                <button type="button" class="btn-action btn-cancel" title="Отменить редактирование">
+                                    Отмена
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Подсказки для пользователя -->
+            <div class="table-hint">
+                <div class="hint-item">
+                    <span class="hint-icon">📝</span>
+                    <span class="hint-text">Нажмите на любое поле формата для редактирования</span>
+                </div>
+                <div class="hint-item">
+                    <span class="hint-icon">💾</span>
+                    <span class="hint-text">Сохраните изменения или нажмите "Отмена"</span>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+<!-- Дополнительный JavaScript -->
+{% block extra_js %}
+<script>
+// Глобальные переменные для управления состоянием редактирования
+let currentEditRow = null;
+let originalData = {};
+
+/**
+ * Функция для показа/скрытия формы добавления формата.
+ * Вызывается при клике на кнопку "Добавить формат" и "Закрыть".
+ */
+function toggleForm() {
+    const formSection = document.getElementById('format-form-section');
+    const toggleButton = document.getElementById('toggle-form-btn');
+    
+    if (formSection.style.display === 'none') {
+        // Если форма скрыта - показываем ее
+        formSection.style.display = 'block';
+        toggleButton.textContent = 'Скрыть форму';
+        toggleButton.classList.add('active');
+    } else {
+        // Если форма показана - скрываем ее
+        formSection.style.display = 'none';
+        toggleButton.textContent = 'Добавить формат';
+        toggleButton.classList.remove('active');
+    }
+}
+
+/**
+ * Переключает строку таблицы в режим редактирования.
+ * 
+ * @param {HTMLElement} viewRow - Строка таблицы в режиме просмотра
+ * @param {string} fieldName - Имя поля, на которое кликнули (опционально)
+ */
+function enableEditMode(viewRow, fieldName = null) {
+    const formatId = viewRow.dataset.formatId;
+    
+    // Находим соответствующую строку редактирования
+    const editRow = document.getElementById(`format-edit-${formatId}`);
+    if (!editRow) return;
+    
+    // Сохраняем ссылку на текущую редактируемую строку
+    currentEditRow = viewRow;
+    
+    // Сохраняем исходные данные для возможности отмены
+    saveOriginalData(editRow);
+    
+    // Если указано конкретное поле, устанавливаем на него фокус
+    if (fieldName) {
+        const input = editRow.querySelector(`[data-field="${fieldName}"]`);
+        if (input) {
+            setTimeout(() => input.focus(), 100);
+        }
+    }
+    
+    // Переключаем отображение строк
+    viewRow.style.display = 'none';
+    editRow.style.display = '';
+    
+    // Добавляем класс редактирования для стилизации
+    editRow.classList.add('editing');
+}
+
+/**
+ * Сохраняет исходные данные формы редактирования.
+ * 
+ * @param {HTMLElement} editRow - Строка таблицы в режиме редактирования
+ */
+function saveOriginalData(editRow) {
+    originalData = {};
+    const inputs = editRow.querySelectorAll('.edit-input');
+    
+    inputs.forEach(input => {
+        originalData[input.dataset.field] = input.value;
+    });
+}
+
+/**
+ * Выходит из режима редактирования без сохранения.
+ * 
+ * @param {HTMLElement} editRow - Строка таблицы в режиме редактирования
+ */
+function cancelEditMode(editRow) {
+    const formatId = editRow.dataset.formatId;
+    const viewRow = document.getElementById(`format-row-${formatId}`);
+    
+    if (!viewRow) return;
+    
+    // Восстанавливаем исходные значения
+    Object.keys(originalData).forEach(fieldName => {
+        const input = editRow.querySelector(`[data-field="${fieldName}"]`);
+        if (input) {
+            input.value = originalData[fieldName];
+        }
+    });
+    
+    // Сбрасываем состояние
+    editRow.classList.remove('editing');
+    editRow.style.display = 'none';
+    viewRow.style.display = '';
+    currentEditRow = null;
+    originalData = {};
+}
+
+/**
+ * Отправляет данные формы редактирования на сервер.
+ * 
+ * @param {HTMLElement} form - Форма редактирования
+ */
+function saveEditForm(form) {
+    const formatId = form.dataset.formatId;
+    
+    console.log(`DEBUG: Начинаем сохранение формата ${formatId}`);
+    
+    // Собираем данные из формы правильно
+    const data = {
+        'name': form.querySelector('[name="name"]').value,
+        'width_mm': parseInt(form.querySelector('[name="width_mm"]').value) || 0,
+        'height_mm': parseInt(form.querySelector('[name="height_mm"]').value) || 0,
+    };
+    
+    console.log(`DEBUG: Данные для отправки:`, data);
+    
+    // Добавляем CSRF токен
+    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Показываем индикатор загрузки
+    showLoadingIndicator();
+    
+    // Отправляем AJAX-запрос
+    fetch(`/sheet_formats/update/${formatId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        console.log(`DEBUG: Ответ получен, статус: ${response.status}`);
+        return response.json().then(data => {
+            return {
+                status: response.status,
+                ok: response.ok,
+                data: data
+            };
+        });
+    })
+    .then(result => {
+        console.log(`DEBUG: Результат запроса:`, result);
+        hideLoadingIndicator();
+        
+        if (result.ok && result.data.success) {
+            // Обновляем данные в строке просмотра
+            updateViewRow(formatId, result.data.format);
+            
+            // Выходим из режима редактирования
+            const editRow = document.getElementById(`format-edit-${formatId}`);
+            const viewRow = document.getElementById(`format-row-${formatId}`);
+            
+            if (editRow && viewRow) {
+                editRow.classList.remove('editing');
+                editRow.style.display = 'none';
+                viewRow.style.display = '';
+                currentEditRow = null;
+                originalData = {};
+            }
+            
+            // Показываем сообщение об успехе
+            showNotification('success', result.data.message);
+        } else {
+            // Показываем ошибки валидации
+            if (result.data.errors) {
+                showValidationErrors(form, result.data.errors);
+            }
+            showNotification('error', result.data.message || `Ошибка ${result.status}: ${result.data.message}`);
+        }
+    })
+    .catch(error => {
+        hideLoadingIndicator();
+        console.error('Ошибка при сохранении:', error);
+        showNotification('error', `Ошибка соединения: ${error.message}`);
+    });
+}
+
+/**
+ * Обновляет строку просмотра с новыми данными.
+ * 
+ * @param {string} formatId - ID формата
+ * @param {Object} formatData - Данные формата
+ */
+function updateViewRow(formatId, formatData) {
+    const viewRow = document.getElementById(`format-row-${formatId}`);
+    if (!viewRow) return;
+    
+    // Обновляем название формата
+    const nameElement = viewRow.querySelector('.col-name .printer-name');
+    if (nameElement) {
+        nameElement.textContent = formatData.name;
+    }
+    
+    // Обновляем размеры листа
+    const dimensionsElement = viewRow.querySelector('.col-dimensions .param-badge');
+    if (dimensionsElement) {
+        dimensionsElement.textContent = formatData.dimensions_display;
+    }
+    
+    // Обновляем ссылку удаления (если изменилось название)
+    const deleteLink = viewRow.querySelector('.btn-delete');
+    if (deleteLink) {
+        deleteLink.onclick = function() {
+            return confirm(`Вы уверены, что хотите удалить формат "${formatData.name}" (${formatData.dimensions_display})?`);
+        };
+    }
+}
+
+/**
+ * Показывает ошибки валидации в форме.
+ * 
+ * @param {HTMLElement} form - Форма редактирования
+ * @param {Object} errors - Объект с ошибками
+ */
+function showValidationErrors(form, errors) {
+    // Сначала скрываем все предыдущие ошибки
+    form.querySelectorAll('.error-message').forEach(el => el.remove());
+    form.querySelectorAll('.edit-input').forEach(input => {
+        input.classList.remove('error');
+    });
+    
+    // Показываем новые ошибки
+    if (errors) {
+        Object.keys(errors).forEach(fieldName => {
+            const input = form.querySelector(`[data-field="${fieldName}"]`);
+            if (input) {
+                input.classList.add('error');
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = Array.isArray(errors[fieldName]) ? 
+                    errors[fieldName].join(', ') : errors[fieldName];
+                
+                input.parentNode.appendChild(errorDiv);
+            }
+        });
+    }
+}
+
+/**
+ * Показывает уведомление.
+ * 
+ * @param {string} type - Тип уведомления (success, error, info)
+ * @param {string} message - Текст сообщения
+ */
+function showNotification(type, message) {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Добавляем на страницу
+    const messagesContainer = document.querySelector('.messages');
+    if (messagesContainer) {
+        messagesContainer.appendChild(notification);
+    } else {
+        document.body.appendChild(notification);
+    }
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    }, 5000);
+}
+
+/**
+ * Показывает индикатор загрузки.
+ */
+function showLoadingIndicator() {
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.id = 'loading-indicator';
+    loadingIndicator.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        font-size: 1.2rem;
+        color: #0B8661;
+    `;
+    
+    loadingIndicator.innerHTML = `
+        <div style="margin-bottom: 1rem;">⏳ Сохранение изменений...</div>
+        <div style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #0B8661; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    `;
+    
+    document.body.appendChild(loadingIndicator);
+}
+
+/**
+ * Удаляет индикатор загрузки.
+ */
+function hideLoadingIndicator() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator && loadingIndicator.parentNode) {
+        loadingIndicator.remove();
+    }
+}
+
+/**
+ * Инициализация при загрузке страницы.
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleButton = document.getElementById('toggle-form-btn');
+    
+    if (toggleButton) {
+        toggleButton.addEventListener('click', toggleForm);
+    }
+    
+    // Если есть сообщения об ошибках в форме, показываем форму автоматически
+    const errorMessages = document.querySelectorAll('.errorlist');
+    if (errorMessages.length > 0) {
+        toggleForm();
+    }
+    
+    // Назначаем обработчики кликов на редактируемые поля
+    document.querySelectorAll('.editable-field').forEach(field => {
+        field.addEventListener('click', function(e) {
+            // Не обрабатываем клики, если уже в режиме редактирования
+            if (currentEditRow) return;
+            
+            const row = this.closest('.table-row');
+            const fieldName = this.dataset.field;
+            
+            if (row && fieldName) {
+                enableEditMode(row, fieldName);
+            }
+        });
+    });
+    
+    // Назначаем обработчики для кнопок отмены
+    document.querySelectorAll('.btn-cancel').forEach(button => {
+        button.addEventListener('click', function() {
+            const editRow = this.closest('.table-row');
+            if (editRow) {
+                cancelEditMode(editRow);
+            }
+        });
+    });
+    
+    // Назначаем обработчики для форм редактирования
+    document.querySelectorAll('.edit-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveEditForm(this);
+        });
+    });
+    
+    // Добавляем обработку клавиши Escape для отмены редактирования
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && currentEditRow) {
+            const formatId = currentEditRow.dataset.formatId;
+            const editRow = document.getElementById(`format-edit-${formatId}`);
+            if (editRow) {
+                cancelEditMode(editRow);
+            }
+        }
+    });
+    
+    // Отключаем стандартное поведение двойного клика по таблице
+    document.querySelectorAll('.table-row').forEach(row => {
+        row.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+});
+</script>
+{% endblock %}

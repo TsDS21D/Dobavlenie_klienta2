@@ -41,11 +41,17 @@ urlpatterns = [
     # В шаблонах можно использовать: {% url 'directories:index' %}
     path('directories/', include(('directories.urls', 'directories'), namespace='directories')),
 
-     # НОВОЕ ПРИЛОЖЕНИЕ: devices (устройства)
+    # НОВОЕ ПРИЛОЖЕНИЕ: devices (устройства)
     # Все URL, начинающиеся с /devices/, передаются на обработку в devices.urls
     # namespace='devices' создает пространство имен для этого приложения
     # В шаблонах можно использовать: {% url 'devices:index' %}
     path('devices/', include(('devices.urls', 'devices'), namespace='devices')),
+
+    # НОВОЕ ПРИЛОЖЕНИЕ: sheet_formats (форматы печатных листов)
+    # Все URL, начинающиеся с /sheet_formats/, передаются на обработку в sheet_formats.urls
+    # namespace='sheet_formats' создает пространство имен для этого приложения
+    # В шаблонах можно использовать: {% url 'sheet_formats:index' %}
+    path('sheet_formats/', include(('sheet_formats.urls', 'sheet_formats'), namespace='sheet_formats')),
 
 
     # Маршруты для аутентификации пользователей

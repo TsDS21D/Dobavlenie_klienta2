@@ -1,0 +1,42 @@
+<!--
+base.html для приложения sheet_formats
+Базовый шаблон для приложения sheet_formats
+Содержит общую структуру HTML страниц приложения
+Наследует стили из приложения devices для единообразия дизайна
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Динамический заголовок страницы -->
+    <title>{% block title %}Форматы листов{% endblock %} - Система управления</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    
+    <!-- Подключаем CSS стили из приложения devices для единообразия дизайна -->
+    <link rel="stylesheet" href="{% static 'devices/css/index.css' %}">
+    
+    <!-- Дополнительные блоки для CSS -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Включаем панели приложений из counter -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"sheet_formats" %}
+    
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        <!-- Блок для контента страницы -->
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Подключаем JavaScript для sheet_formats -->
+    <script src="{% static 'sheet_formats/js/index.js' %}"></script>
+    
+    <!-- Дополнительные блоки для JavaScript -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
