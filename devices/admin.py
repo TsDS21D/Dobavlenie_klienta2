@@ -1,7 +1,7 @@
 """
-admin.py
-Настройки административной панели Django для приложения devices.
-Позволяет управлять принтерами через стандартный интерфейс админки.
+admin.py для приложения devices
+Настройки административной панели Django для приложения devices
+Позволяет управлять принтерами через стандартный интерфейс админки
 """
 
 from django.contrib import admin
@@ -11,64 +11,87 @@ from .models import Printer
 @admin.register(Printer)
 class PrinterAdmin(admin.ModelAdmin):
     """
-    Административная панель для управления принтерами.
+    Административная панель для управления принтерами
     
-    Настраивает отображение и поведение модели Printer в админ-панели Django.
+    Настраивает отображение и поведение модели Printer в админ-панели Django
     """
     
-    # Поля, которые будут отображаться в списке принтеров
-    list_display = ('name', 'sheet_format', 'width_mm', 'height_mm', 'margin_mm', 'duplex_coefficient')
+    # Поля, отображаемые в списке принтеров
+    list_display = ('name', 'sheet_format', 'margin_mm', 'duplex_coefficient', 'created_at')
     
-    # Поля, по которым можно фильтровать список
-    list_filter = ('sheet_format',)
+    # Поля для фильтрации списка
+    list_filter = ('sheet_format', 'created_at')
     
-    # Поля, по которым работает поиск
-    search_fields = ('name', 'sheet_format')
+    # Поля для поиска
+    search_fields = ('name', 'sheet_format__name')
     
-    # Порядок сортировки по умолчанию
-    ordering = ('name',)
+    # Поля, которые можно редактировать прямо из списка
+    list_editable = ('margin_mm', 'duplex_coefficient')
     
     # Количество элементов на странице
     list_per_page = 20
     
-    # Группировка полей в форме редактирования
+    # Поля, которые будут показаны на странице редактирования
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name',)
+            'fields': ('name', 'sheet_format')
         }),
-        ('Характеристики формата', {
-            'fields': ('sheet_format', 'width_mm', 'height_mm')
+        ('Параметры печати', {
+            'fields': ('margin_mm', 'duplex_coefficient')
         }),
-        ('Дополнительные параметры', {
-            'fields': ('margin_mm', 'duplex_coefficient'),
-            'classes': ('collapse',)  # Группа свернута по умолчанию
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)  # Сворачиваемый блок
         }),
     )
     
-    # Действия, доступные в админ-панели
-    actions = ['duplicate_printers']
+    # Поля только для чтения
+    readonly_fields = ('created_at', 'updated_at')
     
-    def duplicate_printers(self, request, queryset):
+    # Автозаполнение поля slug на основе названия
+    # prepopulated_fields = {'slug': ('name',)}
+    
+    # Порядок сортировки по умолчанию
+    ordering = ('name',)
+    
+    def get_dimensions_display(self, obj):
         """
-        Действие: дублировать выбранные принтеры.
-        Создает копии выбранных принтеров с добавлением "(копия)" к названию.
+        Отображает размеры формата в админ-панели
         
         Args:
-            request: HTTP запрос
-            queryset: Выбранные объекты Printer
+            obj: Объект Printer
+            
+        Returns:
+            str: Строка с размерами
         """
-        for printer in queryset:
-            # Создаем копию принтера
-            new_printer = Printer(
-                name=f"{printer.name} (копия)",
-                sheet_format=printer.sheet_format,
-                width_mm=printer.width_mm,
-                height_mm=printer.height_mm,
-                margin_mm=printer.margin_mm,
-                duplex_coefficient=printer.duplex_coefficient,
-            )
-            new_printer.save()
-        
-        self.message_user(request, f'{queryset.count()} принтеров успешно дублировано.')
+        return obj.get_dimensions_display()
     
-    duplicate_printers.short_description = "Дублировать выбранные принтеры"
+    get_dimensions_display.short_description = 'Размеры формата'
+    
+    def get_margin_display(self, obj):
+        """
+        Отображает поля в админ-панели
+        
+        Args:
+            obj: Объект Printer
+            
+        Returns:
+            str: Строка с полями
+        """
+        return obj.get_margin_display()
+    
+    get_margin_display.short_description = 'Поля'
+    
+    def get_duplex_display(self, obj):
+        """
+        Отображает коэффициент в админ-панели
+        
+        Args:
+            obj: Объект Printer
+            
+        Returns:
+            str: Строка с коэффициентом
+        """
+        return obj.get_duplex_display()
+    
+    get_duplex_display.short_description = 'Коэффициент'

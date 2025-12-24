@@ -1,7 +1,7 @@
 <!--
-base.html
-Базовый шаблон для приложения devices.
-Содержит общую структуру HTML страниц приложения.
+base.html для приложения devices
+Базовый шаблон для всех страниц приложения devices
+Наследует общий стиль из приложения sheet_formats
 -->
 
 <!DOCTYPE html>
@@ -11,32 +11,39 @@ base.html
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- Динамический заголовок страницы -->
-    <title>{% block title %}Устройства типографии{% endblock %} - Система управления</title>
+    <!-- Блок title можно переопределить в дочерних шаблонах -->
+    <title>{% block title %}Управление принтерами{% endblock %} - Система типографии</title>
     
     <!-- Загружаем статические файлы Django -->
     {% load static %}
-     <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
     
-    <!-- Подключаем CSS стили для devices -->
-    <link rel="stylesheet" href="{% static 'devices/css/index.css' %}">
+    <!-- Иконка сайта (берем из общего приложения counter) -->
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
     
-    <!-- Дополнительные блоки для CSS -->
+    <!-- Подключаем CSS стили из приложения sheet_formats для единообразия -->
+    <!-- Используем тот же CSS, что и в sheet_formats -->
+    <link rel="stylesheet" href="{% static 'sheet_formats/css/index.css' %}">
+    
+    <!-- Дополнительные CSS стили (можно добавить в дочерних шаблонах) -->
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Включаем панели приложений из counter -->
+    <!-- Включаем панели навигации между приложениями -->
+    <!-- active_app передается из view для выделения текущего приложения -->
     {% include "counter/app_panels.html" with active_app=active_app|default:"devices" %}
     
     <!-- Основной контейнер страницы -->
     <div class="container">
-        <!-- Блок для контента страницы -->
+        <!-- Блок для основного контента страницы -->
+        <!-- Этот блок будет заполнен в дочерних шаблонах -->
         {% block content %}{% endblock %}
     </div>
     
     <!-- Подключаем JavaScript для devices -->
+    <!-- Файл index.js содержит логику для работы с таблицей принтеров -->
     <script src="{% static 'devices/js/index.js' %}"></script>
     
-    <!-- Дополнительные блоки для JavaScript -->
+    <!-- Дополнительный JavaScript (можно добавить в дочерних шаблонах) -->
     {% block extra_js %}{% endblock %}
 </body>
 </html>
