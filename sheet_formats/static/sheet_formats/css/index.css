@@ -1,0 +1,1953 @@
+/*
+index.css
+Стили для главной страницы приложения devices.
+Содержит стили для отображения формы и списка принтеров.
+*/
+
+/* ===== БАЗОВЫЕ СТИЛИ ===== */
+
+/* всегда показываем скроллбар */
+html {
+    overflow-y: scroll;
+}
+
+
+/* Сброс стандартных отступов и использование border-box модели */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Стили для всего тела страницы */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+
+/* Основной контейнер страницы */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ЗАГОЛОВКИ ===== */
+
+/* Заголовок первого уровня */
+h1 {
+    color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+/* Заголовок второго уровня */
+h2 {
+    color: #333;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+/* ===== СИСТЕМНЫЕ СООБЩЕНИЯ ===== */
+
+/* Контейнер для системных сообщений */
+.messages {
+    margin-bottom: 2rem;
+}
+
+/* Базовые стили для сообщений */
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+}
+
+/* Успешные сообщения */
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+/* Сообщения об ошибках */
+.alert-error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+/* Информационные сообщения */
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+/* ===== СЕКЦИИ ===== */
+
+/* Секция с формой */
+.form-section {
+    background: #f5f5f5;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+/* Секция со списком принтеров */
+.printers-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    border: 1px solid #e0e0e0;
+}
+
+/* ===== ФОРМЫ ===== */
+
+/* Группа полей в форме */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+/* Подписи к полям формы */
+label {
+    color: #555;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+    display: block;
+}
+
+/* Поля ввода - добавляем input[type="number"] */
+input[type="text"], 
+input[type="email"], 
+input[type="tel"], 
+input[type="date"], 
+input[type="datetime-local"], 
+input[type="number"], /* добавляем числовые поля */
+textarea, 
+select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+/* Состояние фокуса для полей ввода */
+input:focus, 
+textarea:focus, 
+select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 10px rgba(11, 134, 97, 0.2);
+}
+
+
+
+/* Группа чекбокса */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Чекбокс */
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Подсказки под полями */
+.help-text {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* Список ошибок */
+.errorlist {
+    list-style: none;
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+/* ===== КНОПКИ ===== */
+
+/* Группа кнопок */
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Базовые стили кнопок */
+button, 
+.btn-action {
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* Кнопка отправки формы */
+.btn-submit {
+    flex: 1;
+    background: #0B8661;
+    color: white;
+    box-shadow: 0 4px 15px rgba(11, 134, 97, 0.6);
+}
+
+/* Эффект при наведении на активную кнопку */
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(11, 134, 97, 0.6);
+}
+
+/* Отключенная кнопка */
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Кнопка очистки формы */
+.btn-clear {
+    flex: 1;
+    background: #e0e0e0;
+    color: #333;
+}
+
+/* Эффект при наведении на кнопку очистки */
+.btn-clear:hover {
+    background: #bdbdbd;
+}
+
+/* ===== ТАБЛИЦА ПРИНТЕРОВ ===== */
+
+/* Контейнер таблицы */
+.printers-table {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 1.5rem;
+}
+
+/* Заголовок таблицы */
+.table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
+    background: #f8f9fa;
+    padding: 1rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+/* Строка таблицы */
+.table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.3s ease;
+}
+
+/* Эффект при наведении на строку */
+.table-row:hover {
+    background: #f8f9fa;
+}
+
+/* Неактивная строка */
+.table-row.inactive {
+    opacity: 0.7;
+    background: #f5f5f5;
+}
+
+/* Колонки таблицы */
+.col-name, 
+.col-status, 
+.col-date, 
+.col-actions {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+/* Название принтера */
+.printer-name {
+    font-weight: 500;
+    color: #333;
+}
+
+/* ===== БЕЙДЖИ СТАТУСА ===== */
+
+/* Базовый стиль бейджа */
+.status-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Активный бейдж */
+.status-badge.active {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+/* Неактивный бейдж */
+.status-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* ===== КНОПКИ ДЕЙСТВИЙ ===== */
+
+/* Контейнер кнопок действий */
+.col-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Кнопка действия */
+.btn-action {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+/* Кнопка изменения статуса */
+.btn-toggle {
+    background: #6c757d;
+    color: white;
+}
+
+/* Эффект при наведении на кнопку изменения статуса */
+.btn-toggle:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* Кнопка удаления */
+.btn-delete {
+    background: #f44336;
+    color: white;
+}
+
+/* Эффект при наведении на кнопку удаления */
+.btn-delete:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* ===== ПОДСКАЗКИ ТАБЛИЦЫ ===== */
+
+/* Контейнер подсказок */
+.table-hint {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Элемент подсказки */
+.hint-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Бейдж в подсказке */
+.hint-item .status-badge {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* ===== СООБЩЕНИЕ ПРИ ПУСТОМ СПИСКЕ ===== */
+
+/* Сообщение при пустом списке */
+.empty-message {
+    text-align: center;
+    color: #999;
+    padding: 2rem;
+    font-style: italic;
+    background: #f9f9f9;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+/* ===== АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+/* Для экранов меньше 768px (планшеты и смартфоны) */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    
+    .container {
+        padding: 1.5rem;
+        border-radius: 15px;
+        max-width: 100%;
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .form-section {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .printers-section {
+        padding: 1.5rem;
+    }
+    
+    .table-header {
+        display: none;
+    }
+    
+    .table-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .col-name, 
+    .col-status, 
+    .col-date, 
+    .col-actions {
+        padding: 0.5rem 0;
+        justify-content: space-between;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .col-actions {
+        border-bottom: none;
+        justify-content: flex-start;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .table-hint {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* Для экранов меньше 480px (смартфоны) */
+@media (max-width: 480px) {
+    body {
+        padding: 0.5rem;
+    }
+    
+    .container {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    h2 {
+        font-size: 1.1rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .form-section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .printers-section {
+        padding: 1rem;
+    }
+    
+    input, 
+    textarea, 
+    select {
+        padding: 0.6rem;
+        font-size: 16px;
+    }
+    
+    button, 
+    .btn-action {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+    
+    .col-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+
+/* ===== 5. СТИЛИ НАВИГАЦИОННЫХ ПАНЕЛЕЙ ПРИЛОЖЕНИЙ ===== */
+
+/* 
+Контейнер для всех навигационных панелей приложений.
+Располагается в правом верхнем углу страницы.
+*/
+.app-nav-container {
+    /* 
+    Фиксированное позиционирование - элемент остается на месте при прокрутке.
+    position: fixed - вырывает элемент из потока и фиксирует относительно viewport.
+    */
+    position: fixed;
+    
+    /* 
+    Позиционирование в правом верхнем углу:
+    - top: 20px - отступ сверху 20px
+    - right: 20px - отступ справа 20px
+    */
+    top: 20px;
+    right: 20px;
+    
+    /* 
+    z-index: 1000 - высокий индекс наложения.
+    Гарантирует, что панели будут поверх всех других элементов страницы.
+    */
+    z-index: 1000;
+    
+    /* 
+    Flexbox для вертикального расположения панелей:
+    - display: flex - активирует flex-контейнер
+    - flex-direction: column - располагает дочерние элементы вертикально
+    */
+    display: flex;
+    flex-direction: column;
+    
+    /* 
+    Расстояние (gap) между панелями приложений.
+    10px - вертикальное расстояние между панелями.
+    */
+    gap: 10px;
+    
+    /* Фиксированная ширина всех панелей (280px) */
+    width: 280px;
+}
+
+/* 
+Общий стиль для каждой навигационной панели приложения.
+Каждая панель представляет отдельное приложение системы.
+*/
+.nav-panel {
+    /* Белый фон панели для контраста с фоновой текстурой */
+    background: white;
+    
+    /* 
+    Внутренние отступы панели:
+    - 12px: сверху и снизу
+    - 16px: слева и справа
+    */
+    padding: 12px 16px;
+    
+    /* Закругление углов (10px) - меньше, чем у основного контейнера */
+    border-radius: 10px;
+    
+    /* 
+    Легкая тень для эффекта "поднятости".
+    0 2px 10px: небольшая тень снизу
+    rgba(0, 0, 0, 0.1): черный с 10% прозрачности
+    */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    
+    /* 
+    Flexbox для горизонтального расположения элементов внутри панели:
+    - display: flex - активирует flex-контейнер
+    - align-items: center - вертикальное выравнивание по центру
+    - justify-content: space-between - распределяет пространство между элементами
+    */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    /* Ширина 100% от родительского контейнера (.app-nav-container) */
+    width: 100%;
+    
+    /* Учитываем padding в общей ширине (наследуем box-sizing: border-box) */
+    box-sizing: border-box;
+    
+    /* Минимальная высота панели (60px) для единообразия */
+    min-height: 60px;
+}
+
+/* 
+Контейнер для текстовой информации в навигационной панели.
+Располагается в левой части панели.
+*/
+.nav-info {
+    /* Размер шрифта (0.9rem = 14.4px) - немного меньше основного текста */
+    font-size: 0.9rem;
+    
+    /* 
+    flex: 1 - позволяет элементу растягиваться и занимать все доступное пространство.
+    Элемент займет все пространство между левым краем и кнопкой.
+    */
+    flex: 1;
+    
+    /* 
+    min-width: 0 - разрешает элементу сжиматься ниже минимального размера контента.
+    Необходимо для корректной работы text-overflow: ellipsis.
+    */
+    min-width: 0;
+    
+    /* Внешний отступ справа (10px) между информацией и кнопкой */
+    margin-right: 10px;
+}
+
+/* 
+Название приложения в навигационной панели (жирный текст).
+Отображает название приложения, например "Справочники".
+*/
+.nav-info strong {
+    /* Цвет текста - темно-серый (#333), как основной текст страницы */
+    color: #333;
+    
+    /* 
+    display: block - делает элемент блочным (занимает всю ширину).
+    Позволяет применять text-overflow к многострочному тексту.
+    */
+    display: block;
+    
+    /* 
+    white-space: nowrap - запрещает перенос текста на новую строку.
+    Текст всегда отображается в одну строку.
+    */
+    white-space: nowrap;
+    
+    /* 
+    overflow: hidden - скрывает текст, выходящий за границы элемента.
+    Необходимо для работы text-overflow: ellipsis.
+    */
+    overflow: hidden;
+    
+    /* 
+    text-overflow: ellipsis - добавляет многоточие (...) если текст не помещается.
+    Многоточие появляется в конце обрезанного текста.
+    */
+    text-overflow: ellipsis;
+    
+    /* Размер шрифта (0.95rem = 15.2px) - немного больше, чем у описания */
+    font-size: 0.95rem;
+}
+
+/* 
+Описание приложения в навигационной панели (второстепенный текст).
+Отображает краткое описание назначения приложения.
+*/
+.nav-info div {
+    /* Размер шрифта (0.8rem = 12.8px) - меньше, чем у названия */
+    font-size: 0.8rem;
+    
+    /* Цвет текста - серый (#666), менее заметный чем название */
+    color: #666;
+    
+    /* Запрет переноса текста на новую строку */
+    white-space: nowrap;
+    
+    /* Скрытие переполненного текста */
+    overflow: hidden;
+    
+    /* Добавление многоточия для обрезанного текста */
+    text-overflow: ellipsis;
+}
+
+/* 
+ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КНОПОК НАВИГАЦИИ (и button, и a).
+Обеспечивают единообразие внешнего вида кнопок в навигационных панелях.
+!important используется для приоритета над другими возможными стилями.
+*/
+.nav-btn {
+    /* 
+    Внутренние отступы кнопки:
+    - 8px: сверху и снизу
+    - 15px: слева и справа
+    !important гарантирует приоритет этого стиля
+    */
+    padding: 8px 15px !important;
+    
+    /* Убираем стандартную рамку браузера !important */
+    border: none !important;
+    
+    /* Закругление углов (5px) !important */
+    border-radius: 5px !important;
+    
+    /* Курсор-указатель при наведении !important */
+    cursor: pointer !important;
+    
+    /* Жирный текст (600) !important */
+    font-weight: 600 !important;
+    
+    /* Плавный переход для всех свойств !important */
+    transition: all 0.3s ease !important;
+    
+    /* Запрет переноса текста на новую строку !important */
+    white-space: nowrap !important;
+    
+    /* Убираем подчеркивание у ссылок !important */
+    text-decoration: none !important;
+    
+    /* 
+    display: inline-block !important
+    - Строчно-блочный элемент (можно задавать размеры как блоку)
+    - Располагается в строке как строчный элемент
+    */
+    display: inline-block !important;
+    
+    /* Размер шрифта (0.85rem = 13.6px) !important */
+    font-size: 0.85rem !important;
+    
+    /* 
+    Минимальная ширина кнопки (80px) !important
+    Обеспечивает одинаковый минимальный размер всех кнопок.
+    */
+    min-width: 80px !important;
+    
+    /* 
+    Фиксированная ширина кнопки (80px) !important
+    Все кнопки имеют одинаковую ширину для единообразия.
+    */
+    width: 80px !important;
+    
+    /* Выравнивание текста по центру !important */
+    text-align: center !important;
+    
+    /* Учитываем padding в ширине (border-box) !important */
+    box-sizing: border-box !important;
+    
+    /* Наследуем шрифт от body !important */
+    font-family: inherit !important;
+    
+    /* Сбрасываем line-height до стандартного значения !important */
+    line-height: normal !important;
+    
+    /* Убираем все внешние отступы !important */
+    margin: 0 !important;
+}
+
+/* 
+Кнопка выхода из системы (красная).
+Стили для кнопки выхода или других деструктивных действий.
+*/
+.nav-btn-logout {
+    /* Красный фон (#f44336) !important */
+    background: #f44336 !important;
+    
+    /* Белый текст !important */
+    color: white !important;
+}
+
+/* 
+Активная кнопка (текущее приложение) - зеленая.
+Подсвечивает кнопку активного приложения в навигации.
+*/
+.nav-btn-active {
+    /* 
+    Зеленый фон (#0B8661) - основной цвет типографии "Буква А" !important
+    Совпадает с цветом основной кнопки на странице.
+    */
+    background: #0B8661 !important;
+    
+    /* Белый текст !important */
+    color: white !important;
+}
+
+/* 
+Неактивная кнопка (другое приложение) - серая.
+Стили для кнопок перехода в другие приложения.
+*/
+.nav-btn-inactive {
+    /* Светло-серый фон (#e0e0e0) !important */
+    background: #e0e0e0 !important;
+    
+    /* Темно-серый текст (#333) !important */
+    color: #333 !important;
+}
+
+/* 
+Эффект при наведении на любую кнопку навигации.
+Создает интерактивность и визуальную обратную связь.
+*/
+.nav-btn:hover {
+    /* 
+    Поднимаем кнопку на 1px вверх !important
+    translateY(-1px) - небольшое перемещение по вертикали.
+    */
+    transform: translateY(-1px) !important;
+    
+    /* 
+    Добавляем тень при наведении !important
+    0 3px 6px: небольшая тень снизу
+    rgba(0, 0, 0, 0.15): черный с 15% прозрачности
+    */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 
+Особые стили для ссылок (тег <a>) в навигации.
+Дополнительные стили для ссылок, которые являются кнопками.
+*/
+a.nav-btn {
+    /* 
+    Flexbox для центрирования текста внутри ссылки !important
+    - display: flex - активирует flex-контейнер
+    - align-items: center - вертикальное выравнивание по центру
+    - justify-content: center - горизонтальное выравнивание по центру
+    */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ===== 6. АНИМАЦИИ И ЭФФЕКТЫ ===== */
+
+/* 
+Анимация появления элементов (fadeIn).
+Используется для плавного появления контейнера и других элементов.
+*/
+@keyframes fadeIn {
+    /* Начальное состояние (0% прогресса анимации) */
+    from {
+        /* Полная прозрачность (невидимый) */
+        opacity: 0;
+        /* Сдвиг на 10px вниз */
+        transform: translateY(10px);
+    }
+    /* Конечное состояние (100% прогресса анимации) */
+    to {
+        /* Полная непрозрачность (полностью видимый) */
+        opacity: 1;
+        /* Возврат в исходное положение (без сдвига) */
+        transform: translateY(0);
+    }
+}
+
+/* 
+Анимация появления карточки (cardAppear).
+Более выраженная анимация для центральной карточки с кнопкой.
+*/
+@keyframes cardAppear {
+    /* Начальное состояние */
+    from {
+        /* Полная прозрачность */
+        opacity: 0;
+        /* Сдвиг на 40px вниз и масштаб 95% */
+        transform: translateY(40px) scale(0.95);
+    }
+    /* Конечное состояние */
+    to {
+        /* Полная непрозрачность */
+        opacity: 1;
+        /* Возврат в исходное положение и масштаб 100% */
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 
+Анимация плавающего эффекта (float).
+Используется для иконки-эмодзи в карточке.
+*/
+@keyframes float {
+    /* Начало и конец анимации (0% и 100%) */
+    0%, 100% {
+        /* Исходное положение (без сдвига) */
+        transform: translateY(0);
+    }
+    /* Середина анимации (50%) */
+    50% {
+        /* Поднимаем элемент на 15px вверх */
+        transform: translateY(-15px);
+    }
+}
+
+/* ===== 7. АДАПТИВНЫЕ СТИЛИ ДЛЯ РАЗНЫХ УСТРОЙСТВ ===== */
+
+/* 
+Медиа-запрос для планшетов и небольших ноутбуков (максимальная ширина 1024px).
+Адаптирует стили для экранов шириной до 1024 пикселей.
+*/
+@media (max-width: 1024px) {
+    /* Уменьшаем отступы body на планшетах */
+    body {
+        padding: 1.5rem;
+    }
+    
+    /* Контейнер занимает 100% ширины на планшетах */
+    .container {
+        max-width: 100%;
+    }
+}
+
+/* 
+Медиа-запрос для планшетов и больших смартфонов (максимальная ширина 768px).
+Адаптирует стили для экранов шириной до 768 пикселей.
+*/
+@media (max-width: 768px) {
+    /* Еще больше уменьшаем отступы body на мобильных */
+    body {
+        padding: 1rem;
+    }
+    
+    /* Уменьшаем отступы и скругление основного контейнера */
+    .container {
+        padding: 2rem;
+        border-radius: 15px;
+    }
+    
+    /* Уменьшаем размер заголовка h1 на мобильных */
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Уменьшаем размер заголовка h2 на мобильных */
+    h2 {
+        font-size: 1.3rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    /* 
+    Адаптация навигационной панели для мобильных устройств.
+    Меняем позиционирование с фиксированного на относительное.
+    */
+    .app-nav-container {
+        /* 
+        position: relative - возвращаем в поток документа.
+        top: auto и right: auto - сбрасываем фиксированное позиционирование.
+        */
+        position: relative;
+        top: auto;
+        right: auto;
+        
+        /* Ширина 100% на мобильных (занимает всю доступную ширину) */
+        width: 100%;
+        
+        /* Отступ снизу для отделения от основного контента */
+        margin-bottom: 20px;
+    }
+    
+    /* 
+    Адаптация основного контента для мобильных.
+    Уменьшаем минимальную высоту и отступы.
+    */
+    .main-content {
+        padding: 1rem;
+        min-height: 50vh;
+    }
+    
+    /* 
+    Адаптация карточки для мобильных.
+    Уменьшаем внутренние отступы.
+    */
+    .feature-card {
+        padding: 2rem;
+    }
+    
+    /* Уменьшаем размер иконки в карточке */
+    .feature-icon {
+        font-size: 4rem;
+    }
+    
+    /* Уменьшаем размер заголовка в карточке */
+    .feature-card h2 {
+        font-size: 1.8rem;
+    }
+    
+    /* Уменьшаем размер текста описания в карточке */
+    .feature-description {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* 
+    Адаптация основной кнопки для мобильных.
+    Изменяем размеры, отступы и layout.
+    */
+    .primary-button {
+        /* Уменьшаем внутренние отступы */
+        padding: 1rem 2rem;
+        
+        /* Уменьшаем размер шрифта */
+        font-size: 1.1rem;
+        
+        /* Уменьшаем минимальную ширину */
+        min-width: 280px;
+        
+        /* 
+        Меняем направление flex-контейнера на колонку.
+        Элементы кнопки располагаются вертикально.
+        */
+        flex-direction: column;
+        
+        /* Уменьшаем расстояние между элементами */
+        gap: 8px;
+    }
+    
+    /* Уменьшаем размер иконки и стрелки в кнопке */
+    .button-icon, .button-arrow {
+        font-size: 1.3rem;
+    }
+    
+    /* 
+    Разрешаем перенос текста в информации панели на мобильных.
+    white-space: normal - текст переносится на новую строку при необходимости.
+    */
+    .nav-info strong {
+        white-space: normal;
+    }
+}
+
+/* 
+Медиа-запрос для смартфонов (максимальная ширина 480px).
+Адаптирует стили для экранов шириной до 480 пикселей.
+*/
+@media (max-width: 480px) {
+    /* Минимальные отступы для body на маленьких смартфонах */
+    body {
+        padding: 0.5rem;
+    }
+    
+    /* Компактный контейнер на маленьких смартфонах */
+    .container {
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+    
+    /* Еще меньше заголовок h1 */
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Еще меньше заголовок h2 */
+    h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Компактная карточка на маленьких смартфонах */
+    .feature-card {
+        padding: 1.5rem;
+    }
+    
+    /* Уменьшаем размер иконки в карточке */
+    .feature-icon {
+        font-size: 3.5rem;
+    }
+    
+    /* Уменьшаем размер заголовка в карточке */
+    .feature-card h2 {
+        font-size: 1.6rem;
+    }
+    
+    /* 
+    Компактная основная кнопка на маленьких смартфонах.
+    Дальнейшее уменьшение размеров.
+    */
+    .primary-button {
+        /* Уменьшаем минимальную ширину */
+        min-width: 250px;
+        
+        /* Уменьшаем внутренние отступы */
+        padding: 0.9rem 1.5rem;
+        
+        /* Уменьшаем размер шрифта */
+        font-size: 1rem;
+    }
+    
+    /* Компактные навигационные панели на маленьких смартфонах */
+    .nav-panel {
+        /* Уменьшаем внутренние отступы */
+        padding: 10px 12px;
+        
+        /* Уменьшаем минимальную высоту */
+        min-height: 55px;
+    }
+    
+    /* Уменьшаем шрифт в информации панели */
+    .nav-info strong {
+        font-size: 0.9rem;
+    }
+    
+    /* Компактные кнопки навигации на маленьких смартфонах */
+    .nav-btn {
+        /* Уменьшаем внутренние отступы */
+        padding: 6px 12px !important;
+        
+        /* Уменьшаем размер шрифта */
+        font-size: 0.8rem !important;
+        
+        /* Уменьшаем минимальную ширину */
+        min-width: 70px !important;
+        
+        /* Уменьшаем ширину */
+        width: 70px !important;
+    }
+}
+
+/* 
+Медиа-запрос для очень маленьких смартфонов (максимальная ширина 360px).
+Адаптирует стили для экранов шириной до 360 пикселей.
+*/
+@media (max-width: 360px) {
+    /* Минимальные отступы для контейнера */
+    .container {
+        padding: 1rem;
+    }
+    
+    /* Минимальные отступы для карточки */
+    .feature-card {
+        padding: 1rem;
+    }
+    
+    /* Минимальный размер заголовка h1 */
+    h1 {
+        font-size: 1.3rem;
+    }
+    
+    /* Минимальный размер заголовка h2 */
+    h2 {
+        font-size: 1.1rem;
+    }
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ КЛАССЫ ===== */
+
+/* 
+Класс для скрытия элементов (например, для мобильной версии).
+Используется для скрытия элементов на определенных устройствах.
+!important гарантирует приоритет над другими стилями.
+*/
+.hidden {
+    display: none !important;
+}
+
+/* 
+Класс для отображения элементов только на мобильных устройствах.
+По умолчанию скрыт, отображается только при max-width: 768px.
+*/
+.mobile-only {
+    display: none !important;
+}
+
+/* Применяем mobile-only только на мобильных */
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+}
+
+/* 
+Класс для отображения элементов только на десктопах.
+По умолчанию отображается, скрывается на мобильных.
+*/
+.desktop-only {
+    display: block !important;
+}
+
+/* Скрываем desktop-only на мобильных */
+@media (max-width: 768px) {
+    .desktop-only {
+        display: none !important;
+    }
+}
+
+/* Класс для центрирования текста */
+.text-center {
+    text-align: center;
+}
+
+/* Класс для выравнивания текста по левому краю */
+.text-left {
+    text-align: left;
+}
+
+/* Класс для выравнивания текста по правому краю */
+.text-right {
+    text-align: right;
+}
+
+/* 
+Классы для отступов сверху (margin-top).
+Используются для быстрой настройки отступов.
+*/
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+/* Классы для отступов снизу (margin-bottom) */
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+/* 
+Классы для внутренних отступов (padding).
+Используются для быстрой настройки внутренних отступов.
+*/
+.p-1 { padding: 0.5rem; }
+.p-2 { padding: 1rem; }
+.p-3 { padding: 1.5rem; }
+.p-4 { padding: 2rem; }
+
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ РЕДИЗАЙНА ===== */
+
+/* Секция с кнопкой переключения формы */
+.form-toggle-section {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Кнопка для показа/скрытия формы */
+.btn-toggle-form {
+    background: #0B8661;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Эффект при наведении на кнопку */
+.btn-toggle-form:hover {
+    transform: translateY(-2px);
+}
+
+/* Активное состояние кнопки (когда форма открыта) */
+.btn-toggle-form.active {
+    background: #e0e0e0;
+    color: #333 !important;
+}
+
+
+/* Контейнер для полей ширины и высоты */
+.dimensions-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Группа размеров (ширина или высота) */
+.dimension-group {
+    margin-bottom: 0;
+}
+
+
+
+/* Бейдж формата листа */
+.format-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+/* Бейдж размеров листа */
+.dimensions-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+    .dimensions-container {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .dimension-group {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-toggle-form {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        width: 100%;
+    }
+    
+    .table-header {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+    
+    .table-row {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .table-header {
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        font-size: 0.8rem;
+    }
+    
+    .table-row {
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        font-size: 0.9rem;
+    }
+    
+    .format-badge,
+    .dimensions-badge {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+    }
+}
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ ДОПОЛНИТЕЛЬНЫХ ПОЛЕЙ ===== */
+
+/* Контейнер для дополнительных параметров (поля и коэффициент) */
+.additional-params-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Группа параметров (поля или коэффициент) */
+.param-group {
+    margin-bottom: 0;
+}
+
+/* Универсальный бейдж для параметров */
+.param-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;          /* Темно-серый текст для лучшей читаемости */
+}
+
+/* Адаптивные стили для таблицы с дополнительными колонками */
+.table-header {
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 2fr;
+}
+
+.table-row {
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 2fr;
+}
+
+/* Стили для отдельных колонок в таблице */
+.col-margin,
+.col-duplex {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.5rem;
+    text-align: center;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 1024px) {
+    .table-header {
+        grid-template-columns: 1.5fr 0.8fr 1fr 0.8fr 0.8fr 1.2fr;
+        font-size: 0.9rem;
+    }
+    
+    .table-row {
+        grid-template-columns: 1.5fr 0.8fr 1fr 0.8fr 0.8fr 1.2fr;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .additional-params-container {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .param-group {
+        margin-bottom: 1rem;
+    }
+    
+    .table-header {
+        display: none; /* На мобильных скрываем заголовок для экономии места */
+    }
+    
+    .table-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .col-name,
+    .col-format,
+    .col-dimensions,
+    .col-margin,
+    .col-duplex,
+    .col-actions {
+        padding: 0.5rem 0;
+        justify-content: space-between;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+    }
+    
+    /* Добавляем подписи для мобильной версии */
+    .col-name::before {
+        content: "Название: ";
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .col-format::before {
+        content: "Формат: ";
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .col-dimensions::before {
+        content: "Размеры: ";
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .col-margin::before {
+        content: "Поля: ";
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .col-duplex::before {
+        content: "Коэффициент: ";
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .col-actions {
+        border-bottom: none;
+        justify-content: flex-start;
+    }
+    
+    .param-badge {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .param-badge {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.6rem;
+    }
+    
+    .table-hint {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .hint-item {
+        flex: 1 0 calc(50% - 0.5rem);
+        font-size: 0.8rem;
+    }
+}
+
+/* Стиль для подсказок таблицы на десктопе */
+.table-hint {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.hint-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+
+/* ===== СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Стили для редактируемых полей в режиме просмотра */
+.editable-field {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.editable-field:hover {
+    background-color: #f0f8ff;
+}
+
+/* Стили для строки в режиме редактирования */
+.table-row.edit-mode {
+    background-color: #f8fff8 !important;
+    border-left: 3px solid #0B8661;
+}
+
+/* Стили для полей ввода в режиме редактирования */
+.edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 5px rgba(11, 134, 97, 0.3);
+}
+
+.edit-input.error {
+    border-color: #f44336;
+    background-color: #fff8f8;
+}
+
+/* Стили для числовых полей ввода */
+.edit-number {
+    width: 80px;
+    text-align: center;
+}
+
+/* Контейнер для полей размеров в режиме редактирования */
+.dimensions-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dimensions-separator {
+    color: #666;
+    font-weight: bold;
+}
+
+.dimensions-unit {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Стили для единиц измерения */
+.margin-unit {
+    margin-left: 0.5rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-save {
+    background: #0B8661 !important;
+    color: white !important;
+}
+
+.btn-cancel {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+.btn-save:hover {
+    background: #096c4f !important;
+}
+
+.btn-cancel:hover {
+    background: #5a6268 !important;
+}
+
+/* Стили для сообщений об ошибках валидации */
+.error-message {
+    color: #f44336;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+/* ===== СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ ===== */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    word-break: break-word;
+    transform: translateX(0);
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.notification-success {
+    background-color: #69b66c;
+}
+
+.notification-error {
+    background-color: #f44336;
+    border-left: 4px solid #c62828;
+}
+
+.notification-warning {
+    background-color: #ff9800;
+    border-left: 4px solid #f57c00;
+}
+
+.notification-info {
+    background-color: #2196f3;
+    border-left: 4px solid #0d47a1;
+}
+
+/* Анимация появления */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Автоматическое исчезновение через 5 секунд */
+.notification {
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 4.7s;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .notification {
+        left: 20px;
+        right: 20px;
+        max-width: calc(100% - 40px);
+    }
+}
+
+/* Стили для подсказок */
+.hint-icon {
+    font-size: 1.2rem;
+}
+
+.hint-text {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+    .edit-input {
+        font-size: 16px; /* Увеличиваем размер шрифта на мобильных для удобства */
+        padding: 0.8rem;
+    }
+    
+    .edit-number {
+        width: 100%;
+    }
+    
+    .dimensions-inputs {
+        flex-wrap: wrap;
+    }
+    
+    .edit-actions {
+        flex-direction: column;
+    }
+    
+    .notification {
+        left: 20px;
+        right: 20px;
+        max-width: calc(100% - 40px);
+    }
+}
+
+/* Анимация появления формы редактирования */
+@keyframes fadeInEdit {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.table-row.edit-mode {
+    animation: fadeInEdit 0.3s ease;
+}
+
+
+/* ===== СТИЛИ ДЛЯ ПЛАВНОГО РЕДАКТИРОВАНИЯ ===== */
+
+/* Анимация появления полей ввода */
+.edit-mode .edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: inherit;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.edit-mode .edit-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
+}
+
+.edit-mode .edit-number {
+    width: 80px;
+    text-align: center;
+}
+
+/* Контейнер для размеров в режиме редактирования */
+.edit-mode .dimensions-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* Стили для строки в режиме редактирования */
+.table-row.edit-mode-active {
+    background-color: #f8fff8 !important;
+    border-left: 3px solid #0B8661;
+    transition: all 0.3s ease;
+}
+
+/* Убедимся, что ячейки сохраняют свою ширину */
+.col-name, .col-dimensions, .col-actions {
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-start;
+}
+
+/* Адаптивные стили для мобильных */
+@media (max-width: 768px) {
+    .edit-mode .dimensions-inputs {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    .edit-mode .edit-number {
+        width: 60px;
+    }
+    
+    .edit-actions {
+        flex-direction: column;
+    }
+    
+    .edit-actions .btn-action {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* ===== АНИМАЦИИ ДЛЯ ПЛАВНЫХ ПЕРЕХОДОВ ===== */
+
+/* Анимация вращения для индикатора загрузки */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Плавные переходы для элементов */
+.view-mode, .edit-mode {
+    transition: opacity 0.2s ease;
+}
+
+/* Для строки таблицы */
+.table-row {
+    position: relative;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Стили для индикатора загрузки в строке */
+.row-loading-indicator {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    transition: opacity 0.2s ease;
+}
+
+/* Отключаем выделение при клике */
+.table-row * {
+    user-select: none;
+}
+
+/* Для полей ввода в режиме редактирования */
+.edit-mode .edit-input {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-mode .edit-input:focus {
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
+}
+
+/* Адаптивные стили для мобильных */
+@media (max-width: 768px) {
+    .table-row {
+        transition: none; /* На мобильных отключаем анимации для производительности */
+    }
+    
+    .view-mode, .edit-mode {
+        transition: none;
+    }
+}
+
+
+/* ===== СТИЛИ ДЛЯ ВЫДЕЛЕНИЯ СТРОКИ ===== */
+
+/* Выделенная строка */
+.table-row.selected {
+    background-color: #f0f8ff !important;
+    border-left: 3px solid #2196f3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+}
+
+/* Курсор для редактируемых полей */
+.editable-field {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.editable-field:hover {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+
+/* Стили для заголовков колонок */
+.table-header {
+    user-select: none;
+}
+
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    .editable-field:hover::after {
+        display: none; /* На мобильных скрываем подсказку */
+    }
+}
+
+/* ===== ПЛАВНОЕ ВЫДЕЛЕНИЕ ===== */
+
+/* Плавный переход для выделения строки */
+.table-row {
+    transition: background-color 0.3s ease, 
+                border-color 0.3s ease, 
+                box-shadow 0.3s ease;
+}
+
+/* Плавное появление подсказки */
+.editable-field::after {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.editable-field:hover::after {
+    opacity: 1;
+}
+
+/* Защита от быстрых повторных кликов */
+.table-row.entering-edit-mode {
+    pointer-events: none;
+}
