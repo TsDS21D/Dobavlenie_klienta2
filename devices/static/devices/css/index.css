@@ -1632,7 +1632,7 @@ a.nav-btn {
     margin-top: 0.25rem;
 }
 
-/* Стили для уведомлений */
+/* ===== СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ ===== */
 .notification {
     position: fixed;
     top: 20px;
@@ -1643,8 +1643,9 @@ a.nav-btn {
     font-weight: 500;
     z-index: 10000;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    animation: slideIn 0.3s ease;
     max-width: 400px;
+    word-break: break-word;
+    animation: slideIn 0.3s ease;
 }
 
 .notification-success {
@@ -1657,11 +1658,17 @@ a.nav-btn {
     border-left: 4px solid #c62828;
 }
 
+.notification-warning {
+    background-color: #ff9800;
+    border-left: 4px solid #f57c00;
+}
+
 .notification-info {
     background-color: #2196f3;
     border-left: 4px solid #0d47a1;
 }
 
+/* Анимация появления */
 @keyframes slideIn {
     from {
         transform: translateX(100%);
@@ -1670,6 +1677,31 @@ a.nav-btn {
     to {
         transform: translateX(0);
         opacity: 1;
+    }
+}
+
+/* Автоматическое исчезновение через 5 секунд */
+.notification {
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 4.7s;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .notification {
+        left: 20px;
+        right: 20px;
+        max-width: calc(100% - 40px);
     }
 }
 
@@ -1723,4 +1755,198 @@ a.nav-btn {
 
 .table-row.edit-mode {
     animation: fadeInEdit 0.3s ease;
+}
+
+
+/* ===== СТИЛИ ДЛЯ ПЛАВНОГО РЕДАКТИРОВАНИЯ ===== */
+
+/* Анимация появления полей ввода */
+.edit-mode .edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: inherit;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.edit-mode .edit-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
+}
+
+.edit-mode .edit-number {
+    width: 80px;
+    text-align: center;
+}
+
+/* Контейнер для размеров в режиме редактирования */
+.edit-mode .dimensions-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* Стили для строки в режиме редактирования */
+.table-row.edit-mode-active {
+    background-color: #f8fff8 !important;
+    border-left: 3px solid #0B8661;
+    transition: all 0.3s ease;
+}
+
+/* Убедимся, что ячейки сохраняют свою ширину */
+.col-name, .col-dimensions, .col-actions {
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-start;
+}
+
+/* Адаптивные стили для мобильных */
+@media (max-width: 768px) {
+    .edit-mode .dimensions-inputs {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    .edit-mode .edit-number {
+        width: 60px;
+    }
+    
+    .edit-actions {
+        flex-direction: column;
+    }
+    
+    .edit-actions .btn-action {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* ===== АНИМАЦИИ ДЛЯ ПЛАВНЫХ ПЕРЕХОДОВ ===== */
+
+/* Анимация вращения для индикатора загрузки */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Плавные переходы для элементов */
+.view-mode, .edit-mode {
+    transition: opacity 0.2s ease;
+}
+
+/* Для строки таблицы */
+.table-row {
+    position: relative;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Стили для индикатора загрузки в строке */
+.row-loading-indicator {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Стили для кнопок в режиме редактирования */
+.edit-actions {
+    transition: opacity 0.2s ease;
+}
+
+/* Отключаем выделение при клике */
+.table-row * {
+    user-select: none;
+}
+
+/* Для полей ввода в режиме редактирования */
+.edit-mode .edit-input {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-mode .edit-input:focus {
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
+}
+
+/* Адаптивные стили для мобильных */
+@media (max-width: 768px) {
+    .table-row {
+        transition: none; /* На мобильных отключаем анимации для производительности */
+    }
+    
+    .view-mode, .edit-mode {
+        transition: none;
+    }
+}
+
+
+/* ===== СТИЛИ ДЛЯ ВЫДЕЛЕНИЯ СТРОКИ ===== */
+
+/* Выделенная строка */
+.table-row.selected {
+    background-color: #f0f8ff !important;
+    border-left: 3px solid #2196f3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+}
+
+/* Курсор для редактируемых полей */
+.editable-field {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.editable-field:hover {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+
+/* Стили для заголовков колонок */
+.table-header {
+    user-select: none;
+}
+
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    .editable-field:hover::after {
+        display: none; /* На мобильных скрываем подсказку */
+    }
+}
+
+/* ===== ПЛАВНОЕ ВЫДЕЛЕНИЕ ===== */
+
+/* Плавный переход для выделения строки */
+.table-row {
+    transition: background-color 0.3s ease, 
+                border-color 0.3s ease, 
+                box-shadow 0.3s ease;
+}
+
+/* Плавное появление подсказки */
+.editable-field::after {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.editable-field:hover::after {
+    opacity: 1;
+}
+
+/* Защита от быстрых повторных кликов */
+.table-row.entering-edit-mode {
+    pointer-events: none;
 }
