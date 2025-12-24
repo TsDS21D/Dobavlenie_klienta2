@@ -1,5 +1,6 @@
 """
-views.py - обработчики HTTP-запросов для приложения "directories".
+views.py для приложения "directories".
+Главная страница приложения "Справочники".
 """
 
 from django.shortcuts import render
@@ -11,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 def index(request):
     """
     Обработчик главной страницы приложения "Справочники".
-    Теперь страница содержит только кнопку для перехода в "Шаблоны изделий".
+    Возвращает страницу с навигационными карточками для справочников.
     """
     
     context = {
@@ -20,4 +21,5 @@ def index(request):
         'page_title': 'Справочники - Типография Буква А',
     }
     
+    # Используем наш новый шаблон с наследованием
     return render(request, 'directories/index.html', context)

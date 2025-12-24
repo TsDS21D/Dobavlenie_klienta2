@@ -1,79 +1,111 @@
 <!-- 
-index.html - главный HTML-шаблон приложения "Справочники".
-Содержит только кнопку перехода в приложение "Шаблоны изделий".
+directories/templates/directories/index.html
+Главная страница приложения "Справочники".
+Добавлена карточка для справочника "Устройства".
 -->
 
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
-    <title>{{ page_title }}</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'directories/css/index.css' %}">
-    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
-</head>
-<body>
-    {% load static %}
+{% extends "directories/base.html" %}
+
+{% block directories_title %}Справочники - Типография Буква А{% endblock %}
+
+{% block directories_content %}
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        Справочники
+    </h1>
     
-    <!-- Включаем навигационные панели из общего шаблона -->
-    {% include "counter/app_panels.html" with active_app="directories" %}
+    <div class="welcome-text">
+        <p>
+            Добро пожаловать в раздел справочников информационной системы типографии "Буква А". 
+            Здесь собраны все справочные данные для работы с заказами и производством.
+        </p>
+    </div>
     
-    <!-- Основной контейнер с центрированным контентом -->
-    <div class="container">
-        <!-- Заголовок приложения -->
-        <h1>
-            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
-                alt="Типография &quot;Буква А&quot;" 
-                title="Типография &quot;Буква А&quot;"
-                width="150">
-            Справочники
-        </h1>
-        
-        <!-- Главный контент: только кнопка -->
-        <div class="main-content">
-            <!-- Информационная карточка с кнопкой -->
-            <div class="feature-card">
-                <div class="feature-icon">📁</div>
-                <h2>Шаблоны изделий</h2>
-                <p class="feature-description">
-                    Перейти в приложение для управления шаблонами полиграфической продукции.
-                    Здесь вы можете создавать, редактировать и использовать стандартные шаблоны изделий.
-                </p>
-                
-                <!-- Основная кнопка -->
-                <a href="/product_templates/" class="primary-button">
-                    <span class="button-icon">🚀</span>
-                    <span class="button-text">Перейти к шаблонам изделий</span>
-                    <span class="button-arrow">→</span>
-                </a>
-                
-                <!-- Вторичная информация -->
-                <div class="secondary-info">
-                    <p>Быстрый доступ к каталогу готовых шаблонов</p>
-                </div>
+    <div class="directories-container">
+        <!-- Карточка "Форматы листов" -->
+        <a href="/sheet_formats/" class="directory-card">
+            <div class="directory-icon">📄</div>
+            <div class="directory-name">Форматы листов</div>
+            <div class="directory-description">
+                Управление форматами печатных листов (SRA3, A4, A3+ и другие). 
+                Добавление, редактирование и удаление форматов бумаги для расчетов.
             </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+        
+        <!-- Карточка "Устройства" -->
+        <a href="/devices/" class="directory-card">
+            <div class="directory-icon">🖨️</div>
+            <div class="directory-name">Устройства</div>
+            <div class="directory-description">
+                Управление оборудованием типографии: принтеры, плоттеры, резаки, 
+                ламинаторы и другое печатное и послепечатное оборудование.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+        
+        <!-- Заглушки для будущих справочников -->
+        <!--
+        <div class="directory-card disabled">
+            <div class="directory-icon">📦</div>
+            <div class="directory-name">Материалы</div>
+            <div class="directory-description">
+                Каталог бумаги, красок, пленок и других расходных материалов.
+            </div>
+            <div class="directory-status inactive">Скоро</div>
+            <div class="directory-hint">В разработке</div>
+        </div>
+        -->
+    </div>
+    
+    <!-- Обновляем секцию "Скоро появится" -->
+    <div class="coming-soon-section">
+        <div class="coming-soon-title">Справочники в разработке:</div>
+        <div class="coming-soon-grid">
+            <div class="coming-soon-item">Материалы и бумага</div>
+            <div class="coming-soon-item">Услуги и операции</div>
+            <div class="coming-soon-item">Клиенты и заказчики</div>
         </div>
     </div>
+{% endblock %}
 
-    <!-- JavaScript для интерактивности -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔗 Приложение "Справочники" загружено. Кнопка ведет в "Шаблоны изделий".');
-            
-            // Анимация для кнопки при загрузке
-            const button = document.querySelector('.primary-button');
-            if (button) {
-                button.style.opacity = '0';
-                button.style.transform = 'translateY(20px)';
-                
-                setTimeout(() => {
-                    button.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                    button.style.opacity = '1';
-                    button.style.transform = 'translateY(0)';
-                }, 300);
-            }
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📚 Приложение "Справочники" загружено');
+    
+    const cards = document.querySelectorAll('.directory-card');
+    
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
         });
-    </script>
-</body>
-</html>
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+        
+        if (card.classList.contains('disabled')) {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Этот справочник находится в разработке');
+            });
+        }
+    });
+    
+    setTimeout(() => {
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    }, 100);
+});
+</script>
+{% endblock %}

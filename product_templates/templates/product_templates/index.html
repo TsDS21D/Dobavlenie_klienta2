@@ -21,6 +21,7 @@ index.html - главный HTML шаблон приложения "Шаблон
     
     <!-- Загружаем тег static для работы со статическими файлами Django -->
     {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
     
     <!-- Подключаем собственный CSS файл приложения product_templates -->
     <!-- { % static 'product_templates/css/index.css' % } генерирует правильный URL до CSS файла -->

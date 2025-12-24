@@ -1,0 +1,42 @@
+<!-- 
+directories/templates/directories/base.html
+Базовый шаблон для приложения "Справочники".
+Наследует общую структуру и подключает стили.
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Блок для динамического заголовка страницы -->
+    <title>{% block directories_title %}Справочники{% endblock %} - Система управления</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Подключаем общие стили из sheet_formats для единства дизайна -->
+    <link rel="stylesheet" href="{% static 'sheet_formats/css/index.css' %}">
+    
+    <!-- Подключаем собственные стили для directories -->
+    <link rel="stylesheet" href="{% static 'directories/css/index.css' %}">
+    
+    <!-- Блок для дополнительных CSS файлов -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Включаем панели навигации из общего шаблона -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"directories" %}
+    
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        <!-- Блок для основного содержимого страницы -->
+        {% block directories_content %}{% endblock %}
+    </div>
+    
+    <!-- Блок для дополнительного JavaScript -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
