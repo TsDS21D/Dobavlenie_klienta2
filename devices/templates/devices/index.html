@@ -313,9 +313,15 @@ index.html для приложения devices
                             
                             <!-- Режим редактирования -->
                             <div class="edit-mode" style="display: none;">
+                                <!-- 
+                                ВАЖНОЕ ИСПРАВЛЕНИЕ:
+                                Используем метод get_duplex_coefficient_formatted() для получения
+                                корректно отформатированного значения с одним знаком после запятой.
+                                Это решает проблему с пустым полем при первом редактировании.
+                                -->
                                 <input type="number" 
                                        name="duplex_coefficient" 
-                                       value="{{ printer.duplex_coefficient }}" 
+                                       value="{{ printer.get_duplex_coefficient_formatted }}" 
                                        class="edit-input edit-number"
                                        data-field="duplex_coefficient"
                                        placeholder="2.0"
@@ -564,7 +570,12 @@ function savePrinterRow(printerId) {
     const inputs = row.querySelectorAll('.edit-mode input, .edit-mode select');
     
     inputs.forEach(input => {
-        data[input.name] = input.value;
+        // Для поля duplex_coefficient преобразуем значение в число с плавающей точкой
+        if (input.name === 'duplex_coefficient') {
+            data[input.name] = parseFloat(input.value) || 2.0;
+        } else {
+            data[input.name] = input.value;
+        }
     });
     
     // Валидация на клиенте
@@ -691,6 +702,13 @@ function updateViewRow(printerId, printerData) {
     const duplexElement = row.querySelector('.col-duplex .param-badge');
     if (duplexElement) {
         duplexElement.textContent = printerData.duplex_display;
+    }
+    
+    // Важно: обновляем значение в поле ввода для будущих редактирований
+    const duplexInput = row.querySelector('input[name="duplex_coefficient"]');
+    if (duplexInput) {
+        // Используем отформатированное значение из ответа сервера
+        duplexInput.value = printerData.duplex_coefficient_formatted || printerData.duplex_coefficient;
     }
     
     // Обновляем ссылку удаления

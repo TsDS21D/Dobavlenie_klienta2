@@ -124,6 +124,17 @@ class Printer(models.Model):
             # Иначе показываем с одним знаком после запятой
             return f"{self.duplex_coefficient:.1f}"
     
+    def get_duplex_coefficient_formatted(self):
+        """
+        Возвращает коэффициент с фиксированным форматом для отображения в поле ввода
+        Всегда показывает один знак после запятой
+        
+        Returns:
+            str: Строка с коэффициентом в формате "2.0"
+        """
+        # Форматируем до одного знака после запятой, даже если число целое
+        return f"{self.duplex_coefficient:.1f}"
+    
     def to_dict(self):
         """
         Преобразует объект принтера в словарь для передачи в JSON
@@ -139,6 +150,7 @@ class Printer(models.Model):
             'sheet_format_dimensions': self.sheet_format.get_dimensions_display(),
             'margin_mm': self.margin_mm,
             'duplex_coefficient': self.duplex_coefficient,
+            'duplex_coefficient_formatted': self.get_duplex_coefficient_formatted(),  # Добавлено
             'margin_display': self.get_margin_display(),
             'duplex_display': self.get_duplex_display(),
             'created_at': self.created_at.strftime('%d.%m.%Y %H:%M'),
@@ -149,9 +161,14 @@ class Printer(models.Model):
         """
         Переопределяем метод сохранения для дополнительной логики
         
-        Можно добавить проверки или логирование при сохранении
+        Важно: округляем duplex_coefficient до одного знака после запятой
+        для стабильного отображения в HTML-поле input type="number"
         """
-        # Перед сохранением можно добавить валидацию
+        # Округляем коэффициент до одного знака после запятой
+        # Это решает проблему с плавающей точкой (например, 2.0 может сохраняться как 1.999999999)
+        self.duplex_coefficient = round(self.duplex_coefficient, 1)
+        
+        # Дополнительная валидация
         if self.margin_mm < 0:
             raise ValueError("Поля не могут быть отрицательными")
         
