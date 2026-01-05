@@ -1,0 +1,388 @@
+<!--
+index.html для приложения sklad
+Главная страница приложения sklad
+ДОБАВЛЕНО: Атрибуты для inline-редактирования (data-editable)
+-->
+
+{% extends "sklad/base.html" %}
+
+<!-- Заголовок страницы -->
+{% block title %}Склад материалов{% endblock %}
+
+<!-- Основной контент страницы -->
+{% block content %}
+    <!-- Заголовок страницы с логотипом -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        Управление складом материалов
+    </h1>
+    
+    <!-- Скрытый контейнер для сообщений Django -->
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    <!-- Двухколоночный layout -->
+    <div class="two-column-layout">
+        
+        <!-- ЛЕВАЯ КОЛОНКА: Дерево категорий -->
+        <div class="left-column">
+            <!-- Заголовок секции дерева -->
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-folder-tree"></i> Древовидная структура
+                </h2>
+                <!-- Кнопка добавления категории -->
+                <button type="button" 
+                        class="btn-action btn-add-category" 
+                        id="add-category-btn">
+                    + Добавить категорию
+                </button>
+            </div>
+            
+            <!-- Контейнер для дерева категорий -->
+            <div class="tree-container" id="category-tree-container">
+                <!-- Дерево будет загружено через JavaScript -->
+                <div class="tree-loading">
+                    <div class="spinner"></div>
+                    <p>Загрузка дерева категорий...</p>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- ПРАВАЯ КОЛОНКА: Таблица материалов -->
+        <div class="right-column">
+            <!-- Заголовок секции материалов -->
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-box-open"></i> Материалы
+                    {% if selected_category %}
+                    <span class="selected-category">
+                        {% if descendants_count > 0 %}
+                            в категории "<strong>{{ selected_category.name }}</strong>" 
+                            и {{ descendants_count }} подкатегори{{ descendants_count|pluralize:"ях,ях" }}
+                        {% else %}
+                            в категории "<strong>{{ selected_category.name }}</strong>""
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                </h2>
+                <div class="header-buttons">
+                    <!-- Кнопка сброса фильтра (показывается только при активном фильтре) -->
+                    {% if selected_category %}
+                    <a href="/sklad/" 
+                    class="btn-action btn-reset-filter"
+                    title="Сбросить фильтр и показать все материалы">
+                        <i class="fas fa-times-circle"></i> Сбросить
+                    </a>
+                    {% endif %}
+                    <!-- Кнопка добавления материала -->
+                    <button type="button" 
+                            class="btn-action btn-add-material" 
+                            id="add-material-btn">
+                        + Добавить
+                    </button>
+                </div>
+            </div>
+            
+           <!-- Форма добавления материала (изначально скрыта) -->
+            <div class="form-section" id="material-form-section" style="display: none;">
+                <h3>Добавить новый материал</h3>
+                
+                <!-- Форма добавления материала -->
+                <form method="post" action="{% url 'sklad:create_material' %}" id="material-form">
+                    {% csrf_token %}
+                    
+                    <!-- Название материала -->
+                    <div class="form-group">
+                        <label for="material-name">Название материала*</label>
+                        <input type="text" 
+                            id="material-name" 
+                            name="name" 
+                            class="form-control"
+                            placeholder="Например: Меловка 130 г/кв.м, глянец"
+                            required>
+                    </div>
+                    
+                    <!-- Категория и цена в одной строке -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="material-category">Категория*</label>
+                            <select id="material-category" name="category" class="form-control" required>
+                                <option value="">-- Выберите категорию --</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}" 
+                                            {% if selected_category and selected_category.id == category.id %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="material-price">Цена*</label>
+                            <input type="number" 
+                                id="material-price" 
+                                name="price" 
+                                class="form-control"
+                                step="0.01" 
+                                min="0.01" 
+                                placeholder="50.00"
+                                required>
+                        </div>
+                    </div>
+                    
+                    <!-- Единица измерения и количество -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="material-unit">Единица измерения</label>
+                            <input type="text" 
+                                id="material-unit" 
+                                name="unit" 
+                                class="form-control"
+                                value="лист"
+                                placeholder="лист, рулон, метр">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="material-quantity">Количество на складе</label>
+                            <input type="number" 
+                                id="material-quantity" 
+                                name="quantity" 
+                                class="form-control"
+                                step="0.01" 
+                                min="0" 
+                                value="0">
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопки формы -->
+                    <div class="button-group">
+                        <button type="submit" class="btn-submit">Сохранить материал</button>
+                        <button type="button" class="btn-clear" onclick="clearMaterialForm()">Очистить форму</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Информация о включенных категориях -->
+            {% if selected_category and descendants_count > 0 %}
+            <div class="categories-info">
+                <div class="info-header">
+                    <i class="fas fa-info-circle"></i>
+                    Показаны материалы из:
+                </div>
+                <div class="categories-list">
+                    <div class="main-category">
+                        <i class="fas fa-folder"></i>
+                        <span class="category-name">{{ selected_category.name }}</span>
+                        <span class="category-stats">
+                            ({{ selected_category.materials.count }} материалов)
+                        </span>
+                    </div>
+                    
+                    {% if descendants_count > 0 %}
+                    <div class="subcategories-list">
+                        <div class="subcategories-header">
+                            <i class="fas fa-level-down-alt"></i>
+                            Подкатегории ({{ descendants_count }}):
+                        </div>
+                        <div class="subcategories-container">
+                            {% for cat in included_categories %}
+                                {% if cat.id != selected_category.id %}
+                                <div class="subcategory-item">
+                                    <i class="fas fa-folder" style="color: #ff9800;"></i>
+                                    <span class="subcategory-name">{{ cat.name }}</span>
+                                    <span class="subcategory-stats">
+                                        ({{ cat.materials.count }} материалов)
+                                    </span>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            
+            <!-- Основной контейнер для материалов с прокруткой -->
+            <div class="materials-container">
+                <div class="materials-section">
+                    {% if not materials %}
+                        <!-- Сообщение, если материалов нет -->
+                        <div class="empty-message">
+                            <i class="fas fa-box-open"></i>
+                            {% if selected_category %}
+                                В категории "{{ selected_category.name }}" и её подкатегориях нет материалов
+                            {% else %}
+                                Материалы не найдены. Выберите категорию слева или добавьте новый материал.
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <!-- Таблица со списком материалов -->
+                        <div class="materials-table">
+                            <!-- Заголовок таблицы -->
+                            <div class="table-header">
+                                <div class="col-name">Название материала</div>
+                                <div class="col-price">Цена</div>
+                                <div class="col-quantity">Количество</div>
+                                <div class="col-actions">Действия</div>
+                            </div>
+                            
+                            <!-- Тело таблицы с прокруткой -->
+                            <div class="table-body">
+                                <!-- Цикл по всем материалам -->
+                                {% for material in materials %}
+                                    <!-- Одна строка таблицы -->
+                                    <div class="table-row" data-material-id="{{ material.id }}">
+                                        
+                                        <!-- Колонка: Название материала -->
+                                        <div class="col-name">
+                                            <!-- 
+                                            ДОБАВЛЕНА ВОЗМОЖНОСТЬ INLINE-РЕДАКТИРОВАНИЯ:
+                                            - data-editable="true" - разрешает редактирование
+                                            - data-field="name" - указывает какое поле редактируем
+                                            - data-original-value - сохраняем оригинальное значение
+                                            - ondblclick - обработчик двойного клика
+                                            -->
+                                            <div class="material-name" 
+                                                 data-editable="true"
+                                                 data-field="name"
+                                                 data-material-id="{{ material.id }}"
+                                                 data-original-value="{{ material.name }}"
+                                                 ondblclick="startInlineEdit(this)">
+                                                {{ material.name }}
+                                            </div>
+                                            <!-- Категория материала -->
+                                            <div class="material-category">
+                                                <i class="fas fa-folder"></i>
+                                                {{ material.category.name }}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Колонка: Цена -->
+                                        <div class="col-price">
+                                            <!-- 
+                                            ДОБАВЛЕНА ВОЗМОЖНОСТЬ INLINE-РЕДАКТИРОВАНИЯ:
+                                            Для цены:
+                                            - data-editable="true"
+                                            - data-field="price"
+                                            - data-original-value сохраняет числовое значение (без форматирования)
+                                            -->
+                                            <span class="price-badge"
+                                                  data-editable="true"
+                                                  data-field="price"
+                                                  data-material-id="{{ material.id }}"
+                                                  data-original-value="{{ material.price }}"
+                                                  ondblclick="startInlineEdit(this)">
+                                                {{ material.get_price_display }}
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Колонка: Количество -->
+                                        <div class="col-quantity">
+                                            <!-- 
+                                            ДОБАВЛЕНА ВОЗМОЖНОСТЬ INLINE-РЕДАКТИРОВАНИЯ:
+                                            Для количества:
+                                            - data-editable="true"
+                                            - data-field="quantity"
+                                            - data-min-quantity для валидации
+                                            -->
+                                            <span class="quantity-badge {% if material.quantity <= 0 %}quantity-zero{% elif material.quantity <= material.min_quantity %}quantity-low{% endif %}"
+                                                  data-editable="true"
+                                                  data-field="quantity"
+                                                  data-material-id="{{ material.id }}"
+                                                  data-original-value="{{ material.quantity }}"
+                                                  data-min-quantity="{{ material.min_quantity }}"
+                                                  ondblclick="startInlineEdit(this)">
+                                                {{ material.quantity }} {{ material.unit }}
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Колонка: Действия -->
+                                        <div class="col-actions">
+                                            <!-- Кнопка удаления с подтверждением -->
+                                            <button type="button" 
+                                                    class="btn-action btn-delete"
+                                                    data-material-id="{{ material.id }}"
+                                                    data-material-name="{{ material.name }}">
+                                                Удалить
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Подсказки для пользователя -->
+                        <div class="table-hint">
+                            <div class="hint-item">
+                                <span class="hint-icon">📁</span>
+                                <span class="hint-text">Показаны материалы из выбранной категории и всех её подкатегорий</span>
+                            </div>
+                            <div class="hint-item">
+                                <span class="hint-icon">👆</span>
+                                <span class="hint-text">Нажмите на название категории, чтобы увидеть иерархию</span>
+                            </div>
+                            <!-- НОВАЯ ПОДСКАЗКА: inline-редактирование -->
+                            <div class="hint-item">
+                                <span class="hint-icon">✏️</span>
+                                <span class="hint-text">Двойной клик по названию, цене или количеству для быстрого редактирования</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Форма добавления категории (скрытая) -->
+    <div class="form-section" id="category-form-section" style="display: none;">
+        <h3>Добавить новую категорию</h3>
+        
+        <!-- Форма добавления категории -->
+        <form method="post" action="{% url 'sklad:create_category' %}" id="category-form">
+            {% csrf_token %}
+            
+            <!-- Название категории -->
+            <div class="form-group">
+                <label for="category-name">Название категории*</label>
+                <input type="text" 
+                       id="category-name" 
+                       name="name" 
+                       class="form-control"
+                       placeholder="Например: Бумага, Меловка, Картон"
+                       required>
+            </div>
+            
+            <!-- Родительская категория -->
+            <div class="form-group">
+                <label for="category-parent">Родительская категория</label>
+                <select id="category-parent" name="parent" class="form-control">
+                    <option value="">(Корневая категория)</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">Оставьте пустым для создания корневой категории</div>
+            </div>
+            
+            <!-- Кнопки формы -->
+            <div class="button-group">
+                <button type="submit" class="btn-submit">Создать категорию</button>
+                <button type="button" class="btn-cancel" onclick="hideCategoryForm()">Отмена</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'mptt',
     'channels',
     'counter',
     'calculator',
@@ -49,6 +50,8 @@ INSTALLED_APPS = [
     'directories',
     'devices',
     'sheet_formats',
+    'sklad',
+    'print_price',
 ]
 
 MIDDLEWARE = [

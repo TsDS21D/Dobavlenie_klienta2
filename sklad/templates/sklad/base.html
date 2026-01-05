@@ -1,0 +1,42 @@
+<!--
+base.html для приложения sklad
+Наследует общую структуру и стили из sheet_formats для единообразия дизайна
+Добавлены исправления для предотвращения вылезания контента
+-->
+
+{% extends "sheet_formats/base.html" %}
+
+<!-- Блок для дополнительных CSS стилей конкретно для sklad -->
+{% block extra_css %}
+<!-- Подключаем CSS стили для sklad -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'sklad/css/sklad.css' %}">
+<!-- Дополнительные мета-теги для лучшей адаптивности -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    /* Дополнительные inline-стили для гарантии */
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+        position: relative !important;
+    }
+    
+    /* Исправление для контейнера на очень узких экранах */
+    @media (max-width: 1137px) {
+        .container {
+            width: 100% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+    }
+</style>
+{% endblock %}
+
+<!-- Блок для дополнительного JavaScript для sklad -->
+{% block extra_js %}
+<!-- Подключаем JavaScript для sklad -->
+{% load static %}
+<script src="{% static 'sklad/js/sklad.js' %}"></script>
+<!-- ПОДКЛЮЧАЕМ AJAX-ЛОГИКУ ПОСЛЕ ОСНОВНОГО СКРИПТА -->
+<script src="{% static 'sklad/js/sklad_ajax.js' %}"></script>
+{% endblock %}

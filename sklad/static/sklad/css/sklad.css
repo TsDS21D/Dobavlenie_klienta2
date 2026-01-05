@@ -1,0 +1,1781 @@
+/*
+sklad.css - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
+Улучшены: отступы, читаемость дерева, адаптивность
+Цветовая гамма сохранена
+*/
+
+/* ===== 0. БАЗОВЫЕ НАСТРОЙКИ КОНТЕЙНЕРА ===== */
+/* Основной контейнер - УМЕНЬШИЛИ отступы с 3rem до 1.5rem */
+.container {
+    max-width: 1200px;              /* Максимальная ширина контейнера */
+    margin: 0 auto;                 /* Центрирование по горизонтали */
+    background: white;              /* Белый фон */
+    border-radius: 20px;            /* Скругленные углы */
+    padding: 1.5rem;                /* ВНУТРЕННИЙ ОТСТУП: уменьшили с 3rem до 1.5rem */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); /* Тень для объемности */
+    width: 100%;                    /* Ширина 100% от родителя */
+    box-sizing: border-box;         /* Учет padding в ширине */
+    /* Исправление для мобильных: */
+    overflow-x: hidden;             /* Скрываем горизонтальный скролл */
+}
+
+/* ===== 1. ДВУХКОЛОНОЧНЫЙ LAYOUT (УПЛОТНЕННЫЙ) ===== */
+/* Основной контейнер для двух колонок */
+.two-column-layout {
+    display: grid;                  /* Используем CSS Grid */
+    /* ДВЕ КОЛОНКИ: левая уже, правая шире */
+    grid-template-columns: minmax(280px, 1fr) minmax(350px, 2fr);
+    gap: 1.2rem;                   /* Уменьшили расстояние между колонками с 2rem до 1.2rem */
+    margin-top: 1.5rem;            /* Отступ сверху */
+}
+
+/* ЛЕВАЯ КОЛОНКА - дерево категорий */
+.left-column {
+    background: #f9f9f9;           /* Светло-серый фон */
+    padding: 1rem;                 /* Уменьшили отступ с 1.5rem до 1rem */
+    border-radius: 12px;           /* Скругление углов */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    min-height: 500px;             /* Минимальная высота */
+    display: flex;                 /* Flex-контейнер */
+    flex-direction: column;        /* Вертикальное расположение дочерних элементов */
+    overflow: hidden;              /* Скрываем выходящий за границы контент */
+}
+
+/* ПРАВАЯ КОЛОНКА - таблица материалов */
+.right-column {
+    background: white;             /* Белый фон */
+    padding: 1rem;                 /* Уменьшили отступ с 1.5rem до 1rem */
+    border-radius: 12px;           /* Скругление углов */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    min-width: 0;                  /* Важно для предотвращения переполнения */
+}
+
+/* Заголовок секции */
+.section-header {
+    display: flex;                 /* Flex-контейнер */
+    justify-content: space-between; /* Распределяем элементы по краям */
+    align-items: center;           /* Выравниваем по вертикали */
+    margin-bottom: 1rem;          /* Уменьшили отступ снизу с 1.5rem до 1rem */
+    padding-bottom: 0.8rem;       /* Уменьшили нижний padding */
+    border-bottom: 2px solid #f0f0f0; /* Серая линия-разделитель */
+}
+
+.section-header h2 {
+    margin: 0;                     /* Убираем стандартные отступы */
+    font-size: 1rem;            /* Размер шрифта */
+    color: #333;                  /* Темно-серый цвет текста */
+    display: flex;                /* Flex для иконки и текста */
+    align-items: center;          /* Выравниваем иконку и текст */
+    gap: 0.5rem;                 /* Расстояние между иконкой и текстом */
+}
+
+.section-header .btn-action {
+    padding: 0.5rem 1rem;        /* Уменьшили отступы кнопки */
+    font-size: 0.9rem;           /* Размер шрифта */
+    border-radius: 6px;          /* Скругление углов кнопки */
+    background-color: #0B8661;   /* Основной зеленый цвет */
+    color: white;                /* Белый текст */
+    border: none;                /* Без рамки */
+    cursor: pointer;             /* Курсор-указатель */
+    transition: background-color 0.2s ease; /* Плавный переход цвета */
+}
+
+.section-header .btn-action:hover {
+    background-color: #097055;   /* Темнее при наведении */
+}
+
+/* ===== 2. ПОЛНОСТЬЮ ПЕРЕРАБОТАННОЕ ДЕРЕВО КАТЕГОРИЙ ===== */
+/* Новый дизайн с соединительными линиями и лучшей визуализацией */
+
+/* Контейнер для дерева - УПЛОТНЕННЫЙ */
+.tree-container {
+    flex: 1;                     /* Занимает все доступное пространство */
+    max-height: 380px;           /* Увеличили высоту для вложенных элементов */
+    overflow-y: auto;            /* Вертикальный скролл при необходимости */
+    margin-bottom: 1rem;         /* Отступ снизу */
+    padding: 0.4rem !important;  /* Еще более компактные отступы */
+    background: white;         /* Белый фон */
+    border-radius: 8px;          /* Скругленные углы */
+    border: 1px solid #e0e0e0; /* Серая рамка */
+    overflow-x: hidden;          /* Скрываем горизонтальный скролл */
+    /* Новое: плавный скролл */
+    scroll-behavior: smooth;
+}
+
+/* Основное дерево */
+.tree {
+    font-family: inherit;        /* Наследуем шрифт */
+    font-size: 0.9rem;           /* Чуть уменьшенный шрифт */
+    line-height: 1.4;            /* Уменьшили межстрочный интервал */
+}
+
+/* Элемент дерева - КОМПАКТНЫЙ дизайн */
+.tree-item {
+    position: relative;           /* Для абсолютного позиционирования линий */
+    margin: 0.05rem 0 !important; /* Минимальные вертикальные отступы */
+    padding: 0.1rem 0 !important; /* Минимальные внутренние отступы */
+    cursor: pointer;             /* Курсор-указатель */
+    transition: all 0.2s ease;   /* Плавные переходы */
+    /* Убираем стандартные отступы списка */
+    list-style: none;
+}
+
+/* Содержимое элемента дерева - УПЛОТНЕННОЕ */
+.tree-item-content {
+    display: flex;              /* Flex-контейнер */
+    align-items: center;        /* Выравниваем по вертикали */
+    padding: 0.15rem 0.25rem !important; /* Уменьшаем отступы внутри элемента */
+    min-height: 24px; /* Минимальная высота для удобного клика */
+    border-radius: 4px;         /* Скругленные углы */
+    transition: all 0.2s ease;  /* Плавные переходы */
+    /* Эффект при наведении */
+    &:hover {
+        background-color: #f5f9ff; /* Очень светлый голубой */
+    }
+}
+
+/* Выбранный элемент - подчеркиваем */
+.tree-item.selected .tree-item-content {
+    background-color: #e8f5e9;  /* Светло-зеленый фон */
+    border-left: 3px solid #0B8661; /* Зеленая левая граница */
+    font-weight: 600;           /* Жирный шрифт */
+}
+
+/* Иконка для элементов с детьми */
+.tree-icon {
+    width: 18px;                /* Фиксированная ширина */
+    height: 18px;               /* Фиксированная высота */
+    margin-right: 5px;          /* Отступ справа */
+    display: flex;              /* Flex для центрирования */
+    align-items: center;        /* Вертикальное центрирование */
+    justify-content: center;    /* Горизонтальное центрирование */
+    font-size: 0.8rem;          /* Размер иконки */
+    color: #ff9800;            /* Оранжевый для папок */
+    flex-shrink: 0;            /* Не сжимается */
+}
+
+/* Иконка для элементов без детей */
+.tree-icon.leaf {
+    color: #757575;            /* Серый для листьев */
+    font-size: 0.8rem;         /* Чуть меньше */
+}
+
+/* Название категории - КОМПАКТНОЕ */
+.tree-name {
+    flex: 1;                   /* Занимает все доступное пространство */
+    display: flex;             /* Flex для элементов внутри */
+    align-items: center;       /* Выравниваем по вертикали */
+    gap: 6px;                 /* Расстояние между элементами */
+    min-width: 0;             /* Позволяем сжиматься */
+    overflow: hidden;         /* Скрываем выходящий текст */
+}
+
+/* Ссылка на категорию */
+.tree-name a {
+    text-decoration: none;     /* Убираем подчеркивание */
+    color: #333;              /* Темно-серый цвет */
+    white-space: nowrap;      /* Не переносим текст */
+    overflow: hidden;         /* Скрываем выходящий текст */
+    text-overflow: ellipsis;  /* Многоточие при обрезке */
+    max-width: 100%;          /* Максимальная ширина */
+    display: block;           /* Блочный элемент */
+    font-size: 0.9rem;       /* Размер шрифта */
+    padding: 1px 0;          /* Минимальные отступы */
+    transition: color 0.2s ease; /* Плавное изменение цвета */
+    
+    /* Эффект при наведении */
+    &:hover {
+        color: #0B8661;       /* Зеленый цвет */
+        text-decoration: underline; /* Подчеркивание */
+    }
+}
+
+/* Счетчик материалов - КОМПАКТНЫЙ */
+.material-count {
+    background: #0B8661;      /* Зеленый фон */
+    color: white;             /* Белый текст */
+    font-size: 0.6rem !important;       /* Очень маленький шрифт */
+    padding: 0.08rem 0.25rem !important;   /* Минимальные отступы */
+    border-radius: 8px;       /* Скругленные углы */
+    font-weight: 600;         /* Полужирный текст */
+    flex-shrink: 0;           /* Не сжимается */
+    min-width: 1rem !important;       /* Минимальная ширина */
+    text-align: center;       /* Центрируем текст */
+    line-height: 1;           /* Межстрочный интервал */
+}
+
+/* Действия с категорией - всегда видимые */
+.tree-actions {
+    display: flex !important;
+    gap: 3px !important;
+    margin-left: 6px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Кнопки действий - ОДИНАКОВОГО РАЗМЕРА */
+.btn-tree-action {
+    background: none;        /* Прозрачный фон */
+    border: none;           /* Без рамки */
+    width: 14px !important;           /* Компактная ширина - делаем одинаковой для всех */
+    height: 14px !important;          /* Компактная высота - делаем одинаковой для всех */
+    border-radius: 50%;    /* Скругленные углы */
+    display: flex;         /* Flex для центрирования */
+    align-items: center;   /* Вертикальное центрирование */
+    justify-content: center; /* Горизонтальное центрирование */
+    cursor: pointer;       /* Курсор-указатель */
+    font-size: 0.7rem;   /* Маленький размер иконки - УМЕНЬШИЛИ С 0.75rem */
+    transition: all 0.2s ease; /* Плавные переходы */
+    color: white;          /* Белый цвет иконок по умолчанию */
+    padding: 0;           /* Убираем любые отступы */
+    margin: 0;            /* Убираем отступы */
+    line-height: 1;       /* Убираем лишнюю высоту текста */
+}
+
+/* ЗЕЛЕНАЯ кнопка добавления - теперь такого же размера */
+.btn-tree-action.btn-add-subcategory {
+    background-color: rgb(11, 134, 97) !important; /* Яркий зеленый */
+    border: 1px solid #388E3C !important;
+}
+
+/* КРАСНАЯ кнопка удаления - теперь такого же размера */
+.btn-tree-action.btn-delete-category {
+    background-color: #F44336 !important; /* Яркий красный */
+    border: 1px solid #D32F2F !important;
+}
+
+/* Отключенная кнопка удаления (когда нельзя удалить) */
+.btn-tree-action.btn-disabled {
+    background-color: #9e9e9e !important; /* Серый фон */
+    color: #f5f5f5 !important; /* Светло-серый цвет */
+    border: 1px solid #757575 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/* Эффект при наведении для активных кнопок */
+.btn-tree-action:not(.btn-disabled):hover {
+    transform: scale(1.15);    /* Легкое увеличение */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Конкретные цвета при наведении */
+.btn-add-subcategory:not(.btn-disabled):hover {
+    background-color: #388E3C !important; /* Темнее при наведении */
+    color: white !important;
+}
+
+.btn-delete-category:not(.btn-disabled):hover {
+    background-color: #D32F2F !important; /* Темнее при наведении */
+    color: white !important;
+}
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ ВИЗУАЛИЗАЦИИ ИЕРАРХИИ ===== */
+
+/* Вертикальные соединительные линии - ГЛАВНОЕ УЛУЧШЕНИЕ */
+.tree-item::before {
+    content: '';            /* Псевдоэлемент для линии */
+    position: absolute;     /* Абсолютное позиционирование */
+    left: -10px !important; /* Сдвигаем ближе */
+    top: 0;                /* Начинаем сверху */
+    bottom: 0;             /* Заканчиваем внизу */
+    width: 1.5px !important; /* Немного толще */
+    background-color: #999 !important; /* Более темный цвет */
+    opacity: 0.8;
+    display: block;        /* Отображаем */
+}
+
+/* Горизонтальные соединительные линии */
+.tree-item::after {
+    content: '';            /* Псевдоэлемент для линии */
+    position: absolute;     /* Абсолютное позиционирование */
+    left: -10px !important;           /* Позиционируем слева */
+    top: 50%;              /* По центру по вертикали */
+    width: 10px !important; /* Короче горизонтальные линии */
+    height: 1.5px !important;           /* Толщина линии */
+    background-color: #999 !important; /* Светло-серая линия */
+    opacity: 0.8;
+    display: block;        /* Отображаем */
+}
+
+/* Для корневых элементов убираем вертикальную линию */
+.tree-item.level-0::before {
+    display: none;         /* Не показываем для корня */
+}
+
+/* Для последнего элемента в группе укорачиваем вертикальную линию */
+.tree-item:last-child::before {
+    bottom: calc(50% + 1px); /* Более точное позиционирование */           /* Линия только до середины */
+}
+
+/* Для одиночных элементов (без соседей) */
+.tree-item:only-child::before {
+    display: none;         /* Не показываем линию */
+}
+
+/* Вложенные контейнеры - БЕЗ дополнительных отступов */
+.tree-children {
+    margin-left: 14px !important; /* Меньший отступ для вложенности */
+    padding-left: 0 !important;
+    position: relative;    /* Для позиционирования линий */
+    /* Убираем стандартную рамку */
+    border-left: none;
+}
+
+/* Индикатор уровня вложенности через цвет линий */
+.tree-item.level-1::before,
+.tree-item.level-1::after {
+    background-color: #888 !important; /* Темнее для первого уровня */
+}
+
+.tree-item.level-2::before,
+.tree-item.level-2::after {
+    background-color: #777 !important; /* Еще темнее для второго уровня */
+}
+
+.tree-item.level-3::before,
+.tree-item.level-3::after {
+    background-color: #666 !important; /* Самый темный для третьего уровня */
+}
+
+/* Индикатор уровня через отступы (дополнительная визуализация) */
+.tree-item.level-1 .tree-item-content {
+    padding-left: 6px !important;    /* Небольшой отступ */
+    border-left: 2px solid #e0e0e0;
+}
+
+.tree-item.level-2 .tree-item-content {
+    padding-left: 10px !important;    /* Больше отступ */
+    border-left: 2px dashed #ccc; /* Пунктирная граница */
+}
+
+.tree-item.level-3 .tree-item-content {
+    padding-left: 14px !important;   /* Еще больше отступ */
+    border-left: 2px dotted #bbb; /* Более заметная граница */
+}
+
+/* Цветовая индикация уровней через фон */
+.tree-item.level-1 .tree-item-content:hover {
+    background-color: #f0f8ff; /* Голубой для 1 уровня */
+}
+
+.tree-item.level-2 .tree-item-content:hover {
+    background-color: #fff8e1; /* Светло-желтый для 2 уровня */
+}
+
+.tree-item.level-3 .tree-item-content:hover {
+    background-color: #f9f0ff; /* Светло-фиолетовый для 3 уровня */
+}
+
+/* ===== 3. СТАТИСТИЧЕСКИЕ КАРТОЧКИ (УПЛОТНЕННЫЕ) ===== */
+.stats-container {
+    display: grid;                   /* CSS Grid */
+    grid-template-columns: repeat(3, 1fr); /* Три колонки одинаковой ширины */
+    gap: 0.6rem;                    /* Уменьшили расстояние между карточками */
+    margin-top: 1rem;               /* Отступ сверху */
+    padding: 0.5rem;                /* Внутренний отступ */
+    background: #f9f9f9;            /* Светло-серый фон */
+    border-radius: 8px;             /* Скругленные углы */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+}
+
+.stat-card {
+    background: white;              /* Белый фон */
+    border-radius: 6px;             /* Скругленные углы */
+    padding: 0.6rem;               /* Уменьшили внутренние отступы */
+    text-align: center;             /* Центрируем текст */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    transition: all 0.2s ease;     /* Плавные переходы */
+    
+    /* Эффект при наведении */
+    &:hover {
+        transform: translateY(-2px);   /* Легкий подъем */
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1); /* Тень */
+        border-color: #0B8661;        /* Зеленая рамка */
+    }
+}
+
+.stat-value {
+    font-size: 1.3rem;             /* Размер числа */
+    font-weight: 700;              /* Жирный шрифт */
+    color: #0B8661;                /* Зеленый цвет */
+    margin-bottom: 0.1rem;         /* Минимальный отступ снизу */
+    line-height: 1;                /* Убираем лишнюю высоту */
+}
+
+.stat-label {
+    font-size: 0.7rem;             /* Маленький размер текста */
+    color: #666;                   /* Серый цвет */
+    text-transform: uppercase;     /* Все буквы заглавные */
+    letter-spacing: 0.3px;         /* Небольшое разрежение букв */
+    font-weight: 500;              /* Средняя жирность */
+}
+
+/* ===== 3. СТАТИСТИЧЕСКИЕ КАРТОЧКИ (УПЛОТНЕННЫЕ) ===== */
+.stats-container {
+    display: grid;                   /* CSS Grid */
+    grid-template-columns: repeat(3, 1fr); /* Три колонки одинаковой ширины */
+    gap: 0.8rem;                    /* Уменьшили расстояние между карточками */
+    margin-top: 1rem;               /* Отступ сверху */
+}
+
+.stat-card {
+    background: white;              /* Белый фон */
+    border-radius: 8px;             /* Скругленные углы */
+    padding: 0.8rem;               /* Уменьшили внутренние отступы */
+    text-align: center;             /* Центрируем текст */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);   /* Легкий подъем при наведении */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Тень при наведении */
+}
+
+.stat-value {
+    font-size: 1.5rem;             /* Размер числа */
+    font-weight: 700;              /* Жирный шрифт */
+    color: #0B8661;                /* Зеленый цвет */
+    margin-bottom: 0.2rem;         /* Небольшой отступ снизу */
+}
+
+.stat-label {
+    font-size: 0.8rem;             /* Размер текста подписи */
+    color: #666;                   /* Серый цвет */
+    text-transform: uppercase;     /* Все буквы заглавные */
+    letter-spacing: 0.5px;         /* Разрежение букв */
+}
+
+/* ===== 4. ТАБЛИЦА МАТЕРИАЛОВ (УПЛОТНЕННАЯ) ===== */
+.materials-section {
+    margin-top: 1rem;              /* Отступ сверху */
+}
+
+.materials-table {
+    border-radius: 8px;            /* Скругленные углы */
+    overflow: hidden;              /* Скрываем выходящее за границы */
+    border: 1px solid #e0e0e0;    /* Серая рамка */
+    margin-bottom: 1rem;           /* Отступ снизу */
+    overflow-x: auto;              /* Горизонтальный скролл при необходимости */
+    display: block;                /* Блочный элемент */
+    max-width: 100%;               /* Максимальная ширина */
+}
+
+/* Заголовок таблицы */
+.materials-table .table-header {
+    display: grid;                 /* CSS Grid для колонок */
+    /* РАСПРЕДЕЛЕНИЕ КОЛОНОК: название шире, остальные уже */
+    grid-template-columns: minmax(200px, 2fr) minmax(100px, 1fr) minmax(100px, 1fr) minmax(100px, 1fr);
+    background: #f8f9fa;          /* Светло-серый фон заголовка */
+    padding: 0.8rem;              /* Уменьшили отступы */
+    font-weight: 600;             /* Полужирный текст */
+    color: #333;                  /* Темно-серый цвет */
+    border-bottom: 2px solid #e0e0e0; /* Линия-разделитель */
+    min-width: 700px;             /* Минимальная ширина для маленьких экранов */
+}
+
+/* Строка таблицы */
+.materials-table .table-row {
+    display: grid;                /* CSS Grid для колонок */
+    /* То же распределение, что и в заголовке */
+    grid-template-columns: minmax(200px, 2fr) minmax(100px, 1fr) minmax(100px, 1fr) minmax(100px, 1fr);
+    padding: 0.8rem;             /* Уменьшили отступы */
+    border-bottom: 1px solid #e0e0e0; /* Линия между строками */
+    transition: background-color 0.2s ease; /* Плавный переход фона */
+}
+
+.materials-table .table-row:hover {
+    background: #f8f9fa;         /* Светло-серый фон при наведении */
+}
+
+/* Колонки таблицы */
+.materials-table .col-name,
+.materials-table .col-price,
+.materials-table .col-quantity,
+.materials-table .col-actions {
+    display: flex;                /* Flex для выравнивания содержимого */
+    align-items: center;          /* Вертикальное центрирование */
+    padding: 0 0.5rem;           /* Боковые отступы */
+    min-width: 0;                /* Позволяем сжиматься */
+}
+
+/* Название материала */
+.material-name {
+    font-weight: 500;            /* Средняя жирность */
+    color: #333;                 /* Темно-серый цвет */
+    white-space: nowrap;         /* Не переносим текст */
+    overflow: hidden;            /* Скрываем выходящий текст */
+    text-overflow: ellipsis;     /* Многоточие при обрезке */
+    max-width: 100%;             /* Максимальная ширина */
+}
+
+/* Бейдж цены */
+.price-badge {
+    display: inline-block;       /* Блочно-строчный элемент */
+    padding: 0.3rem 0.6rem;     /* Отступы */
+    background: #e8f5e9;        /* Светло-зеленый фон */
+    color: #2e7d32;             /* Темно-зеленый текст */
+    border-radius: 12px;        /* Скругленные углы */
+    font-size: 0.85rem;         /* Размер шрифта */
+    font-weight: 600;           /* Полужирный текст */
+    border: 1px solid #c8e6c9;  /* Зеленая рамка */
+    white-space: nowrap;        /* Не переносим текст */
+}
+
+/* Бейдж количества */
+.quantity-badge {
+    display: inline-block;       /* Блочно-строчный элемент */
+    padding: 0.3rem 0.6rem;     /* Отступы */
+    background: #e8f5e9;        /* Светло-зеленый фон */
+    color: #2e7d32;             /* Темно-зеленый текст */
+    border-radius: 12px;        /* Скругленные углы */
+    font-size: 0.85rem;         /* Размер шрифта */
+    font-weight: 600;           /* Полужирный текст */
+    border: 1px solid #c8e6c9;  /* Зеленая рамка */
+    white-space: nowrap;        /* Не переносим текст */
+}
+
+/* Состояния количества */
+.quantity-badge.quantity-low {
+    background: #fff3e0;        /* Светло-оранжевый фон */
+    color: #ef6c00;             /* Оранжевый текст */
+    border-color: #ffcc80;      /* Оранжевая рамка */
+}
+
+.quantity-badge.quantity-zero {
+    background: #ffebee;        /* Светло-красный фон */
+    color: #c62828;             /* Красный текст */
+    border-color: #ef9a9a;      /* Красная рамка */
+}
+
+/* Кнопка удаления */
+.btn-delete {
+    padding: 0.3rem 0.6rem;     /* Отступы */
+    background: #ffebee;        /* Светло-красный фон */
+    color: #c62828;             /* Красный текст */
+    border: 1px solid #ef9a9a;  /* Красная рамка */
+    border-radius: 6px;         /* Скругленные углы */
+    text-decoration: none;      /* Убираем подчеркивание */
+    font-size: 0.85rem;         /* Размер шрифта */
+    transition: all 0.2s ease;  /* Плавные переходы */
+}
+
+.btn-delete:hover {
+    background: #f44336;        /* Красный фон при наведении */
+    color: white;               /* Белый текст при наведении */
+}
+
+/* ===== 5. ФОРМЫ (УПЛОТНЕННЫЕ) ===== */
+.form-section {
+    background: #f9f9f9;        /* Светло-серый фон */
+    padding: 1rem;              /* Внутренние отступы */
+    border-radius: 8px;         /* Скругленные углы */
+    margin-bottom: 1rem;        /* Отступ снизу */
+    border: 1px solid #e0e0e0;  /* Серая рамка */
+}
+
+.form-section h3 {
+    margin-top: 0;              /* Убираем отступ сверху */
+    margin-bottom: 1rem;        /* Отступ снизу */
+    font-size: 1.1rem;          /* Размер шрифта */
+    color: #333;                /* Темно-серый цвет */
+}
+
+.form-group {
+    margin-bottom: 0.8rem;      /* Уменьшили отступ между полями */
+}
+
+.form-group label {
+    display: block;             /* Блочный элемент */
+    margin-bottom: 0.3rem;      /* Отступ снизу */
+    font-weight: 500;           /* Средняя жирность */
+    color: #555;                /* Серый цвет */
+}
+
+.form-control {
+    width: 100%;                /* Ширина 100% */
+    padding: 0.5rem;            /* Уменьшили отступы внутри поля */
+    border: 1px solid #ddd;     /* Серая рамка */
+    border-radius: 6px;         /* Скругленные углы */
+    font-size: 0.95rem;         /* Размер шрифта */
+    transition: border-color 0.2s ease; /* Плавное изменение рамки */
+}
+
+.form-control:focus {
+    outline: none;              /* Убираем стандартный контур */
+    border-color: #0B8661;      /* Зеленая рамка при фокусе */
+}
+
+/* Группа кнопок формы */
+.button-group {
+    display: flex;              /* Flex-контейнер */
+    gap: 0.5rem;                /* Расстояние между кнопками */
+    margin-top: 1rem;           /* Отступ сверху */
+}
+
+.btn-submit {
+    padding: 0.6rem 1.2rem;    /* Отступы */
+    background: #0B8661;       /* Зеленый фон */
+    color: white;              /* Белый текст */
+    border: none;              /* Без рамки */
+    border-radius: 6px;        /* Скругленные углы */
+    cursor: pointer;           /* Курсор-указатель */
+    font-size: 0.95rem;        /* Размер шрифта */
+    transition: background-color 0.2s ease; /* Плавный переход цвета */
+}
+
+.btn-submit:hover {
+    background: #097055;       /* Темнее при наведении */
+}
+
+.btn-clear,
+.btn-cancel {
+    padding: 0.6rem 1.2rem;    /* Отступы */
+    background: #f5f5f5;       /* Светло-серый фон */
+    color: #333;               /* Темно-серый текст */
+    border: 1px solid #ddd;    /* Серая рамка */
+    border-radius: 6px;        /* Скругленные углы */
+    cursor: pointer;           /* Курсор-указатель */
+    font-size: 0.95rem;        /* Размер шрифта */
+    transition: all 0.2s ease; /* Плавные переходы */
+}
+
+.btn-clear:hover,
+.btn-cancel:hover {
+    background: #e0e0e0;       /* Темнее при наведении */
+}
+
+
+/* ===== НОВАЯ СТРУКТУРА ПРАВОЙ КОЛОНКИ ===== */
+
+/* Контейнер для материалов с фиксированной высотой и прокруткой */
+.materials-container {
+    flex: 1;                    /* Занимает все доступное пространство */
+    display: flex;              /* Flex для внутреннего контейнера */
+    flex-direction: column;     /* Вертикальное расположение */
+    min-height: 0;             /* Важно для flex внутри flex */
+    margin-top: 0.8rem;        /* Отступ сверху */
+}
+
+/* Секция материалов теперь внутри контейнера */
+.materials-section {
+    flex: 1;                    /* Занимает все доступное пространство */
+    display: flex;              /* Flex для правильного расположения */
+    flex-direction: column;     /* Вертикальное расположение */
+    min-height: 0;             /* Важно для flex внутри flex */
+    overflow: hidden;          /* Скрываем выходящее за границы */
+}
+
+/* Таблица материалов внутри секции */
+.materials-table {
+    flex: 1;                    /* Занимает все доступное пространство */
+    border-radius: 8px;        /* Скругленные углы */
+    overflow: hidden;          /* Скрываем выходящее за границы */
+    border: 1px solid #e0e0e0; /* Серая рамка */
+    display: flex;             /* Flex для расположения заголовка и строк */
+    flex-direction: column;    /* Вертикальное расположение */
+    min-height: 0;             /* Важно для flex внутри flex */
+}
+
+/* Контейнер для строк таблицы с прокруткой */
+.materials-table .table-body {
+    flex: 1;                    /* Занимает все доступное пространство */
+    overflow-y: auto;          /* Вертикальная прокрутка при необходимости */
+    max-height: 300px;         /* Максимальная высота перед прокруткой */
+}
+
+/* Заголовок таблицы материалов - теперь без min-width */
+.materials-table .table-header {
+    display: grid;                 /* CSS Grid для колонок */
+    /* УПРОЩЕННОЕ РАСПРЕДЕЛЕНИЕ: убрали minmax для лучшей адаптивности */
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    background: #f8f9fa;          /* Светло-серый фон заголовка */
+    padding: 0.8rem;              /* Отступы */
+    font-weight: 600;             /* Полужирный текст */
+    color: #333;                  /* Темно-серый цвет */
+    border-bottom: 2px solid #e0e0e0; /* Линия-разделитель */
+    flex-shrink: 0;               /* Не сжимается при прокрутке */
+    /* Убрали min-width: 700px */
+}
+
+/* Строка таблицы материалов */
+.materials-table .table-row {
+    display: grid;                /* CSS Grid для колонок */
+    /* То же распределение, что и в заголовке */
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    padding: 0.8rem;             /* Отступы */
+    border-bottom: 1px solid #e0e0e0; /* Линия между строками */
+    transition: background-color 0.2s ease; /* Плавный переход фона */
+    flex-shrink: 0;              /* Не сжимается при прокрутке */
+    /* Убрали min-width: 700px */
+}
+
+/* Категория материала в строке (добавили в HTML) */
+.material-category {
+    font-size: 0.8rem;           /* Меньший размер шрифта */
+    color: #666;                 /* Серый цвет */
+    margin-top: 0.2rem;          /* Отступ сверху */
+    display: flex;               /* Flex для иконки и текста */
+    align-items: center;         /* Выравниваем по вертикали */
+    gap: 0.3rem;                /* Расстояние между иконкой и текстом */
+}
+
+.material-category i {
+    font-size: 0.7rem;          /* Маленькая иконка */
+    color: #ff9800;             /* Оранжевый цвет */
+}
+
+/* Подсказки под таблицей */
+.table-hint {
+    margin-top: 0.8rem;         /* Отступ сверху */
+    padding: 0.8rem;            /* Отступы */
+    background: #f9f9f9;        /* Светло-серый фон */
+    border-radius: 6px;         /* Скругленные углы */
+    border: 1px solid #e0e0e0; /* Серая рамка */
+    font-size: 0.85rem;         /* Размер шрифта */
+    color: #666;                /* Серый цвет */
+}
+
+.hint-item {
+    display: flex;              /* Flex для иконки и текста */
+    align-items: center;        /* Выравниваем по вертикали */
+    gap: 0.5rem;               /* Расстояние между элементами */
+    margin-bottom: 0.3rem;     /* Отступ снизу */
+}
+
+.hint-item:last-child {
+    margin-bottom: 0;          /* Убираем отступ у последнего элемента */
+}
+
+.hint-icon {
+    font-size: 0.9rem;         /* Размер иконки */
+}
+
+/* Кнопки в заголовке - теперь в строку */
+.header-buttons {
+    display: flex;                  /* Flex для кнопок */
+    gap: 0.4rem;                   /* Расстояние между кнопками */
+    align-items: center;            /* Вертикальное выравнивание */
+}
+
+/* Кнопка сброса фильтра */
+.btn-reset-filter {
+    padding: 0.4rem 0.8rem;        /* Уменьшили отступы */
+    background: #ffebee;           /* Светло-красный фон */
+    color: #c62828;                /* Красный текст */
+    border: 1px solid #ef9a9a;     /* Красная рамка */
+    border-radius: 6px;            /* Скругленные углы */
+    text-decoration: none;         /* Убираем подчеркивание */
+    font-size: 0.85rem;            /* Размер шрифта */
+    transition: all 0.2s ease;     /* Плавные переходы */
+    display: flex;                 /* Flex для иконки и текста */
+    align-items: center;           /* Вертикальное выравнивание */
+    gap: 0.3rem;                  /* Расстояние между иконкой и текста */
+    white-space: nowrap;          /* Не переносим текст */
+}
+
+.btn-reset-filter:hover {
+    background: #f44336;           /* Красный фон при наведении */
+    color: white;                  /* Белый текст при наведении */
+    transform: scale(1.05);        /* Легкое увеличение */
+}
+
+/* Кнопка добавления материала */
+.btn-add-material {
+    padding: 0.4rem 0.8rem;        /* Уменьшили отступы */
+    background: #0B8661;           /* Зеленый фон */
+    color: white;                  /* Белый текст */
+    border: none;                  /* Без рамки */
+    border-radius: 6px;            /* Скругленные углы */
+    font-size: 0.85rem;            /* Размер шрифта */
+    cursor: pointer;               /* Курсор-указатель */
+    transition: background-color 0.2s ease; /* Плавный переход цвета */
+    white-space: nowrap;          /* Не переносим текст */
+}
+
+.btn-add-material:hover {
+    background: #097055;           /* Темнее при наведении */
+}
+
+
+/* ===== 6. АДАПТИВНЫЕ СТИЛИ ===== */
+/* 6.1 Для экранов 1137px и меньше (ГЛАВНОЕ ИСПРАВЛЕНИЕ) */
+@media (max-width: 1137px) {
+    .container {
+        padding: 1.2rem; /* Уменьшаем отступы */
+        max-width: calc(100% - 1rem); /* Учитываем отступы body */
+        margin: 0 0.5rem;
+    }
+    
+    .two-column-layout {
+        grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.5fr); /* Более узкие колонки */
+        gap: 1rem; /* Уменьшили расстояние между колонками */
+    }
+    
+    .left-column,
+    .right-column {
+        padding: 0.8rem; /* Уменьшили отступы внутри колонок */
+        min-height: 450px; /* Немного уменьшили высоту */
+    }
+    
+    .section-header {
+        flex-direction: column; /* Вертикальное расположение */
+        align-items: stretch; /* Растягиваем на всю ширину */
+        gap: 0.8rem; /* Расстояние между элементами */
+    }
+    
+    .header-buttons {
+        flex-direction: column; /* Вертикальное расположение кнопок */
+        width: 100%; /* На всю ширину */
+        gap: 0.4rem; /* Расстояние между кнопками */
+    }
+    
+    .btn-reset-filter,
+    .btn-add-material {
+        width: 100%; /* Кнопки на всю ширину */
+        justify-content: center; /* Центрируем содержимое */
+        text-align: center; /* Центрируем текст */
+    }
+    
+    .categories-info {
+        padding: 0.6rem; /* Уменьшаем отступы */
+        margin-bottom: 0.6rem; /* Уменьшаем отступ снизу */
+    }
+    
+    .subcategories-container {
+        max-height: 80px; /* Уменьшаем высоту списка подкатегорий */
+    }
+    
+    .materials-table .table-header,
+    .materials-table .table-row {
+        grid-template-columns: 1.5fr 1fr 1fr 0.8fr; /* Уже колонки */
+    }
+}
+
+/* 6.2 Для экранов меньше 992px (ноутбуки и планшеты) */
+@media (max-width: 992px) {
+    .two-column-layout {
+        grid-template-columns: minmax(200px, 1fr) minmax(250px, 1fr); /* Еще уже */
+        gap: 0.8rem;
+    }
+    
+    .container {
+        padding: 1rem;
+        margin: 0 0.3rem;
+    }
+    
+    .left-column,
+    .right-column {
+        padding: 0.6rem;
+        min-height: 400px;
+    }
+    
+    .tree-container {
+        max-height: 280px; /* Уменьшаем высоту дерева */
+    }
+    
+    .materials-table .table-header,
+    .materials-table .table-row {
+        grid-template-columns: 1.5fr 0.8fr 0.8fr 0.7fr; /* Еще уже колонки */
+    }
+    
+    .material-category {
+        font-size: 0.75rem; /* Меньше шрифт категории */
+    }
+}
+
+/* 6.3 Для экранов меньше 768px (планшеты и смартфоны) */
+@media (max-width: 768px) {
+    .two-column-layout {
+        grid-template-columns: 1fr; /* Одноколоночный layout */
+        gap: 1rem;
+    }
+    
+    body {
+        padding: 0.3rem !important; /* Минимальные отступы body */
+    }
+    
+    .container {
+        padding: 0.8rem;
+        margin: 0;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .left-column,
+    .right-column {
+        padding: 0.8rem;
+        min-height: auto; /* Автоматическая высота */
+        height: auto; /* Сбрасываем фиксированную высоту */
+    }
+    
+    .tree-container {
+        max-height: 250px; /* Уменьшаем дерево */
+    }
+    
+    .categories-info {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* На мобильных скрываем заголовок таблицы */
+    .materials-table .table-header {
+        display: none;
+    }
+    
+    /* Превращаем строки таблицы в карточки */
+    .materials-table .table-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding: 0.8rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    /* Добавляем подписи для мобильной версии */
+    .materials-table .col-name::before {
+        content: "Название: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        display: inline-block;
+        min-width: 100px;
+    }
+    
+    .materials-table .col-price::before {
+        content: "Цена: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        display: inline-block;
+        min-width: 100px;
+    }
+    
+    .materials-table .col-quantity::before {
+        content: "Количество: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        display: inline-block;
+        min-width: 100px;
+    }
+    
+    .materials-table .col-actions {
+        justify-content: flex-start;
+        border-top: 1px solid #f0f0f0;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .materials-table .col-actions::before {
+        content: "Действия: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        display: inline-block;
+        min-width: 100px;
+    }
+    
+    /* Категория материала в мобильном виде */
+    .material-category {
+        font-size: 0.8rem;
+        margin-top: 0.3rem;
+        padding-left: 0.5rem;
+        border-left: 2px solid #ff9800;
+    }
+}
+
+/* 6.4 Для экранов меньше 480px (смартфоны) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0.6rem;
+    }
+    
+    h1 {
+        font-size: 1.1rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.3rem;
+    }
+    
+    h1 img {
+        width: 100px;
+    }
+    
+    .section-header h2 {
+        font-size: 1rem;
+    }
+    
+    .selected-category {
+        display: block; /* Переносим на новую строку */
+        margin-top: 0.3rem;
+        font-size: 0.85rem;
+    }
+    
+    .categories-info {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .subcategories-container {
+        max-height: 60px;
+    }
+    
+    .materials-table .col-name::before,
+    .materials-table .col-price::before,
+    .materials-table .col-quantity::before,
+    .materials-table .col-actions::before {
+        min-width: 80px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-reset-filter,
+    .btn-add-material {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+}
+
+/* ===== 7. УВЕДОМЛЕНИЯ И АНИМАЦИИ ===== */
+.notification {
+    position: fixed;            /* Фиксированное позиционирование */
+    top: 20px;                  /* Отступ сверху */
+    right: 20px;                /* Отступ справа */
+    padding: 0.8rem 1.2rem;    /* Уменьшили отступы */
+    border-radius: 8px;         /* Скругленные углы */
+    color: white;               /* Белый текст */
+    font-weight: 500;           /* Полужирный текст */
+    z-index: 10000;             /* Очень высокий z-index */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Тень */
+    max-width: 300px;           /* Максимальная ширина */
+    word-break: break-word;     /* Перенос длинных слов */
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 4.7s; /* Анимации */
+}
+
+.notification-success {
+    background-color: #69b66c;  /* Зеленый фон для успеха */
+}
+
+.notification-error {
+    background-color: #f44336;  /* Красный фон для ошибки */
+}
+
+.notification-info {
+    background-color: #2196f3;  /* Синий фон для информации */
+}
+
+/* Анимация появления */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%); /* Начинаем справа за экраном */
+        opacity: 0;                 /* Полностью прозрачный */
+    }
+    to {
+        transform: translateX(0);   /* В конечное положение */
+        opacity: 1;                 /* Полностью непрозрачный */
+    }
+}
+
+/* Анимация исчезновения */
+@keyframes fadeOut {
+    from {
+        opacity: 1;                 /* Полностью непрозрачный */
+        transform: translateX(0);   /* В текущем положении */
+    }
+    to {
+        opacity: 0;                 /* Полностью прозрачный */
+        transform: translateX(100%); /* Уезжаем вправо */
+    }
+}
+
+/* Анимация плавного появления для элементов дерева */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== 8. УТИЛИТНЫЕ КЛАССЫ ===== */
+.text-ellipsis {
+    white-space: nowrap;        /* Не переносим текст */
+    overflow: hidden;           /* Скрываем выходящий текст */
+    text-overflow: ellipsis;    /* Многоточие при обрезке */
+    max-width: 100%;            /* Максимальная ширина */
+}
+
+.hidden-on-mobile {
+    display: block;             /* Показываем на десктопе */
+}
+
+@media (max-width: 768px) {
+    .hidden-on-mobile {
+        display: none !important; /* Скрываем на мобильных */
+    }
+}
+
+.visible-on-mobile {
+    display: none;              /* Скрываем на десктопе */
+}
+
+@media (max-width: 768px) {
+    .visible-on-mobile {
+        display: block !important; /* Показываем на мобильных */
+    }
+}
+
+/* Индикатор загрузки */
+.spinner {
+    width: 30px;                /* Ширина */
+    height: 30px;               /* Высота */
+    border: 3px solid #f3f3f3;  /* Светло-серая рамка */
+    border-top: 3px solid #0B8661; /* Зеленая верхняя рамка */
+    border-radius: 50%;         /* Круглая форма */
+    animation: spin 1s linear infinite; /* Анимация вращения */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }   /* Начальное положение */
+    100% { transform: rotate(360deg); } /* Полный оборот */
+}
+
+/* Сообщение при пустом дереве/таблице */
+.empty-message,
+.empty-tree {
+    text-align: center;         /* Центрируем текст */
+    color: #999;                /* Серый цвет */
+    padding: 2rem;              /* Отступы */
+    font-style: italic;         /* Курсив */
+}
+
+.empty-message i,
+.empty-tree i {
+    font-size: 2rem;            /* Размер иконки */
+    margin-bottom: 1rem;        /* Отступ снизу */
+    color: #ddd;                /* Светло-серый цвет */
+}
+
+/* Сообщение об ошибке */
+.error-message {
+    text-align: center;         /* Центрируем текст */
+    color: #f44336;             /* Красный цвет */
+    padding: 1rem;              /* Отступы */
+}
+
+.error-message i {
+    font-size: 2rem;            /* Размер иконки */
+    margin-bottom: 0.5rem;      /* Отступ снизу */
+}
+
+.error-details {
+    font-size: 0.9rem;          /* Меньший размер шрифта */
+    margin-bottom: 1rem;        /* Отступ снизу */
+}
+
+.btn-retry {
+    padding: 0.5rem 1rem;       /* Отступы */
+    background: #0B8661;        /* Зеленый фон */
+    color: white;               /* Белый текст */
+    border: none;               /* Без рамки */
+    border-radius: 6px;         /* Скругленные углы */
+    cursor: pointer;            /* Курсор-указатель */
+    font-size: 0.9rem;          /* Размер шрифта */
+    transition: background-color 0.2s ease; /* Плавный переход цвета */
+}
+
+.btn-retry:hover {
+    background: #097055;        /* Темнее при наведении */
+}
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ ИНФОРМАЦИИ О ВКЛЮЧЕННЫХ КАТЕГОРИЯХ ===== */
+
+/* Контейнер информации о категориях */
+.categories-info {
+    background: #f9f9f9;            /* Светло-серый фон */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    border-radius: 8px;             /* Скругленные углы */
+    padding: 1rem;                  /* Отступы */
+    margin-bottom: 1rem;            /* Отступ снизу */
+    font-size: 0.9rem;              /* Размер шрифта */
+    color: #555;                    /* Серый цвет текста */
+}
+
+/* Заголовок информации */
+.info-header {
+    display: flex;                  /* Flex для иконки и текста */
+    align-items: center;            /* Вертикальное выравнивание */
+    gap: 0.5rem;                   /* Расстояние между элементами */
+    margin-bottom: 0.8rem;         /* Отступ снизу */
+    font-weight: 600;              /* Полужирный текст */
+    color: #333;                   /* Темно-серый цвет */
+}
+
+.info-header i {
+    color: #0B8661;                /* Зеленая иконка */
+}
+
+/* Список категорий */
+.categories-list {
+    margin-left: 0.5rem;           /* Небольшой отступ слева */
+}
+
+/* Основная категория */
+.main-category {
+    display: flex;                  /* Flex для элементов */
+    align-items: center;            /* Вертикальное выравнивание */
+    gap: 0.5rem;                   /* Расстояние между элементами */
+    margin-bottom: 0.5rem;         /* Отступ снизу */
+    padding: 0.5rem;               /* Отступы */
+    background: white;              /* Белый фон */
+    border-radius: 6px;             /* Скругленные углы */
+    border: 1px solid #d0d0d0;     /* Серая рамка */
+}
+
+.main-category i {
+    color: #0B8661;                /* Зеленая иконка папки */
+}
+
+.category-name {
+    font-weight: 600;              /* Полужирное название */
+    color: #333;                   /* Темно-серый цвет */
+}
+
+.category-stats {
+    font-size: 0.85rem;            /* Меньший размер */
+    color: #666;                   /* Серый цвет */
+    margin-left: auto;             /* Отодвигаем вправо */
+}
+
+/* Список подкатегорий */
+.subcategories-list {
+    margin-top: 0.5rem;            /* Отступ сверху */
+    padding-top: 0.5rem;           /* Отступ сверху */
+    border-top: 1px dashed #ddd;   /* Пунктирная разделительная линия */
+}
+
+.subcategories-header {
+    display: flex;                  /* Flex для иконки и текста */
+    align-items: center;            /* Вертикальное выравнивание */
+    gap: 0.5rem;                   /* Расстояние между элементами */
+    margin-bottom: 0.5rem;         /* Отступ снизу */
+    font-size: 0.85rem;            /* Меньший размер */
+    color: #666;                   /* Серый цвет */
+}
+
+.subcategories-header i {
+    color: #ff9800;                /* Оранжевая иконка */
+}
+
+/* Контейнер для подкатегорий */
+.subcategories-container {
+    display: flex;                  /* Flex для расположения */
+    flex-wrap: wrap;               /* Перенос на новую строку */
+    gap: 0.5rem;                   /* Расстояние между элементами */
+    max-height: 120px;             /* Максимальная высота */
+    overflow-y: auto;              /* Вертикальный скролл при необходимости */
+    padding: 0.3rem;               /* Небольшие отступы */
+    background: #f5f5f5;           /* Светло-серый фон */
+    border-radius: 6px;             /* Скругленные углы */
+}
+
+/* Элемент подкатегории */
+.subcategory-item {
+    display: flex;                  /* Flex для элементов */
+    align-items: center;            /* Вертикальное выравнивание */
+    gap: 0.3rem;                   /* Расстояние между элементами */
+    padding: 0.3rem 0.5rem;        /* Отступы */
+    background: white;              /* Белый фон */
+    border-radius: 4px;             /* Скругленные углы */
+    border: 1px solid #e0e0e0;     /* Серая рамка */
+    font-size: 0.8rem;              /* Меньший размер шрифта */
+    flex-shrink: 0;                /* Не сжимается */
+}
+
+.subcategory-name {
+    color: #333;                   /* Темно-серый цвет */
+    white-space: nowrap;           /* Не переносить текст */
+}
+
+.subcategory-stats {
+    color: #888;                   /* Светло-серый цвет */
+    font-size: 0.75rem;            /* Очень маленький размер */
+}
+
+/* Адаптивные стили для блока информации */
+@media (max-width: 768px) {
+    .categories-info {
+        padding: 0.8rem;           /* Уменьшаем отступы */
+    }
+    
+    .subcategories-container {
+        max-height: 100px;         /* Уменьшаем высоту на мобильных */
+    }
+    
+    .subcategory-item {
+        flex: 1 0 auto;            /* Позволяем растягиваться */
+        min-width: 120px;          /* Минимальная ширина */
+    }
+}
+
+@media (max-width: 576px) {
+    .categories-info {
+        padding: 0.6rem;           /* Еще меньше отступы */
+        font-size: 0.85rem;        /* Уменьшаем шрифт */
+    }
+    
+    .subcategories-container {
+        max-height: 80px;          /* Еще меньше высота */
+    }
+    
+    .subcategory-item {
+        min-width: 100px;          /* Меньшая минимальная ширина */
+    }
+}
+
+
+/* Стили для группы кнопок в заголовке */
+.header-buttons {
+    display: flex;                  /* Flex для кнопок */
+    gap: 0.5rem;                   /* Расстояние между кнопками */
+    align-items: center;            /* Вертикальное выравнивание */
+}
+
+/* Кнопка сброса фильтра */
+.btn-reset-filter {
+    padding: 0.5rem 1rem;          /* Отступы */
+    background: #ffebee;           /* Светло-красный фон */
+    color: #c62828;                /* Красный текст */
+    border: 1px solid #ef9a9a;     /* Красная рамка */
+    border-radius: 6px;            /* Скругленные углы */
+    text-decoration: none;         /* Убираем подчеркивание */
+    font-size: 0.9rem;             /* Размер шрифта */
+    transition: all 0.2s ease;     /* Плавные переходы */
+    display: flex;                 /* Flex для иконки и текста */
+    align-items: center;           /* Вертикальное выравнивание */
+    gap: 0.3rem;                  /* Расстояние между иконкой и текстом */
+}
+
+.btn-reset-filter:hover {
+    background: #f44336;           /* Красный фон при наведении */
+    color: white;                  /* Белый текст при наведении */
+    transform: scale(1.05);        /* Легкое увеличение */
+}
+
+/* Адаптивные стили для кнопок */
+@media (max-width: 768px) {
+    .header-buttons {
+        flex-direction: column;    /* Вертикальное расположение на мобильных */
+        width: 100%;               /* На всю ширину */
+        gap: 0.3rem;              /* Меньшее расстояние */
+    }
+    
+    .btn-reset-filter,
+    .btn-add-material {
+        width: 100%;               /* Кнопки на всю ширину */
+        justify-content: center;   /* Центрируем содержимое */
+    }
+}
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Input для inline-редактирования */
+.inline-edit-input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-size: inherit;
+    font-family: inherit;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(11, 134, 97, 0.2);
+    transition: all 0.2s ease;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* Input для числовых полей */
+.inline-edit-input[type="number"] {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+/* Состояние фокуса */
+.inline-edit-input:focus {
+    border-color: #097055;
+    box-shadow: 0 3px 6px rgba(11, 134, 97, 0.3);
+    transform: translateY(-1px);
+}
+
+/* Контейнер для кнопок inline-редактирования */
+.inline-edit-buttons {
+    display: flex;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+    justify-content: flex-end;
+}
+
+/* Кнопки inline-редактирования */
+.btn-inline-save,
+.btn-inline-cancel {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+/* Кнопка сохранения */
+.btn-inline-save {
+    background-color: #0B8661;
+    color: white;
+}
+
+.btn-inline-save:hover {
+    background-color: #097055;
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(11, 134, 97, 0.3);
+}
+
+/* Кнопка отмены */
+.btn-inline-cancel {
+    background-color: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+
+.btn-inline-cancel:hover {
+    background-color: #e0e0e0;
+    transform: scale(1.1);
+}
+
+/* Состояние сохранения (индикатор загрузки) */
+.material-name.saving,
+.price-badge.saving,
+.quantity-badge.saving {
+    position: relative;
+    opacity: 0.7;
+}
+
+.material-name.saving::after,
+.price-badge.saving::after,
+.quantity-badge.saving::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #0B8661;
+}
+
+.material-name.saving::after {
+    content: 'Сохранение...';
+}
+
+.price-badge.saving::after {
+    content: 'Сохранение...';
+}
+
+.quantity-badge.saving::after {
+    content: 'Сохранение...';
+}
+
+/* Анимация успешного сохранения */
+@keyframes saveSuccess {
+    0% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: rgba(11, 134, 97, 0.2);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.material-name.saved,
+.price-badge.saved,
+.quantity-badge.saved {
+    animation: saveSuccess 1s ease;
+}
+
+/* Подсказка при наведении на редактируемые элементы */
+.material-name[data-editable="true"]:hover,
+.price-badge[data-editable="true"]:hover,
+.quantity-badge[data-editable="true"]:hover {
+    cursor: pointer;
+    position: relative;
+}
+
+.material-name[data-editable="true"]:hover::before,
+.price-badge[data-editable="true"]:hover::before,
+.quantity-badge[data-editable="true"]:hover::before {
+    content: '✏️ Двойной клик для редактирования';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.material-name[data-editable="true"]:hover::before,
+.price-badge[data-editable="true"]:hover::before,
+.quantity-badge[data-editable="true"]:hover::before {
+    opacity: 1;
+}
+
+/* Адаптивные стили для inline-редактирования */
+@media (max-width: 768px) {
+    .inline-edit-input {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .inline-edit-buttons {
+        gap: 0.2rem;
+    }
+    
+    .btn-inline-save,
+    .btn-inline-cancel {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .inline-edit-input {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.85rem;
+    }
+    
+    .material-name[data-editable="true"]:hover::before,
+    .price-badge[data-editable="true"]:hover::before,
+    .quantity-badge[data-editable="true"]:hover::before {
+        display: none; /* Скрываем подсказки на очень маленьких экранах */
+    }
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ AJAX-ВЕРСИИ ===== */
+
+
+/* Анимация вращения для индикатора загрузки */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Стили для ссылок категорий в AJAX-режиме */
+.category-link-ajax {
+    text-decoration: none;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+    font-size: 0.9rem;
+    padding: 1px 0;
+    transition: color 0.2s ease;
+    cursor: pointer;
+}
+
+.category-link-ajax:hover {
+    color: #0B8661;
+    text-decoration: underline;
+}
+
+/* Плавный переход для обновления контента */
+.materials-section {
+    transition: opacity 0.3s ease;
+}
+
+.materials-section.updating {
+    opacity: 0.7;
+}
+
+/* Статистические карточки с анимацией обновления */
+.stat-card.updating {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Сообщение о загрузке для пустого состояния */
+.empty-message {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+    font-style: italic;
+}
+
+.empty-message i {
+    font-size: 3rem;
+    color: #ddd;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* Улучшенная визуализация выбранной категории в дереве */
+.tree-item.selected {
+    background-color: #e8f5e9;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(11, 134, 97, 0.2);
+}
+
+.tree-item.selected .tree-item-content {
+    border-left: 3px solid #0B8661;
+}
+
+/* Плавное появление нового контента */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.table-row {
+    animation: fadeIn 0.3s ease;
+}
+
+
+/* Стили для редактируемых полей */
+.editable-field {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.editable-field:hover {
+    background-color: rgba(11, 134, 97, 0.1);
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.3);
+    border-radius: 4px;
+}
+
+.editable-field:hover::after {
+    content: '✏️ Двойной клик для редактирования';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Подсветка при редактировании */
+.editable-field.editing {
+    background-color: #fffde7 !important;
+    box-shadow: 0 0 0 3px #ffeb3b !important;
+}
+
+/* Стили для input при inline-редактировании */
+.inline-edit-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 2px solid #0B8661;
+    border-radius: 4px;
+    font-size: inherit;
+    font-family: inherit;
+    background: white;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.inline-edit-input:focus {
+    border-color: #097055;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.3);
+}
+
+/* Кнопки сохранения/отмены */
+.inline-edit-buttons {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.btn-inline-save, .btn-inline-cancel {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.btn-inline-save {
+    background: #0B8661;
+    color: white;
+}
+
+.btn-inline-save:hover {
+    background: #097055;
+    transform: scale(1.1);
+}
+
+.btn-inline-cancel {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+
+.btn-inline-cancel:hover {
+    background: #e0e0e0;
+    transform: scale(1.1);
+}
+
+
+/* ===== СТИЛИ ДЛЯ AJAX-ИНДИКАТОРА ЗАГРУЗКИ ===== */
+
+
+/* Анимация вращения (уже должна быть в файле) */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+.btn-delete.deleting {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

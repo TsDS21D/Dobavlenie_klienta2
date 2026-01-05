@@ -35,3 +35,4 @@ typing_extensions==4.15.0
 tzdata==2025.3
 ujson==5.11.0
 zope.interface==8.1.1
+django-mptt==0.14.0

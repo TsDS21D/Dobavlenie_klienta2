@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',   # Хранение сессий пользователей
     'django.contrib.messages',   # Система flash-сообщений
     'django.contrib.staticfiles', # Обработка статических файлов (CSS, JS, картинки)
-    
+    'mptt',
     # Сторонние приложения
     'channels',                  # Поддержка WebSocket (асинхронные запросы)
     
@@ -79,6 +79,8 @@ INSTALLED_APPS = [
     'directories',               # Справочники (оборудование, материалы)
     'devices',                   # Устройства (принтеры, резаки)
     'sheet_formats',             # Форматы бумаги (А4, А3 и т.д.)
+    'sklad',
+    'print_price',
 ]
 
 # ===================== ПРОМЕЖУТОЧНОЕ ПО (MIDDLEWARE) =====================

@@ -53,6 +53,10 @@ urlpatterns = [
     # В шаблонах можно использовать: {% url 'sheet_formats:index' %}
     path('sheet_formats/', include(('sheet_formats.urls', 'sheet_formats'), namespace='sheet_formats')),
 
+    # Новое приложение: sklad (Склад бумаги)
+    path('sklad/', include(('sklad.urls', 'sklad'), namespace='sklad')),
+
+    path('print_price/', include('print_price.urls')),
 
     # Маршруты для аутентификации пользователей
     # Вход в систему - используем кастомную view из приложения counter

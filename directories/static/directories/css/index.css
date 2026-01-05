@@ -269,8 +269,8 @@ directories/static/directories/css/index.css
     animation: cardAppear 0.5s ease forwards;
 }
 
-/* Задержки для последовательного появления */
+/* Задержки для последовательного появления карточек */
 .directory-card:nth-child(1) { animation-delay: 0.1s; }
 .directory-card:nth-child(2) { animation-delay: 0.2s; }
 .directory-card:nth-child(3) { animation-delay: 0.3s; }
-.directory-card:nth-child(4) { animation-delay: 0.4s; }
+.directory-card:nth-child(4) { animation-delay: 0.4s; }  /* Новая строка для 4-й карточки */
