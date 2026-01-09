@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import transaction
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from .models import Printer
 from .forms import PrinterForm, PrinterEditForm
 from sheet_formats.models import SheetFormat  # Импортируем для проверки
@@ -50,7 +51,8 @@ def index(request):
                     f'✅ Принтер "{printer.name}" успешно добавлен!\n'
                     f'Формат: {printer.sheet_format.name}, '
                     f'Поля: {printer.margin_mm} мм, '
-                    f'Коэффициент: {printer.get_duplex_display()}'
+                    f'Коэффициент: {printer.get_duplex_display()}, '
+                    f'Интерполяция: {printer.get_interpolation_method_display_short()}'  # ДОБАВЛЯЕМ ИНФОРМАЦИЮ
                 )
                 
                 # Перенаправляем на эту же страницу (чтобы избежать повторной отправки формы)
@@ -77,6 +79,10 @@ def index(request):
         'form': form,              # Форма добавления принтера
         'user': request.user,      # Текущий пользователь
         'active_app': 'devices',   # Для выделения активного приложения в навигации
+        # ДОБАВЛЯЕМ КОНСТАНТЫ ДЛЯ ШАБЛОНА
+        'INTERPOLATION_LINEAR': Printer.INTERPOLATION_LINEAR,
+        'INTERPOLATION_LOGARITHMIC': Printer.INTERPOLATION_LOGARITHMIC,
+        'INTERPOLATION_CHOICES': Printer.INTERPOLATION_CHOICES,
     }
     
     # Рендерим шаблон с контекстом
@@ -194,6 +200,116 @@ def update_printer(request, printer_id):
                 'message': 'Ошибка валидации данных',
                 'errors': errors
             }, status=400)
+            
+    except Printer.DoesNotExist:
+        # Если принтер не найден
+        return JsonResponse({
+            'success': False,
+            'message': f'Принтер с ID {printer_id} не найден'
+        }, status=404)
+        
+    except Exception as e:
+        # Обработка неожиданных ошибок
+        import traceback
+        error_details = traceback.format_exc()
+        
+        return JsonResponse({
+            'success': False,
+            'message': f'Внутренняя ошибка сервера: {str(e)}'
+        }, status=500)
+
+
+@login_required(login_url='/counter/login/')
+@csrf_exempt
+def calculate_price_devices(request, printer_id):
+    """
+    НОВАЯ VIEW-ФУНКЦИЯ: Рассчитывает цену за лист для произвольного тиража
+    
+    Использует метод интерполяции принтера и данные из модели PrintPrice
+    
+    Args:
+        request: HTTP запрос
+        printer_id: ID принтера для расчета
+        
+    Returns:
+        JsonResponse: JSON-ответ с результатом расчета
+    """
+    try:
+        # Получаем принтер по ID
+        printer = Printer.objects.get(id=printer_id)
+        
+        # Получаем тираж из GET или POST параметров
+        copies_str = request.GET.get('copies') or request.POST.get('copies')
+        
+        # Проверяем, что тираж указан
+        if not copies_str:
+            return JsonResponse({
+                'success': False,
+                'message': 'Не указан тираж для расчета'
+            }, status=400)
+        
+        try:
+            # Преобразуем тираж в целое число
+            copies = int(copies_str)
+            
+            # Проверяем, что тираж положительный
+            if copies <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Тираж должен быть положительным числом'
+                }, status=400)
+                
+        except ValueError:
+            # Если не удалось преобразовать в число
+            return JsonResponse({
+                'success': False,
+                'message': 'Тираж должен быть целым числом'
+            }, status=400)
+        
+        # Вызываем метод расчета цены для произвольного тиража
+        calculated_price = printer.calculate_price_for_arbitrary_copies_devices(copies)
+        
+        # Если расчет не удался (например, нет данных о ценах)
+        if calculated_price is None:
+            return JsonResponse({
+                'success': False,
+                'message': 'Не удалось рассчитать цену. Проверьте, есть ли данные о ценах для этого принтера в разделе "Цены печати".'
+            }, status=400)
+        
+        try:
+            # Рассчитываем общую стоимость (цена за лист * тираж)
+            total_price = calculated_price * Decimal(copies)
+            total_price = total_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            
+            # Форматируем результаты для отображения
+            calculated_price_formatted = f"{calculated_price:.2f}"
+            total_price_formatted = f"{total_price:.2f}"
+            
+            # Возвращаем успешный ответ
+            return JsonResponse({
+                'success': True,
+                'message': f'Цена рассчитана успешно',
+                'data': {
+                    'printer_id': printer_id,
+                    'printer_name': printer.name,
+                    'copies': copies,
+                    'calculated_price': float(calculated_price),  # Для JSON
+                    'calculated_price_formatted': calculated_price_formatted,
+                    'calculated_price_display': f"{calculated_price_formatted} руб./лист",
+                    'total_price': float(total_price),  # Для JSON
+                    'total_price_formatted': total_price_formatted,
+                    'total_price_display': f"{total_price_formatted} руб.",
+                    'interpolation_method': printer.devices_interpolation_method,
+                    'interpolation_method_display': printer.get_interpolation_method_display_short(),
+                }
+            })
+            
+        except (InvalidOperation, TypeError) as e:
+            # Ошибка при расчете
+            return JsonResponse({
+                'success': False,
+                'message': f'Ошибка при расчете стоимости: {str(e)}'
+            }, status=500)
             
     except Printer.DoesNotExist:
         # Если принтер не найден

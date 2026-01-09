@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'sheet_formats',             # Форматы бумаги (А4, А3 и т.д.)
     'sklad',
     'print_price',
+    'baza_klientov',
 ]
 
 # ===================== ПРОМЕЖУТОЧНОЕ ПО (MIDDLEWARE) =====================

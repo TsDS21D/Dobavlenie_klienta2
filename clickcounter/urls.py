@@ -58,6 +58,9 @@ urlpatterns = [
 
     path('print_price/', include('print_price.urls')),
 
+     # База клиентов
+    path('baza_klientov/', include(('baza_klientov.urls', 'baza_klientov'), namespace='baza_klientov')),
+
     # Маршруты для аутентификации пользователей
     # Вход в систему - используем кастомную view из приложения counter
     path('login/', counter_views.login_view, name='login'),

@@ -274,3 +274,4 @@ directories/static/directories/css/index.css
 .directory-card:nth-child(2) { animation-delay: 0.2s; }
 .directory-card:nth-child(3) { animation-delay: 0.3s; }
 .directory-card:nth-child(4) { animation-delay: 0.4s; }  /* Новая строка для 4-й карточки */
+.directory-card:nth-child(5) { animation-delay: 0.5s; } 

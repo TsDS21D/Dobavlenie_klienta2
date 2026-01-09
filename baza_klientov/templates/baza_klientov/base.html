@@ -1,0 +1,41 @@
+<!--
+base.html для приложения baza_klientov
+Наследует общую структуру и стили для единообразия дизайна
+-->
+
+{% extends "sheet_formats/base.html" %}
+
+<!-- Блок для дополнительных CSS стилей -->
+{% block extra_css %}
+<!-- Подключаем CSS стили для baza_klientov -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'baza_klientov/css/baza_klientov.css' %}">
+<!-- Дополнительные мета-теги для адаптивности -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    /* Дополнительные inline-стили */
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+        position: relative !important;
+    }
+    
+    /* Исправление для контейнера на очень узких экранах */
+    @media (max-width: 1137px) {
+        .container {
+            width: 100% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+    }
+</style>
+{% endblock %}
+
+<!-- Блок для дополнительного JavaScript -->
+{% block extra_js %}
+<!-- Подключаем JavaScript для baza_klientov -->
+{% load static %}
+<script src="{% static 'baza_klientov/js/baza_klientov.js' %}"></script>
+<!-- Подключаем JavaScript для in-line редактирования -->
+<script src="{% static 'baza_klientov/js/baza_klientov_inline_edit.js' %}"></script>
+{% endblock %}

@@ -22,4 +22,10 @@ urlpatterns = [
     
     # Удаление цены (подтверждение через JS)
     path('delete/<int:price_id>/', views.delete_print_price, name='delete_print_price'),
+    
+    # НОВЫЙ МАРШРУТ: API для обновления метода интерполяции принтера
+    path('api/update_interpolation_method/<int:printer_id>/', views.update_printer_interpolation_method, name='update_printer_interpolation_method'),
+    
+    # НОВЫЙ МАРШРУТ: API для расчета цены для произвольного тиража
+    path('api/calculate_arbitrary_price/<int:printer_id>/', views.calculate_arbitrary_copies_price, name='calculate_arbitrary_copies_price'),
 ]

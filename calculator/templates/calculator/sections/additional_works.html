@@ -1,0 +1,81 @@
+<!--
+sections/additional_works.html - Секция "Дополнительные работы"
+ОБНОВЛЕНО: Полная реализация по аналогии с секцией "Печатные компоненты"
+ДОБАВЛЕНО: Все необходимые элементы интерфейса
+-->
+
+<section class="calculator-section additional-works-section" id="additional-works-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-tools"></i>
+            <span class="section-number">6.</span>
+            Дополнительные работы
+            <!-- Элемент для отображения названия выбранного просчёта -->
+            <span id="additional-works-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <div class="header-buttons">
+            <!-- Кнопка добавления новой работы (будет доступна при выборе просчёта) -->
+            <button type="button" 
+                    id="add-additional-work-btn" 
+                    class="btn-action btn-add"
+                    title="Добавить дополнительную работу"
+                    style="display: none;">
+                <i class="fas fa-plus"></i> Добавить
+            </button>
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="additional-works-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        <!-- Сообщение при отсутствии выбранного просчёта -->
+        <div id="no-proschet-selected-additional" class="empty-state-message" style="display: none;">
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Выберите просчёт в секции "Список просчётов" для отображения дополнительных работ</p>
+        </div>
+        
+        <!-- Сообщение при отсутствии дополнительных работ в выбранном просчёте -->
+        <div id="no-works-message" class="empty-state-message" style="display: none;">
+            <i class="fas fa-tools fa-3x"></i>
+            <h3>Нет дополнительных работ</h3>
+            <p>В выбранном просчёте пока нет дополнительных работ</p>
+            <button type="button" id="add-first-work-btn" class="btn-action">
+                <i class="fas fa-plus"></i> Добавить первую работу
+            </button>
+        </div>
+        
+        <!-- Контейнер для таблицы дополнительных работ -->
+        <div id="additional-works-container" class="table-container" style="display: none;">
+            <!-- Таблица дополнительных работ -->
+            <table id="additional-works-table" class="simple-table additional-works-table">
+                <thead>
+                    <tr>
+                        <th width="15%">№ работы</th>
+                        <th width="55%">Название работы</th>
+                        <th width="20%">Цена</th>
+                        <th width="10%">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="additional-works-table-body">
+                    <!-- Строки таблицы будут добавляться динамически через JavaScript -->
+                </tbody>
+            </table>
+            
+            <!-- Общая стоимость дополнительных работ (ОБНОВЛЕНО: аналогично секции "Печатные компоненты") -->
+            <div id="additional-works-total" class="total-summary" style="display: none;">
+                <div class="total-label">Общая стоимость дополнительных работ:</div>
+                <div id="additional-works-total-price" class="total-price">0.00 ₽</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Мета-тег для CSRF-токена (должен быть в основном шаблоне, но добавляем здесь для наглядности) -->
+<meta name="csrf-token" content="{{ csrf_token }}">

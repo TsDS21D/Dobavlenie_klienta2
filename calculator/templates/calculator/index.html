@@ -1,191 +1,123 @@
-<!DOCTYPE html>
-<!-- 
+<!--
 calculator/templates/calculator/index.html
-Главный HTML шаблон приложения "Калькулятор заказов" типографии.
-Наследует общий дизайн от приложения counter.
+Главная страница калькулятора типографии с новой структурой:
+1. Список всех просчётов (новая секция)
+2. Главный блок "Просчёт" с вложенными секциями
 -->
 
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <!-- Атрибут viewport обеспечивает корректное отображение на мобильных устройствах -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Калькулятор заказов - Типография Буква А</title>
+{% extends "calculator/base.html" %}
+
+{% block title %}Калькулятор типографии{% endblock %}
+
+{% block content %}
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        Калькулятор типографии
+    </h1>
     
-    <!-- Загружаем статические файлы Django (CSS, JS, изображения) -->
-    {% load static %}
-    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
-    
-    <!-- Подключаем внешний CSS файл со стилями главной страницы -->
-    <!-- Используем те же стили, что и в приложении counter для единого дизайна -->
-    <link rel="stylesheet" href="{% static 'counter/css/index.css' %}">
-</head>
-<body>
-    {% load static %}
-
-    <!-- Подключаем панели приложений -->
-    {% include "counter/app_panels.html" with active_app="calculator" %}
-
-
-    <!-- Основной контейнер страницы -->
-    <div class="container">
-        <!-- Заголовок страницы с логотипом типографии -->
-        <h1>
-            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
-                alt="Типография &quot;Буква А&quot;" 
-                title="Типография &quot;Буква А&quot;"
-                width="150">
-            Калькулятор заказов
-        </h1>
-        
-         
-        <!-- Основной контент калькулятора -->
-        <div class="form-section" style="text-align: center;">
-            <h2>📈 Калькулятор стоимости заказов</h2>
-            
-            <!-- Информационное сообщение о статусе разработки -->
-            <div style="background: #e8f5e9; padding: 1.5rem; border-radius: 10px; margin: 2rem 0; border-left: 4px solid #4CAF50;">
-                <h3 style="color: #2e7d32; margin-bottom: 1rem;">🚧 Страница в разработке</h3>
-                <p style="color: #555; line-height: 1.6;">
-                    В этом разделе будет реализован калькулятор для расчёта стоимости различных 
-                    типографских услуг. Вы сможете рассчитать стоимость:
-                </p>
-                <ul style="text-align: left; display: inline-block; margin: 1rem 0; color: #555;">
-                    <li>Печати визиток, буклетов, брошюр</li>
-                    <li>Изготовления наружной рекламы</li>
-                    <li>Стоимости дизайнерских услуг</li>
-                    <li>Срочности выполнения заказа</li>
-                </ul>
-                <p style="color: #777; font-style: italic;">
-                    Раздел будет доступен в ближайшее время.
-                </p>
-            </div>
-            
-            <!-- Заглушка для будущего калькулятора -->
-            <div style="margin: 3rem 0;">
-                <h3 style="color: #333; margin-bottom: 1.5rem;">🔧 Пример будущего калькулятора</h3>
-                
-                <!-- Упрощённая форма калькулятора (заглушка) -->
-                <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 2rem; border-radius: 10px;">
-                    <div class="form-group">
-                        <label for="product-type">Тип продукции:</label>
-                        <select id="product-type" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
-                            <option value="">-- Выберите тип продукции --</option>
-                            <option value="visiting-card">Визитки</option>
-                            <option value="booklet">Буклеты</option>
-                            <option value="flyer">Флаеры</option>
-                            <option value="poster">Плакаты</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="quantity">Тираж (шт.):</label>
-                        <input type="number" id="quantity" min="10" max="10000" value="100" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="paper-type">Тип бумаги:</label>
-                        <select id="paper-type" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
-                            <option value="standard">Стандартная (мелованная)</option>
-                            <option value="premium">Премиум (картон)</option>
-                            <option value="eco">Эко (переработанная)</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Блок с результатом расчёта -->
-                    <div style="margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 8px; border: 2px dashed #0B8661;">
-                        <h4 style="color: #0B8661; margin-bottom: 1rem;">💎 Примерная стоимость:</h4>
-                        <div style="font-size: 2rem; font-weight: bold; color: #333;">5 000 ₽</div>
-                        <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                            * Итоговая стоимость зависит от дополнительных услуг
-                        </p>
-                    </div>
-                    
-                    <!-- Кнопка расчёта (заглушка) -->
-                    <button style="width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; margin-top: 1.5rem; cursor: not-allowed;" disabled>
-                        🧮 Рассчитать (скоро будет доступно)
-                    </button>
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">
+                    {{ message }}
                 </div>
-            </div>
-        </div>
-        
-        <!-- Дополнительная информация -->
-        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid #eee;">
-            <h3 style="color: #333; margin-bottom: 1rem;">ℹ️ Как работает калькулятор</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
-                <div style="background: #f0f7ff; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #2196F3;">
-                    <h4 style="color: #1976D2; margin-bottom: 0.5rem;">📊 Учёт материалов</h4>
-                    <p style="color: #555;">Расчёт стоимости бумаги, красок, ламинации и других материалов.</p>
-                </div>
-                <div style="background: #f9f0ff; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9C27B0;">
-                    <h4 style="color: #7B1FA2; margin-bottom: 0.5rem;">⚙️ Услуги печати</h4>
-                    <p style="color: #555;">Стоимость печати в зависимости от технологии и сложности.</p>
-                </div>
-                <div style="background: #f0fff4; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #4CAF50;">
-                    <h4 style="color: #388E3C; margin-bottom: 0.5rem;">🚚 Доставка</h4>
-                    <p style="color: #555;">Расчёт стоимости доставки готовой продукции клиенту.</p>
-                </div>
-            </div>
-        </div>
+            {% endfor %}
+        {% endif %}
     </div>
-
-    <!-- Подключаем JavaScript файлы (те же, что и в приложении counter) -->
-    <!-- Используем общие скрипты для единообразия интерфейса -->
-    <script src="{% static 'counter/js/index.js' %}"></script>
     
-    <!-- Дополнительный скрипт для калькулятора -->
-    <script>
-        // Простой скрипт для демонстрации работы калькулятора
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Калькулятор заказов загружен');
+    <!-- ОСНОВНОЙ КОНТЕЙНЕР С СЕКЦИЯМИ -->
+    <div class="calculator-sections">
+        
+        <!-- ===== НОВАЯ СЕКЦИЯ: СПИСОК ВСЕХ ПРОСЧЁТОВ ===== -->
+        {% include "calculator/sections/list_proschet.html" %}
+        
+        <!-- ===== ГЛАВНАЯ СЕКЦИЯ: ПРОСЧЁТ ===== -->
+        <!-- Секция теперь имеет номер 2 -->
+        <div class="calculator-section main-section" id="section-proschet">
+            <div class="section-header">
+                <h2>
+                    <!-- Номер изменен с 1 на 2 -->
+                    <span class="section-number">2</span> 
+                    Просчёт
+                </h2>
+                <div class="header-buttons">
+                    <button class="btn-action btn-calculate-price" 
+                            title="Рассчитать цену"
+                            onclick="calculateTotalPrice()">
+                        <i class="fas fa-calculator"></i> Рассчитать
+                    </button>
+                    <button class="btn-action btn-collapse-section" 
+                            data-target="section-proschet" 
+                            title="Свернуть/развернуть секцию">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>                    
+                </div>
+            </div>
             
-            // Получаем элементы формы калькулятора
-            const productType = document.getElementById('product-type');
-            const quantity = document.getElementById('quantity');
-            const paperType = document.getElementById('paper-type');
-            
-            // Функция для обновления примерной стоимости
-            function updatePrice() {
-                // Базовая стоимость в зависимости от типа продукции
-                let basePrice = 0;
-                switch(productType.value) {
-                    case 'visiting-card': basePrice = 1000; break;
-                    case 'booklet': basePrice = 3000; break;
-                    case 'flyer': basePrice = 1500; break;
-                    case 'poster': basePrice = 2000; break;
-                    default: basePrice = 0;
-                }
-                
-                // Множитель тиража
-                const qty = parseInt(quantity.value) || 100;
-                const quantityMultiplier = qty / 100; // На каждые 100 штук
-                
-                // Множитель типа бумаги
-                let paperMultiplier = 1;
-                switch(paperType.value) {
-                    case 'premium': paperMultiplier = 1.5; break;
-                    case 'eco': paperMultiplier = 1.2; break;
-                    default: paperMultiplier = 1;
-                }
-                
-                // Рассчитываем итоговую стоимость
-                const totalPrice = basePrice * quantityMultiplier * paperMultiplier;
-                
-                // Форматируем и отображаем цену
-                if (totalPrice > 0) {
-                    document.querySelector('div[style*="Примерная стоимость"] div').textContent = 
-                        Math.round(totalPrice).toLocaleString('ru-RU') + ' ₽';
-                }
-            }
-            
-            // Назначаем обработчики событий на изменение значений
-            if (productType) productType.addEventListener('change', updatePrice);
-            if (quantity) quantity.addEventListener('input', updatePrice);
-            if (paperType) paperType.addEventListener('change', updatePrice);
-            
-            // Инициализируем начальную цену
-            updatePrice();
-        });
-    </script>
-</body>
-</html>
+            <div class="section-body">
+                <div class="nested-sections">
+                    
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="half">
+                            {% include "calculator/sections/client.html" %}
+                        </div>
+                        <div class="nested-col" data-col-size="half">
+                            {% include "calculator/sections/product.html" %}
+                        </div>
+                    </div>
+                    
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            {% include "calculator/sections/print_components.html" %}
+                        </div>
+                    </div>
+                    
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            {% include "calculator/sections/additional_works.html" %}
+                        </div>
+                    </div>
+                    
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            {% include "calculator/sections/price.html" %}
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% load static %}
+<!-- Подключаем CSS для новой секции -->
+<link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
+
+
+<!-- Подключаем JavaScript для всех секций (новая секция идет первой) -->
+<script src="{% static 'calculator/js/sections/product.js' %}"></script>
+<script src="{% static 'calculator/js/sections/list_proschet.js' %}"></script>
+<script src="{% static 'calculator/js/sections/print_components.js' %}"></script>
+<script src="{% static 'calculator/js/sections/list_proschet_inline_edit.js' %}"></script>
+<script src="{% static 'calculator/js/sections/proschet.js' %}"></script>
+<script src="{% static 'calculator/js/sections/proschet_inline_edit.js' %}"></script>
+<script src="{% static 'calculator/js/sections/client.js' %}"></script>
+
+<!-- Модуль inline-редактирования клиента -->
+<script src="{% static 'calculator/js/sections/client_inline_edit.js' %}"></script>
+
+
+<script src="{% static 'calculator/js/sections/product_inline_edit.js' %}"></script>
+<script src="{% static 'calculator/js/circulation_change_handler.js' %}"></script>
+<script src="{% static 'calculator/js/sections/print_components_inline_edit.js' %}"></script>
+<script src="{% static 'calculator/js/sections/additional_works.js' %}"></script>
+<script src="{% static 'calculator/js/sections/price.js' %}"></script>
+
+{% endblock %}

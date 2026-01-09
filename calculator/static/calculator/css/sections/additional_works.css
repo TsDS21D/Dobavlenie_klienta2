@@ -1,0 +1,445 @@
+/*
+sections/additional_works.css - Стили для секции "Дополнительные работы"
+ПОЛНАЯ РЕАЛИЗАЦИЯ: Все стили по аналогии с секцией "Печатные компоненты"
+ОБНОВЛЕНО: Стили для таблицы, inline-редактирования и модального окна
+*/
+
+/* Основные стили секции */
+#additional-works-section {
+    border-left: 4px solid #f39c12; /* Оранжевая полоска слева для идентификации секции */
+}
+
+#additional-works-section .section-header {
+    border-bottom-color: #f39c12; /* Оранжевая граница в заголовке */
+}
+
+/* Стили для заголовка секции с названием просчёта */
+#additional-works-proschet-title {
+    margin-left: 8px;
+    font-size: 0.9em;
+    font-weight: normal;
+    color: #555;
+    font-style: italic;
+}
+
+#additional-works-proschet-title .placeholder-text {
+    color: #888;
+    font-size: 0.85em;
+}
+
+#additional-works-proschet-title .proschet-title-active {
+    color: #333;
+    background-color: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border-left: 2px solid #f39c12; /* Оранжевая полоска слева в тон секции */
+}
+
+/* Стили для таблицы дополнительных работ */
+.additional-works-table {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.additional-works-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #f39c12; /* Оранжевая граница под заголовком таблицы */
+    padding: 12px 8px;
+    text-align: left;
+}
+
+.additional-works-table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid #eee;
+}
+
+.additional-works-table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+/* Стили для номера работы */
+.work-number {
+    font-weight: 600;
+    color: #f39c12; /* Оранжевый цвет для номера работы */
+    font-family: 'Courier New', monospace;
+}
+
+/* Стили для ячейки с названием работы */
+.work-title {
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Стили для ячейки с ценой */
+.work-price {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Стили для блока с общей стоимостью */
+.total-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.total-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.total-price {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f39c12; /* Оранжевый цвет для общей суммы */
+    font-family: 'Courier New', monospace;
+}
+
+/* Стили для кнопки добавления */
+.btn-add {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-add:hover {
+    background-color: #218838;
+}
+
+.btn-add:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-add i {
+    margin-right: 5px;
+}
+
+/* ===== СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Контейнер для inline-редактирования */
+.inline-edit-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+/* Стили для ячейки в режиме редактирования */
+.additional-works-table td.editing-cell {
+    background-color: #f8f9fa !important;
+    padding: 8px !important;
+    border: 2px solid #3498db !important;
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+/* Стили для полей ввода при inline-редактировании */
+.inline-edit-input {
+    flex: 1;
+    min-width: 80px;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Стили для кнопок inline-редактирования */
+.inline-edit-buttons {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.inline-edit-save,
+.inline-edit-cancel {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.inline-edit-save {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.inline-edit-save:hover {
+    background-color: #27ae60;
+    transform: scale(1.05);
+}
+
+.inline-edit-cancel {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.inline-edit-cancel:hover {
+    background-color: #c0392b;
+    transform: scale(1.05);
+}
+
+/* Индикатор сохранения */
+.inline-edit-saving {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #3498db;
+    font-size: 14px;
+    width: 100%;
+    padding: 10px;
+}
+
+/* Стили для ошибок при редактировании */
+.inline-edit-error {
+    color: #e74c3c;
+    font-style: italic;
+    padding: 8px;
+    display: block;
+}
+
+/* ===== СТИЛИ ДЛЯ КНОПОК УДАЛЕНИЯ В ТАБЛИЦЕ ===== */
+
+/* Контейнер для действий в строке таблицы */
+.work-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    padding-right: 8px;
+}
+
+/* Кнопка удаления работы */
+.delete-work-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.delete-work-btn:hover {
+    background-color: #e74c3c;
+    color: white;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Показываем кнопку удаления только при наведении на строку */
+.additional-works-table tbody tr:hover .delete-work-btn {
+    opacity: 0.8;
+}
+
+/* ===== СТИЛИ ДЛЯ ВЫДЕЛЕННОЙ СТРОКИ ===== */
+
+/* Стиль для выделенной строки таблицы */
+.additional-works-table tbody tr.selected {
+    background-color: #fff3e0 !important; /* Светло-оранжевый фон */
+    box-shadow: inset 0 0 0 2px #f39c12; /* Оранжевая рамка внутри */
+}
+
+/* Стиль для строки при наведении (кроме выделенной) */
+.additional-works-table tbody tr:not(.selected):hover {
+    background-color: #f5f5f5 !important;
+}
+
+/* Стиль для ячеек выделенной строки */
+.additional-works-table tbody tr.selected td {
+    border-bottom-color: #f39c12; /* Оранжевая граница снизу */
+    font-weight: 500; /* Полужирный текст */
+}
+
+/* ===== СТИЛИ ДЛЯ ПЛЕЙСХОЛДЕРА (когда секция пустая) ===== */
+
+.section-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.section-placeholder i {
+    color: #f39c12; /* Оранжевый цвет иконки */
+    margin-bottom: 20px;
+}
+
+.section-placeholder h3 {
+    margin: 10px 0;
+    color: #333;
+}
+
+.section-placeholder p {
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.placeholder-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    display: inline-block;
+    text-align: left;
+}
+
+.placeholder-list li {
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.placeholder-list i {
+    color: #f39c12;
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.placeholder-note {
+    display: block;
+    margin-top: 20px;
+    color: #888;
+    font-size: 12px;
+}
+
+.placeholder-note i {
+    margin-right: 5px;
+}
+
+/* ===== СТИЛИ ДЛЯ СООБЩЕНИЙ ===== */
+
+.empty-state-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.empty-state-message i {
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.empty-state-message h3 {
+    margin: 10px 0;
+    color: #333;
+}
+
+.empty-state-message p {
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+/* ===== АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+@media (max-width: 768px) {
+    .additional-works-table {
+        font-size: 14px;
+    }
+    
+    .additional-works-table th,
+    .additional-works-table td {
+        padding: 8px 4px;
+    }
+    
+    .work-title {
+        max-width: 150px;
+    }
+    
+    .total-summary {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .total-price {
+        margin-top: 10px;
+    }
+    
+    /* Inline-редактирование на мобильных */
+    .inline-edit-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .inline-edit-buttons {
+        justify-content: flex-end;
+    }
+    
+    .inline-edit-input {
+        min-width: 100%;
+    }
+}
+
+/* ===== АНИМАЦИИ ===== */
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* ===== СТИЛИ ДЛЯ ЗАГРУЗКИ ===== */
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #f39c12; /* Оранжевый цвет для индикатора загрузки */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px auto;
+}
+
+/* ===== СТИЛИ ДЛЯ ОШИБОК ===== */
+
+.error-message {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border-left: 4px solid #f44336;
+}

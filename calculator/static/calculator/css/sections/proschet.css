@@ -1,0 +1,863 @@
+/*
+static/css/proschet.css
+Стили для секции "Просчёт" в стиле приложения print_price
+*/
+
+/* ===== 0. БАЗОВЫЕ НАСТРОЙКИ КОНТЕЙНЕРА ===== */
+#proschet-section .print-price-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    padding: 1.2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* ===== 1. ДВУХКОЛОНОЧНЫЙ LAYOUT ===== */
+#proschet-section .two-column-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(350px, 1.5fr);
+    gap: 1.5rem;
+    margin-top: 1.2rem;
+}
+
+/* ЛЕВАЯ КОЛОНКА - информация о текущем просчёте */
+#proschet-section .left-column {
+    background: #f9f9f9;
+    padding: 1.2rem;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ПРАВАЯ КОЛОНКА - список просчётов */
+#proschet-section .right-column {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Заголовок секции */
+#proschet-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+#proschet-section .section-header h2,
+#proschet-section .section-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#proschet-section .section-header h2 {
+    font-size: 1.3rem;
+}
+
+/* ===== 2. ИНФОРМАЦИЯ О ПРОСЧЁТЕ (левая колонка) ===== */
+#proschet-section .proschet-info-print-style {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#proschet-section .form-group {
+    margin-bottom: 1.2rem;
+}
+
+#proschet-section .form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+    color: #555;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#proschet-section .form-group label i {
+    color: #0B8661;
+    width: 16px;
+    text-align: center;
+}
+
+#proschet-section .editable-field-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Редактируемые поля (бейджи) */
+#proschet-section .editable-field {
+    display: inline-block;
+    padding: 0.6rem 0.8rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #333;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+#proschet-section .editable-field:hover {
+    background: #e9ecef;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.1);
+}
+
+/* Поля ввода для inline-редактирования */
+#proschet-section .inline-edit-input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    min-height: 40px;
+}
+
+#proschet-section .inline-edit-input:focus {
+    outline: none;
+    border-color: #097055;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
+}
+
+/* Специфичные стили для разных типов полей ввода */
+#proschet-section .inline-edit-input[type="date"] {
+    font-family: inherit;
+}
+
+#proschet-section .inline-edit-input[type="text"] {
+    color: #1565c0;
+}
+
+#proschet-section select.inline-edit-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%230B8661' d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+}
+
+/* ===== 3. СТАТУСЫ ПРОСЧЁТОВ ===== */
+#proschet-section .status-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#proschet-section .status-draft {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+#proschet-section .status-draft:hover {
+    background-color: #ffeaa7;
+}
+
+#proschet-section .status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+#proschet-section .status-active:hover {
+    background-color: #c3e6cb;
+}
+
+#proschet-section .status-saved {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+#proschet-section .status-saved:hover {
+    background-color: #bee5eb;
+}
+
+#proschet-section .status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+#proschet-section .status-cancelled:hover {
+    background-color: #f5c6cb;
+}
+
+/* ===== 4. БЕЙДЖ ОБЩЕЙ СТОИМОСТИ ===== */
+#proschet-section .total-price-badge {
+    display: inline-block;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, #0B8661, #097055);
+    color: white;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    border: none;
+    min-width: 120px;
+    box-shadow: 0 4px 8px rgba(11, 134, 97, 0.2);
+}
+
+/* ===== 5. СПИСОК ПРОСЧЁТОВ (правая колонка) ===== */
+#proschet-section .proschets-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#proschet-section .prices-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#proschet-section .prices-table {
+    flex: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#proschet-section .prices-table .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr 1fr 0.8fr;
+    background: #f8f9fa;
+    padding: 0.8rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+
+#proschet-section .prices-table .table-body {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 350px;
+    min-height: 200px;
+}
+
+#proschet-section .prices-table .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr 1fr 0.8fr;
+    padding: 0.8rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.2s ease;
+    position: relative;
+    align-items: center;
+}
+
+#proschet-section .prices-table .table-row:hover {
+    background: #f8f9fa;
+}
+
+#proschet-section .prices-table .table-row.selected {
+    background: #e8f5e9;
+    border-left: 3px solid #0B8661;
+}
+
+#proschet-section .prices-table .table-row.editing {
+    background: #fffde7 !important;
+    border-left: 3px solid #ffc107;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Колонки таблицы */
+#proschet-section .col-number,
+#proschet-section .col-date,
+#proschet-section .col-client,
+#proschet-section .col-total,
+#proschet-section .col-actions {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    min-width: 0;
+}
+
+#proschet-section .col-actions {
+    gap: 0.3rem;
+    justify-content: flex-start;
+}
+
+/* Кнопки действий в таблице */
+#proschet-section .btn-load-proschet,
+#proschet-section .btn-delete {
+    padding: 0.4rem 0.6rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#proschet-section .btn-load-proschet {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+#proschet-section .btn-load-proschet:hover {
+    background: #bbdefb;
+    transform: scale(1.05);
+}
+
+#proschet-section .btn-delete {
+    background: #ffebee;
+    color: #c62828;
+}
+
+#proschet-section .btn-delete:hover {
+    background: #f44336;
+    color: white;
+}
+
+/* ===== 6. КНОПКИ УПРАВЛЕНИЯ ===== */
+#proschet-section .header-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+#proschet-section .btn-add-price {
+    padding: 0.5rem 1rem;
+    background: #0B8661;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+#proschet-section .btn-add-price:hover {
+    background: #097055;
+    transform: scale(1.05);
+}
+
+#proschet-section .btn-reset-filter {
+    padding: 0.4rem 0.8rem;
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#proschet-section .btn-reset-filter:hover {
+    background: #1565c0;
+    color: white;
+    transform: scale(1.05);
+}
+
+#proschet-section .button-group {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: auto;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+#proschet-section .btn-submit {
+    padding: 0.6rem 1.2rem;
+    background: #0B8661;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+#proschet-section .btn-submit:hover {
+    background: #097055;
+}
+
+#proschet-section .btn-submit:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#proschet-section .btn-delete {
+    padding: 0.6rem 1.2rem;
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+#proschet-section .btn-delete:hover:not(:disabled) {
+    background: #f44336;
+    color: white;
+    border-color: #f44336;
+}
+
+#proschet-section .btn-delete:disabled {
+    background: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ===== 7. ПОДСКАЗКИ ===== */
+#proschet-section .table-hint {
+    margin-top: 1.5rem;
+    padding: 0.8rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    font-size: 0.85rem;
+}
+
+#proschet-section .hint-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+    color: #666;
+}
+
+#proschet-section .hint-item:last-child {
+    margin-bottom: 0;
+}
+
+#proschet-section .hint-icon {
+    color: #0B8661;
+    width: 16px;
+    text-align: center;
+}
+
+/* ===== 8. СООБЩЕНИЯ ===== */
+#proschet-section .empty-message {
+    text-align: center;
+    color: #999;
+    padding: 3rem 1rem;
+    font-style: italic;
+    grid-column: 1 / -1;
+}
+
+#proschet-section .empty-message i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+    display: block;
+}
+
+#proschet-section .empty-message p {
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+#proschet-section .empty-message small {
+    font-size: 0.9rem;
+}
+
+/* ===== 9. ПАГИНАЦИЯ ===== */
+#proschet-section .pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    margin-top: auto;
+}
+
+#proschet-section .btn-prev,
+#proschet-section .btn-next {
+    padding: 0.5rem 1rem;
+    background: #e9ecef;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#proschet-section .btn-prev:hover:not(:disabled),
+#proschet-section .btn-next:hover:not(:disabled) {
+    background: #0B8661;
+    color: white;
+    border-color: #0B8661;
+}
+
+#proschet-section .btn-prev:disabled,
+#proschet-section .btn-next:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#proschet-section .page-info {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* ===== 10. МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ===== */
+#proschet-section .confirmation-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+#proschet-section .confirmation-modal-content {
+    background-color: white;
+    border-radius: 10px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+#proschet-section .confirmation-modal-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+#proschet-section .confirmation-modal-header h3 {
+    color: #343a40;
+    margin-bottom: 0.5rem;
+}
+
+#proschet-section .confirmation-modal-header i {
+    font-size: 3rem;
+    color: #dc3545;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+#proschet-section .confirmation-modal-body {
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #6c757d;
+    line-height: 1.6;
+}
+
+#proschet-section .confirmation-modal-footer {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+#proschet-section .btn-confirm {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.7rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#proschet-section .btn-confirm:hover {
+    background-color: #c82333;
+}
+
+#proschet-section .btn-cancel {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.7rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+#proschet-section .btn-cancel:hover {
+    background-color: #5a6268;
+}
+
+/* ===== 11. УВЕДОМЛЕНИЯ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+.inline-edit-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    z-index: 10000;
+    animation: fadeInOut 5s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+}
+
+.notification-success {
+    background-color: #4CAF50;
+}
+
+.notification-error {
+    background-color: #F44336;
+}
+
+.notification-warning {
+    background-color: #FF9800;
+}
+
+.notification-info {
+    background-color: #2196F3;
+}
+
+/* ===== 12. АДАПТИВНЫЕ СТИЛИ ===== */
+@media (max-width: 1137px) {
+    #proschet-section .two-column-layout {
+        grid-template-columns: minmax(250px, 1fr) minmax(280px, 1fr);
+        gap: 1rem;
+    }
+    
+    #proschet-section .left-column,
+    #proschet-section .right-column {
+        padding: 0.8rem;
+    }
+    
+    #proschet-section .prices-table .table-header,
+    #proschet-section .prices-table .table-row {
+        grid-template-columns: 1fr 0.8fr 1.2fr 0.8fr 0.6fr;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 768px) {
+    #proschet-section .two-column-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    #proschet-section .section-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.8rem;
+    }
+    
+    #proschet-section .header-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    #proschet-section .btn-add-price,
+    #proschet-section .btn-reset-filter {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    #proschet-section .prices-table .table-header {
+        display: none;
+    }
+    
+    #proschet-section .prices-table .table-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    #proschet-section .col-number,
+    #proschet-section .col-date,
+    #proschet-section .col-client,
+    #proschet-section .col-total,
+    #proschet-section .col-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 0.3rem 0;
+    }
+    
+    #proschet-section .col-number::before {
+        content: "Номер: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        min-width: 80px;
+    }
+    
+    #proschet-section .col-date::before {
+        content: "Дата: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        min-width: 80px;
+    }
+    
+    #proschet-section .col-client::before {
+        content: "Клиент: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        min-width: 80px;
+    }
+    
+    #proschet-section .col-total::before {
+        content: "Сумма: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        min-width: 80px;
+    }
+    
+    #proschet-section .col-actions {
+        justify-content: flex-start;
+        border-top: 1px solid #f0f0f0;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    #proschet-section .col-actions::before {
+        content: "Действия: ";
+        font-weight: 600;
+        color: #555;
+        margin-right: 0.5rem;
+        min-width: 80px;
+    }
+    
+    #proschet-section .button-group {
+        flex-direction: column;
+    }
+}
+
+
+/* Добавьте в proschet_print_price_style.css */
+
+/* Стили для редактируемых полей в таблице */
+#proschet-section .prices-table .editable-field-container {
+    position: relative;
+    width: 100%;
+}
+
+#proschet-section .prices-table .editable-field {
+    display: inline-block;
+    padding: 0.4rem 0.6rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+}
+
+#proschet-section .prices-table .editable-field:hover {
+    background: #e9ecef;
+    border-color: #0B8661;
+}
+
+#proschet-section .prices-table .inline-edit-input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 2px solid #0B8661;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    min-height: 32px;
+}
+
+#proschet-section .prices-table .inline-edit-input:focus {
+    outline: none;
+    border-color: #097055;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
+}
+
+/* Подсветка всей секции при редактировании */
+#proschet-section .proschet-info-print-style.editing {
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
+    border-radius: 8px;
+    transition: box-shadow 0.3s ease;
+}

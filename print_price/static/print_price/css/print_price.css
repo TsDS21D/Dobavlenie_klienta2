@@ -299,7 +299,148 @@ print_price.css - Стили для приложения справочника 
     min-width: 0;
 }
 
-/* ===== 5. СТИЛИ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
+/* ===== 5. НОВЫЙ БЛОК: РАСЧЕТ ДЛЯ ПРОИЗВОЛЬНОГО ТИРАЖА ===== */
+.arbitrary-calc-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.arbitrary-calc-section .section-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+}
+
+.arbitrary-calc-section h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Форма в одну строку */
+.arbitrary-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+/* Каждый элемент формы в строке */
+.arbitrary-form-row .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+
+/* Метка для элементов формы */
+.arbitrary-form-row label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+/* Поле ввода для произвольного тиража */
+#arbitrary-copies {
+    width: 100%;
+}
+
+/* Кнопка расчета */
+#calculate-arbitrary-price {
+    height: 38px; /* Высота как у полей ввода */
+    margin-top: 1.7rem; /* Выравнивание по полям ввода */
+    white-space: nowrap;
+}
+
+/* Блок с результатом */
+.arbitrary-result {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Заголовок результата */
+.result-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.result-header h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Контент результата */
+.result-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Элемент результата (метка + значение) */
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+}
+
+.result-label {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.result-value {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+/* Специальное оформление для цены */
+.price-value {
+    color: #0B8661;
+    font-size: 1rem;
+    background: #e8f5e9;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #c8e6c9;
+}
+
+/* Информация об опорных точках */
+.result-info {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #e0e0e0;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.result-info i {
+    margin-right: 0.3rem;
+}
+
+/* ===== 6. СТИЛИ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
 
 /* Бейджи для значений (редактируемые) */
 .copies-badge,
@@ -389,7 +530,7 @@ print_price.css - Стили для приложения справочника 
     color: #2e7d32;
 }
 
-/* ===== 6. ПОДСКАЗКИ ДЛЯ ТАБЛИЦЫ ===== */
+/* ===== 7. ПОДСКАЗКИ ДЛЯ ТАБЛИЦЫ ===== */
 .table-hint {
     margin-top: 1rem;
     padding: 0.8rem;
@@ -415,7 +556,7 @@ print_price.css - Стили для приложения справочника 
     font-size: 1rem;
 }
 
-/* ===== 7. КНОПКИ В ЗАГОЛОВКЕ ===== */
+/* ===== 8. КНОПКИ В ЗАГОЛОВКЕ ===== */
 .header-buttons {
     display: flex;
     gap: 0.4rem;
@@ -476,7 +617,7 @@ print_price.css - Стили для приложения справочника 
     color: white;
 }
 
-/* ===== 8. УВЕДОМЛЕНИЯ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
+/* ===== 9. УВЕДОМЛЕНИЯ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
 .inline-edit-notification {
     position: fixed;
     top: 20px;
@@ -513,7 +654,7 @@ print_price.css - Стили для приложения справочника 
     background-color: #2196F3; /* Синий */
 }
 
-/* ===== 9. АДАПТИВНЫЕ СТИЛИ ===== */
+/* ===== 10. АДАПТИВНЫЕ СТИЛИ ===== */
 @media (max-width: 1137px) {
     .container {
         padding: 1.2rem;
@@ -558,6 +699,21 @@ print_price.css - Стили для приложения справочника 
     
     .inline-edit-input {
         max-width: 100px;
+    }
+    
+    /* Адаптация для блока расчета произвольного тиража */
+    .arbitrary-form-row {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    
+    .arbitrary-form-row .form-group {
+        min-width: 100%;
+    }
+    
+    #calculate-arbitrary-price {
+        margin-top: 0;
+        width: 100%;
     }
 }
 
@@ -666,9 +822,21 @@ print_price.css - Стили для приложения справочника 
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    
+    /* Адаптация для блока расчета произвольного тиража на мобильных */
+    .arbitrary-result .result-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    
+    .arbitrary-result .result-label,
+    .arbitrary-result .result-value {
+        width: 100%;
+    }
 }
 
-/* ===== 10. СООБЩЕНИЯ ===== */
+/* ===== 11. СООБЩЕНИЯ ===== */
 .empty-message {
     text-align: center;
     color: #999;

@@ -19,8 +19,8 @@ class PrinterForm(forms.ModelForm):
         # Указываем модель, на основе которой создается форма
         model = Printer
         
-        # Поля модели, которые будут в форме
-        fields = ['name', 'sheet_format', 'margin_mm', 'duplex_coefficient']
+        # Поля модели, которые будут в форме (ДОБАВЛЯЕМ devices_interpolation_method)
+        fields = ['name', 'sheet_format', 'margin_mm', 'duplex_coefficient', 'devices_interpolation_method']
         
         # Настройка виджетов (элементов управления) для полей формы
         widgets = {
@@ -47,6 +47,11 @@ class PrinterForm(forms.ModelForm):
                 'max': '10.0',  # Максимальное значение
                 'step': '0.1',  # Шаг изменения
             }),
+            # НОВЫЙ ВИДЖЕТ: выпадающий список для метода интерполяции
+            'devices_interpolation_method': forms.Select(attrs={
+                'class': 'form-control devices-interpolation-select',  # CSS класс с префиксом devices
+                'id': 'devices_interpolation_method',  # ID для JavaScript
+            }),
         }
         
         # Пользовательские подписи для полей (отображаются в форме)
@@ -55,6 +60,7 @@ class PrinterForm(forms.ModelForm):
             'sheet_format': 'Формат листа*',
             'margin_mm': 'Поля (мм)*',
             'duplex_coefficient': 'Коэффициент двусторонней печати*',
+            'devices_interpolation_method': 'Метод интерполяции*',  # НОВАЯ ПОДПИСЬ
         }
         
         # Подсказки для пользователя (отображаются под полями)
@@ -63,6 +69,7 @@ class PrinterForm(forms.ModelForm):
             'sheet_format': 'Выберите формат листа из списка',
             'margin_mm': 'Размер незапечатываемых полей (0-50 мм)',
             'duplex_coefficient': 'Коэффициент для двусторонней печати (1.0-10.0)',
+            'devices_interpolation_method': 'Выберите метод интерполяции для расчета стоимости при произвольном тираже',  # НОВАЯ ПОДСКАЗКА
         }
     
     def __init__(self, *args, **kwargs):
@@ -149,6 +156,25 @@ class PrinterForm(forms.ModelForm):
             raise forms.ValidationError('Коэффициент должен быть в диапазоне от 1.0 до 10.0')
         
         return duplex_coefficient
+    
+    def clean_devices_interpolation_method(self):
+        """
+        НОВЫЙ МЕТОД: Валидация поля devices_interpolation_method (метод интерполяции)
+        
+        Returns:
+            str: Очищенное значение поля devices_interpolation_method
+            
+        Raises:
+            forms.ValidationError: Если значение не выбрано
+        """
+        interpolation_method = self.cleaned_data.get('devices_interpolation_method')
+        
+        # Проверка, что значение выбрано
+        if not interpolation_method:
+            # Устанавливаем значение по умолчанию
+            interpolation_method = Printer.INTERPOLATION_LINEAR
+        
+        return interpolation_method
 
 
 class PrinterEditForm(forms.ModelForm):
@@ -160,7 +186,8 @@ class PrinterEditForm(forms.ModelForm):
     
     class Meta:
         model = Printer
-        fields = ['name', 'sheet_format', 'margin_mm', 'duplex_coefficient']
+        # ДОБАВЛЯЕМ devices_interpolation_method в поля для редактирования
+        fields = ['name', 'sheet_format', 'margin_mm', 'duplex_coefficient', 'devices_interpolation_method']
         
         # Упрощенные виджеты для компактного отображения в таблице
         widgets = {
@@ -185,6 +212,11 @@ class PrinterEditForm(forms.ModelForm):
                 'min': '1.0',
                 'max': '10.0',
                 'step': '0.1',
+            }),
+            # НОВЫЙ ВИДЖЕТ: выпадающий список для метода интерполяции
+            'devices_interpolation_method': forms.Select(attrs={
+                'class': 'edit-input edit-select',  # CSS класс для выпадающего списка
+                'data-field': 'devices_interpolation_method',  # Атрибут для JavaScript
             }),
         }
     

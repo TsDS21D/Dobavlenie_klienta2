@@ -1,0 +1,83 @@
+<!--
+sections/print_components.html - Секция "Печатные компоненты"
+ОБНОВЛЕНО: Исправлены проблемы с интерфейсом и добавлены необходимые улучшения
+-->
+
+<section class="calculator-section print-components-section" id="print-components-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-print"></i>
+            <span class="section-number">5.</span>
+            Печатные компоненты
+            <!-- Элемент для отображения названия выбранного просчёта -->
+            <span id="print-components-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <div class="header-buttons">
+            <!-- Кнопка добавления нового компонента (будет доступна при выборе просчёта) -->
+            <button type="button" 
+                    id="add-print-component-btn" 
+                    class="btn-action btn-add"
+                    title="Добавить компонент печати"
+                    style="display: none;">
+                <i class="fas fa-plus"></i> Добавить
+            </button>
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="print-components-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        <!-- Сообщение при отсутствии выбранного просчёта -->
+        <div id="no-proschet-selected-print" class="empty-state-message" style="display: none;">
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Выберите просчёт в секции "Список просчётов" для отображения компонентов печати</p>
+        </div>
+        
+        <!-- Сообщение при отсутствии компонентов печати в выбранном просчёте -->
+        <div id="no-components-message" class="empty-state-message" style="display: none;">
+            <i class="fas fa-print fa-3x"></i>
+            <h3>Нет компонентов печати</h3>
+            <p>В выбранном просчёте пока нет компонентов печати</p>
+            <button type="button" id="add-first-component-btn" class="btn-action">
+                <i class="fas fa-plus"></i> Добавить первый компонент
+            </button>
+        </div>
+        
+        <!-- Контейнер для таблицы компонентов печати -->
+        <div id="print-components-container" class="table-container" style="display: none;">
+            <!-- Таблица компонентов печати -->
+            <table id="print-components-table" class="simple-table print-components-table">
+                <thead>
+                    <tr>
+                        <th width="15%">№ компонента</th>
+                        <th width="25%">Принтер</th>
+                        <th width="25%">Бумага</th>
+                        <th width="10%">Кол-во листов</th>
+                        <th width="15%">Цена за лист</th>
+                        <th width="10%">Стоимость</th>
+                        <th width="5%">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="print-components-table-body">
+                    <!-- Строки таблицы будут добавляться динамически через JavaScript -->
+                </tbody>
+            </table>
+            
+            <!-- Общая стоимость компонентов печати -->
+            <div id="print-components-total" class="total-summary" style="display: none;">
+                <div class="total-label">Общая стоимость компонентов печати:</div>
+                <div id="print-components-total-price" class="total-price">0.00 ₽</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Мета-тег для CSRF-токена (должен быть в основном шаблоне, но добавляем здесь для наглядности) -->
+<meta name="csrf-token" content="{{ csrf_token }}">

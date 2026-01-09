@@ -1,19 +1,30 @@
 """
-calculator/apps.py
-Конфигурация приложения Calculator для Django.
-Определяет метаданные приложения и его поведение.
+apps.py - Конфигурация приложения calculator
+Этот файл создается автоматически Django при создании приложения.
+Он определяет конфигурацию приложения calculator.
 """
 
-from django.apps import AppConfig  # Базовый класс для конфигурации приложений
+from django.apps import AppConfig
 
 
 class CalculatorConfig(AppConfig):
     """
-    Класс конфигурации для приложения Calculator.
+    Класс конфигурации приложения Calculator.
     
-    Attributes:
-        default_auto_field (str): Тип поля для автоматически создаваемых первичных ключей
-        name (str): Имя приложения (должно совпадать с именем папки)
+    Этот класс определяет настройки приложения:
+    - name: имя приложения, которое Django использует для идентификации
+    - default_auto_field: тип поля для автоматического создания первичных ключей
     """
-    default_auto_field = 'django.db.models.BigAutoField'  # Современный тип для автоинкрементных полей
-    name = 'calculator'  # Имя приложения (используется Django для идентификации)
+    
+    # Имя приложения - должно совпадать с именем папки приложения
+    default_auto_field = 'django.db.models.BigAutoField'
+    
+    # Имя приложения, которое Django использует для поиска шаблонов,
+    # статических файлов и других ресурсов
+    name = 'calculator'
+    
+    def ready(self):
+        """
+        Регистрация сигналов при запуске приложения.
+        """
+        import calculator.signals

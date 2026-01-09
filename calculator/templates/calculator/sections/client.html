@@ -1,0 +1,98 @@
+{% load static %}
+<!--
+calculator/templates/calculator/sections/client.html
+ИСПРАВЛЕННЫЙ ВАРИАНТ - ДОБАВЛЕНА КНОПКА СВОРАЧИВАНИЯ
+МИНИМАЛИСТИЧНЫЙ ВАРИАНТ:
+1. При выборе просчёта ВСЕГДА показывается стандартная карточка клиента
+2. Если клиента нет - показываются прочерки
+3. Изменение только через двойной клик
+4. ДОБАВЛЕНА КНОПКА СВОРАЧИВАНИЯ СЕКЦИИ
+-->
+
+<!-- Секция Клиент -->
+<section class="calculator-section client-section" id="client-section">
+    
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-user"></i>
+            <span class="section-number">3.</span>
+            Клиент
+            <span id="selected-proschet-badge" class="badge" style="display: none;" data-proschet-id="">
+                Просчёт: <span id="current-proschet-number"></span>
+            </span>
+        </h2>
+        
+        <!-- ДОБАВЛЕН КОНТЕЙНЕР ДЛЯ КНОПОК УПРАВЛЕНИЯ СЕКЦИЕЙ -->
+        <div class="header-buttons">
+            <!-- ДОБАВЛЕНА КНОПКА СВОРАЧИВАНИЯ/РАЗВОРАЧИВАНИЯ СЕКЦИИ -->
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-target="client-section" 
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        
+        <!-- Сообщение, когда нет выбранного просчёта -->
+        <div id="no-proschet-selected" class="client-message">
+            <i class="fas fa-info-circle fa-2x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Для просмотра клиента сначала выберите просчёт в списке просчётов.</p>
+        </div>
+        
+        <!-- Основной интерфейс клиента (скрыт по умолчанию, показывается при выборе просчёта) -->
+        <div id="client-selection-interface" style="display: none;">
+            
+            <!-- Стандартная карточка клиента - ВСЕГДА ПОКАЗЫВАЕТСЯ при выборе просчёта -->
+            <div id="current-client-display" class="current-client-card" data-proschet-id="">
+                <div class="client-card-header">
+                    <h4>
+                        <i class="fas fa-user-check"></i>
+                        Клиент просчёта
+                    </h4>
+                </div>
+                <div class="client-card-body">
+                    <!-- Строка с именем/названием клиента -->
+                    <div class="client-info-row">
+                        <span class="client-label">Название/ФИО:</span>
+                        <span id="current-client-name" class="client-value editable-client-name">—</span>
+                    </div>
+                    
+                    <!-- Строка со скидкой клиента -->
+                    <div class="client-info-row">
+                        <span class="client-label">Скидка:</span>
+                        <span id="current-client-discount" class="client-value">0%</span>
+                    </div>
+                    
+                    <!-- Строка с информацией об ЭДО -->
+                    <div class="client-info-row">
+                        <span class="client-label">ЭДО:</span>
+                        <span id="current-client-edo" class="client-value">Нет</span>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+</section>
+
+<!-- ДОБАВЛЕНЫ ИНЛАЙН-СТИЛИ ДЛЯ ЧЕТКОЙ РАБОТЫ -->
+<style>
+/* Гарантируем, что карточка клиента всегда видима при выборе просчёта */
+#client-section .current-client-card {
+    display: block !important; /* Принудительно показываем карточку */
+    visibility: visible !important; /* Делаем видимой */
+    opacity: 1 !important; /* Полная непрозрачность */
+}
+
+/* Стиль для прочерка при отсутствии клиента */
+#current-client-name:empty,
+#current-client-name:contains("-") {
+    color: #777; /* Серый цвет для прочерка */
+    font-style: italic; /* Курсив для обозначения отсутствия значения */
+}
+</style>

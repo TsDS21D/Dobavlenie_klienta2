@@ -1,0 +1,315 @@
+<!-- 
+templates/calculator/proschet.html - Обновленная секция "Просчёт"
+Переработана в стиле приложения print_price с двухколоночным макетом
+-->
+
+<!-- Секция Просчёт -->
+<section class="calculator-section proschet-section" id="proschet-section">
+    
+    <!-- Контейнер в стиле print_price -->
+    <div class="print-price-container">
+        
+        <!-- Заголовок секции -->
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-file-invoice"></i>
+                <span class="section-number">2.</span>
+                Управление просчётами
+            </h2>
+            
+            <!-- Кнопки управления секцией -->
+            <div class="header-buttons">
+                <!-- Кнопка создания нового просчёта -->
+                <button type="button" 
+                        class="btn-add-price" 
+                        id="create-proschet-btn"
+                        title="Создать новый просчёт">
+                    <i class="fas fa-plus"></i> Новый
+                </button>
+                
+                <!-- Кнопка сворачивания/разворачивания секции -->
+                <button type="button" 
+                        class="btn-collapse-section" 
+                        data-section="proschet-section"
+                        title="Свернуть/развернуть секцию">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Двухколоночный layout как в print_price -->
+        <div class="two-column-layout">
+            
+            <!-- ЛЕВАЯ КОЛОНКА: Информация о текущем просчёте -->
+            <div class="left-column">
+                <div class="section-header">
+                    <h3><i class="fas fa-info-circle"></i> Текущий просчёт</h3>
+                </div>
+                
+                <!-- Информация о просчёте в стиле print_price -->
+                <div class="proschet-info-print-style" id="proschet-info">
+                    
+                    <!-- Номер просчёта (редактируемый) -->
+                    <div class="form-group">
+                        <label for="proschet-number-input">
+                            <i class="fas fa-hashtag"></i> Номер просчёта:
+                        </label>
+                        <div class="editable-field-container">
+                            <span class="proschet-value editable-field" 
+                                  id="proschet-number-display"
+                                  data-field="number"
+                                  data-proschet-id=""
+                                  data-original-value="ЧЗ-0001">
+                                ЧЗ-0001
+                            </span>
+                            <input type="text" 
+                                   class="form-control inline-edit-input" 
+                                   id="proschet-number-input"
+                                   data-field="number"
+                                   data-proschet-id=""
+                                   style="display: none;"
+                                   placeholder="Введите номер">
+                        </div>
+                    </div>
+                    
+                    <!-- Дата создания (редактируемая) -->
+                    <div class="form-group">
+                        <label for="proschet-date-input">
+                            <i class="fas fa-calendar-alt"></i> Дата создания:
+                        </label>
+                        <div class="editable-field-container">
+                            <span class="proschet-value editable-field" 
+                                  id="proschet-date-display"
+                                  data-field="date"
+                                  data-proschet-id=""
+                                  data-original-value="">
+                                27.01.2024
+                            </span>
+                            <input type="date" 
+                                   class="form-control inline-edit-input" 
+                                   id="proschet-date-input"
+                                   data-field="date"
+                                   data-proschet-id=""
+                                   style="display: none;">
+                        </div>
+                    </div>
+                    
+                    <!-- Статус просчёта (редактируемый) -->
+                    <div class="form-group">
+                        <label for="proschet-status-select">
+                            <i class="fas fa-user-check"></i> Статус:
+                        </label>
+                        <div class="editable-field-container">
+                            <span class="proschet-value editable-field status-badge status-draft" 
+                                  id="proschet-status-display"
+                                  data-field="status"
+                                  data-proschet-id=""
+                                  data-original-value="draft">
+                                Черновик
+                            </span>
+                            <select class="form-control inline-edit-input" 
+                                    id="proschet-status-select"
+                                    data-field="status"
+                                    data-proschet-id=""
+                                    style="display: none;">
+                                <option value="draft">Черновик</option>
+                                <option value="active">Активный</option>
+                                <option value="saved">Сохраненный</option>
+                                <option value="cancelled">Отмененный</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Клиент (редактируемый) -->
+                    <div class="form-group">
+                        <label for="proschet-client-input">
+                            <i class="fas fa-user"></i> Клиент:
+                        </label>
+                        <div class="editable-field-container">
+                            <span class="proschet-value editable-field" 
+                                  id="proschet-client-display"
+                                  data-field="client"
+                                  data-proschet-id=""
+                                  data-original-value="">
+                                Не указан
+                            </span>
+                            <input type="text" 
+                                   class="form-control inline-edit-input" 
+                                   id="proschet-client-input"
+                                   data-field="client"
+                                   data-proschet-id=""
+                                   style="display: none;"
+                                   placeholder="Введите имя клиента">
+                        </div>
+                    </div>
+                    
+                    <!-- Сумма просчёта (вычисляемое поле) -->
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-calculator"></i> Общая сумма:
+                        </label>
+                        <div class="total-price-badge" id="proschet-total-display">
+                            0.00 ₽
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопки управления просчётом -->
+                    <div class="button-group proschet-controls">
+                        <button type="button" 
+                                class="btn-submit btn-copy-proschet" 
+                                id="copy-proschet-btn"
+                                title="Создать копию текущего просчёта"
+                                disabled>
+                            <i class="fas fa-copy"></i> Копировать
+                        </button>
+                        
+                        <button type="button" 
+                                class="btn-delete" 
+                                id="delete-proschet-btn"
+                                title="Удалить текущий просчёт"
+                                disabled>
+                            <i class="fas fa-trash-alt"></i> Удалить
+                        </button>
+                    </div>
+                    
+                    <!-- Подсказки по редактированию -->
+                    <div class="table-hint">
+                        <div class="hint-item">
+                            <i class="fas fa-mouse-pointer hint-icon"></i>
+                            Двойной клик по полю для редактирования
+                        </div>
+                        <div class="hint-item">
+                            <i class="fas fa-save hint-icon"></i>
+                            Нажмите Enter для сохранения, Esc для отмены
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ПРАВАЯ КОЛОНКА: Список просчётов -->
+            <div class="right-column">
+                <div class="section-header">
+                    <h3><i class="fas fa-history"></i> Список просчётов</h3>
+                    <button type="button" 
+                            class="btn-reset-filter" 
+                            id="refresh-proschets-btn"
+                            title="Обновить список">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                </div>
+                
+                <!-- Контейнер для списка просчётов -->
+                <div class="proschets-list-container">
+                    <div class="prices-section">
+                        <div class="prices-table">
+                            <!-- Заголовок таблицы -->
+                            <div class="table-header">
+                                <div class="col-number">№</div>
+                                <div class="col-date">Дата</div>
+                                <div class="col-client">Клиент</div>
+                                <div class="col-total">Сумма</div>
+                                <div class="col-actions">Действия</div>
+                            </div>
+                            
+                            <!-- Тело таблицы (будет заполняться JavaScript) -->
+                            <div class="table-body" id="proschets-table-body">
+                                <!-- Сообщение, если список пуст -->
+                                <div class="empty-message" id="empty-proschets-message">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Нет сохраненных просчётов</p>
+                                    <small>Создайте первый просчёт, используя кнопку "Новый"</small>
+                                </div>
+                                
+                                <!-- Пример строки (будет удалена после загрузки данных) -->
+                                <!--
+                                <div class="table-row" data-proschet-id="1">
+                                    <div class="col-number">
+                                        <span class="editable-field" 
+                                              data-field="number"
+                                              data-proschet-id="1"
+                                              data-original-value="ЧЗ-0001">
+                                            ЧЗ-0001
+                                        </span>
+                                    </div>
+                                    <div class="col-date">
+                                        <span class="editable-field" 
+                                              data-field="date"
+                                              data-proschet-id="1"
+                                              data-original-value="27.01.2024">
+                                            27.01.2024
+                                        </span>
+                                    </div>
+                                    <div class="col-client">
+                                        <span class="editable-field" 
+                                              data-field="client"
+                                              data-proschet-id="1"
+                                              data-original-value="Иванов И.И.">
+                                            Иванов И.И.
+                                        </span>
+                                    </div>
+                                    <div class="col-total">
+                                        <span class="total-price-badge">1 250.00 ₽</span>
+                                    </div>
+                                    <div class="col-actions">
+                                        <button class="btn-load-proschet" 
+                                                data-proschet-id="1"
+                                                title="Загрузить просчёт">
+                                            <i class="fas fa-folder-open"></i>
+                                        </button>
+                                        <button class="btn-delete" 
+                                                data-proschet-id="1"
+                                                title="Удалить просчёт">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Пагинация (опционально) -->
+                    <div class="pagination-container" id="proschets-pagination" style="display: none;">
+                        <button class="btn-prev" id="prev-page-btn" disabled>
+                            <i class="fas fa-chevron-left"></i> Назад
+                        </button>
+                        <span class="page-info" id="page-info">Страница 1 из 1</span>
+                        <button class="btn-next" id="next-page-btn" disabled>
+                            Вперед <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="confirmation-modal" id="confirmation-modal" style="display: none;">
+    <div class="confirmation-modal-content">
+        <div class="confirmation-modal-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Подтверждение удаления</h3>
+        </div>
+        <div class="confirmation-modal-body" id="confirmation-modal-body">
+            <!-- Содержимое будет заполнено JavaScript -->
+        </div>
+        <div class="confirmation-modal-footer">
+            <button type="button" class="btn-confirm" id="confirm-delete-btn">
+                <i class="fas fa-trash-alt"></i> Удалить
+            </button>
+            <button type="button" class="btn-cancel" id="cancel-delete-btn">
+                <i class="fas fa-times"></i> Отмена
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые элементы для хранения данных -->
+<div id="proschet-data" 
+     data-current-proschet-id=""
+     data-proschets-per-page="10"
+     style="display: none;">
+</div>
+
+<!-- Конец секции "Просчёт" -->

@@ -1,0 +1,125 @@
+<!--
+sections/price.html - Секция "Цена"
+ОБНОВЛЕНО: Реализация отображения суммы печатных компонентов и дополнительных работ
+-->
+
+<section class="calculator-section price-section" id="price-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-money-bill-wave"></i>
+            <span class="section-number">7.</span>
+            Цена
+            <!-- Элемент для отображения названия выбранного просчёта -->
+            <span id="price-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <div class="header-buttons">
+            <!-- Кнопка расчета (будет активна при выборе просчёта) -->
+            <button type="button" 
+                    class="btn-action btn-calculate-price" 
+                    id="calculate-price-btn"
+                    title="Рассчитать стоимость"
+                    style="display: none;">
+                <i class="fas fa-calculator"></i> Рассчитать
+            </button>
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="price-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        <!-- Сообщение при отсутствии выбранного просчёта -->
+        <div id="no-proschet-selected-price" class="empty-state-message" style="display: none;">
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Выберите просчёт в секции "Список просчётов" для отображения итоговой стоимости</p>
+        </div>
+        
+        <!-- Контейнер для итоговой стоимости -->
+        <div id="price-summary-container" class="price-summary-container" style="display: none;">
+            <div class="price-summary-header">
+                <h3><i class="fas fa-file-invoice-dollar"></i> Итоговая стоимость заказа</h3>
+                <div class="price-summary-date" id="price-summary-date">
+                    <i class="far fa-calendar-alt"></i> Дата расчета: <span id="calculation-date">--.--.----</span>
+                </div>
+            </div>
+            
+            <div class="price-details">
+                <!-- Детали по печатным компонентам -->
+                <div class="price-category">
+                    <div class="category-header">
+                        <i class="fas fa-print"></i>
+                        <h4>Печатные компоненты</h4>
+                        <span class="category-count" id="print-components-count">0 компонентов</span>
+                    </div>
+                    <div class="category-items" id="print-components-items">
+                        <!-- Детали по каждому компоненту будут добавляться динамически -->
+                        <div class="category-empty">
+                            <i class="fas fa-info-circle"></i>
+                            <p>В просчёте нет печатных компонентов</p>
+                        </div>
+                    </div>
+                    <div class="category-total">
+                        <span class="total-label">Итого по печати:</span>
+                        <span class="total-value" id="price-print-components-total">0.00 ₽</span>
+                    </div>
+                </div>
+                
+                <!-- Детали по дополнительным работам -->
+                <div class="price-category">
+                    <div class="category-header">
+                        <i class="fas fa-tools"></i>
+                        <h4>Дополнительные работы</h4>
+                        <span class="category-count" id="additional-works-count">0 работ</span>
+                    </div>
+                    <div class="category-items" id="additional-works-items">
+                        <!-- Детали по каждой работе будут добавляться динамически -->
+                        <div class="category-empty">
+                            <i class="fas fa-info-circle"></i>
+                            <p>В просчёте нет дополнительных работ</p>
+                        </div>
+                    </div>
+                    <div class="category-total">
+                        <span class="total-label">Итого по работам:</span>
+                        <span class="total-value" id="additional-works-total">0.00 ₽</span>
+                    </div>
+                </div>
+                
+                <!-- Общая сумма -->
+                <div class="price-total-summary">
+                    <div class="total-row">
+                        <div class="total-label">
+                            <i class="fas fa-calculator"></i>
+                            <strong>Общая стоимость заказа:</strong>
+                        </div>
+                        <div class="total-value" id="total-order-price">0.00 ₽</div>
+                    </div>
+                    <div class="total-breakdown">
+                        <small>
+                            <i class="far fa-clock"></i> 
+                            Расчет обновляется автоматически при изменении данных
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Кнопки действий -->
+                <div class="price-actions">
+                    <button type="button" class="btn-action btn-secondary" id="export-price-btn" title="Экспорт в PDF">
+                        <i class="fas fa-file-pdf"></i> Экспорт в PDF
+                    </button>
+                    <button type="button" class="btn-action btn-secondary" id="print-price-btn" title="Распечатать">
+                        <i class="fas fa-print"></i> Распечатать
+                    </button>
+                    <button type="button" class="btn-action btn-primary" id="create-invoice-btn" title="Создать счёт">
+                        <i class="fas fa-file-invoice"></i> Создать счёт
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

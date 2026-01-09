@@ -278,6 +278,109 @@ index.html для приложения print_price
                             </div>
                         </div>
                         
+                        <!-- НОВЫЙ БЛОК: Расчет цены для произвольного тиража -->
+                        <div class="arbitrary-calc-section" id="arbitrary-calc-section">
+                            <div class="section-header">
+                                <h3>
+                                    <i class="fas fa-calculator"></i> Расчет для произвольного тиража
+                                </h3>
+                            </div>
+                            
+                            <div class="arbitrary-calc-form">
+                                <!-- Форма в одну строку с использованием flexbox -->
+                                <div class="arbitrary-form-row">
+                                    <!-- 1. Выпадающее меню "Метод интерполяции" -->
+                                    <div class="form-group">
+                                        <label for="interpolation-method">Метод интерполяции:</label>
+                                        <select id="interpolation-method" 
+                                                class="form-control" 
+                                                data-printer-id="{{ selected_printer.id }}"
+                                                title="Метод расчета цены для произвольного тиража">
+                                            <option value="linear" 
+                                                    {% if selected_printer.devices_interpolation_method == 'linear' %}selected{% endif %}>
+                                                Линейная
+                                            </option>
+                                            <option value="logarithmic" 
+                                                    {% if selected_printer.devices_interpolation_method == 'logarithmic' %}selected{% endif %}>
+                                                Логарифмическая
+                                            </option>
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            Используется для расчета цены между опорными точками
+                                        </small>
+                                    </div>
+                                    
+                                    <!-- 2. Поле для ввода произвольного тиража -->
+                                    <div class="form-group">
+                                        <label for="arbitrary-copies">Произвольный тираж (шт.):</label>
+                                        <input type="number" 
+                                               id="arbitrary-copies" 
+                                               class="form-control" 
+                                               min="1" 
+                                               step="1"
+                                               placeholder="Введите тираж"
+                                               title="Введите количество копий для расчета цены">
+                                        <small class="form-text text-muted">
+                                            Введите любое количество копий
+                                        </small>
+                                    </div>
+                                    
+                                    <!-- 3. Кнопка расчета -->
+                                    <div class="form-group">
+                                        <label>&nbsp;</label>
+                                        <button type="button" 
+                                                id="calculate-arbitrary-price" 
+                                                class="btn-submit"
+                                                style="margin-top: 1.7rem;">
+                                            <i class="fas fa-calculator"></i> Рассчитать
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Блок для отображения результата -->
+                                <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
+                                    <div class="result-header">
+                                        <h4>
+                                            <i class="fas fa-chart-line"></i> Результат расчета:
+                                        </h4>
+                                    </div>
+                                    <div class="result-content">
+                                        <!-- Метод интерполяции -->
+                                        <div class="result-item">
+                                            <span class="result-label">Метод интерполяции:</span>
+                                            <span class="result-value" id="result-interpolation-method">
+                                                {% if selected_printer.devices_interpolation_method == 'linear' %}
+                                                    Линейная
+                                                {% else %}
+                                                    Логарифмическая
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Введенный тираж -->
+                                        <div class="result-item">
+                                            <span class="result-label">Тираж:</span>
+                                            <span class="result-value" id="result-copies"></span>
+                                        </div>
+                                        
+                                        <!-- Рассчитанная цена -->
+                                        <div class="result-item">
+                                            <span class="result-label">Цена за лист:</span>
+                                            <span class="result-value price-value" id="result-price-per-sheet"></span>
+                                        </div>
+                                        
+                                        <!-- Информация об опорных точках -->
+                                        <div class="result-info" id="result-points-info" style="display: none;">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i>
+                                                Рассчитано на основе {{ print_prices.count }} опорных точек из таблицы выше
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Подсказки для пользователя -->
                         <div class="table-hint">
                             <div class="hint-item">
@@ -291,6 +394,10 @@ index.html для приложения print_price
                             <div class="hint-item">
                                 <span class="hint-icon">💰</span>
                                 <span class="hint-text">Стоимость за тираж рассчитывается автоматически (цена за лист × тираж)</span>
+                            </div>
+                            <div class="hint-item">
+                                <span class="hint-icon">📊</span>
+                                <span class="hint-text">Используйте блок "Расчет для произвольного тиража" для расчета цены любого тиража</span>
                             </div>
                         </div>
                     {% endif %}

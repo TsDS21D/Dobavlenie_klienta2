@@ -27,4 +27,9 @@ urlpatterns = [
     # URL: /devices/update/<printer_id>/
     # Пример: /devices/update/1/ - обновить принтер с ID=1
     path('update/<int:printer_id>/', views.update_printer, name='update_printer'),
+    
+    # НОВЫЙ МАРШРУТ: Расчет цены для произвольного тиража
+    # URL: /devices/calculate_price/<printer_id>/
+    # Пример: /devices/calculate_price/1/ - рассчитать цену для принтера с ID=1
+    path('calculate_price/<int:printer_id>/', views.calculate_price_devices, name='calculate_price_devices'),
 ]

@@ -1,0 +1,148 @@
+/* Специфичные стили для секции Изделие */
+#product-section {
+    border-left: 4px solid #9b59b6;
+}
+
+#product-section .section-header {
+    border-bottom-color: #9b59b6;
+}
+
+/* НОВЫЕ СТИЛИ: Для отображения названия просчёта в заголовке */
+
+/* Основной контейнер для названия просчёта */
+#product-proschet-title {
+    margin-left: 8px; /* Отступ от слова "Изделие" */
+    font-size: 0.9em; /* Немного меньше основного заголовка */
+    font-weight: normal; /* Обычное начертание, не жирное */
+    color: #555; /* Серый цвет для отличия от основного заголовка */
+    font-style: italic; /* Курсив для визуального выделения */
+}
+
+/* Стиль для текста-заполнителя (когда просчёт не выбран) */
+#product-proschet-title .placeholder-text {
+    color: #888; /* Светло-серый цвет для текста-заполнителя */
+    font-size: 0.85em; /* Немного меньше основного текста */
+}
+
+/* Стиль для активного названия просчёта (когда просчёт выбран) */
+#product-proschet-title .proschet-title-active {
+    color: #333; /* Тёмно-серый цвет для активного названия */
+    background-color: #f5f5f5; /* Светлый фон для выделения */
+    padding: 2px 6px; /* Небольшие отступы вокруг текста */
+    border-radius: 3px; /* Закруглённые углы */
+    border-left: 2px solid #9b59b6; /* Фиолетовая полоска слева в тон секции */
+}
+
+/* ДОБАВЛЕНЫ НОВЫЕ СТИЛИ: Для контейнера параметров изделия */
+
+/* Контейнер для параметров изделия */
+.product-params-container {
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    border: 1px solid #eaeaea;
+}
+
+.product-params-container h3 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+/* Список параметров изделия */
+.product-params-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 15px;
+}
+
+.product-params-list li {
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+    display: flex;
+    align-items: center;
+}
+
+.product-params-list li:last-child {
+    border-bottom: none;
+}
+
+.product-params-list li i {
+    width: 20px;
+    color: #9b59b6; /* Цвет иконок в тон секции */
+    margin-right: 10px;
+}
+
+.param-label {
+    font-weight: 500;
+    margin-right: 5px;
+    min-width: 140px;
+}
+
+/* Стили для значений параметров */
+.param-value {
+    color: #2c3e50;
+    background-color: #fff;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+/* Стиль для редактируемого значения (тиража) */
+.editable-value {
+    cursor: pointer;
+    border: 1px dashed #ccc;
+    min-width: 80px;
+    display: inline-block;
+}
+
+.editable-value:hover {
+    background-color: #f0f0f0;
+    border-color: #9b59b6;
+}
+
+/* Стиль для активного редактирования */
+.editable-value.editing {
+    background-color: #fff;
+    border: 1px solid #9b59b6;
+    box-shadow: 0 0 5px rgba(155, 89, 182, 0.3);
+}
+
+/* Стили для поля ввода при inline-редактировании */
+.inline-edit-input {
+    padding: 2px 6px;
+    border: 1px solid #9b59b6;
+    border-radius: 3px;
+    font-size: 14px;
+    width: 120px;
+    margin-left: 5px;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+    box-shadow: 0 0 3px rgba(155, 89, 182, 0.5);
+}
+
+/* Стиль для элемента с тиражом */
+.product-circulation-item {
+    position: relative;
+}
+
+/* Подсказка по редактированию */
+.edit-hint {
+    font-size: 0.85em;
+    color: #666;
+    background-color: #f0f0f0;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    border-left: 3px solid #9b59b6;
+}
+
+.edit-hint i {
+    margin-right: 5px;
+    color: #9b59b6;
+}

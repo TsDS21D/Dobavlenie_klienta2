@@ -1,0 +1,41 @@
+<!--
+base.html для приложения calculator
+Обновлен для подключения CSS новой секции
+-->
+
+{% extends "sheet_formats/base.html" %}
+
+{% block extra_css %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'calculator/css/base.css' %}">
+<!-- Подключение CSS для новой секции -->
+<link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/proschet.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/product.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/client.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/print_components.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/additional_works.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/price.css' %}">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+        position: relative !important;
+    }
+    
+    @media (max-width: 1137px) {
+        .container {
+            width: 100% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'calculator/js/base.js' %}"></script>
+{% endblock %}

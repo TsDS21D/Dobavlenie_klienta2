@@ -1,0 +1,624 @@
+<!--
+index.html для приложения baza_klientov
+Главная страница базы клиентов
+ИСПРАВЛЕНИЯ:
+1. Исправлено сравнение значений ЭДО (True/False -> true/false)
+2. Исправлена ссылка для очистки поиска
+3. Добавлено inline-редактирование для контактных лиц
+4. Добавлено inline-редактирование для метки ЭДО
+5. Изменено поведение метки "основное" (теперь по двойному клику)
+-->
+
+{% extends "baza_klientov/base.html" %}
+
+<!-- Заголовок страницы -->
+{% block title %}База клиентов{% endblock %}
+
+<!-- Основной контент страницы -->
+{% block content %}
+    <!-- Заголовок страницы с логотипом -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        База клиентов
+    </h1>
+    
+    <!-- Скрытый контейнер для сообщений Django -->
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    <!-- Двухколоночный layout -->
+    <div class="two-column-layout">
+        
+        <!-- ЛЕВАЯ КОЛОНКА: Список клиентов -->
+        <div class="left-column">
+            <!-- Заголовок секции клиентов -->
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-users"></i> Клиенты
+                </h2>
+                <div class="header-buttons">
+                    <!-- Кнопка добавления клиента -->
+                    <button type="button" 
+                            class="btn-action btn-add-client" 
+                            id="add-client-btn">
+                        + Добавить клиента
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Форма поиска клиентов -->
+            <div class="search-section">
+                <form method="get" action="{% url 'baza_klientov:index' %}" class="search-form">
+                    <div class="input-group">
+                        <!-- Поле ввода для поиска -->
+                        <input type="text" 
+                               name="search" 
+                               class="form-control search-input" 
+                               placeholder="Поиск клиентов..."
+                               value="{{ search_query }}">
+                        <!-- Кнопка поиска -->
+                        <button type="submit" class="btn-search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <!-- Кнопка очистки поиска (показывается только если есть поисковый запрос) -->
+                        {% if search_query %}
+                        <!-- ИСПРАВЛЕНИЕ 2: Исправлена ссылка для очистки поиска -->
+                        <!-- Было: href="{% url 'baza_klientov:index' %}{% if search_query %}?search={{ search_query|urlencode }}{% endif %}" -->
+                        <!-- Стало: href="{% url 'baza_klientov:index' %}" - всегда ведет на главную без параметров -->
+                        <a href="{% url 'baza_klientov:index' %}" 
+                           class="btn-clear-search" 
+                           title="Очистить поиск">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Контейнер для списка клиентов -->
+            <div class="clients-container" id="clients-container">
+                <!-- Список клиентов -->
+                <div class="clients-list">
+                    {% for client in clients %}
+                        <!-- Элемент клиента (ссылка для выбора клиента) -->
+                        <a href="?client_id={{ client.id }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}" 
+                           class="client-item {% if selected_client and selected_client.id == client.id %}selected{% endif %}">
+                            <div class="client-info">
+                                <div class="client-number">
+                                    <!-- Бейдж с номером клиента -->
+                                    <span class="number-badge">{{ client.client_number }}</span>
+                                    <!-- Бейдж статуса ЭДО -->
+                                    {% if client.has_edo %}
+                                    <span class="edo-badge-active" title="Работает через ЭДО">ЭДО</span>
+                                    {% else %}
+                                    <span class="edo-badge-inactive" title="Не работает через ЭДО">ЭДО</span>
+                                    {% endif %}
+                                </div>
+                                <div class="client-name">
+                                    <i class="fas fa-building"></i>
+                                    {{ client.name|truncatechars:30 }}
+                                </div>
+                                <div class="client-details">
+                                    <span class="client-discount">
+                                        <i class="fas fa-percentage"></i>
+                                        {{ client.get_discount_display }}
+                                    </span>
+                                    <span class="client-contacts">
+                                        <i class="fas fa-address-book"></i>
+                                        {{ client.contact_persons.count }} конт.
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <!-- Сообщение, если клиентов нет -->
+                        <div class="empty-message">
+                            <i class="fas fa-users"></i>
+                            {% if search_query %}
+                                Клиенты не найдены по запросу "{{ search_query }}"
+                            {% else %}
+                                Клиенты не найдены. Добавьте первого клиента.
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Форма добавления клиента (изначально скрыта) -->
+            <div class="form-section" id="client-form-section" style="display: none;">
+                <h3>Добавить нового клиента</h3>
+                
+                <!-- Форма добавления клиента -->
+                <form method="post" action="{% url 'baza_klientov:create_client' %}" id="client-form">
+                    {% csrf_token %}
+                    
+                    <!-- Название -->
+                    <div class="form-group">
+                        <label for="client-name">Название/ФИО*</label>
+                        <input type="text" 
+                               id="client-name" 
+                               name="name" 
+                               class="form-control"
+                               placeholder="ООО 'Ромашка' или Иванов Иван Иванович"
+                               required>
+                    </div>
+                    
+                    <!-- Адрес -->
+                    <div class="form-group">
+                        <label for="client-address">Адрес</label>
+                        <textarea id="client-address" 
+                                  name="address" 
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="г. Москва, ул. Ленина, д. 1"></textarea>
+                    </div>
+                    
+                    <!-- Скидка и ЭДО в одной строке -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="client-discount">Скидка (%)</label>
+                            <input type="number" 
+                                   id="client-discount" 
+                                   name="discount" 
+                                   class="form-control"
+                                   min="0" 
+                                   max="100" 
+                                   value="0"
+                                   placeholder="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-has-edo" class="checkbox-label">
+                                <input type="checkbox" 
+                                       id="client-has-edo" 
+                                       name="has_edo"
+                                       class="form-check-input">
+                                <span class="checkbox-text">ЭДО</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Банковские реквизиты -->
+                    <div class="form-group">
+                        <label for="client-bank-details">Банковские реквизиты</label>
+                        <textarea id="client-bank-details" 
+                                  name="bank_details" 
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="ИНН, КПП, расчетный счет, БИК, банк"></textarea>
+                    </div>
+                    
+                    <!-- Кнопки формы -->
+                    <div class="button-group">
+                        <button type="submit" class="btn-submit">Сохранить клиента</button>
+                        <button type="button" class="btn-clear" onclick="clearClientForm()">Очистить форму</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- ПРАВАЯ КОЛОНКА: Детали клиента и контактные лица -->
+        <div class="right-column">
+            <!-- Заголовок секции -->
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-id-card"></i> Детали клиента
+                    {% if selected_client %}
+                    <span class="selected-client">
+                        "<strong>{{ selected_client.name|truncatechars:30 }}</strong>"
+                    </span>
+                    {% endif %}
+                </h2>
+                <div class="header-buttons">
+                    <!-- Кнопка сброса выбора клиента -->
+                    {% if selected_client %}
+                    <a href="{% url 'baza_klientov:index' %}{% if search_query %}?search={{ search_query|urlencode }}{% endif %}" 
+                       class="btn-action btn-reset-filter"
+                       title="Сбросить выбор клиента">
+                        <i class="fas fa-times-circle"></i> Сбросить
+                    </a>
+                    {% endif %}
+                    <!-- Кнопка добавления контактного лица -->
+                    {% if selected_client %}
+                    <button type="button" 
+                            class="btn-action btn-add-contact" 
+                            id="add-contact-btn">
+                        + Добавить контакт
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not selected_client %}
+                <!-- Сообщение, если клиент не выбран -->
+                <div class="empty-message">
+                    <i class="fas fa-hand-pointer"></i>
+                    Выберите клиента слева для просмотра деталей и контактных лиц.
+                </div>
+            {% else %}
+                <!-- Информация о выбранном клиенте -->
+                <div class="client-details-section">
+                    <div class="client-card">
+                        <div class="client-header">
+                            <div class="client-number-large">
+                                <span class="number-badge-large">{{ selected_client.client_number }}</span>
+                                <!-- ИСПРАВЛЕНИЕ 1: ЭДО теперь редактируется по двойному клику -->
+                                <!-- Добавлен фильтр lower для преобразования True/False в true/false -->
+                                <span class="editable-eto edo-badge-large {% if selected_client.has_edo %}edo-active{% else %}edo-inactive{% endif %}"
+                                      data-field="has_edo"
+                                      data-client-id="{{ selected_client.id }}"
+                                      data-original-value="{{ selected_client.has_edo|lower }}"
+                                      title="Двойной клик для переключения ЭДО">
+                                    {% if selected_client.has_edo %}
+                                    <i class="fas fa-file-contract"></i> ЭДО
+                                    {% else %}
+                                    <i class="fas fa-file-contract"></i> ЭДО
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <!-- Убрана кнопка редактирования клиента -->
+                            <div class="client-actions">
+                                <button type="button" 
+                                        class="btn-action btn-delete-client"
+                                        data-client-id="{{ selected_client.id }}"
+                                        data-client-name="{{ selected_client.name }}">
+                                    <i class="fas fa-trash"></i> Удалить
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="client-body">
+                            <!-- Название клиента (редактируемое по двойному клику) -->
+                            <div class="client-field">
+                                <label>Название:</label>
+                                <span class="editable-field client-name-field"
+                                      data-field="name"
+                                      data-client-id="{{ selected_client.id }}"
+                                      data-original-value="{{ selected_client.name }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_client.name }}
+                                </span>
+                                <input type="text" 
+                                       class="inline-edit-input client-name-input" 
+                                       data-client-id="{{ selected_client.id }}"
+                                       data-field="name"
+                                       value="{{ selected_client.name }}"
+                                       style="display: none;"
+                                       placeholder="Введите название">
+                            </div>
+                            
+                            <!-- Скидка (редактируемая по двойному клику) -->
+                            <div class="client-field">
+                                <label>Скидка:</label>
+                                <span class="editable-field discount-field"
+                                      data-field="discount"
+                                      data-client-id="{{ selected_client.id }}"
+                                      data-original-value="{{ selected_client.discount }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_client.get_discount_display }}
+                                </span>
+                                <input type="number" 
+                                       class="inline-edit-input discount-input" 
+                                       data-client-id="{{ selected_client.id }}"
+                                       data-field="discount"
+                                       value="{{ selected_client.discount }}"
+                                       min="0"
+                                       max="100"
+                                       style="display: none;"
+                                       placeholder="0">
+                            </div>
+                            
+                            <!-- Адрес (редактируемый по двойному клику) -->
+                            <div class="client-field">
+                                <label>Адрес:</label>
+                                <span class="editable-text address-field"
+                                      data-field="address"
+                                      data-client-id="{{ selected_client.id }}"
+                                      data-original-value="{{ selected_client.address|default:'' }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_client.address|default:"Не указан" }}
+                                </span>
+                                <textarea class="inline-edit-textarea address-textarea"
+                                          data-client-id="{{ selected_client.id }}"
+                                          data-field="address"
+                                          style="display: none;"
+                                          placeholder="Введите адрес"
+                                          rows="2">{{ selected_client.address|default:'' }}</textarea>
+                            </div>
+                            
+                            <!-- Банковские реквизиты (редактируемые по двойному клику) -->
+                            <div class="client-field">
+                                <label>Банковские реквизиты:</label>
+                                <span class="editable-text bank-details-field"
+                                      data-field="bank_details"
+                                      data-client-id="{{ selected_client.id }}"
+                                      data-original-value="{{ selected_client.bank_details|default:'' }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_client.bank_details|default:"Не указаны"|truncatechars:100 }}
+                                </span>
+                                <textarea class="inline-edit-textarea bank-details-textarea"
+                                          data-client-id="{{ selected_client.id }}"
+                                          data-field="bank_details"
+                                          style="display: none;"
+                                          placeholder="Введите банковские реквизиты"
+                                          rows="3">{{ selected_client.bank_details|default:'' }}</textarea>
+                            </div>
+                            
+                            <!-- Даты создания и обновления (не редактируемые) -->
+                            <div class="client-field">
+                                <label>Дата создания:</label>
+                                <span class="readonly-field">{{ selected_client.created_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                            <div class="client-field">
+                                <label>Последнее обновление:</label>
+                                <span class="readonly-field">{{ selected_client.updated_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Форма добавления контактного лица (изначально скрыта) -->
+                    <div class="form-section" id="contact-form-section" style="display: none;">
+                        <h3>Добавить контактное лицо</h3>
+                        
+                        <!-- Теперь контакт можно добавить только с ФИО -->
+                        <form method="post" action="{% url 'baza_klientov:create_contact' %}" id="contact-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="client_id" value="{{ selected_client.id }}">
+                            
+                            <!-- ФИО (обязательное поле) -->
+                            <div class="form-group">
+                                <label for="contact-full-name">ФИО*</label>
+                                <input type="text" 
+                                       id="contact-full-name" 
+                                       name="full_name" 
+                                       class="form-control"
+                                       placeholder="Петров Петр Петрович"
+                                       required>
+                            </div>
+                            
+                            <!-- Должность (не обязательное поле) -->
+                            <div class="form-group">
+                                <label for="contact-position">Должность</label>
+                                <input type="text" 
+                                       id="contact-position" 
+                                       name="position" 
+                                       class="form-control"
+                                       placeholder="Менеджер по продажам">
+                            </div>
+                            
+                            <!-- Контакты в одной строке (не обязательные поля) -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact-phone">Телефон</label>
+                                    <input type="text" 
+                                           id="contact-phone" 
+                                           name="phone" 
+                                           class="form-control"
+                                           placeholder="+7 (495) 123-45-67">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="contact-mobile">Сотовый</label>
+                                    <input type="text" 
+                                           id="contact-mobile" 
+                                           name="mobile" 
+                                           class="form-control"
+                                           placeholder="+7 (900) 123-45-67">
+                                </div>
+                            </div>
+                            
+                            <!-- Email и Основное контактное лицо -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact-email">E-mail</label>
+                                    <input type="email" 
+                                           id="contact-email" 
+                                           name="email" 
+                                           class="form-control"
+                                           placeholder="petrov@example.com">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="contact-is-primary" class="checkbox-label">
+                                        <input type="checkbox" 
+                                               id="contact-is-primary" 
+                                               name="is_primary"
+                                               class="form-check-input">
+                                        <span class="checkbox-text">Основное</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Комментарии (не обязательное поле) -->
+                            <div class="form-group">
+                                <label for="contact-comments">Комментарии</label>
+                                <textarea id="contact-comments" 
+                                          name="comments" 
+                                          class="form-control"
+                                          rows="2"
+                                          placeholder="Дополнительная информация"></textarea>
+                            </div>
+                            
+                            <!-- Кнопки формы -->
+                            <div class="button-group">
+                                <button type="submit" class="btn-submit">Сохранить контакт</button>
+                                <button type="button" class="btn-clear" onclick="clearContactForm()">Очистить форму</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Список контактных лиц -->
+                    <div class="contacts-section">
+                        <h3>
+                            <i class="fas fa-address-book"></i> Контактные лица
+                            <small>({{ contact_persons|length }})</small>
+                        </h3>
+                        
+                        {% if not contact_persons %}
+                            <div class="empty-message">
+                                <i class="fas fa-user-plus"></i>
+                                Нет контактных лиц. Добавьте первое контактное лицо.
+                            </div>
+                        {% else %}
+                            <div class="contacts-list">
+                                {% for contact in contact_persons %}
+                                    <div class="contact-card" data-contact-id="{{ contact.id }}">
+                                        <div class="contact-header">
+                                            <!-- ФИО теперь редактируется по двойному клику -->
+                                            <div class="contact-name">
+                                                <i class="fas fa-user"></i>
+                                                <span class="editable-field contact-full-name-field"
+                                                      data-field="full_name"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.full_name }}"
+                                                      title="Двойной клик для редактирования">
+                                                    {{ contact.full_name }}
+                                                </span>
+                                                <input type="text" 
+                                                       class="inline-edit-input contact-full-name-input" 
+                                                       data-contact-id="{{ contact.id }}"
+                                                       data-field="full_name"
+                                                       value="{{ contact.full_name }}"
+                                                       style="display: none;"
+                                                       placeholder="Введите ФИО">
+                                                
+                                                <!-- Метка "основное" теперь меняется по двойному клику -->
+                                                <!-- ИСПРАВЛЕНИЕ 1: Добавлен фильтр lower -->
+                                                <span class="editable-primary primary-badge {% if contact.is_primary %}primary-active{% else %}primary-inactive{% endif %}"
+                                                      data-field="is_primary"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.is_primary|lower }}"
+                                                      title="Двойной клик для переключения отметки 'Основное'">
+                                                    {% if contact.is_primary %}
+                                                    <i class="fas fa-star"></i> Основное
+                                                    {% else %}
+                                                    <i class="far fa-star"></i> Основное
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="contact-actions">
+                                                <!-- Убрана кнопка переключения основного контакта (теперь по двойному клику) -->
+                                                <button type="button" 
+                                                        class="btn-action btn-delete-contact"
+                                                        data-contact-id="{{ contact.id }}"
+                                                        data-contact-name="{{ contact.full_name }}">
+                                                    <i class="fas fa-trash"></i> Удалить
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="contact-body">
+                                            <!-- Должность (редактируемая по двойному клику) -->
+                                            {% if contact.position or not contact.position %}
+                                            <div class="contact-field">
+                                                <label>Должность:</label>
+                                                <span class="editable-field contact-position-field"
+                                                      data-field="position"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.position|default:'' }}"
+                                                      title="Двойной клик для редактирования">
+                                                    {{ contact.position|default:"Не указана" }}
+                                                </span>
+                                                <input type="text" 
+                                                       class="inline-edit-input contact-position-input" 
+                                                       data-contact-id="{{ contact.id }}"
+                                                       data-field="position"
+                                                       value="{{ contact.position|default:'' }}"
+                                                       style="display: none;"
+                                                       placeholder="Введите должность">
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <!-- Телефон (редактируемый по двойному клику) -->
+                                            {% if contact.phone or not contact.phone %}
+                                            <div class="contact-field">
+                                                <label>Телефон:</label>
+                                                <span class="editable-field contact-phone-field"
+                                                      data-field="phone"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.phone|default:'' }}"
+                                                      title="Двойной клик для редактирования">
+                                                    {{ contact.phone|default:"Не указан" }}
+                                                </span>
+                                                <input type="text" 
+                                                       class="inline-edit-input contact-phone-input" 
+                                                       data-contact-id="{{ contact.id }}"
+                                                       data-field="phone"
+                                                       value="{{ contact.phone|default:'' }}"
+                                                       style="display: none;"
+                                                       placeholder="Введите телефон">
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <!-- Сотовый (редактируемый по двойному клику) -->
+                                            {% if contact.mobile or not contact.mobile %}
+                                            <div class="contact-field">
+                                                <label>Сотовый:</label>
+                                                <span class="editable-field contact-mobile-field"
+                                                      data-field="mobile"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.mobile|default:'' }}"
+                                                      title="Двойной клик для редактирования">
+                                                    {{ contact.mobile|default:"Не указан" }}
+                                                </span>
+                                                <input type="text" 
+                                                       class="inline-edit-input contact-mobile-input" 
+                                                       data-contact-id="{{ contact.id }}"
+                                                       data-field="mobile"
+                                                       value="{{ contact.mobile|default:'' }}"
+                                                       style="display: none;"
+                                                       placeholder="Введите сотовый">
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <!-- Email (редактируемый по двойному клику) -->
+                                            {% if contact.email or not contact.email %}
+                                            <div class="contact-field">
+                                                <label>E-mail:</label>
+                                                <span class="editable-field contact-email-field"
+                                                      data-field="email"
+                                                      data-contact-id="{{ contact.id }}"
+                                                      data-original-value="{{ contact.email|default:'' }}"
+                                                      title="Двойной клик для редактирования">
+                                                    {{ contact.email|default:"Не указан" }}
+                                                </span>
+                                                <input type="email" 
+                                                       class="inline-edit-input contact-email-input" 
+                                                       data-contact-id="{{ contact.id }}"
+                                                       data-field="email"
+                                                       value="{{ contact.email|default:'' }}"
+                                                       style="display: none;"
+                                                       placeholder="Введите email">
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <!-- Комментарии (редактируемые по двойному клику) -->
+                                            {% if contact.comments or not contact.comments %}
+                                            <div class="contact-field">
+                                                <label>Комментарии:</label>
+                                                <!-- ИСПРАВЛЕНИЕ: Убраны лишние пробелы и переносы строк внутри тега span -->
+                                                <span class="editable-text contact-comments-field" data-field="comments" data-contact-id="{{ contact.id }}" data-original-value="{{ contact.comments|default:'' }}" title="Двойной клик для редактирования">{{ contact.comments|default:"Нет комментариев"|truncatechars:100 }}</span>
+                                                <textarea class="inline-edit-textarea contact-comments-textarea" data-contact-id="{{ contact.id }}" data-field="comments" style="display: none;" placeholder="Введите комментарии" rows="2">{{ contact.comments|default:'' }}</textarea>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

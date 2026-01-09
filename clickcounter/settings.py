@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'sheet_formats',
     'sklad',
     'print_price',
+    'baza_klientov',
 ]
 
 MIDDLEWARE = [
