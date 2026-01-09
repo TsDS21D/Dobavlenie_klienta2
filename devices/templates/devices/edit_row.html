@@ -79,6 +79,24 @@ edit_row.html
                step="0.1">
     </div>
     
+    <!-- Метод интерполяции - НОВОЕ ПОЛЕ -->
+    <div class="col-interpolation">
+        <select name="devices_interpolation_method" 
+                class="edit-input edit-select"
+                data-field="devices_interpolation_method">
+            <!-- 
+            Загружаем опции из Printer.INTERPOLATION_CHOICES 
+            В реальном коде это должно быть передано из view через контекст
+            -->
+            <option value="linear" {% if printer.devices_interpolation_method == 'linear' %}selected{% endif %}>
+                Линейная интерполяция
+            </option>
+            <option value="logarithmic" {% if printer.devices_interpolation_method == 'logarithmic' %}selected{% endif %}>
+                Логарифмическая интерполяция
+            </option>
+        </select>
+    </div>
+    
     <!-- Кнопки действий в режиме редактирования -->
     <div class="col-actions edit-actions">
         <button type="submit" class="btn-action btn-save" title="Сохранить изменения">

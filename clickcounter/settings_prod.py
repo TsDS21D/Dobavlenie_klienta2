@@ -241,7 +241,7 @@ CSRF_TRUSTED_ORIGINS = [
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Перенаправлять HTTP → HTTPS (только когда есть SSL сертификат!)
-SECURE_SSL_REDIRECT = True  # Включить после настройки SSL
+SECURE_SSL_REDIRECT = False  # Включить после настройки SSL
 
 # Безопасные куки (передавать только по HTTPS)
 CSRF_COOKIE_SECURE = True

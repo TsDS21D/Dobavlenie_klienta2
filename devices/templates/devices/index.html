@@ -198,6 +198,16 @@ index.html для приложения devices
                 </div>
             </div>
             
+            <!-- Поле: Метод интерполяции (выпадающий список) - НОВОЕ ПОЛЕ -->
+            <div class="form-group">
+                <label for="{{ form.devices_interpolation_method.id_for_label }}">{{ form.devices_interpolation_method.label }}</label>
+                {{ form.devices_interpolation_method }}
+                {% if form.devices_interpolation_method.errors %}
+                    <div class="errorlist">{{ form.devices_interpolation_method.errors }}</div>
+                {% endif %}
+                <div class="help-text">{{ form.devices_interpolation_method.help_text }}</div>
+            </div>
+            
             <!-- Кнопки формы -->
             <div class="button-group">
                 <button type="submit" class="btn-submit">💾 Сохранить принтер</button>

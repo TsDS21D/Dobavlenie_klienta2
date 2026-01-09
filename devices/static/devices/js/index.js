@@ -54,6 +54,14 @@ function validateAddForm() {
         }
     }
     
+    // Проверка метода интерполяции - НОВАЯ ПРОВЕРКА
+    const interpolationSelect = form.querySelector('#id_devices_interpolation_method');
+    if (interpolationSelect && !interpolationSelect.value) {
+        alert('❌ Выберите метод интерполяции из списка');
+        interpolationSelect.focus();
+        return false;
+    }
+    
     return true;
 }
 
