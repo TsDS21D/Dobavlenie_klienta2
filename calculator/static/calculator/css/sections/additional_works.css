@@ -92,8 +92,20 @@ sections/additional_works.css - Стили для секции "Дополнит
 }
 
 .additional-works-btn-collapse-section {
-    background-color: #6c757d;
-    color: white;
+    background: #f5f5f5;            /* Светло-серый фон (#f5f5f5) */
+    color: #333;                    /* Темно-серый цвет текста */
+    border: 1px solid #ddd;         /* Светло-серая рамка толщиной 1px */
+    cursor: pointer;                /* Курсор в виде руки при наведении */
+    user-select: none;              /* Запрещаем выделение текста кнопки */
+    padding: 0.3rem 0.6rem;         /* Уменьшенные внутренние отступы для компактности */
+    min-width: 24px;                /* ДОБАВЛЕНО: минимальная ширина 34px (выровнена с высотой) */
+    min-height: 24px;               /* ДОБАВЛЕНО: минимальная высота 34px */
+    justify-content: center;        /* Центрируем содержимое по горизонтали */
+    flex-shrink: 0;                 /* ДОБАВЛЕНО: запрещаем сжатие кнопки */
+    align-self: center;             /* ДОБАВЛЕНО: выравниваем по центру относительно родителя */
+    margin: 0;                      /* ДОБАВЛЕНО: убираем внешние отступы */
+    position: relative;             /* ДОБАВЛЕНО: для стабильного позиционирования */
+    top: 0;                         /* ДОБАВЛЕНО: сбрасываем вертикальное смещение */
 }
 
 .additional-works-btn-collapse-section:hover {
