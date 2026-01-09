@@ -1,31 +1,31 @@
 <!--
 sections/additional_works.html - Секция "Дополнительные работы"
-ОБНОВЛЕНО: Полная реализация по аналогии с секцией "Печатные компоненты"
-ДОБАВЛЕНО: Все необходимые элементы интерфейса
+ИСПРАВЛЕНИЕ: Уникальные названия классов для устранения конфликтов стилей
+ДОБАВЛЕНО: Корректная структура блока общей стоимости
 -->
 
 <section class="calculator-section additional-works-section" id="additional-works-section">
-    <div class="section-header">
+    <div class="additional-works-section-header">
         <h2>
             <i class="fas fa-tools"></i>
-            <span class="section-number">6.</span>
+            <span class="additional-works-section-number">6.</span>
             Дополнительные работы
             <!-- Элемент для отображения названия выбранного просчёта -->
-            <span id="additional-works-proschet-title" class="proschet-title-placeholder">
-                <span class="placeholder-text">(просчёт не выбран)</span>
+            <span id="additional-works-proschet-title" class="additional-works-proschet-title-placeholder">
+                <span class="additional-works-placeholder-text">(просчёт не выбран)</span>
             </span>
         </h2>
-        <div class="header-buttons">
-            <!-- Кнопка добавления новой работы (будет доступна при выборе просчёта) -->
+        <div class="additional-works-header-buttons">
+            <!-- Кнопка добавления новой работы -->
             <button type="button" 
                     id="add-additional-work-btn" 
-                    class="btn-action btn-add"
+                    class="additional-works-btn-action additional-works-btn-add"
                     title="Добавить дополнительную работу"
                     style="display: none;">
                 <i class="fas fa-plus"></i> Добавить
             </button>
             <button type="button" 
-                    class="btn-action btn-collapse-section" 
+                    class="additional-works-btn-action additional-works-btn-collapse-section" 
                     data-section="additional-works-section"
                     title="Свернуть/развернуть секцию">
                 <i class="fas fa-chevron-down"></i>
@@ -33,28 +33,28 @@ sections/additional_works.html - Секция "Дополнительные ра
         </div>
     </div>
     
-    <div class="section-body">
+    <div class="additional-works-section-body">
         <!-- Сообщение при отсутствии выбранного просчёта -->
-        <div id="no-proschet-selected-additional" class="empty-state-message" style="display: none;">
+        <div id="no-proschet-selected-additional" class="additional-works-empty-state-message" style="display: none;">
             <i class="fas fa-hand-pointer fa-3x"></i>
             <h3>Выберите просчёт</h3>
             <p>Выберите просчёт в секции "Список просчётов" для отображения дополнительных работ</p>
         </div>
         
         <!-- Сообщение при отсутствии дополнительных работ в выбранном просчёте -->
-        <div id="no-works-message" class="empty-state-message" style="display: none;">
+        <div id="no-works-message" class="additional-works-empty-state-message" style="display: none;">
             <i class="fas fa-tools fa-3x"></i>
             <h3>Нет дополнительных работ</h3>
             <p>В выбранном просчёте пока нет дополнительных работ</p>
-            <button type="button" id="add-first-work-btn" class="btn-action">
+            <button type="button" id="add-first-work-btn" class="additional-works-btn-action">
                 <i class="fas fa-plus"></i> Добавить первую работу
             </button>
         </div>
         
         <!-- Контейнер для таблицы дополнительных работ -->
-        <div id="additional-works-container" class="table-container" style="display: none;">
+        <div id="additional-works-container" class="additional-works-table-container" style="display: none;">
             <!-- Таблица дополнительных работ -->
-            <table id="additional-works-table" class="simple-table additional-works-table">
+            <table id="additional-works-table" class="additional-works-simple-table">
                 <thead>
                     <tr>
                         <th width="15%">№ работы</th>
@@ -68,14 +68,11 @@ sections/additional_works.html - Секция "Дополнительные ра
                 </tbody>
             </table>
             
-            <!-- Общая стоимость дополнительных работ (ОБНОВЛЕНО: аналогично секции "Печатные компоненты") -->
-            <div id="additional-works-total" class="total-summary" style="display: none;">
-                <div class="total-label">Общая стоимость дополнительных работ:</div>
-                <div id="additional-works-total-price" class="total-price">0.00 ₽</div>
+            <!-- Общая стоимость дополнительных работ (ИСПРАВЛЕНО: уникальные названия классов) -->
+            <div id="additional-works-total-container" class="additional-works-total-summary" style="display: none;">
+                <div class="additional-works-total-label">Общая стоимость дополнительных работ:</div>
+                <div id="additional-works-total-price" class="additional-works-total-price">0.00 ₽</div>
             </div>
         </div>
     </div>
 </section>
-
-<!-- Мета-тег для CSRF-токена (должен быть в основном шаблоне, но добавляем здесь для наглядности) -->
-<meta name="csrf-token" content="{{ csrf_token }}">

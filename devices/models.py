@@ -169,43 +169,43 @@ class Printer(models.Model):
         else:
             return "Логарифмическая"
     
-def to_dict(self):
-    """
-    Преобразует объект принтера в словарь для передачи в JSON
-    
-    Returns:
-        dict: Словарь с данными принтера
-    """
-    # Проверяем, существует ли связанный формат
-    sheet_format_info = {
-        'id': None,
-        'name': 'Формат не указан',
-        'dimensions': 'Не указаны'
-    }
-    
-    if self.sheet_format:
+    def to_dict(self):
+        """
+        Преобразует объект принтера в словарь для передачи в JSON
+        
+        Returns:
+            dict: Словарь с данными принтера
+        """
+        # Проверяем, существует ли связанный формат
         sheet_format_info = {
-            'id': self.sheet_format.id,
-            'name': self.sheet_format.name,
-            'dimensions': self.sheet_format.get_dimensions_display()
+            'id': None,
+            'name': 'Формат не указан',
+            'dimensions': 'Не указаны'
         }
-    
-    return {
-        'id': self.id,
-        'name': self.name,
-        'sheet_format': sheet_format_info['name'],  # Только имя формата
-        'sheet_format_id': sheet_format_info['id'],
-        'sheet_format_dimensions': sheet_format_info['dimensions'],
-        'margin_mm': self.margin_mm,
-        'duplex_coefficient': float(self.duplex_coefficient),  # Преобразуем Decimal в float
-        'duplex_coefficient_formatted': self.get_duplex_coefficient_formatted(),
-        'devices_interpolation_method': self.devices_interpolation_method,
-        'devices_interpolation_method_display': self.get_interpolation_method_display_short(),
-        'margin_display': self.get_margin_display(),
-        'duplex_display': self.get_duplex_display(),
-        'created_at': self.created_at.strftime('%d.%m.%Y %H:%M') if self.created_at else '',
-        'updated_at': self.updated_at.strftime('%d.%m.%Y %H:%M') if self.updated_at else '',
-    }
+        
+        if self.sheet_format:
+            sheet_format_info = {
+                'id': self.sheet_format.id,
+                'name': self.sheet_format.name,
+                'dimensions': self.sheet_format.get_dimensions_display()
+            }
+        
+        return {
+            'id': self.id,
+            'name': self.name,
+            'sheet_format': sheet_format_info['name'],  # Только имя формата
+            'sheet_format_id': sheet_format_info['id'],
+            'sheet_format_dimensions': sheet_format_info['dimensions'],
+            'margin_mm': self.margin_mm,
+            'duplex_coefficient': float(self.duplex_coefficient),  # Преобразуем Decimal в float
+            'duplex_coefficient_formatted': self.get_duplex_coefficient_formatted(),
+            'devices_interpolation_method': self.devices_interpolation_method,
+            'devices_interpolation_method_display': self.get_interpolation_method_display_short(),
+            'margin_display': self.get_margin_display(),
+            'duplex_display': self.get_duplex_display(),
+            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%d.%m.%Y %H:%M') if self.updated_at else '',
+        }
     
     def calculate_price_for_arbitrary_copies_devices(self, copies):
         """

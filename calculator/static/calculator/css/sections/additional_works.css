@@ -1,20 +1,49 @@
 /*
 sections/additional_works.css - Стили для секции "Дополнительные работы"
-ПОЛНАЯ РЕАЛИЗАЦИЯ: Все стили по аналогии с секцией "Печатные компоненты"
-ОБНОВЛЕНО: Стили для таблицы, inline-редактирования и модального окна
+ИСПРАВЛЕНИЕ: Уникальные названия классов для устранения конфликтов стилей
+ОБНОВЛЕНО: Все стили с префиксом "additional-works-" для уникальности
 */
 
+/* ===== ОСНОВНЫЕ СТИЛИ СЕКЦИИ ===== */
+
 /* Основные стили секции */
-#additional-works-section {
+.additional-works-section {
     border-left: 4px solid #f39c12; /* Оранжевая полоска слева для идентификации секции */
+    margin-bottom: 20px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-#additional-works-section .section-header {
-    border-bottom-color: #f39c12; /* Оранжевая граница в заголовке */
+.additional-works-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 2px solid #f39c12; /* Оранжевая граница в заголовке */
+    background-color: #f8f9fa;
+}
+
+.additional-works-section-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.additional-works-section-header h2 i {
+    color: #f39c12; /* Оранжевый цвет иконки */
+}
+
+.additional-works-section-number {
+    color: #f39c12; /* Оранжевый цвет номера секции */
+    font-weight: bold;
 }
 
 /* Стили для заголовка секции с названием просчёта */
-#additional-works-proschet-title {
+.additional-works-proschet-title-placeholder {
     margin-left: 8px;
     font-size: 0.9em;
     font-weight: normal;
@@ -22,12 +51,12 @@ sections/additional_works.css - Стили для секции "Дополнит
     font-style: italic;
 }
 
-#additional-works-proschet-title .placeholder-text {
+.additional-works-placeholder-text {
     color: #888;
     font-size: 0.85em;
 }
 
-#additional-works-proschet-title .proschet-title-active {
+.additional-works-proschet-title-active {
     color: #333;
     background-color: #f5f5f5;
     padding: 2px 6px;
@@ -35,222 +64,149 @@ sections/additional_works.css - Стили для секции "Дополнит
     border-left: 2px solid #f39c12; /* Оранжевая полоска слева в тон секции */
 }
 
-/* Стили для таблицы дополнительных работ */
-.additional-works-table {
-    margin-top: 15px;
-    margin-bottom: 20px;
-    width: 100%;
-    border-collapse: collapse;
+/* Кнопки в заголовке секции */
+.additional-works-header-buttons {
+    display: flex;
+    gap: 8px;
 }
 
-.additional-works-table th {
+.additional-works-btn-action {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.additional-works-btn-add {
+    background-color: #28a745;
+    color: white;
+}
+
+.additional-works-btn-add:hover {
+    background-color: #218838;
+}
+
+.additional-works-btn-collapse-section {
+    background-color: #6c757d;
+    color: white;
+}
+
+.additional-works-btn-collapse-section:hover {
+    background-color: #5a6268;
+}
+
+/* Тело секции */
+.additional-works-section-body {
+    padding: 20px;
+}
+
+/* ===== СТИЛИ ДЛЯ СООБЩЕНИЙ ===== */
+
+.additional-works-empty-state-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.additional-works-empty-state-message i {
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.additional-works-empty-state-message h3 {
+    margin: 10px 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.additional-works-empty-state-message p {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: #666;
+}
+
+/* ===== СТИЛИ ДЛЯ ТАБЛИЦЫ ===== */
+
+.additional-works-table-container {
+    margin-top: 15px;
+}
+
+.additional-works-simple-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.additional-works-simple-table th {
     background-color: #f8f9fa;
     font-weight: 600;
     color: #333;
     border-bottom: 2px solid #f39c12; /* Оранжевая граница под заголовком таблицы */
     padding: 12px 8px;
     text-align: left;
+    font-size: 14px;
 }
 
-.additional-works-table td {
+.additional-works-simple-table td {
     padding: 12px 8px;
     vertical-align: middle;
     border-bottom: 1px solid #eee;
+    font-size: 14px;
 }
 
-.additional-works-table tbody tr:hover {
+.additional-works-simple-table tbody tr:hover {
     background-color: #f9f9f9;
 }
 
 /* Стили для номера работы */
-.work-number {
+.additional-works-work-number {
     font-weight: 600;
     color: #f39c12; /* Оранжевый цвет для номера работы */
     font-family: 'Courier New', monospace;
+    font-size: 14px;
 }
 
 /* Стили для ячейки с названием работы */
-.work-title {
+.additional-works-work-title {
     font-weight: 500;
     max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #333;
 }
 
 /* Стили для ячейки с ценой */
-.work-price {
+.additional-works-work-price {
     text-align: right;
     font-family: 'Courier New', monospace;
     font-weight: 600;
     color: #2c3e50;
 }
 
-/* Стили для блока с общей стоимостью */
-.total-summary {
+/* Стили для блока действий */
+.additional-works-work-actions {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    margin-top: 20px;
-    border: 1px solid #e9ecef;
-}
-
-.total-label {
-    font-size: 16px;
-    font-weight: 600;
-    color: #333;
-}
-
-.total-price {
-    font-size: 20px;
-    font-weight: 700;
-    color: #f39c12; /* Оранжевый цвет для общей суммы */
-    font-family: 'Courier New', monospace;
-}
-
-/* Стили для кнопки добавления */
-.btn-add {
-    background-color: #28a745;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.2s;
-}
-
-.btn-add:hover {
-    background-color: #218838;
-}
-
-.btn-add:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-}
-
-.btn-add i {
-    margin-right: 5px;
-}
-
-/* ===== СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
-
-/* Контейнер для inline-редактирования */
-.inline-edit-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-}
-
-/* Стили для ячейки в режиме редактирования */
-.additional-works-table td.editing-cell {
-    background-color: #f8f9fa !important;
-    padding: 8px !important;
-    border: 2px solid #3498db !important;
-    border-radius: 4px;
-    min-width: 150px;
-}
-
-/* Стили для полей ввода при inline-редактировании */
-.inline-edit-input {
-    flex: 1;
-    min-width: 80px;
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    font-family: inherit;
-    box-sizing: border-box;
-}
-
-.inline-edit-input:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-/* Стили для кнопок inline-редактирования */
-.inline-edit-buttons {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-}
-
-.inline-edit-save,
-.inline-edit-cancel {
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-}
-
-.inline-edit-save {
-    background-color: #2ecc71;
-    color: white;
-}
-
-.inline-edit-save:hover {
-    background-color: #27ae60;
-    transform: scale(1.05);
-}
-
-.inline-edit-cancel {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.inline-edit-cancel:hover {
-    background-color: #c0392b;
-    transform: scale(1.05);
-}
-
-/* Индикатор сохранения */
-.inline-edit-saving {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: #3498db;
-    font-size: 14px;
-    width: 100%;
-    padding: 10px;
-}
-
-/* Стили для ошибок при редактировании */
-.inline-edit-error {
-    color: #e74c3c;
-    font-style: italic;
-    padding: 8px;
-    display: block;
-}
-
-/* ===== СТИЛИ ДЛЯ КНОПОК УДАЛЕНИЯ В ТАБЛИЦЕ ===== */
-
-/* Контейнер для действий в строке таблицы */
-.work-actions {
-    display: flex;
-    gap: 4px;
     justify-content: flex-end;
-    padding-right: 8px;
+    gap: 5px;
 }
 
 /* Кнопка удаления работы */
-.delete-work-btn {
+.additional-works-delete-work-btn {
     width: 28px;
     height: 28px;
     border: none;
     border-radius: 4px;
-    background-color: #f8f9fa;
+    background-color: transparent;
     color: #e74c3c;
     display: flex;
     align-items: center;
@@ -261,185 +217,502 @@ sections/additional_works.css - Стили для секции "Дополнит
     opacity: 0.6;
 }
 
-.delete-work-btn:hover {
+.additional-works-delete-work-btn:hover {
     background-color: #e74c3c;
     color: white;
     opacity: 1;
     transform: scale(1.1);
 }
 
-/* Показываем кнопку удаления только при наведении на строку */
-.additional-works-table tbody tr:hover .delete-work-btn {
-    opacity: 0.8;
+/* ===== СТИЛИ ДЛЯ ОБЩЕЙ СТОИМОСТИ (ИСПРАВЛЕНО) ===== */
+
+/* Контейнер общей стоимости */
+.additional-works-total-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+    margin-top: 20px;
+    border-left: 4px solid #f39c12; /* Оранжевая полоска слева для акцента */
+}
+
+/* Метка общей стоимости */
+.additional-works-total-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    padding-right: 10px;
+}
+
+/* Цена общей стоимости */
+.additional-works-total-price {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f39c12; /* Оранжевый цвет для общей суммы */
+    font-family: 'Courier New', monospace;
+    background-color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    border: 1px solid #f39c12;
+    box-shadow: 0 1px 3px rgba(243, 156, 18, 0.2);
+}
+
+/* ===== СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Контейнер для inline-редактирования */
+.additional-works-inline-edit-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+/* Стили для ячейки в режиме редактирования */
+.additional-works-simple-table td.additional-works-editing-cell {
+    background-color: #f8f9fa !important;
+    padding: 8px !important;
+    border: 2px solid #3498db !important;
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+/* Стили для полей ввода при inline-редактировании */
+.additional-works-inline-edit-input {
+    flex: 1;
+    min-width: 80px;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.additional-works-inline-edit-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Стили для кнопок inline-редактирования */
+.additional-works-inline-edit-buttons {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.additional-works-inline-edit-save,
+.additional-works-inline-edit-cancel {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.additional-works-inline-edit-save {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.additional-works-inline-edit-save:hover {
+    background-color: #27ae60;
+    transform: scale(1.05);
+}
+
+.additional-works-inline-edit-cancel {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.additional-works-inline-edit-cancel:hover {
+    background-color: #c0392b;
+    transform: scale(1.05);
+}
+
+/* Индикатор сохранения */
+.additional-works-inline-edit-saving {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #3498db;
+    font-size: 14px;
+    width: 100%;
+    padding: 10px;
 }
 
 /* ===== СТИЛИ ДЛЯ ВЫДЕЛЕННОЙ СТРОКИ ===== */
 
-/* Стиль для выделенной строки таблицы */
-.additional-works-table tbody tr.selected {
+.additional-works-simple-table tbody tr.additional-works-selected {
     background-color: #fff3e0 !important; /* Светло-оранжевый фон */
     box-shadow: inset 0 0 0 2px #f39c12; /* Оранжевая рамка внутри */
 }
 
-/* Стиль для строки при наведении (кроме выделенной) */
-.additional-works-table tbody tr:not(.selected):hover {
-    background-color: #f5f5f5 !important;
-}
-
-/* Стиль для ячеек выделенной строки */
-.additional-works-table tbody tr.selected td {
+.additional-works-simple-table tbody tr.additional-works-selected td {
     border-bottom-color: #f39c12; /* Оранжевая граница снизу */
     font-weight: 500; /* Полужирный текст */
 }
 
-/* ===== СТИЛИ ДЛЯ ПЛЕЙСХОЛДЕРА (когда секция пустая) ===== */
+/* ===== СТИЛИ ДЛЯ ИНДИКАТОРА ЗАГРУЗКИ ===== */
 
-.section-placeholder {
-    text-align: center;
-    padding: 40px 20px;
-    color: #666;
-}
-
-.section-placeholder i {
-    color: #f39c12; /* Оранжевый цвет иконки */
-    margin-bottom: 20px;
-}
-
-.section-placeholder h3 {
-    margin: 10px 0;
-    color: #333;
-}
-
-.section-placeholder p {
-    margin-bottom: 20px;
-    font-size: 16px;
-}
-
-.placeholder-list {
-    list-style: none;
-    padding: 0;
-    margin: 20px 0;
-    display: inline-block;
-    text-align: left;
-}
-
-.placeholder-list li {
-    padding: 8px 0;
-    font-size: 14px;
-}
-
-.placeholder-list i {
-    color: #f39c12;
-    margin-right: 10px;
-    width: 20px;
-    text-align: center;
-}
-
-.placeholder-note {
-    display: block;
-    margin-top: 20px;
-    color: #888;
-    font-size: 12px;
-}
-
-.placeholder-note i {
-    margin-right: 5px;
-}
-
-/* ===== СТИЛИ ДЛЯ СООБЩЕНИЙ ===== */
-
-.empty-state-message {
-    text-align: center;
-    padding: 40px 20px;
-    color: #666;
-}
-
-.empty-state-message i {
-    color: #ddd;
-    margin-bottom: 20px;
-}
-
-.empty-state-message h3 {
-    margin: 10px 0;
-    color: #333;
-}
-
-.empty-state-message p {
-    margin-bottom: 20px;
-    font-size: 16px;
-}
-
-/* ===== АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
-
-@media (max-width: 768px) {
-    .additional-works-table {
-        font-size: 14px;
-    }
-    
-    .additional-works-table th,
-    .additional-works-table td {
-        padding: 8px 4px;
-    }
-    
-    .work-title {
-        max-width: 150px;
-    }
-    
-    .total-summary {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .total-price {
-        margin-top: 10px;
-    }
-    
-    /* Inline-редактирование на мобильных */
-    .inline-edit-container {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-    
-    .inline-edit-buttons {
-        justify-content: flex-end;
-    }
-    
-    .inline-edit-input {
-        min-width: 100%;
-    }
-}
-
-/* ===== АНИМАЦИИ ===== */
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.fa-spinner.fa-spin {
-    animation: spin 1s linear infinite;
-}
-
-/* ===== СТИЛИ ДЛЯ ЗАГРУЗКИ ===== */
-
-.loading-spinner {
+.additional-works-loading-spinner {
     width: 40px;
     height: 40px;
     border: 4px solid #f3f3f3;
     border-top: 4px solid #f39c12; /* Оранжевый цвет для индикатора загрузки */
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: additional-works-spin 1s linear infinite;
     margin: 0 auto 15px auto;
+}
+
+@keyframes additional-works-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* ===== СТИЛИ ДЛЯ ОШИБОК ===== */
 
-.error-message {
+.additional-works-error-message {
     background-color: #ffebee;
     color: #c62828;
     padding: 10px;
     border-radius: 4px;
     margin-bottom: 15px;
     border-left: 4px solid #f44336;
+}
+
+/* ===== АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+@media (max-width: 768px) {
+    .additional-works-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .additional-works-header-buttons {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .additional-works-simple-table {
+        font-size: 13px;
+    }
+    
+    .additional-works-simple-table th,
+    .additional-works-simple-table td {
+        padding: 8px 4px;
+    }
+    
+    .additional-works-work-title {
+        max-width: 150px;
+    }
+    
+    .additional-works-total-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .additional-works-total-price {
+        align-self: flex-end;
+        font-size: 18px;
+    }
+    
+    /* Inline-редактирование на мобильных */
+    .additional-works-inline-edit-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .additional-works-inline-edit-buttons {
+        justify-content: flex-end;
+    }
+    
+    .additional-works-inline-edit-input {
+        min-width: 100%;
+    }
+}
+
+/* ===== УНИВЕРСАЛЬНЫЕ КЛАССЫ (для совместимости) ===== */
+
+/* Класс для выравнивания по центру */
+.additional-works-text-center {
+    text-align: center !important;
+}
+
+/* Класс для полужирного текста */
+.additional-works-font-bold {
+    font-weight: bold !important;
+}
+
+/* Класс для скрытия элемента */
+.additional-works-hidden {
+    display: none !important;
+}
+
+/* Класс для видимого элемента */
+.additional-works-visible {
+    display: block !important;
+}
+
+/* Класс для гибкого контейнера */
+.additional-works-flex {
+    display: flex !important;
+}
+
+/* ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА ===== */
+
+/* Оверлей для модального окна */
+.additional-works-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.additional-works-modal-overlay.additional-works-active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Само модальное окно */
+.additional-works-modal {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    transform: translateY(-50px);
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.additional-works-modal.additional-works-active {
+    transform: translateY(0);
+}
+
+/* Заголовок модального окна */
+.additional-works-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    background-color: #f8f9fa;
+}
+
+.additional-works-modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.additional-works-modal-header h3 i {
+    color: #f39c12;
+}
+
+/* Кнопка закрытия модального окна */
+.additional-works-modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #666;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.additional-works-modal-close-btn:hover {
+    background-color: #eee;
+    color: #333;
+}
+
+/* Тело модального окна */
+.additional-works-modal-body {
+    padding: 20px;
+}
+
+/* Группы формы */
+.additional-works-form-group {
+    margin-bottom: 20px;
+}
+
+.additional-works-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.additional-works-form-group label i {
+    color: #f39c12;
+    width: 16px;
+}
+
+/* Поля ввода в модальном окне */
+.additional-works-modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.additional-works-modal-input:focus {
+    outline: none;
+    border-color: #f39c12;
+    box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.1);
+}
+
+/* Подсказки под полями */
+.additional-works-form-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Футер формы */
+.additional-works-form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+/* Кнопки в футере */
+.additional-works-modal-cancel-btn,
+.additional-works-modal-submit-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.additional-works-modal-cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.additional-works-modal-cancel-btn:hover {
+    background-color: #5a6268;
+}
+
+.additional-works-modal-submit-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.additional-works-modal-submit-btn:hover {
+    background-color: #218838;
+}
+
+.additional-works-modal-submit-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* ===== СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ ===== */
+
+.additional-works-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 300px;
+    max-width: 400px;
+    z-index: 9999;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.additional-works-notification.additional-works-notification-show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.additional-works-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.additional-works-notification-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    font-size: 14px;
+    padding: 5px;
+    margin-left: 10px;
+}
+
+.additional-works-notification-close:hover {
+    color: #333;
+}
+
+/* Типы уведомлений */
+.additional-works-notification-info {
+    border-left: 4px solid #3498db;
+}
+
+.additional-works-notification-success {
+    border-left: 4px solid #2ecc71;
+}
+
+.additional-works-notification-error {
+    border-left: 4px solid #e74c3c;
+}
+
+.additional-works-notification-warning {
+    border-left: 4px solid #f39c12;
 }

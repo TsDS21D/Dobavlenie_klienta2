@@ -13,12 +13,13 @@ index.html для приложения devices
 {% block extra_css %}
 <style>
     /* Специфичные стили для таблицы принтеров */
+    /* Обновляем: добавляем 7 колонку для метода интерполяции */
     .printers-table .table-header {
-        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 2fr;
+        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 1fr 2fr;
     }
     
     .printers-table .table-row {
-        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 2fr;
+        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 1fr 2fr;
     }
     
     /* Фиксированная высота строк для выравнивания */
@@ -32,7 +33,8 @@ index.html для приложения devices
     .col-format, 
     .col-dimensions, 
     .col-margin, 
-    .col-duplex, 
+    .col-duplex,
+    .col-interpolation, 
     .col-actions {
         display: flex;
         align-items: center;
@@ -57,7 +59,8 @@ index.html для приложения devices
         .col-format, 
         .col-dimensions, 
         .col-margin, 
-        .col-duplex, 
+        .col-duplex,
+        .col-interpolation,
         .col-actions {
             min-height: auto;
             padding: 0.75rem 0.5rem;
@@ -95,6 +98,13 @@ index.html для приложения devices
         
         .col-duplex::before {
             content: "Коэффициент: ";
+            font-weight: 600;
+            color: #555;
+            min-width: 120px;
+        }
+        
+        .col-interpolation::before {
+            content: "Интерполяция: ";
             font-weight: 600;
             color: #555;
             min-width: 120px;
@@ -235,6 +245,8 @@ index.html для приложения devices
                     <div class="col-dimensions">Размеры</div>
                     <div class="col-margin">Поля</div>
                     <div class="col-duplex">Коэфф.</div>
+                    <!-- НОВАЯ КОЛОНКА: Метод интерполяции -->
+                    <div class="col-interpolation">Интерполяция</div>
                     <div class="col-actions">Действия</div>
                 </div>
                 
@@ -339,6 +351,29 @@ index.html для приложения devices
                                        max="10.0"
                                        step="0.1"
                                        style="width: 70px;">
+                            </div>
+                        </div>
+                        
+                        <!-- НОВАЯ КОЛОНКА: Метод интерполяции -->
+                        <div class="col-interpolation">
+                            <!-- Режим просмотра -->
+                            <div class="view-mode editable-field" data-field="devices_interpolation_method">
+                                <span class="param-badge">{{ printer.get_interpolation_method_display_short }}</span>
+                            </div>
+                            
+                            <!-- Режим редактирования -->
+                            <div class="edit-mode" style="display: none;">
+                                <select name="devices_interpolation_method" 
+                                        class="edit-input edit-select"
+                                        data-field="devices_interpolation_method"
+                                        style="width: 100%;">
+                                    {% for method_value, method_name in INTERPOLATION_CHOICES %}
+                                        <option value="{{ method_value }}" 
+                                                {% if printer.devices_interpolation_method == method_value %}selected{% endif %}>
+                                            {{ method_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                         
@@ -672,6 +707,12 @@ function validatePrinterData(data) {
         return false;
     }
     
+    // Проверка метода интерполяции - НОВАЯ ВАЛИДАЦИЯ
+    if (!data.devices_interpolation_method) {
+        showNotification('error', 'Выберите метод интерполяции');
+        return false;
+    }
+    
     return true;
 }
 
@@ -714,11 +755,23 @@ function updateViewRow(printerId, printerData) {
         duplexElement.textContent = printerData.duplex_display;
     }
     
+    // Обновляем метод интерполяции - НОВОЕ ОБНОВЛЕНИЕ
+    const interpolationElement = row.querySelector('.col-interpolation .param-badge');
+    if (interpolationElement) {
+        interpolationElement.textContent = printerData.devices_interpolation_method_display;
+    }
+    
     // Важно: обновляем значение в поле ввода для будущих редактирований
     const duplexInput = row.querySelector('input[name="duplex_coefficient"]');
     if (duplexInput) {
         // Используем отформатированное значение из ответа сервера
         duplexInput.value = printerData.duplex_coefficient_formatted || printerData.duplex_coefficient;
+    }
+    
+    // Обновляем выпадающий список метода интерполяции
+    const interpolationSelect = row.querySelector('select[name="devices_interpolation_method"]');
+    if (interpolationSelect) {
+        interpolationSelect.value = printerData.devices_interpolation_method;
     }
     
     // Обновляем ссылку удаления
