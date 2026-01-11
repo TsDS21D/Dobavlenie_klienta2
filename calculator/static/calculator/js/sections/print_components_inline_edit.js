@@ -291,18 +291,7 @@ function print_components_create_add_modal(proschetId) {
                                 </select>
                             </div>
                             
-                            <!-- Количество листов (необязательное поле) -->
-                            <div class="form-group">
-                                <label for="component-sheet-count-${modalId}">
-                                    <i class="fas fa-copy"></i>
-                                    Количество листов
-                                </label>
-                                <input type="number" id="component-sheet-count-${modalId}" 
-                                       class="modal-input" min="1" value="1">
-                                <small class="form-hint">
-                                    Количество листов для печати. Необязательное поле.
-                                </small>
-                            </div>
+
                             
                             <!-- Цена за лист (автоматически рассчитывается, только для чтения) -->
                             <div class="form-group">

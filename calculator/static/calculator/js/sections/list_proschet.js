@@ -842,7 +842,11 @@ window.listProschetSection = {
     clearSearch: clearListProschetSearch,
     initScroll: initListProschetScrollContainer,
     // НОВОЕ: Добавляем функцию для обновления секции "Печатные компоненты"
-    updatePrintComponents: updatePrintComponentsSectionForProschet
+    updatePrintComponents: updatePrintComponentsSectionForProschet,
+    // ДОБАВЛЕНО: Функция для получения CSRF токена
+    getCsrfToken: getListProschetCsrfToken,
+    // ДОБАВЛЕНО: Функция для обновления секции "Изделие"
+    updateProductSectionTitle: updateProductSectionProschetTitle
 };
 
 console.log('✅ Основной файл секции "Список просчётов" загружен с поиском, скроллом и обновлением секции "Изделие"');

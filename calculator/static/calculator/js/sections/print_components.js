@@ -2,6 +2,7 @@
 sections/print_components.js - JavaScript для секции "Печатные компоненты"
 ОБНОВЛЕНО: Исправлен MutationObserver для правильного отслеживания тиража
 ИСПРАВЛЕНИЕ: Тираж теперь корректно применяется только к текущему просчёту
+ДОБАВЛЕНО: Улучшенная логика наблюдения с обработкой задержек обновления данных
 */
 
 "use strict";
@@ -24,6 +25,9 @@ let observedProschetId = null;
 const printComponentsApiUrls = {
     getComponents: '/calculator/get-print-components/', // Для получения компонентов просчёта
 };
+
+// Таймер для отложенной инициализации наблюдения (позволяет дождаться обновления данных)
+let observationTimeout = null;
 
 // ===== 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
 
@@ -85,6 +89,12 @@ function updatePrintComponentsForProschet(proschetId, rowElement) {
     
     // ВАЖНО: Останавливаем предыдущее наблюдение за тиражом
     stopCirculationObservation();
+    
+    // Сбрасываем таймер наблюдения если он был
+    if (observationTimeout) {
+        clearTimeout(observationTimeout);
+        observationTimeout = null;
+    }
     
     // Сохраняем ID текущего просчёта
     currentProschetId = proschetId;
@@ -163,8 +173,11 @@ function loadPrintComponentsForProschet(proschetId) {
             // Обновляем интерфейс с полученными данными
             updatePrintComponentsInterface(data.components || []);
             
-            // ВАЖНО: Инициализируем отслеживание тиража ПОСЛЕ загрузки компонентов
-            initCirculationObservationForProschet(proschetId);
+            // ИСПРАВЛЕНИЕ: Отложенная инициализация наблюдения за тиражом
+            // Даём время секции "Изделие" обновиться
+            observationTimeout = setTimeout(() => {
+                initCirculationObservationForProschet(proschetId);
+            }, 300); // 300мс задержка чтобы данные успели обновиться
             
             console.log(`✅ Загружено ${currentPrintComponents.length} компонентов печати`);
         } else {
@@ -332,8 +345,8 @@ function updateTotalPrice(components) {
     totalContainer.style.display = 'flex';
     
     console.log(`✅ Общая стоимость компонентов печати: ${totalPrice.toFixed(2)} ₽`);
-    // ВАЖНО: ВСЕГДА отправляем событие, даже если не нашли элементы в своей секции
-    // Секция "Цена" будет слушать это событие и обновлять свои элементы
+    
+    // Отправляем событие для обновления других секций
     if (currentProschetId) {
         const event = new CustomEvent('printComponentsUpdated', {
             detail: {
@@ -344,9 +357,6 @@ function updateTotalPrice(components) {
         document.dispatchEvent(event);
         console.log(`📤 Событие printComponentsUpdated отправлено для просчёта ${currentProschetId}`);
     }
-
-
-
 }
 
 // ===== 5. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА =====
@@ -620,7 +630,7 @@ function extractCirculationFromText(text) {
 
 /**
  * Инициализирует наблюдение за тиражом для указанного просчёта
- * ВАЖНО: Создаёт новый MutationObserver для каждого просчёта
+ * ВАЖНО: Исправленная версия с проверкой актуальности данных
  * @param {number} proschetId - ID просчёта
  */
 function initCirculationObservationForProschet(proschetId) {
@@ -628,6 +638,12 @@ function initCirculationObservationForProschet(proschetId) {
     
     // Останавливаем предыдущее наблюдение
     stopCirculationObservation();
+    
+    // ИСПРАВЛЕНИЕ: Проверяем, что это тот же просчёт, который сейчас выбран
+    if (proschetId !== currentProschetId) {
+        console.warn(`⚠️ Пропускаем наблюдение: запрошено для просчёта ${proschetId}, а текущий ${currentProschetId}`);
+        return;
+    }
     
     // Находим элемент отображения тиража в секции "Изделие"
     const circulationDisplayElement = document.getElementById('product-circulation-display');
@@ -637,11 +653,24 @@ function initCirculationObservationForProschet(proschetId) {
         return;
     }
     
-    // Проверяем, что это тот же просчёт, что и в элементе
+    // ИСПРАВЛЕНИЕ: Проверяем наличие data-proschet-id, но не блокируем инициализацию если его нет
     const elementProschetId = circulationDisplayElement.dataset.proschetId;
-    if (elementProschetId && elementProschetId != proschetId) {
-        console.warn(`⚠️ Пропускаем наблюдение: элемент тиража принадлежит просчёту ${elementProschetId}, а не ${proschetId}`);
-        return;
+    
+    // Если у элемента есть proschetId, проверяем совпадение
+    if (elementProschetId) {
+        if (parseInt(elementProschetId) !== parseInt(proschetId)) {
+            console.warn(`⚠️ Пропускаем наблюдение: элемент тиража принадлежит просчёту ${elementProschetId}, а не ${proschetId}`);
+            
+            // ИСПРАВЛЕНИЕ: Пытаемся обновить data-proschet-id элемента
+            circulationDisplayElement.dataset.proschetId = proschetId;
+            console.log(`🔄 Обновлен data-proschet-id элемента тиража на ${proschetId}`);
+            
+            // Продолжаем инициализацию после обновления
+        }
+    } else {
+        // Если у элемента нет proschetId, устанавливаем его
+        circulationDisplayElement.dataset.proschetId = proschetId;
+        console.log(`✅ Установлен data-proschet-id элемента тиража: ${proschetId}`);
     }
     
     // Извлекаем текущее значение тиража
@@ -658,15 +687,15 @@ function initCirculationObservationForProschet(proschetId) {
     // Сохраняем ID просчёта, за которым наблюдаем
     observedProschetId = proschetId;
     
-    // ВАЖНО: Создаём новый обработчик для текущего просчёта
+    // Создаём новый обработчик для текущего просчёта
     const circulationChangeHandler = function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.type === 'characterData' || mutation.type === 'childList') {
                 const newText = circulationDisplayElement.textContent.trim();
                 const newCirculation = extractCirculationFromText(newText);
                 
-                // Проверяем, что изменение относится к текущему просчёту
-                if (newCirculation && observedProschetId === proschetId) {
+                // ИСПРАВЛЕНИЕ: Проверяем, что изменение относится к текущему просчёту
+                if (newCirculation && currentProschetId === proschetId) {
                     console.log(`🔄 Обнаружено изменение тиража для просчёта ${proschetId}: ${initialCirculation} → ${newCirculation}`);
                     
                     // Показываем уведомление
@@ -674,8 +703,8 @@ function initCirculationObservationForProschet(proschetId) {
                     
                     // Пересчитываем компоненты только для текущего просчёта
                     recalculatePrintComponentsForCirculation(proschetId, newCirculation);
-                } else {
-                    console.log(`ℹ️ Изменение тиража проигнорировано: наблюдаем за ${observedProschetId}, а тираж изменился в элементе просчёта ${elementProschetId}`);
+                } else if (newCirculation) {
+                    console.log(`ℹ️ Изменение тиража проигнорировано: текущий просчёт ${currentProschetId}, а изменение для ${proschetId}`);
                 }
             }
         });
@@ -703,6 +732,12 @@ function stopCirculationObservation() {
         circulationObserver = null;
         observedProschetId = null;
         console.log('🛑 Наблюдение за изменениями тиража остановлено');
+    }
+    
+    // Очищаем таймер если он есть
+    if (observationTimeout) {
+        clearTimeout(observationTimeout);
+        observationTimeout = null;
     }
 }
 
