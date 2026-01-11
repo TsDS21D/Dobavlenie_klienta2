@@ -223,11 +223,13 @@ function updateCollapseButtonIcon(button, isCollapsed) {
         // Свернутое состояние: стрелка вправо
         icon.className = 'fas fa-chevron-right';
         button.setAttribute('title', 'Развернуть секцию');
+        button.setAttribute('aria-label', 'Развернуть секцию');
         console.log('   Иконка изменена на: fa-chevron-right (свернуто)');
     } else {
         // Развернутое состояние: стрелка вниз
         icon.className = 'fas fa-chevron-down';
         button.setAttribute('title', 'Свернуть секцию');
+        button.setAttribute('aria-label', 'Свернуть секцию');
         console.log('   Иконка изменена на: fa-chevron-down (развернуто)');
     }
 }
