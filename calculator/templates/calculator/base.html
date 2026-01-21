@@ -1,41 +1,63 @@
-<!--
-base.html для приложения calculator
-Обновлен для подключения CSS новой секции
+<!-- 
+calculator/templates/calculator/base.html
+Базовый шаблон для приложения calculator
+Самодостаточный, не наследует от sheet_formats/base.html
+Содержит всю необходимую структуру HTML, CSS и JS для работы калькулятора
 -->
 
-{% extends "sheet_formats/base.html" %}
-
-{% block extra_css %}
-{% load static %}
-<link rel="stylesheet" href="{% static 'calculator/css/base.css' %}">
-<!-- Подключение CSS для новой секции -->
-<link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/proschet.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/product.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/client.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/print_components.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/additional_works.css' %}">
-<link rel="stylesheet" href="{% static 'calculator/css/sections/price.css' %}">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-    html, body {
-        overflow-x: hidden !important;
-        max-width: 100% !important;
-        position: relative !important;
-    }
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    @media (max-width: 1137px) {
-        .container {
-            width: 100% !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
+    <!-- Динамический заголовок страницы -->
+    <title>{% block title %}Калькулятор{% endblock %} - Система управления</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Подключаем основные CSS стили для calculator -->
+    <link rel="stylesheet" href="{% static 'calculator/css/base.css' %}">
+    
+    <!-- Дополнительные блоки для CSS из дочерних шаблонов -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Мета-тег для отключения масштабирования на мобильных -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- Стили для фиксации прокрутки -->
+    <style>
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100% !important;
+            position: relative !important;
         }
-    }
-</style>
-{% endblock %}
-
-{% block extra_js %}
-{% load static %}
-<script src="{% static 'calculator/js/base.js' %}"></script>
-{% endblock %}
+        
+        @media (max-width: 1137px) {
+            .container {
+                width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Включаем панели приложений из counter -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"calculator" %}
+    
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        <!-- Блок для контента страницы -->
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Подключаем базовый JavaScript для calculator -->
+    <script src="{% static 'calculator/js/base.js' %}"></script>
+    
+    <!-- Дополнительные блоки для JavaScript из дочерних шаблонов -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

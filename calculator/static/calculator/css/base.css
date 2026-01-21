@@ -1,530 +1,638 @@
 /* 
 calculator/static/calculator/css/base.css
-ОПТИМИЗИРОВАННАЯ ВЕРСИЯ - УБРАНЫ ДУБЛИРУЮЩИЕСЯ СТИЛИ, УЛУЧШЕНА КНОПКА СВОРАЧИВАНИЯ
+Полный CSS файл для приложения calculator
+Включает все стили из sheet_formats + специфичные для calculator
 */
 
-/* ===== 1. БАЗОВЫЕ НАСТРОЙКИ КОНТЕЙНЕРА ===== */
-/* Основной контейнер для всего содержимого страницы */
+/* ===== 1. БАЗОВЫЕ СТИЛИ ИЗ SHEET_FORMATS ===== */
+
+/* Всегда показываем скроллбар для избежания смещения контента */
+html {
+    overflow-y: scroll;
+}
+
+/* Сброс стандартных отступов и использование border-box модели */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Стили для всего тела страницы */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+/* Основной контейнер страницы */
 .container {
-    max-width: 1200px;              /* Максимальная ширина 1200px для больших экранов */
-    margin: 0 auto;                 /* Центрирование по горизонтали */
-    background: white;              /* Белый фон для контраста */
-    border-radius: 20px;            /* Скругленные углы 20px для современного вида */
-    padding: 1.5rem;                /* Внутренние отступы 1.5rem (24px) со всех сторон */
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); /* Тень для эффекта глубины */
-    width: 100%;                    /* Ширина 100% от родительского контейнера */
-    box-sizing: border-box;         /* padding и border включаются в общую ширину */
-    overflow-x: hidden;             /* Скрытие горизонтального скролла */
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== 2. КОНТЕЙНЕР ДЛЯ СЕКЦИЙ ===== */
-/* Контейнер, в котором расположены все секции калькулятора */
-.calculator-sections {
-    display: flex;                  /* Используем flexbox для расположения дочерних элементов */
-    flex-direction: column;         /* Располагаем дочерние элементы вертикально (колонкой) */
-    gap: 1.2rem;                    /* Расстояние между секциями 1.2rem (19.2px) */
-    margin-top: 1.5rem;             /* Отступ сверху 1.5rem (24px) */
+/* Заголовки */
+h1 {
+    color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
 }
 
-/* ===== 3. ОБЩИЕ СТИЛИ ДЛЯ СЕКЦИЙ ===== */
-/* Базовые стили для всех секций калькулятора */
-.calculator-section {
-    background: white;              /* Белый фон секции */
-    padding: 1rem;                  /* Внутренние отступы 1rem (16px) со всех сторон */
-    border-radius: 12px;            /* Скругленные углы 12px */
-    border: 1px solid #e0e0e0;      /* Светло-серая рамка толщиной 1px */
-    display: flex;                  /* Используем flexbox для внутренней организации */
-    flex-direction: column;         /* Располагаем содержимое секции вертикально */
-    overflow: hidden;               /* Скрываем содержимое, выходящее за границы */
-    transition: all 0.3s ease;      /* Плавный переход 0.3 секунды для всех CSS-свойств */
+h2 {
+    color: #333;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
 }
 
-/* Эффект при наведении курсора на секцию */
-.calculator-section:hover {
-    border-color: #0B8661;          /* Изменяем цвет рамки на зеленый (#0B8661) */
-    transform: translateY(-2px);    /* Поднимаем секцию на 2px вверх */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Добавляем легкую тень */
+/* ===== 2. СТИЛИ НАВИГАЦИОННЫХ ПАНЕЛЕЙ ИЗ SHEET_FORMATS ===== */
+
+/* Контейнер для всех навигационных панелей приложений */
+.app-nav-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
 }
 
-/* Стили для главной секции "Просчёт" */
-.calculator-section.main-section {
-    margin-bottom: 0.5rem;          /* Уменьшенный отступ снизу 0.5rem (8px) */
+/* Общий стиль для каждой навигационной панели приложения */
+.nav-panel {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 60px;
 }
 
-/* Стили для вложенных секций внутри главной */
-.main-section .calculator-section {
-    margin-bottom: 1rem;            /* Отступ снизу 1rem (16px) между вложенными секциями */
-    border: 1px solid #ddd;         /* Более светлая рамка толщиной 1px */
-    background: #f9f9f9;            /* Светло-серый фон для визуального отделения */
-    padding: 0.8rem;                /* Уменьшенные внутренние отступы 0.8rem (12.8px) */
-    box-shadow: none;               /* Убираем тень у вложенных секций */
+/* Контейнер для текстовой информации в навигационной панели */
+.nav-info {
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
 }
 
-/* Эффект при наведении на вложенные секции */
-.main-section .calculator-section:hover {
-    border-color: #aaa;             /* Изменяем цвет рамки на темно-серый (#aaa) */
-    transform: none;                /* Отменяем поднятие при наведении */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Легкая тень при наведении */
+/* Название приложения в навигационной панели */
+.nav-info strong {
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
 }
 
-/* ===== 4. СТИЛИ ДЛЯ СВЕРНУТЫХ СЕКЦИЙ ===== */
-/* Секция в свернутом состоянии (когда добавлен класс .collapsed) */
-.calculator-section.collapsed {
-    min-height: auto;               /* Минимальная высота определяется содержимым */
-    max-height: 60px;               /* Максимальная высота 60px для компактности */
-    overflow: hidden;               /* Скрываем содержимое, выходящее за границы */
-    padding-bottom: 0.5rem;         /* Уменьшенный отступ снизу 0.5rem (8px) */
-    border-color: #ccc;             /* Светло-серая рамка для свернутой секции */
-    box-shadow: none;               /* Убираем тень у свернутой секции */
-    transform: none;                /* Отменяем transform из hover-эффекта */
+/* Описание приложения в навигационной панели */
+.nav-info div {
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Эффект при наведении на свернутую секцию */
-.calculator-section.collapsed:hover {
-    border-color: #0B8661;          /* При наведении рамка становится зеленой */
+/* Общие стили для всех кнопок навигации */
+.nav-btn {
+    padding: 8px 15px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    font-size: 0.85rem !important;
+    min-width: 80px !important;
+    width: 80px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    line-height: normal !important;
+    margin: 0 !important;
 }
 
-/* Скрытие содержимого свернутой секции */
-.calculator-section.collapsed .section-body {
-    display: none !important;       /* Полностью скрываем тело секции (важно для гарантии) */
-    height: 0;                      /* Устанавливаем высоту 0 */
-    padding: 0;                     /* Убираем внутренние отступы */
-    margin: 0;                      /* Убираем внешние отступы */
-    overflow: hidden;               /* Скрываем переполнение содержимого */
-    visibility: hidden;             /* Делаем элемент невидимым (альтернатива display:none) */
+/* Кнопка выхода из системы (красная) */
+.nav-btn-logout {
+    background: #f44336 !important;
+    color: white !important;
 }
 
-/* Показ содержимого развернутой секции */
-.calculator-section:not(.collapsed) .section-body {
-    display: block;                 /* Показываем тело секции в блочном режиме */
+/* Активная кнопка (текущее приложение) - зеленая */
+.nav-btn-active {
+    background: #0B8661 !important;
+    color: white !important;
 }
 
-/* ===== 5. ЗАГОЛОВОК СЕКЦИИ ===== */
-/* Контейнер для заголовка секции и кнопок управления */
-.section-header {
-    display: flex;                  /* Используем flexbox для горизонтального расположения */
-    justify-content: space-between; /* Распределяем пространство между элементами */
-    align-items: center;            /* Выравниваем элементы по вертикали по центру */
-    margin-bottom: 1rem;            /* Отступ снизу 1rem (16px) */
-    padding-bottom: 0.8rem;         /* Внутренний отступ снизу 0.8rem (12.8px) */
-    border-bottom: 2px solid #f0f0f0; /* Светло-серая нижняя граница толщиной 2px */
+/* Неактивная кнопка (другое приложение) - серая */
+.nav-btn-inactive {
+    background: #e0e0e0 !important;
+    color: #333 !important;
 }
 
-/* Заголовок секции в свернутом состоянии */
-.calculator-section.collapsed .section-header {
-    margin-bottom: 0;               /* Убираем отступ снизу */
-    padding-bottom: 0.5rem;         /* Уменьшаем внутренний отступ снизу до 0.5rem */
-    border-bottom: none;            /* Убираем нижнюю границу */
+/* Эффект при наведении на любую кнопку навигации */
+.nav-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Стили для текста заголовка (элемент h2) */
-.section-header h2 {
-    margin: 0;                      /* Убираем стандартные отступы браузера */
-    font-size: 1.2rem;              /* Размер шрифта 1.2rem (19.2px) */
-    color: #333;                    /* Темно-серый цвет текста */
-    display: flex;                  /* Используем flexbox для расположения номера и текста */
-    align-items: center;            /* Выравниваем элементы по вертикали по центру */
-    gap: 0.5rem;                    /* Расстояние между номером и текстом 0.5rem (8px) */
+/* Особые стили для ссылок в навигации */
+a.nav-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-/* ===== 6. НОМЕР СЕКЦИИ ===== */
-/* Стили для зеленого кружка с номером секции */
-.section-number {
-    background: #0B8661;            /* Зеленый фон (#0B8661) */
-    color: white;                   /* Белый цвет текста */
-    width: 1.8rem;                  /* Ширина 1.8rem (28.8px) */
-    height: 1.8rem;                 /* Высота 1.8rem (28.8px) - получается квадрат */
-    border-radius: 50%;             /* Делаем элемент круглым (50% от размеров) */
-    display: flex;                  /* Используем flexbox для центрирования номера */
-    align-items: center;            /* Центрируем номер по вертикали */
-    justify-content: center;        /* Центрируем номер по горизонтали */
-    font-size: 0.9rem;              /* Размер шрифта 0.9rem (14.4px) */
-    font-weight: bold;              /* Жирное начертание шрифта */
+/* ===== 3. СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ ИЗ SHEET_FORMATS ===== */
+
+/* Уведомления */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    word-break: break-word;
+    transform: translateX(0);
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    animation: slideIn 0.3s ease, fadeOut 0.3s ease 4.7s;
 }
 
-/* ===== 7. КОНТЕЙНЕР ДЛЯ КНОПОК УПРАВЛЕНИЯ ===== */
-/* Блок, содержащий кнопки в правой части заголовка секции */
-.header-buttons {
-    display: flex;                  /* Используем flexbox для горизонтального расположения кнопок */
-    gap: 0.4rem;                    /* Расстояние между кнопками 0.4rem (6.4px) */
-    align-items: center;            /* Выравниваем кнопки по вертикали по центру */
-}
-
-/* ===== 8. ОБЩИЕ СТИЛИ ДЛЯ КНОПОК ===== */
-/* Базовые стили для всех кнопок действий */
-.btn-action {
-    padding: 0.4rem 0.8rem;         /* Внутренние отступы: 0.4rem сверху/снизу, 0.8rem слева/справа */
-    border: none;                   /* Убираем стандартную рамку браузера */
-    border-radius: 6px;             /* Скругленные углы 6px */
-    font-size: 0.85rem;             /* Размер шрифта 0.85rem (13.6px) */
-    cursor: pointer;                /* Курсор в виде руки при наведении */
-    transition: all 0.2s ease;      /* Плавный переход 0.2 секунды для всех свойств */
-    display: flex;                  /* Используем flexbox для расположения иконки и текста */
-    align-items: center;            /* Выравниваем иконку и текст по вертикали по центру */
-    gap: 0.3rem;                    /* Расстояние между иконкой и текстом 0.3rem (4.8px) */
-    white-space: nowrap;            /* Запрещаем перенос текста на новую строку */
-}
-
-/* ===== 9. УЛУЧШЕННАЯ КНОПКА СВОРАЧИВАНИЯ ===== */
-/* Стили для кнопки сворачивания/разворачивания секции - ИСПРАВЛЕНО */
-.btn-collapse-section {
-    background: #f5f5f5;            /* Светло-серый фон (#f5f5f5) */
-    color: #333;                    /* Темно-серый цвет текста */
-    border: 1px solid #ddd;         /* Светло-серая рамка толщиной 1px */
-    cursor: pointer;                /* Курсор в виде руки при наведении */
-    user-select: none;              /* Запрещаем выделение текста кнопки */
-    padding: 0.3rem 0.6rem;         /* Уменьшенные внутренние отступы для компактности */
-    min-width: 24px;                /* ДОБАВЛЕНО: минимальная ширина 34px (выровнена с высотой) */
-    min-height: 24px;               /* ДОБАВЛЕНО: минимальная высота 34px */
-    justify-content: center;        /* Центрируем содержимое по горизонтали */
-    flex-shrink: 0;                 /* ДОБАВЛЕНО: запрещаем сжатие кнопки */
-    align-self: center;             /* ДОБАВЛЕНО: выравниваем по центру относительно родителя */
-    margin: 0;                      /* ДОБАВЛЕНО: убираем внешние отступы */
-    position: relative;             /* ДОБАВЛЕНО: для стабильного позиционирования */
-    top: 0;                         /* ДОБАВЛЕНО: сбрасываем вертикальное смещение */
-}
-
-/* Кнопка сворачивания в свернутой секции - ДОБАВЛЕНО */
-.calculator-section.collapsed .btn-collapse-section {
-    margin-top: 0;                  /* ДОБАВЛЕНО: убираем отступ сверху */
-    margin-bottom: 0;               /* ДОБАВЛЕНО: убираем отступ снизу */
-    position: static;               /* ДОБАВЛЕНО: нормальное позиционирование */
-    transform: none;                /* ДОБАВЛЕНО: сбрасываем трансформации */
-    align-self: center;             /* ДОБАВЛЕНО: выравниваем по центру */
-}
-
-/* Эффект при наведении на кнопку сворачивания */
-.btn-collapse-section:hover {
-    background: #e0e0e0;            /* Более темный серый фон при наведении */
-    transform: scale(1.05);         /* Легкое увеличение кнопки на 5% */
-}
-
-/* Эффект при нажатии (активации) кнопки сворачивания */
-.btn-collapse-section:active {
-    transform: scale(0.95);         /* Легкое уменьшение кнопки на 5% при нажатии */
-    background: #d0d0d0;            /* Еще более темный серый фон при нажатии */
-}
-
-/* Стили для фокуса на кнопке (при навигации с клавиатуры) */
-.btn-collapse-section:focus {
-    outline: 2px solid #0B8661;     /* Зеленая рамка-обводка толщиной 2px */
-    outline-offset: 2px;            /* Отступ обводки от края кнопки 2px */
-}
-
-/* Стили для иконки внутри кнопки сворачивания */
-.btn-collapse-section i {
-    font-size: 0.9rem;              /* Размер иконки 0.9rem (14.4px) */
-    transition: transform 0.3s ease; /* Плавный переход 0.3 секунды для анимации иконки */
-    color: #555;                    /* Темно-серый цвет иконки */
-    display: block;                 /* ДОБАВЛЕНО: делаем блочным для лучшего контроля */
-    line-height: 1;                 /* ДОБАВЛЕНО: нормализуем межстрочный интервал */
-    margin: 0;                      /* ДОБАВЛЕНО: убираем внешние отступы */
-}
-
-/* Анимация поворота иконки при свертывании */
-.calculator-section.collapsed .btn-collapse-section i {
-    transform: rotate(-90deg);      /* Поворачиваем иконку на -90 градусов */
-    transform-origin: center;       /* ДОБАВЛЕНО: вращаем вокруг центра */
-    position: static;               /* ДОБАВЛЕНО: нормальное позиционирование */
-}
-
-/* ===== 10. КНОПКА РАСЧЕТА ЦЕНЫ ===== */
-/* Стили для зеленой кнопки расчета стоимости */
-.btn-calculate-price {
-    background: #0B8661;            /* Зеленый фон (#0B8661) */
-    color: white;                   /* Белый цвет текста */
-}
-
-/* Эффект при наведении на активную кнопку расчета */
-.btn-calculate-price:hover:not(:disabled) {
-    background: #097055;            /* Более темный зеленый фон при наведении */
-}
-
-/* Стили для отключенной кнопки расчета */
-.btn-calculate-price:disabled {
-    background: #cccccc;            /* Серый фон для отключенной кнопки */
-    cursor: not-allowed;            /* Курсор "недоступно" для отключенной кнопки */
-    opacity: 0.6;                   /* Полупрозрачность 60% для отключенной кнопки */
-}
-
-/* ===== 11. ТЕЛО СЕКЦИИ ===== */
-/* Контейнер для основного содержимого секции */
-.section-body {
-    padding: 0.5rem;                /* Внутренние отступы 0.5rem (8px) со всех сторон */
-    min-height: 200px;              /* Минимальная высота 200px для пустых секций */
-    display: flex;                  /* Используем flexbox для внутренней организации */
-    flex-direction: column;         /* Располагаем содержимое вертикально */
-    justify-content: center;        /* Центрируем содержимое по вертикали (если оно мало) */
-    transition: all 0.3s ease;      /* Плавный переход 0.3 секунды для всех свойств */
-}
-
-/* Тело главной секции "Просчёт" */
-.main-section .section-body {
-    padding: 1rem;                  /* Увеличенные внутренние отступы 1rem (16px) */
-    min-height: 400px;              /* Увеличенная минимальная высота 400px */
-}
-
-/* ===== 12. КОНТЕЙНЕР ДЛЯ ВЛОЖЕННЫХ СЕКЦИЙ ===== */
-/* Контейнер для организации вложенных секций внутри главной */
-.nested-sections {
-    display: flex;                  /* Используем flexbox для расположения строк */
-    flex-direction: column;         /* Располагаем строки вертикально */
-    gap: 1.5rem;                    /* Расстояние между строками 1.5rem (24px) */
-}
-
-/* Строка внутри контейнера вложенных секций */
-.nested-row {
-    display: flex;                  /* Используем flexbox для расположения колонок */
-    gap: 1rem;                      /* Расстояние между колонками 1rem (16px) */
-    width: 100%;                    /* Ширина 100% от родительского контейнера */
-}
-
-/* Колонка внутри строки */
-.nested-col {
-    flex: 1;                        /* Занимает доступное пространство пропорционально */
-    display: flex;                  /* Используем flexbox для внутренней организации */
-    flex-direction: column;         /* Располагаем содержимое вертикально */
-}
-
-/* Колонка, занимающая половину ширины строки */
-.nested-col[data-col-size="half"] {
-    flex: 0 0 calc(50% - 0.5rem);   /* Фиксированная ширина 50% минус половина gap */
-}
-
-/* Колонка, занимающая всю ширину строки */
-.nested-col[data-col-size="full"] {
-    flex: 0 0 100%;                 /* Фиксированная ширина 100% */
-}
-
-/* ===== 13. ЗАГЛУШКА ДЛЯ ПУСТЫХ СЕКЦИЙ ===== */
-/* Стили для временных заглушек в еще не реализованных секциях */
-.section-placeholder {
-    text-align: center;             /* Выравнивание текста по центру */
-    color: #666;                    /* Серый цвет текста */
-    padding: 1.5rem;                /* Внутренние отступы 1.5rem (24px) */
-    border: 2px dashed #e0e0e0;     /* Пунктирная светло-серая рамка толщиной 2px */
-    border-radius: 8px;             /* Скругленные углы 8px */
-    background: #fafafa;            /* Светло-серый фон (#fafafa) */
-}
-
-/* Иконка внутри заглушки (увеличенная) */
-.section-placeholder i.fa-3x {
-    color: #0B8661;                 /* Зеленый цвет иконки */
-    margin-bottom: 1rem;            /* Отступ снизу 1rem (16px) */
-    display: block;                 /* Отображаем иконку как блочный элемент */
-}
-
-/* Заголовок внутри заглушки */
-.section-placeholder h3 {
-    color: #333;                    /* Темно-серый цвет текста */
-    margin-bottom: 1rem;            /* Отступ снизу 1rem (16px) */
-    font-size: 1.3rem;              /* Размер шрифта 1.3rem (20.8px) */
-}
-
-/* Текст внутри заглушки */
-.section-placeholder p {
-    margin-bottom: 1.5rem;          /* Отступ снизу 1.5rem (24px) */
-    line-height: 1.6;               /* Межстрочный интервал 1.6 (160% от размера шрифта) */
-}
-
-/* Список возможностей внутри заглушки */
-.placeholder-list {
-    list-style: none;               /* Убираем стандартные маркеры списка */
-    padding: 0;                     /* Убираем стандартные внутренние отступы */
-    margin: 0 0 1.5rem 0;           /* Убираем отступы сверху и слева, добавляем снизу 1.5rem */
-    text-align: left;               /* Выравнивание текста по левому краю */
-    display: inline-block;          /* Ширина определяется содержимым */
-}
-
-/* Элемент списка внутри заглушки */
-.placeholder-list li {
-    padding: 0.5rem 0;              /* Отступы сверху/снизу 0.5rem (8px) */
-    display: flex;                  /* Используем flexbox для расположения иконки и текста */
-    align-items: center;            /* Выравниваем иконку и текст по вертикали по центру */
-    gap: 0.5rem;                    /* Расстояние между иконкой и текстом 0.5rem (8px) */
-    color: #555;                    /* Темно-серый цвет текста */
-}
-
-/* Иконка внутри элемента списка */
-.placeholder-list i {
-    color: #0B8661;                 /* Зеленый цвет иконки */
-    width: 1.2rem;                  /* Фиксированная ширина 1.2rem (19.2px) */
-}
-
-/* Примечание внизу заглушки */
-.placeholder-note {
-    display: flex;                  /* Используем flexbox для расположения иконки и текста */
-    align-items: center;            /* Выравниваем элементы по вертикали по центру */
-    justify-content: center;        /* Центрируем по горизонтали */
-    gap: 0.5rem;                    /* Расстояние между иконкой и текстом 0.5rem (8px) */
-    color: #777;                    /* Светло-серый цвет текста */
-    font-style: italic;             /* Курсивное начертание шрифта */
-}
-
-/* ===== 14. СТИЛИ ДЛЯ БЛОКА ЦЕНЫ ===== */
-/* Контейнер для отображения итоговой стоимости */
-.price-summary {
-    background: white;              /* Белый фон */
-    border: 1px solid #e0e0e0;      /* Светло-серая рамка толщиной 1px */
-    border-radius: 8px;             /* Скругленные углы 8px */
-    padding: 1.5rem;                /* Внутренние отступы 1.5rem (24px) */
-    margin: 1.5rem 0;               /* Отступы сверху/снизу 1.5rem (24px) */
-    max-width: 400px;               /* Максимальная ширина 400px */
-    margin-left: auto;              /* Автоматический отступ слева для центрирования */
-    margin-right: auto;             /* Автоматический отступ справа для центрирования */
-}
-
-/* Строка с отдельной позицией в блоке цены */
-.price-row {
-    display: flex;                  /* Используем flexbox для расположения названия и значения */
-    justify-content: space-between; /* Распределяем пространство между названием и ценой */
-    padding: 0.8rem 0;              /* Отступы сверху/снизу 0.8rem (12.8px) */
-    border-bottom: 1px solid #f0f0f0; /* Светло-серая нижняя граница толщиной 1px */
-}
-
-/* Последняя строка в блоке цены */
-.price-row:last-child {
-    border-bottom: none;            /* Убираем нижнюю границу у последней строки */
-}
-
-/* Строка с итоговой суммой */
-.price-row.total {
-    font-weight: bold;              /* Жирное начертание шрифта */
-    font-size: 1.2rem;              /* Увеличенный размер шрифта 1.2rem (19.2px) */
-    color: #0B8661;                 /* Зеленый цвет текста */
-    border-top: 2px solid #0B8661;  /* Зеленая верхняя граница толщиной 2px */
-    padding-top: 1rem;              /* Увеличенный отступ сверху 1rem (16px) */
-    margin-top: 0.5rem;             /* Отступ сверху 0.5rem (8px) */
-}
-
-/* Название позиции в строке цены */
-.price-label {
-    color: #555;                    /* Темно-серый цвет текста */
-}
-
-/* Значение цены в строке */
-.price-value {
-    color: #333;                    /* Темно-серый цвет текста */
-    font-weight: 600;               /* Полужирное начертание шрифта */
-}
-
-/* ===== 15. УВЕДОМЛЕНИЯ ===== */
-/* Стили для всплывающих уведомлений (успех, ошибка и т.д.) */
-.calculator-notification {
-    position: fixed;                /* Фиксированное позиционирование относительно окна браузера */
-    top: 20px;                      /* Отступ сверху 20px */
-    right: 20px;                    /* Отступ справа 20px */
-    padding: 12px 24px;             /* Внутренние отступы: 12px сверху/снизу, 24px слева/справа */
-    border-radius: 8px;             /* Скругленные углы 8px */
-    color: white;                   /* Белый цвет текста */
-    font-weight: bold;              /* Жирное начертание шрифта */
-    font-size: 14px;                /* Размер шрифта 14px */
-    z-index: 99999;                 /* Очень высокий слой, чтобы быть поверх всех элементов */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Тень для эффекта глубины */
-    animation: calculatorNotificationFade 5s ease-in-out forwards; /* Анимация появления/исчезновения */
-    max-width: 400px;               /* Максимальная ширина 400px */
-    word-wrap: break-word;          /* Перенос длинных слов на новую строку */
-}
-
-/* Анимация для плавного появления и исчезновения уведомления */
-@keyframes calculatorNotificationFade {
-    0% { 
-        opacity: 0;                 /* Начало: полностью прозрачное */
-        transform: translateY(-20px) scale(0.9); /* Смещено вверх на 20px и уменьшено до 90% */
-    }
-    10% { 
-        opacity: 1;                 /* Появление: полностью непрозрачное */
-        transform: translateY(0) scale(1); /* Возврат на место и оригинальный размер */
-    }
-    90% { 
-        opacity: 1;                 /* Сохранение видимости */
-        transform: translateY(0) scale(1); /* Сохранение положения и размера */
-    }
-    100% { 
-        opacity: 0;                 /* Исчезновение: снова прозрачное */
-        transform: translateY(-20px) scale(0.9); /* Снова смещение вверх и уменьшение */
-        display: none;              /* Скрытие элемента после завершения анимации */
-    }
-}
-
-/* Цветовые стили для разных типов уведомлений */
+/* Цвета уведомлений */
 .notification-success {
-    background: linear-gradient(135deg, #4CAF50, #45a049); /* Зеленый градиентный фон */
-    border-left: 5px solid #2E7D32; /* Темно-зеленая левая граница толщиной 5px */
+    background-color: #69b66c;
 }
 
 .notification-error {
-    background: linear-gradient(135deg, #F44336, #d32f2f); /* Красный градиентный фон */
-    border-left: 5px solid #b71c1c; /* Темно-красная левая граница толщиной 5px */
+    background-color: #f44336;
+    border-left: 4px solid #c62828;
 }
 
 .notification-warning {
-    background: linear-gradient(135deg, #FF9800, #f57c00); /* Оранжевый градиентный фон */
-    border-left: 5px solid #e65100; /* Темно-оранжевая левая граница толщиной 5px */
+    background-color: #ff9800;
+    border-left: 4px solid #f57c00;
 }
 
 .notification-info {
-    background: linear-gradient(135deg, #2196F3, #1976D2); /* Синий градиентный фон */
-    border-left: 5px solid #0D47A1; /* Темно-синяя левая граница толщиной 5px */
+    background-color: #2196f3;
+    border-left: 4px solid #0d47a1;
 }
 
-/* ===== 16. СООБЩЕНИЯ DJANGO ===== */
-/* Контейнер для системных сообщений Django (изначально скрыт) */
-.django-messages {
-    display: none;                  /* Скрываем контейнер, показывается через JavaScript */
+/* Анимации уведомлений */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
-/* ===== 17. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
-/* Медиазапрос для экранов шириной до 1137px (планшеты и небольшие ноутбуки) */
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* ===== 4. СТИЛИ ДЛЯ ФОРМ И ТАБЛИЦ ИЗ SHEET_FORMATS ===== */
+
+/* Системные сообщения */
+.messages {
+    margin-bottom: 2rem;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+/* Формы */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    color: #555;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+    display: block;
+}
+
+input[type="text"], 
+input[type="email"], 
+input[type="tel"], 
+input[type="date"], 
+input[type="datetime-local"], 
+input[type="number"],
+textarea, 
+select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+input:focus, 
+textarea:focus, 
+select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 10px rgba(11, 134, 97, 0.2);
+}
+
+/* Кнопки */
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+button, 
+.btn-action {
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-submit {
+    flex: 1;
+    background: #0B8661;
+    color: white;
+    box-shadow: 0 4px 15px rgba(11, 134, 97, 0.6);
+}
+
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(11, 134, 97, 0.6);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-clear {
+    flex: 1;
+    background: #e0e0e0;
+    color: #333;
+}
+
+.btn-clear:hover {
+    background: #bdbdbd;
+}
+
+/* Таблицы */
+.printers-table {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 1.5rem;
+}
+
+.table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
+    background: #f8f9fa;
+    padding: 1rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.3s ease;
+}
+
+.table-row:hover {
+    background: #f8f9fa;
+}
+
+/* ===== 5. СПЕЦИФИЧНЫЕ СТИЛИ ДЛЯ CALCULATOR ===== */
+
+/* Контейнер для всего содержимого страницы калькулятора */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Контейнер для секций калькулятора */
+.calculator-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+}
+
+/* Общие стили для всех секций калькулятора */
+.calculator-section {
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.calculator-section:hover {
+    border-color: #0B8661;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Главная секция "Просчёт" */
+.calculator-section.main-section {
+    margin-bottom: 0.5rem;
+}
+
+/* Заголовок секции */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Номер секции */
+.section-number {
+    background: #0B8661;
+    color: white;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* Контейнер для кнопок управления */
+.header-buttons {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+/* Общие стили для кнопок действий */
+.btn-action {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+}
+
+/* Кнопка сворачивания/разворачивания секции */
+.btn-collapse-section {
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    user-select: none;
+    padding: 0.3rem 0.6rem;
+    min-width: 24px;
+    min-height: 24px;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: center;
+    margin: 0;
+    position: relative;
+    top: 0;
+}
+
+.btn-collapse-section:hover {
+    background: #e0e0e0;
+    transform: scale(1.05);
+}
+
+.btn-collapse-section:active {
+    transform: scale(0.95);
+    background: #d0d0d0;
+}
+
+.btn-collapse-section i {
+    font-size: 0.9rem;
+    transition: transform 0.3s ease;
+    color: #555;
+    display: block;
+    line-height: 1;
+    margin: 0;
+}
+
+/* Кнопка расчета цены */
+.btn-calculate-price {
+    background: #0B8661;
+    color: white;
+}
+
+.btn-calculate-price:hover:not(:disabled) {
+    background: #097055;
+}
+
+.btn-calculate-price:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Тело секции */
+.section-body {
+    padding: 0.5rem;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+/* Контейнер для вложенных секций */
+.nested-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.nested-row {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+}
+
+.nested-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.nested-col[data-col-size="half"] {
+    flex: 0 0 calc(50% - 0.5rem);
+}
+
+.nested-col[data-col-size="full"] {
+    flex: 0 0 100%;
+}
+
+/* ===== 6. СТИЛИ ДЛЯ СВЕРНУТЫХ СЕКЦИЙ ===== */
+
+.calculator-section.collapsed {
+    min-height: auto;
+    max-height: 60px;
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+    border-color: #ccc;
+    box-shadow: none;
+    transform: none;
+}
+
+.calculator-section.collapsed:hover {
+    border-color: #0B8661;
+}
+
+.calculator-section.collapsed .section-body {
+    display: none !important;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    visibility: hidden;
+}
+
+.calculator-section:not(.collapsed) .section-body {
+    display: block;
+}
+
+/* ===== 7. АДАПТИВНЫЕ СТИЛИ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
 @media (max-width: 1137px) {
-    /* Контейнер на планшетах */
+    body {
+        padding: 1.5rem;
+    }
+    
     .container {
-        padding: 1.2rem;            /* Уменьшенные внутренние отступы 1.2rem (19.2px) */
-        max-width: calc(100% - 1rem); /* Ширина 100% минус 1rem отступов по бокам */
-        margin: 0 0.5rem;           /* Небольшие отступы по бокам 0.5rem (8px) */
+        padding: 1.2rem;
+        max-width: calc(100% - 1rem);
+        margin: 0 0.5rem;
     }
     
-    /* Заголовок секции на планшетах */
     .section-header {
-        flex-direction: column;     /* Вертикальное расположение элементов заголовка */
-        align-items: stretch;       /* Растягивание элементов на всю ширину */
-        gap: 0.8rem;                /* Расстояние между элементами 0.8rem (12.8px) */
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.8rem;
     }
     
-    /* Кнопки в заголовке на планшетах */
     .header-buttons {
-        flex-direction: row;        /* Горизонтальное расположение кнопок */
-        width: 100%;                /* Ширина 100% от родительского контейнера */
-        justify-content: flex-end;  /* Выравнивание кнопок по правому краю */
-        gap: 0.4rem;                /* Расстояние между кнопками 0.4rem (6.4px) */
+        flex-direction: row;
+        width: 100%;
+        justify-content: flex-end;
+        gap: 0.4rem;
     }
     
-    /* Строки вложенных секций на планшетах */
     .nested-row {
-        flex-direction: column;     /* Вертикальное расположение колонок */
-        gap: 1rem;                  /* Расстояние между колонками 1rem (16px) */
+        flex-direction: column;
+        gap: 1rem;
     }
     
-    /* Колонки на планшетах */
     .nested-col {
-        flex: 0 0 100%;             /* Каждая колонка занимает 100% ширины строки */
+        flex: 0 0 100%;
     }
     
-    /* Специфичные колонки на планшетах */
     .nested-col[data-col-size="half"],
     .nested-col[data-col-size="full"] {
-        flex: 0 0 100%;             /* Также занимают 100% ширины */
+        flex: 0 0 100%;
     }
     
-    /* Заглушка на планшетах */
-    .section-placeholder {
-        padding: 1rem;              /* Уменьшенные внутренние отступы 1rem (16px) */
-    }
-    
-    /* Блок цены на планшетах */
-    .price-summary {
-        padding: 1rem;              /* Уменьшенные внутренние отступы 1rem (16px) */
-    }
+    /* Фиксация для свернутых секций */
     .calculator-section.collapsed .section-header {
         flex-direction: row !important;
         align-items: center !important;
@@ -542,8 +650,146 @@ calculator/static/calculator/css/base.css
     }
 }
 
-/* ===== ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ ДЛЯ ОЧЕНЬ МАЛЕНЬКИХ ЭКРАНОВ ===== */
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    
+    .container {
+        padding: 0.8rem;
+        margin: 0;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .calculator-sections {
+        gap: 1rem;
+    }
+    
+    .calculator-section {
+        padding: 0.8rem;
+    }
+    
+    .section-header h2 {
+        font-size: 1.1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    
+    .section-number {
+        width: 1.5rem;
+        height: 1.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .header-buttons {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .btn-collapse-section {
+        min-width: 36px;
+        min-height: 36px;
+        padding: 0.4rem;
+    }
+    
+    .section-body {
+        min-height: 150px;
+        padding: 0;
+    }
+    
+    .nested-sections {
+        gap: 1rem;
+    }
+    
+    .nested-row {
+        gap: 0.5rem;
+    }
+    
+    /* Специальные стили для свернутых секций на мобильных */
+    .calculator-section.collapsed {
+        max-height: 80px !important;
+        min-height: 80px !important;
+        padding: 0.5rem !important;
+        overflow: visible !important;
+    }
+    
+    .calculator-section.collapsed .section-header {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        height: 100% !important;
+        min-height: 70px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        position: relative !important;
+    }
+    
+    .calculator-section.collapsed .section-header h2 {
+        font-size: 1rem !important;
+        flex: 1 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        min-height: 40px !important;
+        max-width: 70% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    
+    .calculator-section.collapsed .header-buttons {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        position: absolute !important;
+        right: 5px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        height: auto !important;
+        min-height: 40px !important;
+        gap: 5px !important;
+        z-index: 10 !important;
+        background: transparent !important;
+    }
+    
+    .calculator-section.collapsed .btn-collapse-section {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        margin: 0 !important;
+        padding: 8px 10px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        font-size: 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        z-index: 20 !important;
+    }
+    
+    .calculator-section.collapsed .btn-collapse-section i {
+        font-size: 14px !important;
+        line-height: 1 !important;
+        margin: 0 !important;
+        width: 14px !important;
+        height: 14px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
 
+/* Для очень маленьких экранов (до 480px) */
 @media (max-width: 480px) {
     .calculator-section.collapsed {
         max-height: 70px !important;
@@ -569,199 +815,37 @@ calculator/static/calculator/css/base.css
     }
 }
 
+/* ===== 8. ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ КЛАССЫ ===== */
 
-/* ===== 18. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
-/* Медиазапрос для экранов шириной до 768px (мобильные телефоны) */
-@media (max-width: 768px) {
-    /* Контейнер на мобильных */
-    .container {
-        padding: 0.8rem;            /* Минимальные внутренние отступы 0.8rem (12.8px) */
-        margin: 0;                  /* Убираем горизонтальные отступы */
-        border-radius: 10px;        /* Уменьшенное скругление углов 10px */
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Более легкая тень */
-    }
-    
-    /* Контейнер секций на мобильных */
-    .calculator-sections {
-        gap: 1rem;                  /* Уменьшенное расстояние между секциями 1rem (16px) */
-    }
-    
-    /* Секции на мобильных */
-    .calculator-section {
-        padding: 0.8rem;            /* Уменьшенные внутренние отступы 0.8rem (12.8px) */
-    }
-    
-    /* Тело главной секции на мобильных */
-    .main-section .section-body {
-        padding: 0.5rem;            /* Уменьшенные внутренние отступы 0.5rem (8px) */
-        min-height: 300px;          /* Уменьшенная минимальная высота 300px */
-    }
-    
-    /* Заголовок секции на мобильных */
-    .section-header h2 {
-        font-size: 1.1rem;          /* Уменьшенный размер шрифта 1.1rem (17.6px) */
-        flex-direction: column;     /* Вертикальное расположение номера и текста */
-        align-items: flex-start;    /* Выравнивание по левому краю */
-        gap: 0.3rem;                /* Уменьшенное расстояние между элементами 0.3rem (4.8px) */
-    }
-    
-    /* Номер секции на мобильных */
-    .section-number {
-        width: 1.5rem;              /* Уменьшенная ширина 1.5rem (24px) */
-        height: 1.5rem;             /* Уменьшенная высота 1.5rem (24px) */
-        font-size: 0.8rem;          /* Уменьшенный размер шрифта 0.8rem (12.8px) */
-    }
-    
-    /* Кнопки в заголовке на мобильных */
-    .header-buttons {
-        justify-content: space-between; /* Равномерное распределение кнопок по ширине */
-        width: 100%;                /* Ширина 100% от родительского контейнера */
-    }
-    
-    /* Улучшенная кнопка сворачивания на мобильных */
-    .btn-collapse-section {
-        min-width: 36px;            /* Увеличенная минимальная ширина 36px для удобства касания */
-        min-height: 36px;           /* Увеличенная минимальная высота 36px для удобства касания */
-        padding: 0.4rem;            /* Увеличенные внутренние отступы 0.4rem (6.4px) */
-    }
-    
-    /* Тело секции на мобильных */
-    .section-body {
-        min-height: 150px;          /* Уменьшенная минимальная высота 150px */
-        padding: 0;                 /* Убираем внутренние отступы */
-    }
-    
-    /* Контейнер вложенных секций на мобильных */
-    .nested-sections {
-        gap: 1rem;                  /* Уменьшенное расстояние между рядами 1rem (16px) */
-    }
-    
-    /* Строки вложенных секций на мобильных */
-    .nested-row {
-        gap: 0.5rem;                /* Уменьшенное расстояние между колонками 0.5rem (8px) */
-    }
-    
-    /* Список в заглушке на мобильных */
-    .placeholder-list {
-        text-align: center;         /* Центрирование текста списка */
-    }
-    
-    /* Элементы списка в заглушке на мобильных */
-    .placeholder-list li {
-        justify-content: center;    /* Центрирование элементов списка по горизонтали */
-    }
-
-    /* Свернутая секция на мобильных */
-    .calculator-section.collapsed {
-        max-height: 80px !important; /* Увеличиваем высоту свернутой секции */
-        min-height: 80px !important;
-        padding: 0.5rem !important;
-        overflow: visible !important; /* Разрешаем видеть содержимое за пределами */
-    }
-    
-    /* Заголовок свернутой секции на мобильных */
-    .calculator-section.collapsed .section-header {
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        height: 100% !important;
-        min-height: 70px !important;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-        position: relative !important;
-    }
-    
-    /* Заголовок h2 в свернутой секции */
-    .calculator-section.collapsed .section-header h2 {
-        font-size: 1rem !important;
-        flex: 1 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        min-height: 40px !important;
-        max-width: 70% !important; /* Ограничиваем ширину заголовка */
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-    }
-    
-    /* Контейнер кнопок в свернутой секции */
-    .calculator-section.collapsed .header-buttons {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        position: absolute !important;
-        right: 5px !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        height: auto !important;
-        min-height: 40px !important;
-        gap: 5px !important;
-        z-index: 10 !important;
-        background: transparent !important;
-    }
-    
-    /* Кнопка сворачивания в свернутой секции */
-    .calculator-section.collapsed .btn-collapse-section {
-        position: relative !important;
-        top: auto !important;
-        right: auto !important;
-        margin: 0 !important;
-        padding: 8px 10px !important;
-        min-width: 40px !important;
-        min-height: 40px !important;
-        font-size: 16px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: #f5f5f5 !important;
-        border: 1px solid #ddd !important;
-        border-radius: 6px !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-        z-index: 20 !important;
-    }
-    
-    /* Иконка кнопки сворачивания */
-    .calculator-section.collapsed .btn-collapse-section i {
-        font-size: 14px !important;
-        line-height: 1 !important;
-        margin: 0 !important;
-        width: 14px !important;
-        height: 14px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    
-    /* Другие кнопки в свернутой секции */
-    .calculator-section.collapsed .btn-action:not(.btn-collapse-section) {
-        display: none !important; /* Скрываем другие кнопки */
-    }
-    
-    /* Номер секции в свернутой секции на мобильных */
-    .calculator-section.collapsed .section-number {
-        flex-shrink: 0 !important;
-        width: 28px !important;
-        height: 28px !important;
-        font-size: 12px !important;
-        margin-right: 8px !important;
-    }
-    
-    /* Специальные стили для секции списка просчётов */
-    #list-proschet-section.collapsed .section-header h2 {
-        max-width: 60% !important; /* Еще меньше места для названия */
-    }
-    
-    /* Скрываем бейдж в свернутой секции на мобильных */
-    #list-proschet-section.collapsed .badge {
-        display: none !important;
-    }
-    
-    /* Скрываем кнопку "Создать" в свернутой секции */
-    #list-proschet-section.collapsed .btn-create {
-        display: none !important;
-    }
+.hidden {
+    display: none !important;
 }
+
+.text-center {
+    text-align: center;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+/* Отступы */
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+/* Внутренние отступы */
+.p-1 { padding: 0.5rem; }
+.p-2 { padding: 1rem; }
+.p-3 { padding: 1.5rem; }
+.p-4 { padding: 2rem; }

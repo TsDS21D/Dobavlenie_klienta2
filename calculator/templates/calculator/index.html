@@ -3,11 +3,25 @@ calculator/templates/calculator/index.html
 Главная страница калькулятора типографии с новой структурой:
 1. Список всех просчётов (новая секция)
 2. Главный блок "Просчёт" с вложенными секциями
+Теперь наследует новый самостоятельный base.html
 -->
 
 {% extends "calculator/base.html" %}
 
 {% block title %}Калькулятор типографии{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% load static %}
+<!-- Подключаем CSS для новой секции -->
+<link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/proschet.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/product.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/client.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/print_components.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/additional_works.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/price.css' %}">
+{% endblock %}
 
 {% block content %}
     <h1>
@@ -35,11 +49,9 @@ calculator/templates/calculator/index.html
         {% include "calculator/sections/list_proschet.html" %}
         
         <!-- ===== ГЛАВНАЯ СЕКЦИЯ: ПРОСЧЁТ ===== -->
-        <!-- Секция теперь имеет номер 2 -->
         <div class="calculator-section main-section" id="section-proschet">
             <div class="section-header">
                 <h2>
-                    <!-- Номер изменен с 1 на 2 -->
                     <span class="section-number">2</span> 
                     Просчёт
                 </h2>
@@ -97,11 +109,7 @@ calculator/templates/calculator/index.html
 {% block extra_js %}
 {{ block.super }}
 {% load static %}
-<!-- Подключаем CSS для новой секции -->
-<link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
-
-
-<!-- Подключаем JavaScript для всех секций (новая секция идет первой) -->
+<!-- Подключаем JavaScript для всех секций -->
 <script src="{% static 'calculator/js/sections/product.js' %}"></script>
 <script src="{% static 'calculator/js/sections/list_proschet.js' %}"></script>
 <script src="{% static 'calculator/js/sections/print_components.js' %}"></script>
@@ -113,11 +121,9 @@ calculator/templates/calculator/index.html
 <!-- Модуль inline-редактирования клиента -->
 <script src="{% static 'calculator/js/sections/client_inline_edit.js' %}"></script>
 
-
 <script src="{% static 'calculator/js/sections/product_inline_edit.js' %}"></script>
 <script src="{% static 'calculator/js/circulation_change_handler.js' %}"></script>
 <script src="{% static 'calculator/js/sections/print_components_inline_edit.js' %}"></script>
 <script src="{% static 'calculator/js/sections/additional_works.js' %}"></script>
 <script src="{% static 'calculator/js/sections/price.js' %}"></script>
-
 {% endblock %}

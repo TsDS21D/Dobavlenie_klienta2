@@ -1,36 +1,46 @@
 /*
 calculator/static/calculator/js/sections/list_proschet.js
-ОБНОВЛЕНО: Добавлен функционал поиска и скролла для таблицы просчётов
-ДОБАВЛЕНО: Функция обновления названия просчёта в секции "Изделие"
+ОБНОВЛЕНО: Исправлены гонки запросов и управление состоянием при переключении просчётов
+ДОБАВЛЕНО: Правильное управление обработчиком изменения тиража
+ДОБАВЛЕНО: Синхронизация состояний между секциями
 
-ИЗМЕНЕНИЯ:
-1. Добавлена функция фильтрации просчётов по поисковому запросу
-2. Добавлена обработка поля поиска и кнопки очистки
-3. Обновлено отображение сообщений при поиске
-4. Добавлена логика для контейнера со скроллом
-5. Добавлена функция updateProductSectionProschetTitle для обновления заголовка в секции "Изделие"
+ИСПРАВЛЕНИЯ:
+1. Исправлена гонка запросов при быстром переключении просчётов
+2. Добавлена правильная последовательность сброса состояний
+3. Исправлено управление обработчиком изменения тиража
+4. Добавлена проверка актуальности запросов на каждом этапе
+5. Улучшена синхронизация между секциями "Список просчётов", "Изделие" и "Печатные компоненты"
 */
 
 "use strict";
 
 // ===== 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
 
-// Уникальные переменные для секции списка просчётов
-let listProschetSelectedProschetId = null; // ID выбранного просчёта (уникальное имя)
+// Контроллер для отмены запросов - для управления асинхронными операциями
+let listProschetCurrentRequestController = null;
 
-// URL для API запросов (уникальное имя)
+// ID последнего запрошенного просчёта - для проверки актуальности данных
+let listProschetLastRequestedId = null;
+
+// ID выбранного просчёта - для хранения текущего состояния
+let listProschetSelectedProschetId = null;
+
+// URL для API запросов
 const listProschetApiUrls = {
     create: '/calculator/create-proschet/',
 };
 
-// Переменные для управления поиском (уникальные имена)
-let listProschetCurrentSearchQuery = ''; // Текущий поисковый запрос
-let listProschetSearchTimeout = null; // Таймер для отложенного поиска
+// Переменные для управления поиском
+let listProschetCurrentSearchQuery = '';
+let listProschetSearchTimeout = null;
+
+// Флаг блокировки для предотвращения одновременного выбора просчётов
+let listProschetSelectionInProgress = false;
 
 // ===== 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Секция "Список просчётов" загружена');
+    console.log('✅ Секция "Список просчётов" загружена и инициализирована');
     
     // Настраиваем обработчики событий для всей секции
     setupListProschetEventListeners();
@@ -40,12 +50,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Инициализируем контейнер со скроллом
     initListProschetScrollContainer();
+    
+    // Сбрасываем контроллер при инициализации
+    resetListProschetRequestController();
+    
+    console.log('✅ Инициализация секции "Список просчётов" завершена');
 });
 
 // ===== 3. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ =====
 
 function setupListProschetEventListeners() {
-    console.log('Настраиваем обработчики событий для списка просчётов...');
+    console.log('🔧 Настраиваем обработчики событий для списка просчётов...');
     
     // Кнопка создания просчёта
     const createBtn = document.getElementById('create-proschet-btn');
@@ -70,7 +85,7 @@ function setupListProschetEventListeners() {
         createForm.addEventListener('submit', handleListProschetCreateFormSubmit);
     }
     
-    // НОВЫЙ ОБРАБОТЧИК: Поле поиска
+    // Поле поиска для фильтрации просчётов
     const searchInput = document.getElementById('list-proschet-search-input');
     if (searchInput) {
         // Поиск при вводе текста (с задержкой для производительности)
@@ -84,7 +99,7 @@ function setupListProschetEventListeners() {
         });
     }
     
-    // НОВЫЙ ОБРАБОТЧИК: Кнопка очистки поиска
+    // Кнопка очистки поиска
     const searchClearBtn = document.getElementById('list-proschet-search-clear');
     if (searchClearBtn) {
         searchClearBtn.addEventListener('click', clearListProschetSearch);
@@ -98,7 +113,10 @@ function setupListProschetEventListeners() {
 
 function setupListProschetRowClickListeners() {
     const tableBody = document.getElementById('proschet-table-body');
-    if (!tableBody) return;
+    if (!tableBody) {
+        console.warn('❌ Тело таблицы просчётов не найдено');
+        return;
+    }
     
     // Обработчик клика по строке таблицы
     tableBody.addEventListener('click', function(event) {
@@ -106,46 +124,18 @@ function setupListProschetRowClickListeners() {
         if (!row) return;
         
         const proschetId = row.dataset.proschetId;
-        console.log(`Выбор просчёта с ID: ${proschetId}`);
+        
+        // Проверяем, не кликаем ли мы на уже выбранную строку
+        if (row.classList.contains('selected') && proschetId === listProschetSelectedProschetId) {
+            console.log(`ℹ️ Просчёт ID: ${proschetId} уже выбран, пропускаем`);
+            return;
+        }
+        
+        console.log(`🔄 Выбор просчёта с ID: ${proschetId}`);
         
         selectListProschetRow(row, proschetId);
     });
 }
-
-
-
-/**
- * Инициализирует обработчик изменения тиража для выбранного просчёта.
- * @param {number} proschetId - ID просчёта
- * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
- */
-function initCirculationChangeHandlerForSelectedProschet(proschetId, rowElement) {
-    console.log(`🔄 Инициализация обработчика тиража для выбранного просчёта ${proschetId}`);
-    
-    // Находим элемент отображения тиража
-    const circulationElement = document.getElementById('product-circulation-display');
-    
-    if (!circulationElement) {
-        console.warn('⚠️ Элемент отображения тиража не найден');
-        return;
-    }
-    
-    // Извлекаем текущий тираж
-    const circulationText = circulationElement.textContent.trim();
-    const initialCirculation = extractCirculationFromText(circulationText);
-    
-    if (!initialCirculation) {
-        console.warn(`⚠️ Не удалось определить тираж: "${circulationText}"`);
-        return;
-    }
-    
-    // Инициализируем обработчик
-    if (window.circulationChangeHandler && window.circulationChangeHandler.init) {
-        window.circulationChangeHandler.init(proschetId, initialCirculation);
-    }
-}
-
-
 
 // ===== 4. НОВЫЕ ФУНКЦИИ ДЛЯ ПОИСКА =====
 
@@ -172,7 +162,7 @@ function handleListProschetSearchInput(event) {
 }
 
 function performListProschetSearch(searchQuery) {
-    console.log(`Выполнение поиска по запросу: "${searchQuery}"`);
+    console.log(`🔍 Выполнение поиска по запросу: "${searchQuery}"`);
     
     const tableBody = document.getElementById('proschet-table-body');
     if (!tableBody) return;
@@ -209,7 +199,10 @@ function performListProschetSearch(searchQuery) {
     // Обновляем счетчик просчётов
     updateListProschetCount();
     
-    console.log(`Найдено просчётов: ${visibleRowsCount}`);
+    // Обновляем скролл-контейнер
+    initListProschetScrollContainer();
+    
+    console.log(`✅ Найдено просчётов: ${visibleRowsCount}`);
 }
 
 function updateListProschetSearchClearButton() {
@@ -225,7 +218,7 @@ function updateListProschetSearchClearButton() {
 }
 
 function clearListProschetSearch() {
-    console.log('Очистка поиска');
+    console.log('🧹 Очистка поиска');
     
     const searchInput = document.getElementById('list-proschet-search-input');
     if (searchInput) {
@@ -276,7 +269,7 @@ function initListProschetScrollContainer() {
     const scrollContainer = document.getElementById('list-proschet-table-scroll-container');
     if (!scrollContainer) return;
     
-    console.log('Инициализация контейнера со скроллом');
+    console.log('📜 Инициализация контейнера со скроллом');
     
     // Проверяем, нужен ли скролл (если строк больше 5)
     const tableBody = document.getElementById('proschet-table-body');
@@ -294,75 +287,207 @@ function initListProschetScrollContainer() {
     }
 }
 
-// ===== 6. ФУНКЦИИ ДЛЯ ВЫДЕЛЕНИЯ СТРОКИ =====
+// ===== 6. ОСНОВНАЯ ФУНКЦИЯ ВЫБОРА ПРОСЧЁТА - ПОЛНОСТЬЮ ПЕРЕРАБОТАНА =====
 
 function selectListProschetRow(rowElement, proschetId) {
-    console.log(`Выделение строки просчёта ID: ${proschetId}`);
+    console.log(`🔄 Начинаем выбор просчёта ID: ${proschetId}`);
     
-    // 1. Снимаем выделение со всех строк
-    const allRows = document.querySelectorAll('.proschet-row');
-    allRows.forEach(row => {
-        row.classList.remove('selected');
-    });
+    // Проверяем, не идет ли уже процесс выбора
+    if (listProschetSelectionInProgress) {
+        console.warn('⚠️ Выбор просчёта уже выполняется, пропускаем');
+        return;
+    }
     
-    // 2. Выделяем выбранную строку
-    rowElement.classList.add('selected');
-    listProschetSelectedProschetId = proschetId;
+    // Устанавливаем флаг блокировки
+    listProschetSelectionInProgress = true;
     
-    console.log(`✅ Просчёт ID: ${listProschetSelectedProschetId} выбран`);
+    // ВАЖНО: Первым делом сбрасываем обработчик изменения тиража для предыдущего просчёта
+    resetCirculationHandlerForPreviousProschet();
     
-    // 3. Обновляем секцию "Клиент" с данными выбранного просчёта
-    updateClientSectionForProschet(proschetId);
+    // Отменяем предыдущие запросы, если они есть
+    if (listProschetCurrentRequestController) {
+        listProschetCurrentRequestController.abort();
+        console.log(`🛑 Отменён предыдущий запрос для просчёта ${listProschetLastRequestedId}`);
+    }
     
-    // 4. НОВОЕ: Обновляем название просчёта в секции "Изделие"
-    updateProductSectionProschetTitle(rowElement);
-    // 5. НОВОЕ: Обновляем секцию "Печатные компоненты" для выбранного просчёта
-    updatePrintComponentsSectionForProschet(proschetId, rowElement);
-
-    // 6. НОВОЕ: Обновляем секцию "Дополнительные работы" для выбранного просчёта
-    updateAdditionalWorksSectionForProschet(proschetId, rowElement);
-
-
-    // ✅ ДОБАВЛЯЕМ: Обновляем секцию "Цена"
-    if (window.priceSection && typeof window.priceSection.updateForProschet === 'function') {
-        window.priceSection.updateForProschet(proschetId, rowElement);
-    } else {
-        console.warn('⚠️ Секция "Цена" не загружена');
+    // Сохраняем ID текущего запроса
+    listProschetLastRequestedId = proschetId;
+    
+    // Создаём новый AbortController для текущего запроса
+    listProschetCurrentRequestController = new AbortController();
+    const signal = listProschetCurrentRequestController.signal;
+    
+    try {
+        // 1. Снимаем выделение со всех строк
+        const allRows = document.querySelectorAll('.proschet-row');
+        allRows.forEach(row => {
+            row.classList.remove('selected');
+        });
+        
+        // 2. Выделяем выбранную строку
+        rowElement.classList.add('selected');
+        listProschetSelectedProschetId = proschetId;
+        
+        console.log(`✅ Просчёт ID: ${listProschetSelectedProschetId} выбран в таблице`);
+        
+        // 3. Обновляем секцию "Клиент" с данными выбранного просчёта
+        updateClientSectionForProschet(proschetId, signal);
+        
+        // 4. Обновляем название просчёта в секции "Изделие"
+        updateProductSectionProschetTitle(rowElement);
+        
+        // 5. Обновляем секцию "Печатные компоненты" для выбранного просчёта
+        updatePrintComponentsSectionForProschet(proschetId, rowElement, signal);
+        
+        // 6. Обновляем секцию "Дополнительные работы" для выбранного просчёта
+        updateAdditionalWorksSectionForProschet(proschetId, rowElement, signal);
+        
+        // 7. Обновляем секцию "Цена"
+        if (window.priceSection && typeof window.priceSection.updateForProschet === 'function') {
+            window.priceSection.updateForProschet(proschetId, rowElement, signal);
+        } else {
+            console.warn('⚠️ Секция "Цена" не загружена или не имеет функции updateForProschet');
+        }
+        
+        console.log(`✅ Все секции инициализированы для просчёта ID: ${proschetId}`);
+        
+    } catch (error) {
+        console.error(`❌ Ошибка при выборе просчёта ID: ${proschetId}:`, error);
+        
+        // В случае ошибки снимаем выделение
+        rowElement.classList.remove('selected');
+        listProschetSelectedProschetId = null;
+        
+        // Показываем уведомление об ошибке
+        showListProschetNotification('Ошибка при выборе просчёта', 'error');
+    } finally {
+        // Снимаем флаг блокировки независимо от результата
+        listProschetSelectionInProgress = false;
     }
 }
 
+// ===== НОВАЯ ФУНКЦИЯ: СБРОС ОБРАБОТЧИКА ТИРАЖА ДЛЯ ПРЕДЫДУЩЕГО ПРОСЧЁТА =====
 
-// Добавляем новую функцию для обновления секции "Печатные компоненты":
-function updatePrintComponentsSectionForProschet(proschetId, rowElement) {
-    console.log(`Обновление секции "Печатные компоненты" для просчёта ID: ${proschetId}`);
+/**
+ * Сбрасывает обработчик изменения тиража для предыдущего выбранного просчёта
+ * Это критически важно для предотвращения гонок между просчётами
+ */
+function resetCirculationHandlerForPreviousProschet() {
+    console.log('🔄 Сброс обработчика тиража для предыдущего просчёта');
+    
+    // Если был выбран предыдущий просчёт, сбрасываем его обработчик тиража
+    if (listProschetSelectedProschetId && window.circulationChangeHandler) {
+        console.log(`🗑️ Сброс обработчика тиража для предыдущего просчёта ID: ${listProschetSelectedProschetId}`);
+        
+        // Сбрасываем обработчик изменения тиража
+        if (window.circulationChangeHandler.reset) {
+            window.circulationChangeHandler.reset();
+        }
+        
+        // Также сбрасываем глобальные переменные обработчика
+        if (window.circulationChangeHandlerInitialized !== undefined) {
+            window.circulationChangeHandlerInitialized = false;
+        }
+        
+        if (window.currentProschetIdForCirculation !== undefined) {
+            window.currentProschetIdForCirculation = null;
+        }
+        
+        if (window.lastKnownCirculation !== undefined) {
+            window.lastKnownCirculation = null;
+        }
+    }
+}
+
+// ===== 7. ФУНКЦИИ ОБНОВЛЕНИЯ СЕКЦИЙ С ПРОВЕРКОЙ АКТУАЛЬНОСТИ =====
+
+/**
+ * Обновление секции "Печатные компоненты" с проверкой актуальности
+ */
+function updatePrintComponentsSectionForProschet(proschetId, rowElement, signal) {
+    console.log(`🔄 Обновление секции "Печатные компоненты" для просчёта ID: ${proschetId}`);
+    
+    // Проверяем, актуален ли запрос
+    if (signal.aborted) {
+        console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён, пропускаем обновление печатных компонентов`);
+        return;
+    }
+    
+    // Проверяем, что это всё ещё тот же просчёт, который мы хотим обновить
+    if (proschetId !== listProschetSelectedProschetId) {
+        console.warn(`⚠️ Пропускаем обновление печатных компонентов: запрос для просчёта ${proschetId}, но выбран просчёт ${listProschetSelectedProschetId}`);
+        return;
+    }
     
     // Проверяем, существует ли объект секции "Печатные компоненты"
     if (window.printComponentsSection && typeof window.printComponentsSection.updateForProschet === 'function') {
-        window.printComponentsSection.updateForProschet(proschetId, rowElement);
+        // Передаём signal в секцию для возможности отмены
+        window.printComponentsSection.updateForProschet(proschetId, rowElement, signal);
     } else {
         console.warn('❌ Секция "Печатные компоненты" не найдена или не инициализирована');
     }
 }
 
-
 /**
- * Функция обновления секции "Дополнительные работы" для выбранного просчёта
- * @param {number} proschetId - ID просчёта
- * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
+ * Обновление секции "Дополнительные работы" с проверкой актуальности
  */
-function updateAdditionalWorksSectionForProschet(proschetId, rowElement) {
-    console.log(`Обновление секции "Дополнительные работы" для просчёта ID: ${proschetId}`);
+function updateAdditionalWorksSectionForProschet(proschetId, rowElement, signal) {
+    console.log(`🔄 Обновление секции "Дополнительные работы" для просчёта ID: ${proschetId}`);
+    
+    // Проверяем, актуален ли запрос
+    if (signal.aborted) {
+        console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён, пропускаем обновление дополнительных работ`);
+        return;
+    }
+    
+    // Проверяем, что это всё ещё тот же просчёт, который мы хотим обновить
+    if (proschetId !== listProschetSelectedProschetId) {
+        console.warn(`⚠️ Пропускаем обновление дополнительных работ: запрос для просчёта ${proschetId}, но выбран просчёт ${listProschetSelectedProschetId}`);
+        return;
+    }
     
     // Проверяем, существует ли объект секции "Дополнительные работы"
     if (window.additionalWorksSection && typeof window.additionalWorksSection.updateForProschet === 'function') {
-        window.additionalWorksSection.updateForProschet(proschetId, rowElement);
+        // Передаём signal в секцию для возможности отмены
+        window.additionalWorksSection.updateForProschet(proschetId, rowElement, signal);
     } else {
         console.warn('❌ Секция "Дополнительные работы" не найдена или не инициализирована');
     }
 }
 
+// ===== 8. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ЗАПРОСАМИ =====
 
-// ===== 7. ФУНКЦИИ ДЛЯ ФОРМЫ СОЗДАНИЯ ПРОСЧЁТА =====
+/**
+ * Сбрасывает контроллер запросов при перезагрузке страницы или завершении операций
+ */
+function resetListProschetRequestController() {
+    console.log('🔄 Сброс контроллера запросов');
+    
+    if (listProschetCurrentRequestController) {
+        listProschetCurrentRequestController.abort();
+        listProschetCurrentRequestController = null;
+    }
+    
+    listProschetLastRequestedId = null;
+    listProschetSelectionInProgress = false;
+}
+
+/**
+ * Отменяет текущий запрос
+ * @returns {boolean} true если запрос был отменён, false если не было активного запроса
+ */
+function abortCurrentListProschetRequest() {
+    if (listProschetCurrentRequestController) {
+        listProschetCurrentRequestController.abort();
+        listProschetCurrentRequestController = null;
+        listProschetLastRequestedId = null;
+        console.log('✅ Текущий запрос отменён');
+        return true;
+    }
+    return false;
+}
+
+// ===== 9. ФУНКЦИИ ДЛЯ ФОРМЫ СОЗДАНИЯ ПРОСЧЁТА =====
 
 function toggleListProschetCreateForm(show) {
     const formContainer = document.getElementById('create-proschet-form-container');
@@ -392,7 +517,7 @@ function handleListProschetCreateFormSubmit(event) {
     const form = event.target;
     const formData = new FormData(form);
     
-    console.log('Отправка формы создания просчёта');
+    console.log('📤 Отправка формы создания просчёта');
     
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
@@ -421,7 +546,7 @@ function handleListProschetCreateFormSubmit(event) {
         }
     })
     .catch(error => {
-        console.error('Ошибка при создании просчёта:', error);
+        console.error('❌ Ошибка при создании просчёта:', error);
         showListProschetNotification('Ошибка сети или сервера', 'error');
     })
     .finally(() => {
@@ -430,13 +555,13 @@ function handleListProschetCreateFormSubmit(event) {
     });
 }
 
-// ===== 8. ФУНКЦИИ ДЛЯ РАБОТЫ С ДАННЫМИ =====
+// ===== 10. ФУНКЦИИ ДЛЯ РАБОТЫ С ДАННЫМИ =====
 
 function addListProschetProschetToTable(proschetData) {
     const tableBody = document.getElementById('proschet-table-body');
     if (!tableBody) return;
     
-    console.log('Добавление нового просчёта в таблицу:', proschetData);
+    console.log('📋 Добавление нового просчёта в таблицу:', proschetData);
     
     // Создаем новую строку таблицы
     const newRow = document.createElement('tr');
@@ -490,13 +615,15 @@ function addListProschetProschetToTable(proschetData) {
     initListProschetScrollContainer();
 }
 
-// ===== 9. НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ НАЗВАНИЯ ПРОСЧЁТА В СЕКЦИИ "ИЗДЕЛИЕ" =====
+// ===== 11. ФУНКЦИЯ ОБНОВЛЕНИЯ НАЗВАНИЯ ПРОСЧЁТА В СЕКЦИИ "ИЗДЕЛИЕ" =====
 
 /**
  * Функция обновляет заголовок секции "Изделие" с названием выбранного просчёта
  * @param {HTMLElement} rowElement - DOM-элемент строки таблицы с просчётом
  */
 function updateProductSectionProschetTitle(rowElement) {
+    console.log('🔄 Обновление названия просчёта в секции "Изделие"');
+    
     // Находим элемент для отображения названия просчёта в секции "Изделие"
     const proschetTitleElement = document.getElementById('product-proschet-title');
     if (!proschetTitleElement) {
@@ -523,16 +650,39 @@ function updateProductSectionProschetTitle(rowElement) {
     
     console.log(`✅ Название просчёта обновлено в секции "Изделие": "${proschetTitle}"`);
     
-    // ДОБАВЛЕНО: Обновление данных в секции "Изделие" (включая тираж)
+    // Обновление данных в секции "Изделие" (включая тираж)
     const proschetId = rowElement.dataset.proschetId;
     if (proschetId) {
-        updateProductSectionData(proschetId);
+        // Используем текущий контроллер запроса для этой операции
+        if (listProschetCurrentRequestController) {
+            updateProductSectionData(proschetId, listProschetCurrentRequestController.signal);
+        } else {
+            updateProductSectionData(proschetId);
+        }
     }
 }
 
-// НОВАЯ ФУНКЦИЯ: Обновляет данные в секции "Изделие"
-function updateProductSectionData(proschetId) {
-    console.log(`Обновление данных секции "Изделие" для просчёта ID: ${proschetId}`);
+// ===== ОБНОВЛЁННАЯ ФУНКЦИЯ: Обновляет данные в секции "Изделие" с поддержкой отмены =====
+
+/**
+ * Обновляет данные в секции "Изделие"
+ * @param {number} proschetId - ID просчёта
+ * @param {AbortSignal} signal - Сигнал для отмены запроса (опционально)
+ */
+function updateProductSectionData(proschetId, signal) {
+    console.log(`🔄 Обновление данных секции "Изделие" для просчёта ID: ${proschetId}`);
+    
+    // Проверяем, что запрос всё ещё актуален
+    if (signal && signal.aborted) {
+        console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён, пропускаем обновление секции "Изделие"`);
+        return;
+    }
+    
+    // Проверяем, что это всё ещё тот же просчёт, который мы хотим обновить
+    if (proschetId !== listProschetSelectedProschetId) {
+        console.warn(`⚠️ Пропускаем обновление секции "Изделие": запрос для просчёта ${proschetId}, но выбран просчёт ${listProschetSelectedProschetId}`);
+        return;
+    }
     
     // Используем существующий эндпоинт для получения данных просчёта
     fetch(`/calculator/get-proschet/${proschetId}/`, {
@@ -540,15 +690,28 @@ function updateProductSectionData(proschetId) {
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': getListProschetCsrfToken()
-        }
+        },
+        signal: signal // Передаём signal для возможности отмены
     })
     .then(response => {
+        // Проверяем, не был ли запрос отменён
+        if (signal && signal.aborted) {
+            console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён во время выполнения`);
+            throw new Error('Request was aborted');
+        }
+        
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ошибка! статус: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        // Дополнительная проверка: запрос всё еще актуален?
+        if (proschetId !== listProschetSelectedProschetId) {
+            console.warn(`⚠️ Получены данные для старого просчёта ${proschetId}, игнорируем (теперь выбран ${listProschetSelectedProschetId})`);
+            return;
+        }
+        
         if (data.success) {
             // Обновляем секцию "Изделие" с данными просчёта
             if (window.productSection && window.productSection.updateFromProschet) {
@@ -559,121 +722,31 @@ function updateProductSectionData(proschetId) {
         }
     })
     .catch(error => {
+        // Не выводим ошибку, если запрос был отменён
+        if (error.name === 'AbortError') {
+            console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён`);
+            return;
+        }
         console.error('❌ Ошибка сети при получении данных просчёта для секции "Изделие":', error);
     });
 }
 
-// ===== 10. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+// ===== 12. ФУНКЦИИ ДЛЯ СЕКЦИИ "КЛИЕНТ" =====
 
-function updateListProschetCount() {
-    const tableBody = document.getElementById('proschet-table-body');
-    let count = 0;
+function updateClientSectionForProschet(proschetId, signal) {
+    console.log(`📡 Запрос данных просчёта ID: ${proschetId} для секции "Клиент"`);
     
-    if (tableBody) {
-        // Считаем только видимые строки (не скрытые поиском)
-        const rows = tableBody.querySelectorAll('.proschet-row');
-        rows.forEach(row => {
-            if (row.style.display !== 'none') {
-                count++;
-            }
-        });
+    // Проверяем, актуален ли запрос
+    if (signal.aborted) {
+        console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён, пропускаем обновление секции "Клиент"`);
+        return;
     }
     
-    // Обновляем бейдж с количеством
-    const badge = document.getElementById('proschet-count-badge');
-    if (badge) {
-        badge.textContent = count;
+    // Проверяем, что это всё ещё тот же просчёт, который мы хотим обновить
+    if (proschetId !== listProschetSelectedProschetId) {
+        console.warn(`⚠️ Пропускаем обновление секции "Клиент": запрос для просчёта ${proschetId}, но выбран просчёт ${listProschetSelectedProschetId}`);
+        return;
     }
-    
-    return count;
-}
-
-function getListProschetCsrfToken() {
-    const name = 'csrftoken';
-    const cookies = document.cookie.split(';');
-    
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith(name + '=')) {
-            return decodeURIComponent(cookie.substring(name.length + 1));
-        }
-    }
-    
-    console.warn('CSRF-токен не найден');
-    return '';
-}
-
-function showListProschetNotification(message, type) {
-    console.log(`Показ уведомления [${type}]: ${message}`);
-    
-    const notification = document.createElement('div');
-    
-    let backgroundColor = '#2196F3';
-    if (type === 'success') backgroundColor = '#4CAF50';
-    if (type === 'error') backgroundColor = '#f44336';
-    
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        background: ${backgroundColor};
-        color: white;
-        border-radius: 4px;
-        z-index: 1000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        max-width: 300px;
-        word-wrap: break-word;
-        font-family: Arial, sans-serif;
-        transition: opacity 0.3s;
-    `;
-    
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
-}
-
-function showListProschetFormErrors(form, errors) {
-    console.log('Показ ошибок формы:', errors);
-    
-    let errorContainer = form.querySelector('.error-message');
-    if (!errorContainer) {
-        errorContainer = document.createElement('div');
-        errorContainer.className = 'error-message';
-        errorContainer.style.cssText = `
-            background: #ffebee;
-            color: #c62828;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            border-left: 4px solid #f44336;
-        `;
-        form.insertBefore(errorContainer, form.firstChild);
-    }
-    
-    let errorText = 'Пожалуйста, исправьте следующие ошибки:<br>';
-    for (const field in errors) {
-        if (errors.hasOwnProperty(field)) {
-            errorText += `• ${errors[field].join(', ')}<br>`;
-        }
-    }
-    
-    errorContainer.innerHTML = errorText;
-    errorContainer.style.display = 'block';
-}
-
-// ===== 11. ФУНКЦИИ ДЛЯ СЕКЦИИ "КЛИЕНТ" (уже существующие, но с уникальными именами) =====
-
-function updateClientSectionForProschet(proschetId) {
-    console.log(`Запрос данных просчёта ID: ${proschetId} для секции "Клиент"`);
     
     // Отправляем запрос на сервер для получения данных просчёта
     fetch(`/calculator/get-proschet/${proschetId}/`, {
@@ -681,29 +754,47 @@ function updateClientSectionForProschet(proschetId) {
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': getListProschetCsrfToken()
-        }
+        },
+        signal: signal // Передаём signal для возможности отмены
     })
     .then(response => {
+        // Проверяем, не был ли запрос отменён
+        if (signal.aborted) {
+            console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён во время выполнения`);
+            throw new Error('Request was aborted');
+        }
+        
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ошибка! статус: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        // Дополнительная проверка: запрос всё еще актуален?
+        if (proschetId !== listProschetSelectedProschetId) {
+            console.warn(`⚠️ Получены данные для старого просчёта ${proschetId}, игнорируем (теперь выбран ${listProschetSelectedProschetId})`);
+            return;
+        }
+        
         if (data.success) {
             // Обновляем интерфейс секции "Клиент"
             updateClientInterface(data.proschet);
         } else {
-            console.error('Ошибка при получении данных просчёта:', data.message);
+            console.error('❌ Ошибка при получении данных просчёта:', data.message);
         }
     })
     .catch(error => {
-        console.error('Ошибка сети при получении данных просчёта:', error);
+        // Не выводим ошибку, если запрос был отменён
+        if (error.name === 'AbortError') {
+            console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён`);
+            return;
+        }
+        console.error('❌ Ошибка сети при получении данных просчёта для секции "Клиент":', error);
     });
 }
 
 function updateClientInterface(proschetData) {
-    console.log('Обновление интерфейса секции "Клиент"', proschetData);
+    console.log('🔄 Обновление интерфейса секции "Клиент"', proschetData);
     
     // Обновляем бейдж с номером просчёта
     const proschetNumberElement = document.getElementById('current-proschet-number');
@@ -744,7 +835,7 @@ function updateClientInterface(proschetData) {
 }
 
 function updateClientDisplay(clientData) {
-    console.log('Обновление отображения данных клиента:', clientData);
+    console.log('🔄 Обновление отображения данных клиента:', clientData);
     
     const clientNumberElement = document.getElementById('current-client-number');
     if (clientNumberElement) {
@@ -777,7 +868,7 @@ function updateClientDisplay(clientData) {
 }
 
 function showClientSelectionForm() {
-    console.log('Показ формы выбора клиента');
+    console.log('📋 Показ формы выбора клиента');
     
     const currentClientDisplay = document.getElementById('current-client-display');
     const clientSelectionForm = document.getElementById('client-selection-form');
@@ -792,7 +883,7 @@ function showClientSelectionForm() {
 }
 
 function loadClientsForCreateForm() {
-    console.log('Загрузка клиентов для формы создания...');
+    console.log('📥 Загрузка клиентов для формы создания...');
     
     fetch('/calculator/get-clients/', {
         method: 'GET',
@@ -808,7 +899,7 @@ function loadClientsForCreateForm() {
         }
     })
     .catch(error => {
-        console.error('Ошибка при загрузке клиентов:', error);
+        console.error('❌ Ошибка при загрузке клиентов:', error);
     });
 }
 
@@ -829,10 +920,117 @@ function populateClientDropdown(clients) {
         selectElement.appendChild(option);
     });
     
-    console.log(`Загружено ${clients.length} клиентов`);
+    console.log(`✅ Загружено ${clients.length} клиентов`);
 }
 
-// ===== 12. ЭКСПОРТ ФУНКЦИЙ =====
+// ===== 13. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+
+function updateListProschetCount() {
+    const tableBody = document.getElementById('proschet-table-body');
+    let count = 0;
+    
+    if (tableBody) {
+        // Считаем только видимые строки (не скрытые поиском)
+        const rows = tableBody.querySelectorAll('.proschet-row');
+        rows.forEach(row => {
+            if (row.style.display !== 'none') {
+                count++;
+            }
+        });
+    }
+    
+    // Обновляем бейдж с количеством
+    const badge = document.getElementById('proschet-count-badge');
+    if (badge) {
+        badge.textContent = count;
+    }
+    
+    return count;
+}
+
+function getListProschetCsrfToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith(name + '=')) {
+            return decodeURIComponent(cookie.substring(name.length + 1));
+        }
+    }
+    
+    console.warn('⚠️ CSRF-токен не найден');
+    return '';
+}
+
+function showListProschetNotification(message, type) {
+    console.log(`💬 Уведомление [${type}]: ${message}`);
+    
+    const notification = document.createElement('div');
+    
+    let backgroundColor = '#2196F3';
+    if (type === 'success') backgroundColor = '#4CAF50';
+    if (type === 'error') backgroundColor = '#f44336';
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${backgroundColor};
+        color: white;
+        border-radius: 4px;
+        z-index: 1000;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        max-width: 300px;
+        word-wrap: break-word;
+        font-family: Arial, sans-serif;
+        transition: opacity 0.3s;
+    `;
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
+function showListProschetFormErrors(form, errors) {
+    console.log('❌ Показ ошибок формы:', errors);
+    
+    let errorContainer = form.querySelector('.error-message');
+    if (!errorContainer) {
+        errorContainer = document.createElement('div');
+        errorContainer.className = 'error-message';
+        errorContainer.style.cssText = `
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #f44336;
+        `;
+        form.insertBefore(errorContainer, form.firstChild);
+    }
+    
+    let errorText = 'Пожалуйста, исправьте следующие ошибки:<br>';
+    for (const field in errors) {
+        if (errors.hasOwnProperty(field)) {
+            errorText += `• ${errors[field].join(', ')}<br>`;
+        }
+    }
+    
+    errorContainer.innerHTML = errorText;
+    errorContainer.style.display = 'block';
+}
+
+// ===== 14. ЭКСПОРТ ФУНКЦИЙ =====
 
 window.listProschetSection = {
     getSelectedId: () => listProschetSelectedProschetId,
@@ -841,12 +1039,22 @@ window.listProschetSection = {
     showNotification: showListProschetNotification,
     clearSearch: clearListProschetSearch,
     initScroll: initListProschetScrollContainer,
-    // НОВОЕ: Добавляем функцию для обновления секции "Печатные компоненты"
     updatePrintComponents: updatePrintComponentsSectionForProschet,
-    // ДОБАВЛЕНО: Функция для получения CSRF токена
     getCsrfToken: getListProschetCsrfToken,
-    // ДОБАВЛЕНО: Функция для обновления секции "Изделие"
-    updateProductSectionTitle: updateProductSectionProschetTitle
+    updateProductSectionTitle: updateProductSectionProschetTitle,
+    resetRequestController: resetListProschetRequestController,
+    abortCurrentRequest: abortCurrentListProschetRequest,
+    // НОВАЯ ФУНКЦИЯ: Сброс обработчика тиража
+    resetCirculationHandler: resetCirculationHandlerForPreviousProschet,
+    // НОВАЯ ФУНКЦИЯ: Получение статуса выбора
+    isSelectionInProgress: () => listProschetSelectionInProgress
 };
 
-console.log('✅ Основной файл секции "Список просчётов" загружен с поиском, скроллом и обновлением секции "Изделие"');
+// ===== 15. ОБРАБОТКА ПЕРЕЗАГРУЗКИ СТРАНИЦЫ =====
+
+window.addEventListener('beforeunload', function() {
+    console.log('🔄 Очистка перед перезагрузкой страницы');
+    resetListProschetRequestController();
+});
+
+console.log('✅ Основной файл секции "Список просчётов" загружен с исправлениями для предотвращения гонок запросов');
