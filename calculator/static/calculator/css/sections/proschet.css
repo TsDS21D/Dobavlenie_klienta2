@@ -1,863 +1,883 @@
 /*
-static/css/proschet.css
-Стили для секции "Просчёт" в стиле приложения print_price
+calculator/static/calculator/css/sections/proschet.css
+ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - Тонкие рамки по всему периметру
+ДОБАВЛЕН ЭФФЕКТ ПРИ НАВЕДЕНИИ НА СЕКЦИЮ ПРОСЧЁТА
+
+Основные изменения:
+1. Добавлен эффект при наведении на главную секцию просчёта
+2. При наведении появляется тонкая зеленая рамка и легкая тень
+3. Улучшена плавность переходов
 */
 
 /* ===== 0. БАЗОВЫЕ НАСТРОЙКИ КОНТЕЙНЕРА ===== */
-#proschet-section .print-price-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 12px;
-    padding: 1.2rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    width: 100%;
-    box-sizing: border-box;
-    overflow-x: hidden;
+
+/* Контейнер всей секции просчёта */
+#section-proschet {
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    background: white;                      /* Белый фон */
+    border-radius: 6px;                     /* Скругление углов (уменьшено с 12px → 6px) */
+    padding: 0.6rem;                        /* Внутренние отступы (уменьшено с 1.2rem → 0.6rem) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено) */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);  /* Очень лёгкая тень (уменьшена с 20px) */
+    transition: all 0.15s ease;             /* Плавные переходы для всех свойств */
 }
 
-/* ===== 1. ДВУХКОЛОНОЧНЫЙ LAYOUT ===== */
-#proschet-section .two-column-layout {
-    display: grid;
-    grid-template-columns: minmax(300px, 1fr) minmax(350px, 1.5fr);
-    gap: 1.5rem;
-    margin-top: 1.2rem;
+/* НОВЫЙ ЭФФЕКТ: При наведении на главную секцию просчёта */
+#section-proschet:hover {
+    /*border-color: #0B8661;                   Тонкая зеленая рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая тень для эффекта глубины */
+    transform: translateY(-1px);            /* Легкий подъем секции на 1px для интерактивного ощущения */
+    transition: all 0.2s ease;              /* Плавный переход всех свойств за 0.2 секунды */
 }
 
-/* ЛЕВАЯ КОЛОНКА - информация о текущем просчёте */
-#proschet-section .left-column {
-    background: #f9f9f9;
-    padding: 1.2rem;
-    border-radius: 10px;
-    border: 1px solid #e0e0e0;
-    min-height: 400px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+/* ===== 1. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+/* Контейнер заголовка секции */
+#section-proschet .section-header {
+    display: flex;                          /* Flexbox для расположения элементов */
+    justify-content: space-between;         /* Пространство между элементами */
+    align-items: center;                    /* Выравнивание по вертикали */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 1.2rem → 0.6rem) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (уменьшено с 0.8rem → 0.4rem) */
+    border-bottom: 1px solid #0B8661;       /* Зелёная линия-разделитель (тонкая) */
 }
 
-/* ПРАВАЯ КОЛОНКА - список просчётов */
-#proschet-section .right-column {
-    background: white;
-    padding: 1rem;
-    border-radius: 10px;
-    border: 1px solid #e0e0e0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+/* Заголовок секции (h2) */
+#section-proschet .section-header h2 {
+    margin: 0;                              /* Убираем стандартные отступы браузера */
+    font-size: 0.9rem;                      /* Размер шрифта (уменьшено с 1.3rem → 0.9rem) */
+    color: #333;                            /* Темно-серый цвет текста */
+    display: flex;                          /* Flexbox для выравнивания элементов */
+    align-items: center;                    /* Выравнивание по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (уменьшено с 0.5rem → 0.3rem) */
 }
 
-/* Заголовок секции */
-#proschet-section .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.8rem;
-    border-bottom: 2px solid #f0f0f0;
+/* ===== 2. КНОПКИ УПРАВЛЕНИЯ В ЗАГОЛОВКЕ ===== */
+
+/* Контейнер для кнопок в заголовке */
+#section-proschet .header-buttons {
+    display: flex;                          /* Flexbox для расположения кнопок */
+    gap: 0.2rem;                            /* Расстояние между кнопок (уменьшено с 0.5rem → 0.2rem) */
+    align-items: center;                    /* Выравнивание по вертикали */
 }
 
-#proschet-section .section-header h2,
-#proschet-section .section-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+/* Кнопка "Рассчитать" */
+#section-proschet .btn-calculate-price {
+    background: #0B8661;                    /* Зелёный фон */
+    color: white;                           /* Белый текст */
+    border: none;                           /* Убираем стандартную рамку */
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (уменьшено с 0.5rem 0.7rem → 0.25rem 0.5rem) */
+    border-radius: 3px;                     /* Скругление углов (уменьшено с 4px → 3px) */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.85rem → 0.75rem) */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: all 0.12s ease;             /* Плавные переходы (быстрее: 0.2s → 0.12s) */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Выравнивание по вертикали */
+    gap: 0.15rem;                           /* Расстояние между иконкой и текстом (уменьшено) */
 }
 
-#proschet-section .section-header h2 {
-    font-size: 1.3rem;
+/* Эффект при наведении на кнопку "Рассчитать" */
+#section-proschet .btn-calculate-price:hover:not(:disabled) {
+    background: #097055;                    /* Тёмно-зелёный фон при наведении */
 }
 
-/* ===== 2. ИНФОРМАЦИЯ О ПРОСЧЁТЕ (левая колонка) ===== */
-#proschet-section .proschet-info-print-style {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+/* Кнопка сворачивания секции */
+#section-proschet .btn-collapse-section {
+    min-width: 18px;                        /* Минимальная ширина (уменьшено) */
+    min-height: 18px;                       /* Минимальная высота (уменьшено) */
+    padding: 0.15rem;                       /* Внутренние отступы (уменьшено) */
+    background: #f5f5f5;                    /* Светло-серый фон кнопки */
+    border: 1px solid #ddd;                 /* Светло-серая рамка */
+    border-radius: 3px;                     /* Скругление углов */
 }
 
-#proschet-section .form-group {
-    margin-bottom: 1.2rem;
+/* ===== 3. ДВУХКОЛОНОЧНЫЙ LAYOUT (обновлён) ===== */
+
+/* Двухколоночный макет для секции просчёта */
+#section-proschet .two-column-layout {
+    display: grid;                          /* CSS Grid для точного контроля */
+    grid-template-columns: minmax(250px, 1fr) minmax(300px, 1.2fr);  /* Колонки (уменьшены) */
+    gap: 0.8rem;                            /* Расстояние между колонками (уменьшено с 1.5rem → 0.8rem) */
+    margin-top: 0.6rem;                     /* Отступ сверху (уменьшено с 1.2rem → 0.6rem) */
 }
 
-#proschet-section .form-group label {
-    display: block;
-    margin-bottom: 0.4rem;
-    font-weight: 500;
-    color: #555;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+/* ===== 4. ЛЕВАЯ КОЛОНКА - информация о текущем просчёте ===== */
+
+/* Левая колонка с информацией о просчёте */
+#section-proschet .left-column {
+    background: #f9f9f9;                    /* Очень светлый серый фон */
+    padding: 0.8rem;                        /* Внутренние отступы (уменьшено с 1.2rem → 0.8rem) */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 10px → 4px) */
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    min-height: 300px;                      /* Минимальная высота (уменьшено с 400px → 300px) */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
+    overflow: hidden;                       /* Скрываем переполнение */
 }
 
-#proschet-section .form-group label i {
-    color: #0B8661;
-    width: 16px;
-    text-align: center;
+/* ===== 5. ПРАВАЯ КОЛОНКА - список просчётов ===== */
+
+/* Правая колонка со списком просчётов */
+#section-proschet .right-column {
+    background: white;                      /* Белый фон */
+    padding: 0.6rem;                        /* Внутренние отступы (уменьшено с 1rem → 0.6rem) */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 10px → 4px) */
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    min-width: 0;                           /* Минимальная ширина 0 для корректной работы grid */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
 }
 
-#proschet-section .editable-field-container {
-    position: relative;
-    width: 100%;
+/* ===== 6. ИНФОРМАЦИЯ О ПРОСЧЁТЕ (левая колонка) ===== */
+
+/* Контейнер информации о просчёте */
+#section-proschet .proschet-info-print-style {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
 }
 
-/* Редактируемые поля (бейджи) */
-#proschet-section .editable-field {
-    display: inline-block;
-    padding: 0.6rem 0.8rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 1rem;
-    color: #333;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: 100%;
-    box-sizing: border-box;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
+/* Группа полей формы */
+#section-proschet .form-group {
+    margin-bottom: 0.8rem;                  /* Отступ снизу (уменьшено с 1.2rem → 0.8rem) */
 }
 
-#proschet-section .editable-field:hover {
-    background: #e9ecef;
-    border-color: #0B8661;
-    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.1);
+/* Подпись (label) для поля формы */
+#section-proschet .form-group label {
+    display: block;                         /* Блочный элемент */
+    margin-bottom: 0.2rem;                  /* Отступ снизу (уменьшено с 0.4rem → 0.2rem) */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    color: #555;                            /* Серый цвет текста */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.95rem → 0.75rem) */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Выравнивание по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (уменьшено с 0.5rem → 0.3rem) */
 }
 
-/* Поля ввода для inline-редактирования */
-#proschet-section .inline-edit-input {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: 2px solid #0B8661;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 500;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-    min-height: 40px;
+/* Иконка в подписи поля */
+#section-proschet .form-group label i {
+    color: #0B8661;                         /* Зелёный цвет иконок */
+    width: 12px;                            /* Ширина (уменьшено с 16px → 12px) */
+    text-align: center;                     /* Центрирование иконки */
 }
 
-#proschet-section .inline-edit-input:focus {
-    outline: none;
-    border-color: #097055;
-    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
+/* ===== 7. РЕДАКТИРУЕМЫЕ ПОЛЯ (бейджи) ===== */
+
+/* Контейнер редактируемого поля */
+#section-proschet .editable-field-container {
+    position: relative;                     /* Относительное позиционирование */
+    width: 100%;                            /* Ширина 100% от родителя */
+}
+
+/* Редактируемое поле (бейдж) */
+#section-proschet .editable-field {
+    display: inline-block;                  /* Строчно-блочный элемент */
+    padding: 0.4rem 0.6rem;                 /* Внутренние отступы (уменьшено с 0.6rem 0.8rem → 0.4rem 0.6rem) */
+    background: #f8f9fa;                    /* Светло-серый фон */
+    border: 1px solid #dee2e6;              /* Тонкая серая рамка */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 6px → 4px) */
+    font-size: 0.8rem;                      /* Размер шрифта (уменьшено с 1rem → 0.8rem) */
+    color: #333;                            /* Тёмно-серый цвет текста */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: all 0.12s ease;             /* Плавные переходы (быстрее: 0.2s → 0.12s) */
+    width: 100%;                            /* Ширина 100% от родителя */
+    box-sizing: border-box;                 /* Padding включается в ширину */
+    min-height: 30px;                       /* Минимальная высота (уменьшено с 40px → 30px) */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+}
+
+/* Эффект при наведении на редактируемое поле */
+#section-proschet .editable-field:hover {
+    background: #e9ecef;                    /* Более тёмный серый фон при наведении */
+    border-color: #0B8661;                  /* Зелёная рамка при наведении */
+}
+
+/* ===== 8. ПОЛЯ ВВОДА ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
+
+/* Поле ввода для inline-редактирования */
+#section-proschet .inline-edit-input {
+    width: 100%;                            /* Ширина 100% от родителя */
+    padding: 0.4rem 0.6rem;                 /* Внутренние отступы (уменьшено) */
+    border: 1px solid #0B8661;              /* Зелёная рамка (тоньше: было 2px → 1px) */
+    border-radius: 4px;                     /* Скругление углов */
+    font-size: 0.8rem;                      /* Размер шрифта */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    background: white;                      /* Белый фон */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);  /* Очень лёгкая тень (уменьшена) */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    box-sizing: border-box;                 /* Padding включается в ширину */
+    min-height: 30px;                       /* Минимальная высота */
+}
+
+/* Эффект при фокусе на поле ввода */
+#section-proschet .inline-edit-input:focus {
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #097055;                  /* Тёмно-зелёная рамка при фокусе */
 }
 
 /* Специфичные стили для разных типов полей ввода */
-#proschet-section .inline-edit-input[type="date"] {
-    font-family: inherit;
+#section-proschet .inline-edit-input[type="date"] {
+    font-family: inherit;                   /* Наследует шрифт родительского элемента */
 }
 
-#proschet-section .inline-edit-input[type="text"] {
-    color: #1565c0;
+#section-proschet .inline-edit-input[type="text"] {
+    color: #1565c0;                         /* Синий цвет текста */
 }
 
-#proschet-section select.inline-edit-input {
-    cursor: pointer;
-    appearance: none;
+/* Выпадающий список для inline-редактирования */
+#section-proschet select.inline-edit-input {
+    cursor: pointer;                        /* Курсор в виде руки */
+    appearance: none;                       /* Убираем стандартный вид браузера */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%230B8661' d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.8rem center;
-    background-size: 12px;
-    padding-right: 2.5rem;
+    background-repeat: no-repeat;           /* Не повторять фон */
+    background-position: right 0.5rem center;  /* Позиционирование стрелки (уменьшено) */
+    background-size: 10px;                  /* Размер стрелки (уменьшено с 12px → 10px) */
+    padding-right: 2rem;                    /* Отступ справа для стрелки (уменьшено) */
 }
 
-/* ===== 3. СТАТУСЫ ПРОСЧЁТОВ ===== */
-#proschet-section .status-badge {
-    display: inline-block;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#proschet-section .status-draft {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
-}
-
-#proschet-section .status-draft:hover {
-    background-color: #ffeaa7;
-}
-
-#proschet-section .status-active {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-#proschet-section .status-active:hover {
-    background-color: #c3e6cb;
-}
-
-#proschet-section .status-saved {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-
-#proschet-section .status-saved:hover {
-    background-color: #bee5eb;
-}
-
-#proschet-section .status-cancelled {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
+/* ===== 9. СТАТУСЫ ПРОСЧЁТОВ (упрощены) ===== */
 
-#proschet-section .status-cancelled:hover {
-    background-color: #f5c6cb;
+/* Общие стили для бейджей статусов */
+#section-proschet .status-badge {
+    display: inline-block;                  /* Строчно-блочный элемент */
+    padding: 0.2rem 0.5rem;                 /* Внутренние отступы (уменьшено с 0.4rem 0.8rem → 0.2rem 0.5rem) */
+    border-radius: 12px;                    /* Скругление углов (уменьшено с 20px → 12px) */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.85rem → 0.7rem) */
+    font-weight: 600;                       /* Полужирный шрифт */
+    text-transform: uppercase;              /* Заглавные буквы */
+    letter-spacing: 0.3px;                  /* Межбуквенное расстояние (уменьшено) */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    border: 1px solid;                      /* Рамка (цвет будет определён в конкретных классах) */
 }
 
-/* ===== 4. БЕЙДЖ ОБЩЕЙ СТОИМОСТИ ===== */
-#proschet-section .total-price-badge {
-    display: inline-block;
-    padding: 0.6rem 1rem;
-    background: linear-gradient(135deg, #0B8661, #097055);
-    color: white;
-    border-radius: 8px;
-    font-size: 1.2rem;
-    font-weight: 700;
-    text-align: center;
-    border: none;
-    min-width: 120px;
-    box-shadow: 0 4px 8px rgba(11, 134, 97, 0.2);
+/* Статус: Черновик */
+#section-proschet .status-draft {
+    background-color: #fff3cd;              /* Светло-жёлтый фон */
+    color: #856404;                         /* Тёмно-жёлтый текст */
+    border-color: #ffeaa7;                  /* Жёлтая рамка */
+}
+
+/* Эффект при наведении на статус "Черновик" */
+#section-proschet .status-draft:hover {
+    background-color: #ffeaa7;              /* Более тёмный жёлтый фон при наведении */
 }
-
-/* ===== 5. СПИСОК ПРОСЧЁТОВ (правая колонка) ===== */
-#proschet-section .proschets-list-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-}
-
-#proschet-section .prices-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-#proschet-section .prices-table {
-    flex: 1;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-#proschet-section .prices-table .table-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr 1fr 0.8fr;
-    background: #f8f9fa;
-    padding: 0.8rem;
-    font-weight: 600;
-    color: #333;
-    border-bottom: 2px solid #e0e0e0;
-    flex-shrink: 0;
-    font-size: 0.9rem;
-}
-
-#proschet-section .prices-table .table-body {
-    flex: 1;
-    overflow-y: auto;
-    max-height: 350px;
-    min-height: 200px;
-}
-
-#proschet-section .prices-table .table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr 1fr 0.8fr;
-    padding: 0.8rem;
-    border-bottom: 1px solid #f0f0f0;
-    transition: all 0.2s ease;
-    position: relative;
-    align-items: center;
+
+/* Статус: Активный */
+#section-proschet .status-active {
+    background-color: #d4edda;              /* Светло-зелёный фон */
+    color: #155724;                         /* Тёмно-зелёный текст */
+    border-color: #c3e6cb;                  /* Зелёная рамка */
 }
-
-#proschet-section .prices-table .table-row:hover {
-    background: #f8f9fa;
-}
-
-#proschet-section .prices-table .table-row.selected {
-    background: #e8f5e9;
-    border-left: 3px solid #0B8661;
-}
-
-#proschet-section .prices-table .table-row.editing {
-    background: #fffde7 !important;
-    border-left: 3px solid #ffc107;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-/* Колонки таблицы */
-#proschet-section .col-number,
-#proschet-section .col-date,
-#proschet-section .col-client,
-#proschet-section .col-total,
-#proschet-section .col-actions {
-    display: flex;
-    align-items: center;
-    padding: 0 0.5rem;
-    min-width: 0;
-}
-
-#proschet-section .col-actions {
-    gap: 0.3rem;
-    justify-content: flex-start;
-}
-
-/* Кнопки действий в таблице */
-#proschet-section .btn-load-proschet,
-#proschet-section .btn-delete {
-    padding: 0.4rem 0.6rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#proschet-section .btn-load-proschet {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-#proschet-section .btn-load-proschet:hover {
-    background: #bbdefb;
-    transform: scale(1.05);
-}
-
-#proschet-section .btn-delete {
-    background: #ffebee;
-    color: #c62828;
-}
-
-#proschet-section .btn-delete:hover {
-    background: #f44336;
-    color: white;
-}
-
-/* ===== 6. КНОПКИ УПРАВЛЕНИЯ ===== */
-#proschet-section .header-buttons {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-#proschet-section .btn-add-price {
-    padding: 0.5rem 1rem;
-    background: #0B8661;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    white-space: nowrap;
-}
-
-#proschet-section .btn-add-price:hover {
-    background: #097055;
-    transform: scale(1.05);
-}
-
-#proschet-section .btn-reset-filter {
-    padding: 0.4rem 0.8rem;
-    background: #e3f2fd;
-    color: #1565c0;
-    border: 1px solid #bbdefb;
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-#proschet-section .btn-reset-filter:hover {
-    background: #1565c0;
-    color: white;
-    transform: scale(1.05);
-}
-
-#proschet-section .button-group {
-    display: flex;
-    gap: 0.8rem;
-    margin-top: auto;
-    padding-top: 1.5rem;
-    border-top: 1px solid #e0e0e0;
-}
-
-#proschet-section .btn-submit {
-    padding: 0.6rem 1.2rem;
-    background: #0B8661;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    transition: background-color 0.2s ease;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-#proschet-section .btn-submit:hover {
-    background: #097055;
-}
-
-#proschet-section .btn-submit:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-#proschet-section .btn-delete {
-    padding: 0.6rem 1.2rem;
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-#proschet-section .btn-delete:hover:not(:disabled) {
-    background: #f44336;
-    color: white;
-    border-color: #f44336;
-}
-
-#proschet-section .btn-delete:disabled {
-    background: #e9ecef;
-    color: #6c757d;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-/* ===== 7. ПОДСКАЗКИ ===== */
-#proschet-section .table-hint {
-    margin-top: 1.5rem;
-    padding: 0.8rem;
-    background: #f9f9f9;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    font-size: 0.85rem;
-}
-
-#proschet-section .hint-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.3rem;
-    color: #666;
-}
-
-#proschet-section .hint-item:last-child {
-    margin-bottom: 0;
-}
-
-#proschet-section .hint-icon {
-    color: #0B8661;
-    width: 16px;
-    text-align: center;
-}
-
-/* ===== 8. СООБЩЕНИЯ ===== */
-#proschet-section .empty-message {
-    text-align: center;
-    color: #999;
-    padding: 3rem 1rem;
-    font-style: italic;
-    grid-column: 1 / -1;
-}
-
-#proschet-section .empty-message i {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    color: #ddd;
-    display: block;
-}
-
-#proschet-section .empty-message p {
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-}
-
-#proschet-section .empty-message small {
-    font-size: 0.9rem;
-}
 
-/* ===== 9. ПАГИНАЦИЯ ===== */
-#proschet-section .pagination-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border-top: 1px solid #e0e0e0;
-    background: #f8f9fa;
-    margin-top: auto;
-}
-
-#proschet-section .btn-prev,
-#proschet-section .btn-next {
-    padding: 0.5rem 1rem;
-    background: #e9ecef;
-    color: #495057;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+/* Эффект при наведении на статус "Активный" */
+#section-proschet .status-active:hover {
+    background-color: #c3e6cb;              /* Более тёмный зелёный фон при наведении */
+}
+
+/* Статус: Сохранён */
+#section-proschet .status-saved {
+    background-color: #d1ecf1;              /* Светло-голубой фон */
+    color: #0c5460;                         /* Тёмно-голубой текст */
+    border-color: #bee5eb;                  /* Голубая рамка */
+}
+
+/* Эффект при наведении на статус "Сохранён" */
+#section-proschet .status-saved:hover {
+    background-color: #bee5eb;              /* Более тёмный голубой фон при наведении */
 }
-
-#proschet-section .btn-prev:hover:not(:disabled),
-#proschet-section .btn-next:hover:not(:disabled) {
-    background: #0B8661;
-    color: white;
-    border-color: #0B8661;
+
+/* Статус: Отменён */
+#section-proschet .status-cancelled {
+    background-color: #f8d7da;              /* Светло-красный фон */
+    color: #721c24;                         /* Тёмно-красный текст */
+    border-color: #f5c6cb;                  /* Красная рамка */
 }
-
-#proschet-section .btn-prev:disabled,
-#proschet-section .btn-next:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
 
-#proschet-section .page-info {
-    font-size: 0.9rem;
-    color: #495057;
-    font-weight: 500;
-}
-
-/* ===== 10. МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ===== */
-#proschet-section .confirmation-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 10000;
-    justify-content: center;
-    align-items: center;
+/* Эффект при наведении на статус "Отменён" */
+#section-proschet .status-cancelled:hover {
+    background-color: #f5c6cb;              /* Более тёмный красный фон при наведении */
 }
 
-#proschet-section .confirmation-modal-content {
-    background-color: white;
-    border-radius: 10px;
-    padding: 2rem;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
+/* ===== 10. БЕЙДЖ ОБЩЕЙ СТОИМОСТИ (упрощён) ===== */
 
-#proschet-section .confirmation-modal-header {
-    margin-bottom: 1.5rem;
-    text-align: center;
-}
+/* Бейдж общей стоимости */
+#section-proschet .total-price-badge {
+    display: inline-block;                  /* Строчно-блочный элемент */
+    padding: 0.4rem 0.8rem;                 /* Внутренние отступы (уменьшено с 0.6rem 1rem → 0.4rem 0.8rem) */
+    background: #0B8661;                    /* Зелёный фон (убраны градиенты) */
+    color: white;                           /* Белый текст */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 8px → 4px) */
+    font-size: 0.9rem;                      /* Размер шрифта (уменьшено с 1.2rem → 0.9rem) */
+    font-weight: 700;                       /* Жирный шрифт */
+    text-align: center;                     /* Выравнивание по центру */
+    border: none;                           /* Убираем рамку */
+    min-width: 90px;                        /* Минимальная ширина (уменьшено с 120px → 90px) */
+    box-shadow: 0 2px 4px rgba(11, 134, 97, 0.2);  /* Лёгкая тень (уменьшена) */
+}
+
+/* ===== 11. СПИСОК ПРОСЧЁТОВ (правая колонка, обновлён) ===== */
 
-#proschet-section .confirmation-modal-header h3 {
-    color: #343a40;
-    margin-bottom: 0.5rem;
+/* Контейнер списка просчётов */
+#section-proschet .proschets-list-container {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
+    min-height: 0;                          /* Минимальная высота 0 для корректного скролла */
+    overflow: hidden;                       /* Скрываем переполнение */
 }
-
-#proschet-section .confirmation-modal-header i {
-    font-size: 3rem;
-    color: #dc3545;
-    margin-bottom: 1rem;
-    display: block;
+
+/* Секция с ценами */
+#section-proschet .prices-section {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
+    min-height: 0;                          /* Минимальная высота 0 */
+}
+
+/* Таблица цен */
+#section-proschet .prices-table {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 8px → 4px) */
+    overflow: hidden;                       /* Скрываем переполнение */
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    display: flex;                          /* Flexbox для внутренней структуры */
+    flex-direction: column;                 /* Вертикальное расположение */
+    min-height: 0;                          /* Минимальная высота 0 */
+}
+
+/* Заголовок таблицы */
+#section-proschet .prices-table .table-header {
+    display: grid;                          /* CSS Grid для расположения колонок */
+    grid-template-columns: 1fr 1fr 1.2fr 1fr 0.7fr;  /* Распределение ширины колонок (уменьшены) */
+    background: #f8f9fa;                    /* Светло-серый фон */
+    padding: 0.5rem;                        /* Внутренние отступы (уменьшено с 0.8rem → 0.5rem) */
+    font-weight: 600;                       /* Полужирный шрифт */
+    color: #333;                            /* Тёмно-серый текст */
+    border-bottom: 1px solid #e0e0e0;       /* Тонкая разделительная линия (уменьшено с 2px → 1px) */
+    flex-shrink: 0;                         /* Запрещаем сжатие */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.9rem → 0.7rem) */
 }
 
-#proschet-section .confirmation-modal-body {
-    margin-bottom: 2rem;
-    text-align: center;
-    color: #6c757d;
-    line-height: 1.6;
-}
-
-#proschet-section .confirmation-modal-footer {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
-#proschet-section .btn-confirm {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.7rem 1.5rem;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-#proschet-section .btn-confirm:hover {
-    background-color: #c82333;
-}
-
-#proschet-section .btn-cancel {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.7rem 1.5rem;
-    border-radius: 6px;
-    font-size: 1rem;
-}
-
-#proschet-section .btn-cancel:hover {
-    background-color: #5a6268;
-}
-
-/* ===== 11. УВЕДОМЛЕНИЯ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
-.inline-edit-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 10px 20px;
-    border-radius: 5px;
-    color: white;
-    font-weight: bold;
-    z-index: 10000;
-    animation: fadeInOut 5s ease-in-out;
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 0; transform: translateY(-20px); }
-    10% { opacity: 1; transform: translateY(0); }
-    90% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-20px); }
-}
-
-.notification-success {
-    background-color: #4CAF50;
-}
-
-.notification-error {
-    background-color: #F44336;
-}
-
-.notification-warning {
-    background-color: #FF9800;
-}
-
-.notification-info {
-    background-color: #2196F3;
-}
-
-/* ===== 12. АДАПТИВНЫЕ СТИЛИ ===== */
-@media (max-width: 1137px) {
-    #proschet-section .two-column-layout {
-        grid-template-columns: minmax(250px, 1fr) minmax(280px, 1fr);
-        gap: 1rem;
-    }
-    
-    #proschet-section .left-column,
-    #proschet-section .right-column {
-        padding: 0.8rem;
-    }
-    
-    #proschet-section .prices-table .table-header,
-    #proschet-section .prices-table .table-row {
-        grid-template-columns: 1fr 0.8fr 1.2fr 0.8fr 0.6fr;
-        font-size: 0.85rem;
-    }
-}
-
-@media (max-width: 768px) {
-    #proschet-section .two-column-layout {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    #proschet-section .section-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.8rem;
-    }
-    
-    #proschet-section .header-buttons {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    #proschet-section .btn-add-price,
-    #proschet-section .btn-reset-filter {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    #proschet-section .prices-table .table-header {
-        display: none;
-    }
-    
-    #proschet-section .prices-table .table-row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        padding: 1rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    #proschet-section .col-number,
-    #proschet-section .col-date,
-    #proschet-section .col-client,
-    #proschet-section .col-total,
-    #proschet-section .col-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        padding: 0.3rem 0;
-    }
-    
-    #proschet-section .col-number::before {
-        content: "Номер: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        min-width: 80px;
-    }
-    
-    #proschet-section .col-date::before {
-        content: "Дата: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        min-width: 80px;
-    }
-    
-    #proschet-section .col-client::before {
-        content: "Клиент: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        min-width: 80px;
-    }
-    
-    #proschet-section .col-total::before {
-        content: "Сумма: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        min-width: 80px;
-    }
-    
-    #proschet-section .col-actions {
-        justify-content: flex-start;
-        border-top: 1px solid #f0f0f0;
-        padding-top: 0.5rem;
-        margin-top: 0.5rem;
-    }
-    
-    #proschet-section .col-actions::before {
-        content: "Действия: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        min-width: 80px;
-    }
-    
-    #proschet-section .button-group {
-        flex-direction: column;
-    }
-}
-
-
-/* Добавьте в proschet_print_price_style.css */
-
-/* Стили для редактируемых полей в таблице */
-#proschet-section .prices-table .editable-field-container {
-    position: relative;
-    width: 100%;
-}
-
-#proschet-section .prices-table .editable-field {
-    display: inline-block;
-    padding: 0.4rem 0.6rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    color: #333;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: 100%;
-    box-sizing: border-box;
-    min-height: 32px;
-    display: flex;
-    align-items: center;
-}
-
-#proschet-section .prices-table .editable-field:hover {
-    background: #e9ecef;
-    border-color: #0B8661;
-}
-
-#proschet-section .prices-table .inline-edit-input {
-    width: 100%;
-    padding: 0.4rem 0.6rem;
-    border: 2px solid #0B8661;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-    min-height: 32px;
-}
-
-#proschet-section .prices-table .inline-edit-input:focus {
-    outline: none;
-    border-color: #097055;
-    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
+/* Тело таблицы с возможностью скролла */
+#section-proschet .prices-table .table-body {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    overflow-y: auto;                       /* Вертикальный скролл при переполнении */
+    max-height: 250px;                      /* Максимальная высота (уменьшено с 350px → 250px) */
+    min-height: 150px;                      /* Минимальная высота (уменьшено с 200px → 150px) */
+}
+
+/* Строка таблицы */
+#section-proschet .prices-table .table-row {
+    display: grid;                          /* CSS Grid для расположения колонок */
+    grid-template-columns: 1fr 1fr 1.2fr 1fr 0.7fr;  /* Распределение ширины колонок */
+    padding: 0.5rem;                        /* Внутренние отступы (уменьшено с 0.8rem → 0.5rem) */
+    border-bottom: 1px solid #f0f0f0;       /* Тонкая разделительная линия */
+    transition: all 0.12s ease;             /* Плавные переходы (быстрее: 0.2s → 0.12s) */
+    position: relative;                     /* Относительное позиционирование */
+    align-items: center;                    /* Вертикальное выравнивание по центру */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено) */
+}
+
+/* Эффект при наведении на строку таблицы */
+#section-proschet .prices-table .table-row:hover {
+    background: #f8f9fa;                    /* Светло-серый фон при наведении */
+}
+
+/* Выделенная строка таблицы */
+#section-proschet .prices-table .table-row.selected {
+    background: #e8f5e9;                    /* Светло-зелёный фон для выделения */
+    border-left: 2px solid #0B8661;         /* Зелёная рамка слева (тонкая) */
+}
+
+/* Строка таблицы в режиме редактирования */
+#section-proschet .prices-table .table-row.editing {
+    background: #fffde7 !important;         /* Светло-жёлтый фон при редактировании */
+    border-left: 2px solid #ffc107;         /* Жёлтая рамка слева (тонкая) */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Очень лёгкая тень (уменьшена) */
+}
+
+/* ===== 12. КОЛОНКИ ТАБЛИЦЫ ===== */
+
+/* Общие стили для всех колонок таблицы */
+#section-proschet .col-number,
+#section-proschet .col-date,
+#section-proschet .col-client,
+#section-proschet .col-total,
+#section-proschet .col-actions {
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание по центру */
+    padding: 0 0.3rem;                      /* Горизонтальные отступы (уменьшено с 0.5rem → 0.3rem) */
+    min-width: 0;                           /* Минимальная ширина 0 для корректной работы grid */
+}
+
+/* Колонка с действиями */
+#section-proschet .col-actions {
+    gap: 0.2rem;                            /* Расстояние между кнопками (уменьшено с 0.3rem → 0.2rem) */
+    justify-content: flex-start;            /* Выравнивание по левому краю */
+}
+
+/* ===== 13. КНОПКИ ДЕЙСТВИЙ В ТАБЛИЦЕ ===== */
+
+/* Общие стили для кнопок действий в таблице */
+#section-proschet .btn-load-proschet,
+#section-proschet .btn-delete {
+    padding: 0.2rem 0.4rem;                 /* Внутренние отступы (уменьшено с 0.4rem 0.6rem → 0.2rem 0.4rem) */
+    border: none;                           /* Убираем стандартную рамку */
+    border-radius: 2px;                     /* Скругление углов (уменьшено с 4px → 2px) */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: all 0.12s ease;             /* Плавные переходы (быстрее: 0.2s → 0.12s) */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.85rem → 0.7rem) */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    justify-content: center;                /* Горизонтальное центрирование */
+}
+
+/* Кнопка "Загрузить просчёт" */
+#section-proschet .btn-load-proschet {
+    background: #e3f2fd;                    /* Светло-голубой фон */
+    color: #1565c0;                         /* Синий текст */
+}
+
+/* Эффект при наведении на кнопку "Загрузить просчёт" */
+#section-proschet .btn-load-proschet:hover {
+    background: #bbdefb;                    /* Более тёмный голубой фон при наведении */
+}
+
+/* Кнопка "Удалить" */
+#section-proschet .btn-delete {
+    background: #ffebee;                    /* Светло-красный фон */
+    color: #c62828;                         /* Тёмно-красный текст */
+}
+
+/* Эффект при наведении на кнопку "Удалить" */
+#section-proschet .btn-delete:hover {
+    background: #f44336;                    /* Красный фон при наведении */
+    color: white;                           /* Белый текст при наведении */
+}
+
+/* ===== 14. КНОПКИ УПРАВЛЕНИЯ СЕКЦИЕЙ ===== */
+
+/* Кнопка "Добавить цену" */
+#section-proschet .btn-add-price {
+    padding: 0.3rem 0.6rem;                 /* Внутренние отступы (уменьшено с 0.5rem 1rem → 0.3rem 0.6rem) */
+    background: #0B8661;                    /* Зелёный фон */
+    color: white;                           /* Белый текст */
+    border: none;                           /* Убираем стандартную рамку */
+    border-radius: 3px;                     /* Скругление углов (уменьшено с 6px → 3px) */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.9rem → 0.75rem) */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: background-color 0.12s ease;  /* Плавный переход фона */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом (уменьшено с 0.5rem → 0.3rem) */
+    white-space: nowrap;                    /* Запрещаем перенос текста */
+}
+
+/* Эффект при наведении на кнопку "Добавить цену" */
+#section-proschet .btn-add-price:hover {
+    background: #097055;                    /* Тёмно-зелёный фон при наведении */
+}
+
+/* Кнопка "Сбросить фильтр" */
+#section-proschet .btn-reset-filter {
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (уменьшено с 0.4rem 0.8rem → 0.25rem 0.5rem) */
+    background: #e3f2fd;                    /* Светло-голубой фон */
+    color: #1565c0;                         /* Синий текст */
+    border: 1px solid #bbdefb;              /* Голубая рамка */
+    border-radius: 3px;                     /* Скругление углов */
+    text-decoration: none;                  /* Убираем подчёркивание */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.85rem → 0.7rem) */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    gap: 0.2rem;                            /* Расстояние между иконкой и текстом (уменьшено) */
+    white-space: nowrap;                    /* Запрещаем перенос текста */
+    cursor: pointer;                        /* Курсор в виде руки */
+}
+
+/* Эффект при наведении на кнопку "Сбросить фильтр" */
+#section-proschet .btn-reset-filter:hover {
+    background: #1565c0;                    /* Синий фон при наведении */
+    color: white;                           /* Белый текст при наведении */
+}
+
+/* Группа кнопок внизу секции */
+#section-proschet .button-group {
+    display: flex;                          /* Flexbox для расположения кнопок */
+    gap: 0.5rem;                            /* Расстояние между кнопок (уменьшено с 0.8rem → 0.5rem) */
+    margin-top: auto;                       /* Отправляем вниз контейнера */
+    padding-top: 0.8rem;                    /* Отступ сверху (уменьшено с 1.5rem → 0.8rem) */
+    border-top: 1px solid #e0e0e0;          /* Тонкая разделительная линия */
+}
+
+/* Кнопка отправки формы */
+#section-proschet .btn-submit {
+    padding: 0.4rem 0.8rem;                 /* Внутренние отступы (уменьшено с 0.6rem 1.2rem → 0.4rem 0.8rem) */
+    background: #0B8661;                    /* Зелёный фон */
+    color: white;                           /* Белый текст */
+    border: none;                           /* Убираем стандартную рамку */
+    border-radius: 3px;                     /* Скругление углов */
+    cursor: pointer;                        /* Курсор в виде руки */
+    font-size: 0.8rem;                      /* Размер шрифта (уменьшено с 0.95rem → 0.8rem) */
+    transition: background-color 0.12s ease;  /* Плавный переход фона */
+    flex: 1;                                /* Занимает всё доступное пространство */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    justify-content: center;                /* Горизонтальное центрирование */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом (уменьшено) */
+}
+
+/* Эффект при наведении на кнопку отправки */
+#section-proschet .btn-submit:hover {
+    background: #097055;                    /* Тёмно-зелёный фон при наведении */
+}
+
+/* Неактивная кнопка отправки */
+#section-proschet .btn-submit:disabled {
+    background: #6c757d;                    /* Серый фон для неактивной кнопки */
+    cursor: not-allowed;                    /* Курсор "недоступно" */
+    opacity: 0.6;                           /* Полупрозрачность */
+}
+
+/* Кнопка удаления в группе кнопок */
+#section-proschet .btn-delete {
+    padding: 0.4rem 0.8rem;                 /* Внутренние отступы (уменьшено) */
+    background: #f8d7da;                    /* Светло-красный фон */
+    color: #721c24;                         /* Тёмно-красный текст */
+    border: 1px solid #f5c6cb;              /* Светло-красная рамка */
+    border-radius: 3px;                     /* Скругление углов */
+    cursor: pointer;                        /* Курсор в виде руки */
+    font-size: 0.8rem;                      /* Размер шрифта */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    flex: 1;                                /* Занимает всё доступное пространство */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    justify-content: center;                /* Горизонтальное центрирование */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом */
+}
+
+/* Эффект при наведении на кнопку удаления */
+#section-proschet .btn-delete:hover:not(:disabled) {
+    background: #f44336;                    /* Красный фон при наведении */
+    color: white;                           /* Белый текст при наведении */
+    border-color: #f44336;                  /* Красная рамка при наведении */
+}
+
+/* Неактивная кнопка удаления */
+#section-proschet .btn-delete:disabled {
+    background: #e9ecef;                    /* Серый фон */
+    color: #6c757d;                         /* Серый текст */
+    cursor: not-allowed;                    /* Курсор "недоступно" */
+    opacity: 0.6;                           /* Полупрозрачность */
+}
+
+/* ===== 15. ПОДСКАЗКИ И СООБЩЕНИЯ ===== */
+
+/* Контейнер для подсказок */
+#section-proschet .table-hint {
+    margin-top: 0.8rem;                     /* Отступ сверху (уменьшено с 1.5rem → 0.8rem) */
+    padding: 0.5rem;                        /* Внутренние отступы (уменьшено с 0.8rem → 0.5rem) */
+    background: #f9f9f9;                    /* Светло-серый фон */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 8px → 4px) */
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.85rem → 0.7rem) */
+}
+
+/* Элемент подсказки */
+#section-proschet .hint-item {
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом (уменьшено с 0.5rem → 0.3rem) */
+    margin-bottom: 0.2rem;                  /* Отступ снизу (уменьшено с 0.3rem → 0.2rem) */
+    color: #666;                            /* Серый цвет текста */
+}
+
+/* Последний элемент подсказки без отступа */
+#section-proschet .hint-item:last-child {
+    margin-bottom: 0;                       /* Убираем нижний отступ */
+}
+
+/* Иконка в подсказке */
+#section-proschet .hint-icon {
+    color: #0B8661;                         /* Зелёный цвет иконки */
+    width: 12px;                            /* Ширина (уменьшено с 16px → 12px) */
+    text-align: center;                     /* Центрирование иконки */
+}
+
+/* Сообщение об отсутствии данных */
+#section-proschet .empty-message {
+    text-align: center;                     /* Выравнивание по центру */
+    color: #999;                            /* Светло-серый цвет */
+    padding: 1.5rem 0.8rem;                 /* Внутренние отступы (уменьшено с 3rem 1rem → 1.5rem 0.8rem) */
+    font-style: italic;                     /* Курсивный шрифт */
+    grid-column: 1 / -1;                    /* Растягиваем на все колонки grid */
+}
+
+/* Иконка в сообщении об отсутствии данных */
+#section-proschet .empty-message i {
+    font-size: 1.5rem;                      /* Размер иконки (уменьшено с 2.5rem → 1.5rem) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 1rem → 0.6rem) */
+    color: #ddd;                            /* Светло-серый цвет иконки */
+    display: block;                         /* Блочный элемент */
+}
+
+/* Текст в сообщении об отсутствии данных */
+#section-proschet .empty-message p {
+    margin-bottom: 0.3rem;                  /* Отступ снизу (уменьшено с 0.5rem → 0.3rem) */
+    font-size: 0.8rem;                      /* Размер шрифта (уменьшено с 1.1rem → 0.8rem) */
+}
+
+/* Мелкий текст в сообщении об отсутствии данных */
+#section-proschet .empty-message small {
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.9rem → 0.7rem) */
+}
+
+/* ===== 16. ПАГИНАЦИЯ (упрощена) ===== */
+
+/* Контейнер пагинации */
+#section-proschet .pagination-container {
+    display: flex;                          /* Flexbox для расположения */
+    justify-content: center;                /* Центрирование по горизонтали */
+    align-items: center;                    /* Вертикальное центрирование */
+    gap: 0.6rem;                            /* Расстояние между элементами (уменьшено с 1rem → 0.6rem) */
+    padding: 0.6rem;                        /* Внутренние отступы (уменьшено с 1rem → 0.6rem) */
+    border-top: 1px solid #e0e0e0;          /* Тонкая разделительная линия */
+    background: #f8f9fa;                    /* Светло-серый фон */
+    margin-top: auto;                       /* Отправляем вниз контейнера */
+}
+
+/* Кнопки "Назад" и "Вперёд" */
+#section-proschet .btn-prev,
+#section-proschet .btn-next {
+    padding: 0.3rem 0.6rem;                 /* Внутренние отступы (уменьшено с 0.5rem 1rem → 0.3rem 0.6rem) */
+    background: #e9ecef;                    /* Светло-серый фон */
+    color: #495057;                         /* Тёмно-серый текст */
+    border: 1px solid #dee2e6;              /* Серая рамка */
+    border-radius: 3px;                     /* Скругление углов (уменьшено с 6px → 3px) */
+    cursor: pointer;                        /* Курсор в виде руки */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.9rem → 0.75rem) */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом (уменьшено) */
+}
+
+/* Эффект при наведении на кнопки пагинации */
+#section-proschet .btn-prev:hover:not(:disabled),
+#section-proschet .btn-next:hover:not(:disabled) {
+    background: #0B8661;                    /* Зелёный фон при наведении */
+    color: white;                           /* Белый текст при наведении */
+}
+
+/* Неактивные кнопки пагинации */
+#section-proschet .btn-prev:disabled,
+#section-proschet .btn-next:disabled {
+    opacity: 0.5;                           /* Полупрозрачность */
+    cursor: not-allowed;                    /* Курсор "недоступно" */
+}
+
+/* Информация о странице */
+#section-proschet .page-info {
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.9rem → 0.75rem) */
+    color: #495057;                         /* Тёмно-серый текст */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+}
+
+/* ===== 17. РЕДАКТИРУЕМЫЕ ПОЛЯ В ТАБЛИЦЕ (специфичные стили) ===== */
+
+/* Контейнер редактируемого поля в таблице */
+#section-proschet .prices-table .editable-field-container {
+    position: relative;                     /* Относительное позиционирование */
+    width: 100%;                            /* Ширина 100% от родителя */
+}
+
+/* Редактируемое поле в таблице (бейдж) */
+#section-proschet .prices-table .editable-field {
+    display: inline-block;                  /* Строчно-блочный элемент */
+    padding: 0.2rem 0.4rem;                 /* Внутренние отступы (уменьшено с 0.4rem 0.6rem → 0.2rem 0.4rem) */
+    background: #f8f9fa;                    /* Светло-серый фон */
+    border: 1px solid #dee2e6;              /* Тонкая серая рамка */
+    border-radius: 2px;                     /* Скругление углов (уменьшено с 4px → 2px) */
+    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.9rem → 0.7rem) */
+    color: #333;                            /* Тёмно-серый цвет текста */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    cursor: pointer;                        /* Курсор в виде руки */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    width: 100%;                            /* Ширина 100% от родителя */
+    box-sizing: border-box;                 /* Padding включается в ширину */
+    min-height: 24px;                       /* Минимальная высота (уменьшено с 32px → 24px) */
+    display: flex;                          /* Flexbox для выравнивания */
+    align-items: center;                    /* Вертикальное выравнивание */
+}
+
+/* Эффект при наведении на редактируемое поле в таблице */
+#section-proschet .prices-table .editable-field:hover {
+    background: #e9ecef;                    /* Более тёмный серый фон при наведении */
+    border-color: #0B8661;                  /* Зелёная рамка при наведении */
+}
+
+/* Поле ввода для inline-редактирования в таблице */
+#section-proschet .prices-table .inline-edit-input {
+    width: 100%;                            /* Ширина 100% от родителя */
+    padding: 0.2rem 0.4rem;                 /* Внутренние отступы (уменьшено) */
+    border: 1px solid #0B8661;              /* Зелёная рамка (тоньше: было 2px → 1px) */
+    border-radius: 2px;                     /* Скругление углов */
+    font-size: 0.7rem;                      /* Размер шрифта */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    background: white;                      /* Белый фон */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);  /* Очень лёгкая тень (уменьшена) */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    box-sizing: border-box;                 /* Padding включается в ширину */
+    min-height: 24px;                       /* Минимальная высота */
+}
+
+/* Эффект при фокусе на поле ввода в таблице */
+#section-proschet .prices-table .inline-edit-input:focus {
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #097055;                  /* Тёмно-зелёная рамка при фокусе */
 }
 
 /* Подсветка всей секции при редактировании */
-#proschet-section .proschet-info-print-style.editing {
-    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.2);
-    border-radius: 8px;
-    transition: box-shadow 0.3s ease;
+#section-proschet .proschet-info-print-style.editing {
+    box-shadow: 0 0 0 1px rgba(11, 134, 97, 0.2);  /* Очень лёгкая зелёная тень (уменьшена) */
+    border-radius: 4px;                     /* Скругление углов */
+    transition: box-shadow 0.12s ease;      /* Плавный переход тени (быстрее: 0.3s → 0.12s) */
+}
+
+/* ===== 18. АДАПТИВНЫЕ СТИЛИ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
+@media (max-width: 1137px) {
+    #section-proschet .two-column-layout {
+        grid-template-columns: minmax(200px, 1fr) minmax(250px, 1fr);  /* Более узкие колонки */
+        gap: 0.6rem;                        /* Меньше расстояние между колонками */
+    }
+    
+    #section-proschet .left-column,
+    #section-proschet .right-column {
+        padding: 0.6rem;                    /* Уменьшаем внутренние отступы колонок */
+    }
+    
+    #section-proschet .prices-table .table-header,
+    #section-proschet .prices-table .table-row {
+        grid-template-columns: 1fr 0.8fr 1fr 0.8fr 0.6fr;  /* Более узкие колонки таблицы */
+        font-size: 0.65rem;                 /* Ещё меньше размер шрифта */
+    }
+}
+
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    #section-proschet .two-column-layout {
+        grid-template-columns: 1fr;         /* Одна колонка на мобильных */
+        gap: 0.6rem;                        /* Расстояние между секциями */
+    }
+    
+    #section-proschet .section-header {
+        flex-direction: column;             /* Вертикальное расположение элементов заголовка */
+        align-items: stretch;               /* Растягиваем на всю ширину */
+        gap: 0.4rem;                        /* Расстояние между элементами (уменьшено) */
+    }
+    
+    #section-proschet .header-buttons {
+        flex-direction: column;             /* Вертикальное расположение кнопок */
+        width: 100%;                        /* Ширина 100% */
+    }
+    
+    #section-proschet .btn-add-price,
+    #section-proschet .btn-reset-filter {
+        width: 100%;                        /* Кнопки на всю ширину */
+        justify-content: center;            /* Центрирование содержимого */
+    }
+    
+    #section-proschet .prices-table .table-header {
+        display: none;                      /* Скрываем заголовок таблицы на мобильных */
+    }
+    
+    #section-proschet .prices-table .table-row {
+        display: flex;                      /* Flexbox вместо grid */
+        flex-direction: column;             /* Вертикальное расположение */
+        gap: 0.3rem;                        /* Расстояние между элементами (уменьшено) */
+        padding: 0.6rem;                    /* Внутренние отступы */
+        border-bottom: 1px solid #e0e0e0;   /* Разделительная линия */
+    }
+    
+    /* Псевдоэлементы для создания подписей на мобильных */
+    #section-proschet .col-number::before {
+        content: "Номер: ";                 /* Текст перед значением */
+        font-weight: 600;                   /* Полужирный шрифт */
+        color: #555;                        /* Серый цвет */
+        margin-right: 0.3rem;               /* Отступ справа (уменьшено) */
+        min-width: 60px;                    /* Минимальная ширина (уменьшено с 80px → 60px) */
+        font-size: 0.7rem;                  /* Размер шрифта */
+    }
+    
+    #section-proschet .col-date::before {
+        content: "Дата: ";                  /* Текст перед значением */
+        font-weight: 600;                   /* Полужирный шрифт */
+        color: #555;                        /* Серый цвет */
+        margin-right: 0.3rem;               /* Отступ справа */
+        min-width: 60px;                    /* Минимальная ширина */
+        font-size: 0.7rem;                  /* Размер шрифта */
+    }
+    
+    #section-proschet .col-client::before {
+        content: "Клиент: ";                /* Текст перед значением */
+        font-weight: 600;                   /* Полужирный шрифт */
+        color: #555;                        /* Серый цвет */
+        margin-right: 0.3rem;               /* Отступ справа */
+        min-width: 60px;                    /* Минимальная ширина */
+        font-size: 0.7rem;                  /* Размер шрифта */
+    }
+    
+    #section-proschet .col-total::before {
+        content: "Сумма: ";                 /* Текст перед значением */
+        font-weight: 600;                   /* Полужирный шрифт */
+        color: #555;                        /* Серый цвет */
+        margin-right: 0.3rem;               /* Отступ справа */
+        min-width: 60px;                    /* Минимальная ширина */
+        font-size: 0.7rem;                  /* Размер шрифта */
+    }
+    
+    #section-proschet .col-actions {
+        justify-content: flex-start;        /* Выравнивание по левому краю */
+        border-top: 1px solid #f0f0f0;      /* Разделительная линия сверху */
+        padding-top: 0.3rem;                /* Отступ сверху (уменьшено) */
+        margin-top: 0.3rem;                 /* Внешний отступ сверху (уменьшено) */
+    }
+    
+    #section-proschet .col-actions::before {
+        content: "Действия: ";              /* Текст перед кнопками */
+        font-weight: 600;                   /* Полужирный шрифт */
+        color: #555;                        /* Серый цвет */
+        margin-right: 0.3rem;               /* Отступ справа */
+        min-width: 60px;                    /* Минимальная ширина */
+        font-size: 0.7rem;                  /* Размер шрифта */
+    }
+    
+    #section-proschet .button-group {
+        flex-direction: column;             /* Вертикальное расположение кнопок в группе */
+        gap: 0.3rem;                        /* Меньше расстояние между кнопками */
+    }
+}
+
+/* ===== 19. АНИМАЦИЯ ПОЯВЛЕНИЯ ===== */
+
+/* Анимация плавного появления секции */
+@keyframes fadeInProschet {
+    from {
+        opacity: 0;                         /* Начало: полностью прозрачно */
+        transform: translateY(10px);        /* Сдвиг вниз на 10px */
+    }
+    to {
+        opacity: 1;                         /* Конец: полностью непрозрачно */
+        transform: translateY(0);           /* Возврат в исходное положение */
+    }
+}
+
+/* Применение анимации */
+#section-proschet {
+    animation: fadeInProschet 0.2s ease-out;  /* Анимация появления снизу (быстрее: 0.3s → 0.2s) */
 }

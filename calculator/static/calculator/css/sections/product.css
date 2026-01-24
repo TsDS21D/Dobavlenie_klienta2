@@ -1,148 +1,322 @@
-/* Специфичные стили для секции Изделие */
+/*
+calculator/static/calculator/css/sections/product.css
+ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - Тонкие рамки по всему периметру
+ДОБАВЛЕН ЭФФЕКТ ПРИ НАВЕДЕНИИ НА СЕКЦИЮ ИЗДЕЛИЯ
+
+Основные изменения:
+1. Добавлен эффект при наведении на секцию изделия
+2. При наведении появляется тонкая зеленая рамка и легкая тень
+3. Улучшена плавность переходов
+*/
+
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ИЗДЕЛИЯ ===== */
+
+/* Контейнер всей секции изделия */
 #product-section {
-    border-left: 4px solid #9b59b6;
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру (было border-left: 4px solid #9b59b6) */
+    background: white;                      /* Белый фон для контраста */
+    padding: 0.6rem;                        /* Внутренние отступы (уменьшено с 15px → 0.6rem) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 20px → 0.6rem) */
+    border-radius: 6px;                     /* Скругление углов (уменьшено с 12px → 6px) */
+    transition: all 0.15s ease;             /* Плавные переходы (быстрее: 0.3s → 0.15s) */
 }
 
+/* НОВЫЙ ЭФФЕКТ: При наведении на секцию изделия */
+#product-section:hover {
+    border-color: #9b59b6;             /* Тонкая рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая зеленая тень для эффекта глубины */
+    transform: translateY(-1px);            /* Легкий подъем секции на 1px для интерактивного ощущения */
+    transition: all 0.2s ease;              /* Плавный переход всех свойств за 0.2 секунды */
+}
+
+/* ===== 2. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+/* Контейнер заголовка секции */
 #product-section .section-header {
-    border-bottom-color: #9b59b6;
+    display: flex;                          /* Flexbox для расположения элементов */
+    justify-content: space-between;         /* Пространство между элементами */
+    align-items: center;                    /* Выравнивание по вертикали */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 15px → 0.6rem) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (уменьшено с 10px → 0.4rem) */
+    border-bottom: 1px solid #9b59b6;       /* Фиолетовая линия-разделитель (тонкая) */
+}
+
+/* Заголовок секции (h2) */
+#product-section .section-header h2 {
+    margin: 0;                              /* Убираем стандартные отступы браузера */
+    font-size: 0.9rem;                      /* Размер шрифта (уменьшено с 20px → 0.9rem) */
+    color: #333;                            /* Темно-серый цвет текста */
+    display: flex;                          /* Flexbox для выравнивания элементов */
+    align-items: center;                    /* Выравнивание по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (уменьшено с 8px → 0.3rem) */
 }
 
 /* НОВЫЕ СТИЛИ: Для отображения названия просчёта в заголовке */
-
 /* Основной контейнер для названия просчёта */
 #product-proschet-title {
-    margin-left: 8px; /* Отступ от слова "Изделие" */
-    font-size: 0.9em; /* Немного меньше основного заголовка */
-    font-weight: normal; /* Обычное начертание, не жирное */
-    color: #555; /* Серый цвет для отличия от основного заголовка */
-    font-style: italic; /* Курсив для визуального выделения */
+    margin-left: 0.3rem;                    /* Отступ от слова "Изделие" (уменьшено с 8px → 0.3rem) */
+    font-size: 0.8rem;                      /* Немного меньше основного заголовка (было 0.9em) */
+    font-weight: normal;                    /* Обычное начертание, не жирное */
+    color: #555;                            /* Серый цвет для отличия от основного заголовка */
 }
 
 /* Стиль для текста-заполнителя (когда просчёт не выбран) */
 #product-proschet-title .placeholder-text {
-    color: #888; /* Светло-серый цвет для текста-заполнителя */
-    font-size: 0.85em; /* Немного меньше основного текста */
+    color: #888;                            /* Светло-серый цвет для текста-заполнителя */
+    font-size: 0.75rem;                     /* Немного меньше основного текста (было 0.85em) */
 }
 
 /* Стиль для активного названия просчёта (когда просчёт выбран) */
 #product-proschet-title .proschet-title-active {
-    color: #333; /* Тёмно-серый цвет для активного названия */
-    background-color: #f5f5f5; /* Светлый фон для выделения */
-    padding: 2px 6px; /* Небольшие отступы вокруг текста */
-    border-radius: 3px; /* Закруглённые углы */
-    border-left: 2px solid #9b59b6; /* Фиолетовая полоска слева в тон секции */
+    color: #333;                            /* Тёмно-серый цвет для активного названия */
+    background-color: #f5f5f5;              /* Светлый фон для выделения */
+    padding: 0.1rem 0.3rem;                 /* Небольшие отступы вокруг текста (уменьшено) */
+    border-radius: 2px;                     /* Закруглённые углы (уменьшено с 3px → 2px) */
+    /* border: 1px solid #9b59b6;               Фиолетовая рамка по всему периметру (было только слева) */
 }
 
-/* ДОБАВЛЕНЫ НОВЫЕ СТИЛИ: Для контейнера параметров изделия */
+/* ===== 3. КНОПКИ УПРАВЛЕНИЯ В ЗАГОЛОВКЕ ===== */
 
-/* Контейнер для параметров изделия */
+/* Контейнер для кнопок в заголовке */
+#product-section .header-buttons {
+    display: flex;                          /* Flexbox для расположения кнопок */
+    gap: 0.3rem;                            /* Расстояние между кнопками (уменьшено с 10px → 0.3rem) */
+}
+
+/* ===== 4. КНОПКА СВОРАЧИВАНИЯ СЕКЦИИ ===== */
+
+/* Общие стили для кнопки сворачивания */
+#product-section .btn-collapse-section {
+    min-width: 18px;                        /* Минимальная ширина (уменьшено с 24px → 18px) */
+    min-height: 18px;                       /* Минимальная высота (уменьшено с 24px → 18px) */
+    padding: 0.15rem;                       /* Внутренние отступы (уменьшено с 6px → 0.15rem) */
+    background: #f5f5f5;                    /* Светло-серый фон кнопки */
+    border: 1px solid #ddd;                 /* Светло-серая рамка */
+    border-radius: 3px;                     /* Скругление углов (уменьшено с 6px → 3px) */
+}
+
+/* ===== 5. ТЕЛО СЕКЦИИ ===== */
+
+/* Основное тело секции */
+#product-section .section-body {
+    padding: 0.3rem;                        /* Внутренние отступы (уменьшено с 20px 15px → 0.3rem) */
+    background-color: #ffffff;              /* Белый фон для контента */
+    min-height: 120px;                      /* Минимальная высота (уменьшено с 200px → 120px) */
+}
+
+/* ===== 6. КОНТЕЙНЕР ПАРАМЕТРОВ ИЗДЕЛИЯ ===== */
+
+/* Контейнер для параметров изделия (полностью обновлён) */
 .product-params-container {
-    padding: 15px;
-    background-color: #f9f9f9;
-    border-radius: 6px;
-    border: 1px solid #eaeaea;
+    padding: 0.8rem;                        /* Внутренние отступы (уменьшено с 15px → 0.8rem) */
+    background-color: #f9f9f9;              /* Очень светлый серый фон */
+    border-radius: 4px;                     /* Скругление углов (уменьшено с 6px → 4px) */
+    border: 1px solid #eaeaea;              /* Тонкая светло-серая рамка по всему периметру */
 }
 
+/* Заголовок контейнера параметров (h3) */
 .product-params-container h3 {
-    margin-top: 0;
-    color: #333;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 8px;
-    margin-bottom: 15px;
+    margin-top: 0;                          /* Убираем верхний отступ */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 15px → 0.6rem) */
+    color: #333;                            /* Тёмно-серый цвет */
+    border-bottom: 1px solid #ddd;          /* Тонкая серая линия-разделитель */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (уменьшено с 8px → 0.4rem) */
+    font-size: 0.85rem;                     /* Размер шрифта (уменьшено) */
 }
+
+/* ===== 7. СПИСОК ПАРАМЕТРОВ ИЗДЕЛИЯ ===== */
 
 /* Список параметров изделия */
 .product-params-list {
-    list-style-type: none;
-    padding-left: 0;
-    margin-bottom: 15px;
+    list-style-type: none;                  /* Убираем стандартные маркеры списка */
+    padding-left: 0;                        /* Убираем левый отступ */
+    margin-bottom: 0.8rem;                  /* Отступ снизу (уменьшено с 15px → 0.8rem) */
 }
 
+/* Элементы списка параметров */
 .product-params-list li {
-    padding: 8px 0;
-    border-bottom: 1px dashed #eee;
-    display: flex;
-    align-items: center;
+    padding: 0.4rem 0;                      /* Вертикальные отступы (уменьшено с 8px → 0.4rem) */
+    border-bottom: 1px dashed #eee;         /* Пунктирная разделительная линия */
+    display: flex;                          /* Flexbox для расположения */
+    align-items: center;                    /* Вертикальное выравнивание */
 }
 
+/* Последний элемент списка без разделителя */
 .product-params-list li:last-child {
-    border-bottom: none;
+    border-bottom: none;                    /* Убираем нижнюю границу у последнего элемента */
 }
 
+/* Иконки в списке параметров */
 .product-params-list li i {
-    width: 20px;
-    color: #9b59b6; /* Цвет иконок в тон секции */
-    margin-right: 10px;
+    width: 14px;                            /* Ширина иконки (уменьшено с 20px → 14px) */
+    color: #9b59b6;                         /* Фиолетовый цвет иконок в тон секции */
+    margin-right: 0.5rem;                   /* Отступ справа (уменьшено с 10px → 0.5rem) */
+    font-size: 0.8rem;                      /* Размер иконки (уменьшено) */
 }
 
+/* ===== 8. МЕТКИ И ЗНАЧЕНИЯ ПАРАМЕТРОВ ===== */
+
+/* Метка параметра */
 .param-label {
-    font-weight: 500;
-    margin-right: 5px;
-    min-width: 140px;
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    margin-right: 0.3rem;                   /* Отступ справа (уменьшено с 5px → 0.3rem) */
+    min-width: 100px;                       /* Минимальная ширина (уменьшено с 140px → 100px) */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено) */
+    color: #555;                            /* Серый цвет текста */
 }
 
 /* Стили для значений параметров */
 .param-value {
-    color: #2c3e50;
-    background-color: #fff;
-    padding: 2px 8px;
-    border-radius: 3px;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
+    color: #2c3e50;                         /* Тёмно-синий цвет для значений */
+    background-color: #fff;                  /* Белый фон */
+    padding: 0.1rem 0.4rem;                 /* Внутренние отступы (уменьшено с 2px 8px → 0.1rem 0.4rem) */
+    border-radius: 2px;                     /* Скругление углов (уменьшено с 3px → 2px) */
+    border: 1px solid transparent;          /* Прозрачная рамка (будет видна при наведении) */
+    transition: all 0.12s ease;             /* Плавные переходы (быстрее: 0.2s → 0.12s) */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено) */
 }
+
+/* ===== 9. РЕДАКТИРУЕМЫЕ ЗНАЧЕНИЯ (ТИРАЖ) ===== */
 
 /* Стиль для редактируемого значения (тиража) */
 .editable-value {
-    cursor: pointer;
-    border: 1px dashed #ccc;
-    min-width: 80px;
-    display: inline-block;
+    cursor: pointer;                        /* Курсор в виде руки при наведении */
+    border: 1px dashed #ccc;                /* Пунктирная серая рамка */
+    min-width: 60px;                        /* Минимальная ширина (уменьшено с 80px → 60px) */
+    display: inline-block;                  /* Строчно-блочный элемент */
+    padding: 0.1rem 0.3rem;                 /* Внутренние отступы (уменьшено) */
 }
 
+/* Эффект при наведении на редактируемое значение */
 .editable-value:hover {
-    background-color: #f0f0f0;
-    border-color: #9b59b6;
+    background-color: #f0f0f0;              /* Светло-серый фон при наведении */
+    border-color: #9b59b6;                  /* Фиолетовая рамка при наведении */
 }
 
 /* Стиль для активного редактирования */
 .editable-value.editing {
-    background-color: #fff;
-    border: 1px solid #9b59b6;
-    box-shadow: 0 0 5px rgba(155, 89, 182, 0.3);
+    background-color: #fff;                  /* Белый фон */
+    border: 1px solid #9b59b6;              /* Сплошная фиолетовая рамка */
+    box-shadow: 0 0 3px rgba(155, 89, 182, 0.3);  /* Лёгкая фиолетовая тень (уменьшено) */
 }
 
-/* Стили для поля ввода при inline-редактировании */
+/* ===== 10. СТИЛИ ДЛЯ ПОЛЯ ВВОДА ПРИ INLINE-РЕДАКТИРОВАНИИ ===== */
+
+/* Поле ввода при inline-редактировании */
 .inline-edit-input {
-    padding: 2px 6px;
-    border: 1px solid #9b59b6;
-    border-radius: 3px;
-    font-size: 14px;
-    width: 120px;
-    margin-left: 5px;
+    padding: 0.1rem 0.3rem;                 /* Внутренние отступы (уменьшено с 2px 6px → 0.1rem 0.3rem) */
+    border: 1px solid #9b59b6;              /* Фиолетовая рамка */
+    border-radius: 2px;                     /* Скругление углов (уменьшено с 3px → 2px) */
+    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 14px → 0.75rem) */
+    width: 90px;                            /* Ширина (уменьшено с 120px → 90px) */
+    margin-left: 0.3rem;                    /* Отступ слева (уменьшено с 5px → 0.3rem) */
+    font-family: inherit;                   /* Наследует шрифт родительского элемента */
+    box-sizing: border-box;                 /* Padding включается в ширину элемента */
 }
 
+/* Эффект при фокусе на поле ввода */
 .inline-edit-input:focus {
-    outline: none;
-    box-shadow: 0 0 3px rgba(155, 89, 182, 0.5);
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #8e44ad;                  /* Более тёмная фиолетовая рамка при фокусе */
+    box-shadow: 0 0 2px rgba(155, 89, 182, 0.5);  /* Фиолетовая тень (уменьшена) */
 }
 
-/* Стиль для элемента с тиражом */
+/* ===== 11. СТИЛЬ ДЛЯ ЭЛЕМЕНТА С ТИРАЖОМ ===== */
+
+/* Элемент с тиражом */
 .product-circulation-item {
-    position: relative;
+    position: relative;                      /* Относительное позиционирование */
 }
 
-/* Подсказка по редактированию */
+/* ===== 12. ПОДСКАЗКА ПО РЕДАКТИРОВАНИЮ (ИСПРАВЛЕНА) ===== */
+
+/* Подсказка по редактированию - ИСПРАВЛЕНИЕ: замена border-left на полную рамку */
 .edit-hint {
-    font-size: 0.85em;
-    color: #666;
-    background-color: #f0f0f0;
-    padding: 5px 10px;
-    border-radius: 4px;
-    margin-top: 10px;
-    border-left: 3px solid #9b59b6;
+    font-size: 0.7rem;                      /* Очень мелкий шрифт (уменьшено с 0.85em → 0.7rem) */
+    color: #666;                            /* Серый цвет текста */
+    background-color: #f0f0f0;              /* Светло-серый фон */
+    padding: 0.3rem 0.6rem;                 /* Внутренние отступы (уменьшено с 5px 10px → 0.3rem 0.6rem) */
+    border-radius: 3px;                     /* Скругление углов (уменьшено с 4px → 3px) */
+    margin-top: 0.6rem;                     /* Отступ сверху (уменьшено с 10px → 0.6rem) */
+    border: 1px solid #9b59b6;              /* ИСПРАВЛЕНИЕ: Тонкая фиолетовая рамка по всему периметру (было border-left: 2px solid #9b59b6) */
 }
 
+/* Иконка в подсказке */
 .edit-hint i {
-    margin-right: 5px;
-    color: #9b59b6;
+    margin-right: 0.3rem;                   /* Отступ справа (уменьшено с 5px → 0.3rem) */
+    color: #9b59b6;                         /* Фиолетовый цвет иконки */
+    font-size: 0.7rem;                      /* Размер иконки (уменьшено) */
+}
+
+/* ===== 13. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
+@media (max-width: 1137px) {
+    #product-section {
+        padding: 0.5rem;                    /* Уменьшаем внутренние отступы */
+        margin-bottom: 0.4rem;              /* Уменьшаем внешний отступ снизу */
+    }
+    
+    .product-params-container {
+        padding: 0.6rem;                    /* Уменьшаем внутренние отступы контейнера */
+    }
+    
+    .param-label {
+        min-width: 90px;                    /* Уменьшаем минимальную ширину метки */
+        font-size: 0.7rem;                  /* Уменьшаем размер шрифта метки */
+    }
+}
+
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    #product-section {
+        padding: 0.4rem;                    /* Ещё меньше внутренних отступов */
+        border-radius: 4px;                 /* Меньшее скругление углов */
+    }
+    
+    #product-section .section-header h2 {
+        font-size: 0.8rem;                  /* Уменьшаем размер шрифта заголовка */
+    }
+    
+    .product-params-list li {
+        flex-direction: column;             /* Вертикальное расположение на мобильных */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.2rem;                        /* Расстояние между элементами */
+    }
+    
+    .param-label {
+        min-width: auto;                    /* Автоматическая ширина метки */
+        margin-right: 0;                    /* Убираем отступ справа */
+        font-size: 0.7rem;                  /* Уменьшаем размер шрифта метки */
+    }
+    
+    .param-value {
+        width: 100%;                        /* Значение на всю ширину */
+        text-align: left;                   /* Выравнивание по левому краю */
+    }
+    
+    .inline-edit-input {
+        width: 100%;                        /* Поле ввода на всю ширину */
+        margin-left: 0;                     /* Убираем левый отступ */
+        margin-top: 0.2rem;                 /* Добавляем верхний отступ */
+    }
+}
+
+/* ===== 14. АНИМАЦИЯ ПОЯВЛЕНИЯ ===== */
+
+/* Анимация плавного появления секции */
+@keyframes fadeInProduct {
+    from {
+        opacity: 0;                         /* Начало: полностью прозрачно */
+        transform: translateY(10px);        /* Сдвиг вниз на 10px */
+    }
+    to {
+        opacity: 1;                         /* Конец: полностью непрозрачно */
+        transform: translateY(0);           /* Возврат в исходное положение */
+    }
+}
+
+/* Применение анимации */
+#product-section {
+    animation: fadeInProduct 0.2s ease-out;  /* Анимация появления снизу (быстрее: 0.3s → 0.2s) */
 }

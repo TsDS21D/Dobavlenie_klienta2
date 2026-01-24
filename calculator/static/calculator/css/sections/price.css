@@ -1,323 +1,765 @@
-/* Специфичные стили для секции Цена */
+/*
+calculator/static/calculator/css/sections/price.css
+ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - В стиле секции печатных компонентов
+Тонкие рамки по всему периметру, компактный и элегантный дизайн
+
+Основные изменения:
+1. Добавлен эффект при наведении на секцию Цена
+2. При наведении появляется тонкая зеленая рамка и легкая тень (в цвет секции)
+3. Все элементы сделаны компактными с минималистичным дизайном
+4. Уменьшены размеры шрифтов, отступы и элементы интерфейса
+5. Добавлены плавные переходы для всех интерактивных элементов
+6. Стили приведены в соответствие с секцией печатных компонентов
+*/
+
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ЦЕНЫ ===== */
+
+/* Контейнер всей секции Цена */
 #price-section {
-    border-left: 4px solid #2ecc71;
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    background: white;                      /* Белый фон для контраста */
+    padding: 0.6rem;                        /* Внутренние отступы (компактно) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (компактно) */
+    border-radius: 6px;                     /* Скругление углов (компактно) */
+    transition: all 0.15s ease;             /* Плавные переходы для всех свойств */
 }
 
+/* Эффект при наведении на секцию Цена */
+#price-section:hover {
+    border-color: #2ecc71;                  /* Тонкая зеленая рамка при наведении (цвет успеха) */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая тень для эффекта глубины */
+    transform: translateY(-1px);            /* Легкий подъем секции на 1px для интерактивного ощущения */
+    transition: all 0.2s ease;              /* Плавный переход всех свойств за 0.2 секунды */
+}
+
+/* ===== 2. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+/* Контейнер заголовка секции */
 #price-section .section-header {
-    border-bottom-color: #2ecc71;
+    display: flex;                          /* Используем flexbox для расположения элементов */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    align-items: center;                    /* Выравниваем элементы по вертикали */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (компактно) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (компактно) */
+    border-bottom: 1px solid #2ecc71;       /* Зеленая линия-разделитель (тонкая, цвет успеха) */
 }
 
-/* Контейнер итоговой стоимости */
+/* Заголовок секции (h2) */
+#price-section .section-header h2 {
+    margin: 0;                              /* Убираем стандартные отступы браузера */
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    color: #333;                            /* Темно-серый цвет текста */
+    display: flex;                          /* Используем flexbox для выравнивания элементов */
+    align-items: center;                    /* Выравниваем элементы по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (компактно) */
+}
+
+/* Стили для отображения названия просчёта в заголовке */
+#price-proschet-title {
+    margin-left: 0.3rem;                    /* Отступ от основного заголовка (компактно) */
+    font-size: 0.8rem;                      /* Размер шрифта меньше основного заголовка */
+    font-weight: normal;                    /* Обычное начертание, не жирное */
+    color: #555;                            /* Серый цвет для отличия от основного заголовка */
+}
+
+/* Текст-заполнитель (когда просчёт не выбран) */
+#price-proschet-title .placeholder-text {
+    color: #888;                            /* Светло-серый цвет для текста-заполнителя */
+    font-size: 0.75rem;                     /* Размер шрифта еще меньше */
+}
+
+/* Активное название просчёта (когда просчёт выбран) */
+#price-proschet-title .proschet-title-active {
+    color: #333;                            /* Тёмно-серый цвет для активного названия */
+    background-color: #f5f5f5;              /* Светлый фон для выделения */
+    padding: 0.1rem 0.3rem;                 /* Небольшие отступы вокруг текста */
+    border-radius: 2px;                     /* Закруглённые углы (компактно) */
+}
+
+/* ===== 3. КНОПКИ В ЗАГОЛОВКЕ ===== */
+
+/* Контейнер для кнопок в заголовке */
+#price-section .header-buttons {
+    display: flex;                          /* Используем flexbox для расположения кнопок */
+    gap: 0.3rem;                            /* Расстояние между кнопками (компактно) */
+}
+
+/* Кнопка расчета стоимости */
+#calculate-price-btn {
+    background-color: #2ecc71;              /* Зеленый фон кнопки (в тон секции) */
+    color: white;                           /* Белый цвет текста */
+    border: none;                           /* Без рамки */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.15rem;                           /* Расстояние между иконкой и текстом */
+}
+
+/* Эффект при наведении на кнопку расчета */
+#calculate-price-btn:hover {
+    background-color: #27ae60;              /* Более темный зеленый при наведении */
+}
+
+/* Кнопка сворачивания секции */
+#price-section .btn-collapse-section {
+    min-width: 18px;                        /* Минимальная ширина (компактно) */
+    min-height: 18px;                       /* Минимальная высота (компактно) */
+    padding: 0.15rem;                       /* Внутренние отступы (компактно) */
+    background: #f5f5f5;                    /* Светло-серый фон кнопки */
+    border: 1px solid #ddd;                 /* Светло-серая рамка */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+}
+
+/* Эффект при наведении на кнопку сворачивания */
+#price-section .btn-collapse-section:hover {
+    background: #e0e0e0;                    /* Более темный серый при наведении */
+    border-color: #2ecc71;                  /* Зеленая рамка при наведении */
+}
+
+/* Иконка в кнопке сворачивания */
+#price-section .btn-collapse-section i {
+    font-size: 0.75rem;                     /* Размер иконки (компактно) */
+    color: #555;                            /* Темно-серый цвет иконки */
+    transition: transform 0.15s ease;       /* Плавное вращение иконки */
+}
+
+/* ===== 4. ТЕЛО СЕКЦИИ ===== */
+
+/* Основное тело секции */
+#price-section .section-body {
+    padding: 0.3rem;                        /* Внутренние отступы (компактно) */
+    background-color: #ffffff;              /* Белый фон для контента */
+    min-height: 120px;                      /* Минимальная высота (компактно) */
+    transition: all 0.15s ease;             /* Плавные переходы при сворачивании */
+}
+
+/* ===== 5. СООБЩЕНИЯ О ПУСТОМ СОСТОЯНИИ ===== */
+
+/* Сообщения при пустом состоянии (нет просчёта) */
+.empty-state-message {
+    text-align: center;                     /* Центрируем текст и иконку */
+    padding: 1.5rem 0.8rem;                 /* Внутренние отступы (компактно) */
+    color: #7f8c8d;                         /* Серый цвет для неактивного состояния */
+}
+
+/* Иконка в сообщении */
+.empty-state-message i {
+    margin-bottom: 0.8rem;                  /* Отступ снизу от иконки */
+    color: #bdc3c7;                         /* Светло-серый цвет иконки */
+    font-size: 1.5rem;                      /* Размер иконки */
+}
+
+/* Заголовок сообщения */
+.empty-state-message h3 {
+    margin-bottom: 0.5rem;                  /* Отступ снизу от заголовка */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    font-size: 0.85rem;                     /* Размер шрифта (компактно) */
+}
+
+/* Текст сообщения */
+.empty-state-message p {
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    max-width: 250px;                       /* Ограничение ширины для лучшей читаемости */
+    margin: 0 auto;                         /* Центрирование по горизонтали */
+    line-height: 1.4;                       /* Межстрочный интервал */
+}
+
+/* ===== 6. КОНТЕЙНЕР ИТОГОВОЙ СТОИМОСТИ ===== */
+
+/* Основной контейнер для итоговой стоимости */
 .price-summary-container {
-    padding: 20px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
+    padding: 0.8rem;                        /* Внутренние отступы (компактно) */
+    background-color: #f8f9fa;              /* Светло-серый фон для контраста */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    border: 1px solid #dee2e6;              /* Тонкая серая рамка */
 }
 
+/* Заголовок контейнера итоговой стоимости */
 .price-summary-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #2ecc71;
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    align-items: center;                    /* Выравниваем по вертикали */
+    margin-bottom: 0.8rem;                  /* Отступ снизу (компактно) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу */
+    border-bottom: 1px solid #2ecc71;       /* Зеленая линия-разделитель */
 }
 
+/* Заголовок в контейнере итоговой стоимости */
 .price-summary-header h3 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.3em;
+    margin: 0;                              /* Убираем стандартные отступы */
+    color: #2c3e50;                         /* Темно-синий цвет текста */
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
 }
 
+/* Иконка в заголовке */
+.price-summary-header h3 i {
+    color: #2ecc71;                         /* Зеленый цвет иконки (в тон секции) */
+    font-size: 0.9rem;                      /* Размер иконки (компактно) */
+}
+
+/* Дата расчета в заголовке */
 .price-summary-date {
-    color: #7f8c8d;
-    font-size: 0.9em;
+    color: #7f8c8d;                         /* Серый цвет для второстепенного текста */
+    font-size: 0.7rem;                      /* Мелкий шрифт (компактно) */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом */
 }
 
+/* Иконка в дате расчета */
+.price-summary-date i {
+    color: #95a5a6;                         /* Светло-серый цвет иконки */
+    font-size: 0.7rem;                      /* Размер иконки (компактно) */
+}
+
+/* ===== 7. ДЕТАЛИ ЦЕНЫ ===== */
+
+/* Контейнер для деталей цены */
 .price-details {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
+    display: flex;                          /* Используем flexbox для расположения */
+    flex-direction: column;                 /* Вертикальное расположение элементов */
+    gap: 0.6rem;                            /* Расстояние между категориями (компактно) */
 }
 
-/* Категории цены */
+/* ===== 8. КАТЕГОРИИ ЦЕНЫ ===== */
+
+/* Категория (печатные компоненты или дополнительные работы) */
 .price-category {
-    background-color: white;
-    border-radius: 6px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid #e9ecef;
+    background-color: white;                /* Белый фон категории */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    padding: 0.6rem;                        /* Внутренние отступы (компактно) */
+    border: 1px solid #e9ecef;              /* Тонкая серая рамка */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);  /* Легкая тень для глубины */
 }
 
+/* Заголовок категории */
 .category-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #e9ecef;
+    display: flex;                          /* Используем flexbox для расположения */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между элементами (компактно) */
+    margin-bottom: 0.5rem;                  /* Отступ снизу (компактно) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу */
+    border-bottom: 1px solid #e9ecef;       /* Светло-серая разделительная линия */
 }
 
+/* Заголовок внутри категории */
 .category-header h4 {
-    margin: 0;
-    color: #34495e;
-    font-size: 1.1em;
-    flex-grow: 1;
+    margin: 0;                              /* Убираем стандартные отступы */
+    color: #34495e;                         /* Темно-синий цвет текста */
+    font-size: 0.85rem;                     /* Размер шрифта (компактно) */
+    flex-grow: 1;                           /* Растягиваем на всё доступное пространство */
 }
 
+/* Иконка в заголовке категории */
 .category-header i {
-    color: #3498db;
-    font-size: 1.2em;
+    color: #3498db;                         /* Синий цвет иконки */
+    font-size: 0.8rem;                      /* Размер иконки (компактно) */
 }
 
+/* Счетчик элементов в категории */
 .category-count {
-    background-color: #e8f4fc;
-    color: #2980b9;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.85em;
-    font-weight: 500;
+    background-color: #e8f4fc;              /* Светло-голубой фон */
+    color: #2980b9;                         /* Темно-синий цвет текста */
+    padding: 0.1rem 0.4rem;                 /* Небольшие отступы вокруг текста */
+    border-radius: 10px;                    /* Закруглённые углы (капсула) */
+    font-size: 0.65rem;                     /* Очень мелкий шрифт (компактно) */
+    font-weight: 500;                       /* Полужирное начертание */
 }
 
-/* Элементы категории */
+/* ===== 9. ЭЛЕМЕНТЫ КАТЕГОРИИ ===== */
+
+/* Контейнер для элементов категории */
 .category-items {
-    max-height: 300px;
-    overflow-y: auto;
-    margin-bottom: 20px;
-    padding-right: 10px;
+    max-height: 150px;                      /* Максимальная высота для прокрутки */
+    overflow-y: auto;                       /* Вертикальная прокрутка при необходимости */
+    margin-bottom: 0.5rem;                  /* Отступ снизу (компактно) */
+    padding-right: 0.2rem;                  /* Отступ справа для полосы прокрутки */
 }
 
-.category-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    margin-bottom: 10px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    border-left: 3px solid #3498db;
-    transition: background-color 0.2s;
-}
-
-.category-item:hover {
-    background-color: #e9ecef;
-}
-
-.item-name {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #2c3e50;
-}
-
-.item-name i {
-    color: #7f8c8d;
-    font-size: 0.9em;
-}
-
-.item-price {
-    font-weight: 600;
-    color: #27ae60;
-    font-size: 1.1em;
-}
-
-.category-empty, .category-loading {
-    text-align: center;
-    padding: 30px;
-    color: #95a5a6;
-}
-
-.category-empty i, .category-loading i {
-    font-size: 2em;
-    margin-bottom: 15px;
-}
-
-.category-loading i.fa-spinner {
-    color: #3498db;
-}
-
-/* Итоги категории */
-.category-total {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 15px;
-    border-top: 1px solid #e9ecef;
-    font-weight: 600;
-}
-
-.total-label {
-    color: #2c3e50;
-    font-size: 1em;
-}
-
-.total-value {
-    color: #27ae60;
-    font-size: 1.3em;
-    font-weight: 700;
-}
-
-/* Общая сумма */
-.price-total-summary {
-    background-color: #2c3e50;
-    color: white;
-    border-radius: 6px;
-    padding: 25px;
-    margin-top: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.total-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.total-row .total-label {
-    color: white;
-    font-size: 1.3em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.total-row .total-value {
-    color: #2ecc71;
-    font-size: 2em;
-    font-weight: 700;
-}
-
-.total-breakdown {
-    text-align: center;
-    color: #bdc3c7;
-    font-size: 0.9em;
-    border-top: 1px solid #34495e;
-    padding-top: 15px;
-}
-
-/* Кнопки действий */
-.price-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 15px;
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 1px solid #dee2e6;
-}
-
-/* Уведомления */
-.price-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background-color: white;
-    border-radius: 6px;
-    padding: 15px 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 1000;
-    transform: translateX(150%);
-    transition: transform 0.3s ease;
-    min-width: 300px;
-    border-left: 4px solid #3498db;
-}
-
-.price-notification.show {
-    transform: translateX(0);
-}
-
-.price-notification.notification-success {
-    border-left-color: #27ae60;
-}
-
-.price-notification.notification-error {
-    border-left-color: #e74c3c;
-}
-
-.price-notification.notification-warning {
-    border-left-color: #f39c12;
-}
-
-.notification-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.notification-content i {
-    font-size: 1.2em;
-}
-
-.notification-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: #95a5a6;
-    cursor: pointer;
-    font-size: 0.9em;
-    padding: 5px;
-}
-
-.notification-close:hover {
-    color: #7f8c8d;
-}
-
-/* Сообщение об ошибке */
-.price-error {
-    text-align: center;
-    padding: 40px;
-    color: #e74c3c;
-}
-
-.price-error i {
-    margin-bottom: 20px;
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .price-summary-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .price-actions {
-        flex-direction: column;
-    }
-    
-    .price-actions button {
-        width: 100%;
-    }
-    
-    .category-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .category-count {
-        align-self: flex-start;
-    }
-}
-
-/* Полоса прокрутки */
+/* Полоса прокрутки для элементов категории */
 .category-items::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;                             /* Ширина полосы прокрутки (компактно) */
 }
 
 .category-items::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
+    background: #f1f1f1;                    /* Цвет трека полосы прокрутки */
+    border-radius: 2px;                     /* Скругление углов трека */
 }
 
 .category-items::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
+    background: #c1c1c1;                    /* Цвет бегунка полосы прокрутки */
+    border-radius: 2px;                     /* Скругление углов бегунка */
 }
 
 .category-items::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #a8a8a8;                    /* Цвет бегунка при наведении */
+}
+
+/* Отдельный элемент в категории */
+.category-item {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: space-between;         /* Распределяем пространство между названием и ценой */
+    align-items: center;                    /* Выравниваем по вертикали */
+    padding: 0.3rem 0.4rem;                 /* Внутренние отступы (компактно) */
+    margin-bottom: 0.2rem;                  /* Отступ снизу между элементами */
+    background-color: #f8f9fa;              /* Светло-серый фон элемента */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    border-left: 2px solid #3498db;         /* Синяя линия слева для акцента */
+    transition: background-color 0.12s;     /* Плавное изменение фона */
+}
+
+/* Эффект при наведении на элемент */
+.category-item:hover {
+    background-color: #e9ecef;              /* Более темный серый фон при наведении */
+}
+
+/* Контейнер для названия элемента */
+.item-name {
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
+    color: #2c3e50;                         /* Темно-синий цвет текста */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+}
+
+/* Иконка в названии элемента */
+.item-name i {
+    color: #7f8c8d;                         /* Серый цвет иконки */
+    font-size: 0.7rem;                      /* Размер иконки (компактно) */
+}
+
+/* Цена элемента */
+.item-price {
+    font-weight: 600;                       /* Полужирное начертание для выделения цены */
+    color: #27ae60;                         /* Зеленый цвет для цены */
+    font-size: 0.8rem;                      /* Размер шрифта (компактно) */
+}
+
+/* Состояние пустой категории */
+.category-empty {
+    text-align: center;                     /* Центрируем текст и иконку */
+    padding: 1rem 0.5rem;                   /* Внутренние отступы (компактно) */
+    color: #95a5a6;                         /* Светло-серый цвет для неактивного состояния */
+}
+
+/* Иконка в пустой категории */
+.category-empty i {
+    font-size: 1rem;                        /* Размер иконки (компактно) */
+    margin-bottom: 0.4rem;                  /* Отступ снизу от иконки */
+    color: #bdc3c7;                         /* Светло-серый цвет иконки */
+}
+
+/* Текст в пустой категории */
+.category-empty p {
+    font-size: 0.7rem;                      /* Мелкий шрифт (компактно) */
+    margin: 0;                              /* Убираем стандартные отступы */
+}
+
+/* ===== 10. ИТОГИ КАТЕГОРИИ ===== */
+
+/* Итоговая строка категории */
+.category-total {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: space-between;         /* Распределяем пространство между меткой и значением */
+    align-items: center;                    /* Выравниваем по вертикали */
+    padding-top: 0.4rem;                    /* Отступ сверху (компактно) */
+    border-top: 1px solid #e9ecef;          /* Светло-серая разделительная линия */
+    font-weight: 600;                       /* Полужирное начертание для выделения */
+}
+
+/* Метка итоговой суммы категории */
+.category-total .total-label {
+    color: #2c3e50;                         /* Темно-синий цвет текста */
+    font-size: 0.8rem;                      /* Размер шрифта (компактно) */
+}
+
+/* Значение итоговой суммы категории */
+.category-total .total-value {
+    color: #27ae60;                         /* Зеленый цвет для суммы */
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    font-weight: 700;                       /* Жирное начертание для выделения */
+}
+
+/* ===== 11. ОБЩАЯ СУММА ЗАКАЗА ===== */
+
+/* Контейнер для общей суммы заказа */
+.price-total-summary {
+    background-color: #2c3e50;              /* Темно-синий фон для выделения */
+    color: white;                           /* Белый текст для контраста */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    padding: 0.6rem;                        /* Внутренние отступы (компактно) */
+    margin-top: 0.4rem;                     /* Отступ сверху (компактно) */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);  /* Легкая тень для глубины */
+}
+
+/* Строка с общей суммой */
+.total-row {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: space-between;         /* Распределяем пространство между меткой и значением */
+    align-items: center;                    /* Выравниваем по вертикали */
+    margin-bottom: 0.3rem;                  /* Отступ снизу (компактно) */
+}
+
+/* Метка общей суммы */
+.total-row .total-label {
+    color: white;                           /* Белый цвет текста */
+    font-size: 0.85rem;                     /* Размер шрифта (компактно) */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
+}
+
+/* Значение общей суммы */
+.total-row .total-value {
+    color: #2ecc71;                         /* Ярко-зеленый цвет для итоговой суммы */
+    font-size: 1.1rem;                      /* Размер шрифта больше обычного */
+    font-weight: 700;                       /* Жирное начертание для выделения */
+}
+
+/* Подробности расчета */
+.total-breakdown {
+    text-align: center;                     /* Центрируем текст */
+    color: #bdc3c7;                         /* Светло-серый цвет для второстепенного текста */
+    font-size: 0.65rem;                     /* Очень мелкий шрифт (компактно) */
+    border-top: 1px solid #34495e;          /* Темно-синяя разделительная линия */
+    padding-top: 0.3rem;                    /* Отступ сверху (компактно) */
+}
+
+/* ===== 12. КНОПКИ ДЕЙСТВИЙ ===== */
+
+/* Контейнер для кнопок действий */
+.price-actions {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: flex-end;              /* Выравниваем по правому краю */
+    gap: 0.4rem;                            /* Расстояние между кнопками (компактно) */
+    margin-top: 0.6rem;                     /* Отступ сверху (компактно) */
+    padding-top: 0.5rem;                    /* Внутренний отступ сверху */
+    border-top: 1px solid #dee2e6;          /* Светло-серая разделительная линия */
+}
+
+/* Общие стили для кнопок в секции Цена */
+.price-actions .btn-action {
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (компактно) */
+    border: none;                           /* Без рамки */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом */
+    white-space: nowrap;                    /* Запрещаем перенос текста */
+}
+
+/* Вторичные кнопки (экспорт, печать) */
+.price-actions .btn-secondary {
+    background-color: #f8f9fa;              /* Светло-серый фон */
+    color: #333;                            /* Темно-серый цвет текста */
+    border: 1px solid #ddd;                 /* Светло-серая рамка */
+}
+
+/* Эффект при наведении на вторичные кнопки */
+.price-actions .btn-secondary:hover {
+    background-color: #e9ecef;              /* Более темный серый фон при наведении */
+    border-color: #2ecc71;                  /* Зеленая рамка при наведении */
+}
+
+/* Основная кнопка (создание счета) */
+.price-actions .btn-primary {
+    background-color: #0B8661;              /* Зеленый фон основной кнопки */
+    color: white;                           /* Белый цвет текста */
+}
+
+/* Эффект при наведении на основную кнопку */
+.price-actions .btn-primary:hover {
+    background-color: #097055;              /* Более темный зеленый фон при наведении */
+}
+
+/* ===== 13. УВЕДОМЛЕНИЯ ===== */
+
+/* Уведомления в секции Цена */
+.price-notification {
+    position: fixed;                        /* Фиксированное позиционирование */
+    top: 0.8rem;                            /* Отступ сверху (компактно) */
+    right: 0.8rem;                          /* Отступ справа (компактно) */
+    background-color: white;                /* Белый фон уведомления */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    padding: 0.6rem 0.8rem;                 /* Внутренние отступы (компактно) */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);  /* Легкая тень для глубины */
+    z-index: 9999;                          /* Очень высокий z-index для перекрытия других элементов */
+    min-width: 250px;                       /* Минимальная ширина (компактно) */
+    max-width: 300px;                       /* Максимальная ширина (компактно) */
+    transform: translateX(100%);            /* Начальное смещение вправо за пределы экрана */
+    opacity: 0;                             /* Начальная прозрачность */
+    transition: transform 0.3s, opacity 0.3s;  /* Плавный переход для появления */
+}
+
+/* Показываем уведомление */
+.price-notification.show {
+    transform: translateX(0);               /* Без смещения при показе */
+    opacity: 1;                             /* Полная непрозрачность при показе */
+}
+
+/* Цветовые типы уведомлений */
+.price-notification.notification-success {
+    border-left: 3px solid #2ecc71;         /* Зеленая полоска слева для успеха */
+}
+
+.price-notification.notification-error {
+    border-left: 3px solid #e74c3c;         /* Красная полоска слева для ошибки */
+}
+
+.price-notification.notification-warning {
+    border-left: 3px solid #f39c12;         /* Оранжевая полоска слева для предупреждения */
+}
+
+.price-notification.notification-info {
+    border-left: 3px solid #3498db;         /* Синяя полоска слева для информации */
+}
+
+/* Содержимое уведомления */
+.notification-content {
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
+    flex-grow: 1;                           /* Растягиваем на всё доступное пространство */
+}
+
+/* Иконка в уведомлении */
+.notification-content i {
+    font-size: 0.9rem;                      /* Размер иконки (компактно) */
+}
+
+/* Текст в уведомлении */
+.notification-content span {
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    color: #333;                            /* Темно-серый цвет текста */
+}
+
+/* Кнопка закрытия уведомления */
+.notification-close {
+    background: none;                       /* Прозрачный фон */
+    border: none;                           /* Без рамки */
+    color: #777;                            /* Серый цвет иконки */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    font-size: 0.75rem;                     /* Размер шрифта иконки */
+    width: 18px;                            /* Ширина кнопки (компактно) */
+    height: 18px;                           /* Высота кнопки (компактно) */
+    display: flex;                          /* Используем flexbox для центрирования */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    border-radius: 50%;                     /* Круглая форма */
+    transition: all 0.12s ease;             /* Плавные переходы */
+}
+
+/* Эффект при наведении на кнопку закрытия уведомления */
+.notification-close:hover {
+    background-color: #f5f5f5;              /* Светло-серый фон при наведении */
+    color: #333;                            /* Темно-серый цвет иконки при наведении */
+}
+
+/* ===== 14. СООБЩЕНИЕ ОБ ОШИБКЕ ===== */
+
+/* Сообщение об ошибке в секции Цена */
+.price-error {
+    text-align: center;                     /* Центрируем текст и иконку */
+    padding: 1.5rem 0.8rem;                 /* Внутренние отступы (компактно) */
+    color: #e74c3c;                         /* Красный цвет для ошибки */
+}
+
+/* Иконка в сообщении об ошибке */
+.price-error i {
+    margin-bottom: 0.5rem;                  /* Отступ снизу от иконки */
+    font-size: 1.5rem;                      /* Размер иконки */
+}
+
+/* Текст в сообщении об ошибке */
+.price-error p {
+    font-size: 0.8rem;                      /* Размер шрифта (компактно) */
+    margin: 0;                              /* Убираем стандартные отступы */
+}
+
+/* ===== 15. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
+@media (max-width: 1137px) {
+    #price-section {
+        padding: 0.5rem;                    /* Уменьшаем внутренние отступы */
+        margin-bottom: 0.4rem;              /* Уменьшаем внешний отступ снизу */
+    }
+    
+    /* Уменьшаем отступы в контейнере итоговой стоимости */
+    .price-summary-container {
+        padding: 0.6rem;                    /* Уменьшаем внутренние отступы */
+    }
+    
+    /* Адаптируем кнопки действий на планшетах */
+    .price-actions {
+        flex-wrap: wrap;                    /* Разрешаем перенос кнопок на новую строку */
+        justify-content: center;            /* Центрируем кнопки */
+    }
+    
+    /* Адаптируем уведомления */
+    .price-notification {
+        max-width: 280px;                   /* Уменьшаем максимальную ширину уведомлений */
+    }
+}
+
+/* ===== 16. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    #price-section {
+        padding: 0.4rem;                    /* Еще меньше внутренних отступов */
+        border-radius: 4px;                 /* Меньшее скругление углов */
+    }
+    
+    /* Адаптируем заголовок секции */
+    #price-section .section-header h2 {
+        font-size: 0.8rem;                  /* Уменьшаем размер шрифта заголовка */
+        flex-wrap: wrap;                    /* Разрешаем перенос элементов */
+        gap: 0.2rem;                        /* Уменьшаем расстояние между элементами */
+    }
+    
+    /* Скрываем название просчёта на очень маленьких экранах */
+    @media (max-width: 480px) {
+        #price-proschet-title {
+            display: none;                  /* Скрываем на очень маленьких экранах */
+        }
+    }
+    
+    /* Вертикальное расположение элементов в заголовке итоговой стоимости */
+    .price-summary-header {
+        flex-direction: column;             /* Вертикальное расположение элементов */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.3rem;                        /* Расстояние между элементами */
+    }
+    
+    .price-summary-date {
+        align-self: flex-start;             /* Выравнивание даты по левому краю */
+    }
+    
+    /* Вертикальное расположение кнопок действий */
+    .price-actions {
+        flex-direction: column;             /* Вертикальное расположение кнопок */
+    }
+    
+    .price-actions .btn-action {
+        width: 100%;                        /* Ширина 100% для мобильных */
+        justify-content: center;            /* Центрирование содержимого кнопок */
+    }
+    
+    /* Адаптируем элементы категории */
+    .category-item {
+        flex-direction: column;             /* Вертикальное расположение элементов */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.2rem;                        /* Расстояние между элементами */
+    }
+    
+    .item-price {
+        align-self: flex-end;               /* Цену выравниваем по правому краю */
+    }
+    
+    /* Адаптируем общую сумму */
+    .total-row {
+        flex-direction: column;             /* Вертикальное расположение элементов */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.3rem;                        /* Расстояние между элементами */
+    }
+    
+    .total-row .total-value {
+        align-self: flex-end;               /* Значение суммы выравниваем по правому краю */
+    }
+    
+    /* Адаптируем уведомления */
+    .price-notification {
+        width: calc(100% - 1.6rem);         /* Ширина с учетом отступов */
+        max-width: calc(100% - 1.6rem);     /* Максимальная ширина с учетом отступов */
+        margin: 0.4rem;                     /* Внешние отступы */
+    }
+}
+
+/* ===== 17. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
+
+/* Анимация плавного появления секции */
+@keyframes fadeInPrice {
+    from {
+        opacity: 0;                         /* Начало: полностью прозрачно */
+        transform: translateY(10px);        /* Сдвиг вниз на 10px */
+    }
+    to {
+        opacity: 1;                         /* Конец: полностью непрозрачно */
+        transform: translateY(0);           /* Возврат в исходное положение */
+    }
+}
+
+/* Применение анимации к секции Цена */
+#price-section {
+    animation: fadeInPrice 0.15s ease-out;  /* Анимация появления снизу */
+}
+
+/* ===== 18. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
+
+/* Свёрнутая секция Цена */
+#price-section.collapsed .section-body {
+    display: none;                          /* Скрываем тело секции при сворачивании */
+    padding: 0;                             /* Убираем отступы при скрытии */
+    height: 0;                              /* Обнуляем высоту */
+    overflow: hidden;                       /* Скрываем переполнение */
+}
+
+#price-section.collapsed {
+    border-bottom: none;                    /* Убираем нижнюю границу при сворачивании */
+}
+
+/* Иконка в кнопке сворачивания при свёрнутой секции */
+#price-section.collapsed .btn-collapse-section i {
+    transform: rotate(-90deg);              /* Поворачиваем иконку на -90 градусов */
+    transform-origin: center;               /* Вращение вокруг центра иконки */
+}
+
+/* ===== 19. ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ СТИЛИ ===== */
+
+/* Стили для состояния загрузки */
+.category-loading {
+    text-align: center;                     /* Центрируем содержимое */
+    padding: 1rem 0.5rem;                   /* Внутренние отступы (компактно) */
+    color: #3498db;                         /* Синий цвет для состояния загрузки */
+}
+
+/* Иконка загрузки */
+.category-loading i.fa-spinner {
+    font-size: 1rem;                        /* Размер иконки спиннера */
+    margin-bottom: 0.4rem;                  /* Отступ снизу от иконки */
+}
+
+/* Анимация вращения для спиннера загрузки */
+@keyframes spin {
+    0% { transform: rotate(0deg); }         /* Начальное положение */
+    100% { transform: rotate(360deg); }     /* Полный оборот */
+}
+
+.fa-spinner.fa-spin {
+    animation: spin 0.8s linear infinite;    /* Анимация вращения */
+}
+
+/* Стиль для текста-подсказки */
+.total-breakdown small {
+    font-size: 0.6rem;                      /* Очень мелкий шрифт для подсказок */
+    opacity: 0.7;                           /* Полупрозрачность для менее важного текста */
+}
+
+/* Стили для выделенной категории (при наведении) */
+.price-category:hover {
+    border-color: #2ecc71;                  /* Зеленая рамка при наведении на категорию */
+    box-shadow: 0 2px 8px rgba(46, 204, 113, 0.1);  /* Легкая зеленая тень */
 }
