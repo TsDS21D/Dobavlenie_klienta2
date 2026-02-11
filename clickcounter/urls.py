@@ -61,6 +61,9 @@ urlpatterns = [
      # База клиентов
     path('baza_klientov/', include(('baza_klientov.urls', 'baza_klientov'), namespace='baza_klientov')),
 
+    # Подключаем URL нового приложения вычислений листов
+    path('vichisliniya_listov/', include('vichisliniya_listov.urls')),
+
     # Маршруты для аутентификации пользователей
     # Вход в систему - используем кастомную view из приложения counter
     path('login/', counter_views.login_view, name='login'),

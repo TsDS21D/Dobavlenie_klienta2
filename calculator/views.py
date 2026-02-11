@@ -1625,3 +1625,259 @@ def get_proschet_price_data(request, proschet_id):
             'message': f'Ошибка сервера: {str(e)}'
         }, status=500)
 
+@require_POST
+@csrf_exempt
+def update_component_price(request):
+    """
+    API для обновления стоимости печатного компонента на основе нового количества листов.
+    
+    ВАЖНОЕ ИСПРАВЛЕНИЕ: Теперь функция правильно рассчитывает общую стоимость,
+    учитывая и цену печати за лист, и стоимость бумаги.
+    
+    ФОРМУЛА: (Цена печати за лист + Цена материала за лист) × Количество листов
+    
+    ПАРАМЕТРЫ запроса (JSON):
+    - component_id: ID печатного компонента
+    - sheet_count: Новое количество листов (из секции "Вычисления листов")
+    - proschet_id: ID просчёта (для проверки принадлежности компонента)
+    
+    ВОЗВРАЩАЕТ (JSON):
+    - success: True/False
+    - message: Сообщение об ошибке или успехе
+    - component: Обновленные данные компонента
+    - total_price: Новая общая стоимость всех компонентов просчёта
+    """
+    
+    try:
+        # 1. Парсим JSON данные из запроса
+        data = json.loads(request.body)
+        component_id = data.get('component_id')
+        sheet_count = data.get('sheet_count')
+        proschet_id = data.get('proschet_id')
+        
+        # 2. ВАЛИДАЦИЯ: Проверяем, что все необходимые параметры переданы
+        if not component_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Не указан ID компонента'
+            }, status=400)
+        
+        if not sheet_count:
+            return JsonResponse({
+                'success': False,
+                'message': 'Не указано количество листов'
+            }, status=400)
+        
+        # 3. ПРЕОБРАЗОВАНИЕ: Преобразуем sheet_count в Decimal для точности
+        try:
+            sheet_count_decimal = Decimal(str(sheet_count))
+        except (ValueError, TypeError):
+            return JsonResponse({
+                'success': False,
+                'message': 'Количество листов должно быть числом'
+            }, status=400)
+        
+        # 4. ПОИСК: Находим компонент в базе данных
+        try:
+            # Безопасно получаем компонент, проверяя что он принадлежит указанному просчёту
+            component = PrintComponent.objects.get(
+                id=component_id,
+                proschet_id=proschet_id,
+                is_deleted=False
+            )
+        except PrintComponent.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': f'Печатный компонент с ID {component_id} не найден или не принадлежит просчёту {proschet_id}'
+            }, status=404)
+        
+        # 5. СОХРАНЕНИЕ СТАРЫХ ЗНАЧЕНИЙ: Для логов и сравнения
+        old_sheet_count = component.sheet_count
+        old_price_per_sheet = component.price_per_sheet
+        old_total_price = component.total_circulation_price
+        
+        # 6. ОБНОВЛЕНИЕ: Обновляем количество листов в компоненте
+        component.sheet_count = sheet_count_decimal
+        
+        # 7. ПЕРЕСЧЁТ ЦЕНЫ ЗА ЛИСТ: Используем КОЛИЧЕСТВО ЛИСТОВ для пересчета
+        if component.printer:
+            try:
+                # Импортируем модель PrintPrice
+                from print_price.models import PrintPrice
+                
+                # Получаем цены для этого принтера
+                print_prices = PrintPrice.objects.filter(printer=component.printer).order_by('copies')
+                
+                if not print_prices.exists():
+                    # Если нет цен для принтера, оставляем текущую цену
+                    new_price_per_sheet = component.price_per_sheet or Decimal('0.00')
+                    print(f"⚠️ Для принтера нет цен, оставляем текущую: {new_price_per_sheet} руб.")
+                else:
+                    # Преобразуем количество листов в целое число для сравнения
+                    sheet_count_int = int(float(sheet_count_decimal))
+                    
+                    # Логика расчёта цены на основе количества листов:
+                    # 1. Если количество листов точно соответствует одной из записей
+                    exact_price = print_prices.filter(copies=sheet_count_int).first()
+                    if exact_price:
+                        new_price_per_sheet = exact_price.price_per_sheet
+                        print(f"✅ Найдена точная цена для {sheet_count_int} листов: {new_price_per_sheet} руб.")
+                    
+                    # 2. Если количество листов меньше минимального
+                    elif sheet_count_int < print_prices.first().copies:
+                        min_price = print_prices.order_by('copies').first()
+                        new_price_per_sheet = min_price.price_per_sheet
+                        print(f"⚠️ Использована минимальная цена (для {min_price.copies} листов): {new_price_per_sheet} руб.")
+                    
+                    # 3. Если количество листов больше максимального
+                    elif sheet_count_int > print_prices.order_by('-copies').first().copies:
+                        max_price = print_prices.order_by('-copies').first()
+                        new_price_per_sheet = max_price.price_per_sheet
+                        print(f"⚠️ Использована максимальная цена (для {max_price.copies} листов): {new_price_per_sheet} руб.")
+                    
+                    # 4. Интерполяция между двумя ближайшими значениями
+                    else:
+                        # Находим нижнюю и верхнюю границы
+                        lower_price = print_prices.filter(copies__lte=sheet_count_int).order_by('-copies').first()
+                        upper_price = print_prices.filter(copies__gte=sheet_count_int).order_by('copies').first()
+                        
+                        if lower_price and upper_price and lower_price.copies != upper_price.copies:
+                            # Линейная интерполяция
+                            x1 = lower_price.copies
+                            y1 = lower_price.price_per_sheet
+                            x2 = upper_price.copies
+                            y2 = upper_price.price_per_sheet
+                            
+                            # Формула линейной интерполяции
+                            new_price_per_sheet = y1 + (y2 - y1) * (sheet_count_int - x1) / (x2 - x1)
+                            new_price_per_sheet = Decimal(str(round(float(new_price_per_sheet), 2)))
+                            print(f"📈 Рассчитана интерполированная цена для {sheet_count_int} листов: {new_price_per_sheet:.2f} руб.")
+                        else:
+                            # Если что-то пошло не так, оставляем текущую цену
+                            new_price_per_sheet = component.price_per_sheet or Decimal('0.00')
+                            print(f"⚠️ Не удалось рассчитать цену, оставляем текущую: {new_price_per_sheet} руб.")
+                
+                # Обновляем цену за лист в компоненте
+                component.price_per_sheet = new_price_per_sheet
+                
+                # Логируем изменение цены
+                print(f"🔄 Цена за лист пересчитана: {old_price_per_sheet} руб. → {new_price_per_sheet} руб. (на основе {sheet_count_int} листов)")
+                
+            except Exception as e:
+                print(f"❌ Ошибка при пересчёте цены за лист: {str(e)}")
+                # В случае ошибки оставляем текущую цену
+                new_price_per_sheet = component.price_per_sheet or Decimal('0.00')
+        
+        # 8. СОХРАНЕНИЕ: Сохраняем изменения в базе данных
+        component.save()
+        
+        # 9. РАСЧЁТ ОБЩЕЙ СТОИМОСТИ КОМПОНЕНТА:
+        # ВАЖНО: Используем свойство total_circulation_price, которое уже включает стоимость бумаги
+        # Формула в свойстве: (Цена печати за лист + Цена материала за лист) × Количество листов
+        total_component_price = component.total_circulation_price
+        
+        print(f"✅ Компонент сохранён:")
+        print(f"   • ID: {component.id}")
+        print(f"   • Количество листов: {sheet_count_decimal}")
+        print(f"   • Цена за лист: {component.price_per_sheet} руб.")
+        print(f"   • Цена материала: {component.material_price_per_unit} руб.")
+        print(f"   • Общая стоимость: {total_component_price} руб.")
+        print(f"   • Формула: ({component.price_per_sheet} + {component.material_price_per_unit}) × {sheet_count_decimal}")
+        
+        # 10. РАСЧЁТ ОБЩЕЙ СТОИМОСТИ ВСЕХ КОМПОНЕНТОВ ПРОСЧЁТА:
+        total_price = Decimal('0.00')
+        try:
+            # Получаем все компоненты просчёта (не удалённые)
+            proschet_components = PrintComponent.objects.filter(
+                proschet_id=proschet_id,
+                is_deleted=False
+            )
+            
+            # Суммируем стоимость всех компонентов
+            for comp in proschet_components:
+                total_price += comp.total_circulation_price
+                
+            print(f"💰 Общая стоимость всех компонентов просчёта: {total_price} руб.")
+                
+        except Exception as e:
+            print(f"⚠️ Ошибка при расчёте общей стоимости: {str(e)}")
+            # Если не удалось рассчитать общую стоимость, используем только текущий компонент
+            total_price = total_component_price
+        
+        # 11. ФОРМАТИРОВАНИЕ: Подготавливаем данные для ответа
+        # Вспомогательные функции для форматирования
+        def format_price(price):
+            """Форматирует цену для отображения (2 знака после запятой, знак рубля)"""
+            return f"{float(price):.2f} ₽"
+        
+        def format_sheet_count(count):
+            """Форматирует количество листов (добавляет разделители тысяч, 2 знака после запятой)"""
+            try:
+                # Преобразуем Decimal в float для форматирования
+                count_float = float(count)
+                # Форматируем с 2 знаками после запятой
+                formatted = f"{count_float:,.2f}"
+                # Заменяем запятые на пробелы (разделители тысяч)
+                formatted = formatted.replace(',', ' ')
+                # Заменяем точку на запятую (русский формат)
+                formatted = formatted.replace('.', ',')
+                return formatted
+            except:
+                return str(count)
+        
+        # 12. ОТВЕТ: Возвращаем обновленные данные
+        return JsonResponse({
+            'success': True,
+            'message': f'Стоимость пересчитана: ({component.price_per_sheet:.2f} руб./лист + {component.material_price_per_unit:.2f} руб./бумага) × {sheet_count} листов',
+            'component': {
+                'id': component.id,
+                'number': component.number,
+                'printer_name': component.printer.name if component.printer else 'Принтер не выбран',
+                'paper_name': component.paper.name if component.paper else 'Бумага не выбрана',
+                'paper_price': float(component.material_price_per_unit) if component.paper else 0.00,
+                'formatted_paper_price': format_price(component.material_price_per_unit) if component.paper else '0.00 ₽',
+                'sheet_count': float(sheet_count_decimal),
+                'sheet_count_display': format_sheet_count(sheet_count_decimal),
+                'price_per_sheet': float(component.price_per_sheet),
+                'formatted_price_per_sheet': format_price(component.price_per_sheet),
+                'total_price': float(total_component_price),
+                'formatted_total_price': format_price(total_component_price),
+                # Дополнительная информация для отладки
+                'old_price_per_sheet': float(old_price_per_sheet) if old_price_per_sheet else 0.00,
+                'old_sheet_count': float(old_sheet_count) if old_sheet_count else 0.00,
+                'old_total_price': float(old_total_price) if old_total_price else 0.00,
+                # Информация о формуле расчета
+                'calculation_formula': 'total = (price_per_sheet + paper_price) * sheet_count',
+                'calculation_breakdown': {
+                    'price_per_sheet': float(component.price_per_sheet),
+                    'paper_price': float(component.material_price_per_unit),
+                    'sheet_count': float(sheet_count_decimal),
+                    'total': float(total_component_price)
+                }
+            },
+            'total_price': float(total_price),
+            'calculation_details': {
+                'based_on': 'sheet_count',  # Указываем, что расчёт основан на количестве листов
+                'sheet_count_used': float(sheet_count_decimal),
+                'price_recalculated': True if component.printer else False,
+                'paper_included': True if component.paper else False
+            }
+        })
+        
+    except json.JSONDecodeError:
+        # Ошибка разбора JSON
+        return JsonResponse({
+            'success': False,
+            'message': 'Ошибка разбора JSON данных'
+        }, status=400)
+        
+    except Exception as e:
+        # Любая другая ошибка
+        import traceback
+        print(f"🔥 Критическая ошибка в update_component_price: {str(e)}")
+        print(traceback.format_exc())
+        
+        return JsonResponse({
+            'success': False,
+            'message': f'Внутренняя ошибка сервера: {str(e)}'
+        }, status=500)

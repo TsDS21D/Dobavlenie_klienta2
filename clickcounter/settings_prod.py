@@ -82,6 +82,8 @@ INSTALLED_APPS = [
     'sklad',
     'print_price',
     'baza_klientov',
+    'vichisliniya_listov',
+
 ]
 
 # ===================== ПРОМЕЖУТОЧНОЕ ПО (MIDDLEWARE) =====================

@@ -1,0 +1,305 @@
+<!--
+Файл: vichisliniya_listov/templates/vichisliniya_listov/sections/vichisliniya_listov.html
+Шаблон секции "Вычисления листов" для вставки в калькулятор.
+ОБНОВЛЕНО: Теперь работает с печатными компонентами вместо просчётов.
+-->
+
+<section class="calculator-section vichisliniya-listov-section" id="vichisliniya-listov-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-calculator"></i>
+            <span class="section-number">4.</span>
+            Вычисления листов
+            <!-- Место для отображения информации о выбранном печатном компоненте -->
+            <span id="vichisliniya-listov-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(печатный компонент не выбран)</span>
+            </span>
+        </h2>
+        
+        <div class="header-buttons">
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="vichisliniya-listov-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="section-body">
+        <!-- Сообщение, когда не выбран печатный компонент -->
+        <div id="vichisliniya-listov-no-print-component-selected" class="empty-state-message" style="display: block;">
+            <i class="fas fa-print fa-3x"></i>
+            <h3>Выберите печатный компонент</h3>
+            <p>Выберите печатный компонент в секции "Печатные компоненты" для выполнения вычислений листов</p>
+        </div>
+        
+        <!-- Контейнер для контента вычислений -->
+        <div id="vichisliniya-listov-container" class="vichisliniya-listov-container" style="display: none;">
+            <!-- Заголовок блока -->
+            <div class="vichisliniya-listov-header">
+                <h3>Информация о печатном компоненте</h3>
+                <p class="vichisliniya-listov-subtitle">Данные для выполнения вычислений листов</p>
+            </div>
+            
+            <!-- Информация о печатном компоненте -->
+            <div class="vichisliniya-listov-info">
+                <!-- Номер печатного компонента -->
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-hashtag"></i>
+                    <span class="info-label">Номер компонента:</span>
+                    <span id="vichisliniya-listov-print-component-number" class="info-value">Не указан</span>
+                </div>
+                
+                <!-- Принтер -->
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-print"></i>
+                    <span class="info-label">Принтер:</span>
+                    <span id="vichisliniya-listov-printer-name" class="info-value">Не указан</span>
+                </div>
+                
+                <!-- Бумага -->
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span class="info-label">Бумага:</span>
+                    <span id="vichisliniya-listov-paper-name" class="info-value">Не указана</span>
+                </div>
+                
+                <!-- ВАЖНО: ТИРАЖ - ключевое поле для вычислений -->
+                <div class="vichisliniya-listov-info-item highlight-item">
+                    <i class="fas fa-copy"></i>
+                    <span class="info-label">Тираж для вычислений:</span>
+                    <span id="vichisliniya-listov-circulation" class="info-value circulation-value">Не указан</span>
+                    <span id="vichisliniya-listov-circulation-formatted" class="info-note"></span>
+                </div>
+                
+                <!-- Информация о просчёте (для обратной совместимости) -->
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-calculator"></i>
+                    <span class="info-label">Просчёт:</span>
+                    <span id="vichisliniya-listov-proschet-number" class="info-value">Не указан</span>
+                </div>
+                
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-heading"></i>
+                    <span class="info-label">Название просчёта:</span>
+                    <span id="vichisliniya-listov-proschet-name" class="info-value">Не указано</span>
+                </div>
+                
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-user"></i>
+                    <span class="info-label">Клиент:</span>
+                    <span id="vichisliniya-listov-client-name" class="info-value">Не указан</span>
+                </div>
+                
+                <div class="vichisliniya-listov-info-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="info-label">Дата создания:</span>
+                    <span id="vichisliniya-listov-created-at" class="info-value">Не указана</span>
+                </div>
+            </div>
+            
+            <!-- Параметры вычислений листов -->
+            <div class="vichisliniya-listov-parameters">
+                <h3>
+                    <i class="fas fa-sliders-h"></i>
+                    Параметры для вычислений листов
+                </h3>
+                <p class="parameters-description">
+                    Настройте параметры для расчёта количества листов на основе тиража:
+                </p>
+                
+                <!-- Форма для ввода параметров -->
+                <div class="vichisliniya-listov-form">
+                    <!-- Поле: Вылеты -->
+                    <div class="vichisliniya-listov-form-group">
+                        <label for="vichisliniya-listov-vyleta-input">
+                            <i class="fas fa-paper-plane"></i>
+                            Вылеты:
+                        </label>
+                        <div class="input-with-help">
+                            <input 
+                                type="number" 
+                                id="vichisliniya-listov-vyleta-input" 
+                                name="vichisliniya_listov_vyleta" 
+                                min="1" 
+                                max="100" 
+                                step="1" 
+                                value="1"
+                                class="vichisliniya-listov-input"
+                                data-parameter="vyleta"
+                            >
+                            <span class="help-icon" title="Количество дополнительных листов на обрезку и возможный брак">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                        </div>
+                        <span class="input-note">Значение по умолчанию: 1</span>
+                    </div>
+                    
+                    <!-- Поле: Количество полос -->
+                    <div class="vichisliniya-listov-form-group">
+                        <label for="vichisliniya-listov-polosa-count-input">
+                            <i class="fas fa-layer-group"></i>
+                            Количество полос:
+                        </label>
+                        <div class="input-with-help">
+                            <input 
+                                type="number" 
+                                id="vichisliniya-listov-polosa-count-input" 
+                                name="vichisliniya_listov_polosa_count" 
+                                min="1" 
+                                max="64" 
+                                step="1" 
+                                value="1"
+                                class="vichisliniya-listov-input"
+                                data-parameter="polosa_count"
+                            >
+                            <span class="help-icon" title="Количество полос (страниц), размещаемых на одном листе">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                        </div>
+                        <span class="input-note">Значение по умолчанию: 1</span>
+                    </div>
+                    
+                    <!-- Поле: Цветность -->
+                    <div class="vichisliniya-listov-form-group">
+                        <label for="vichisliniya-listov-color-select">
+                            <i class="fas fa-palette"></i>
+                            Цветность:
+                        </label>
+                        <div class="input-with-help">
+                            <select 
+                                id="vichisliniya-listov-color-select" 
+                                name="vichisliniya_listov_color" 
+                                class="vichisliniya-listov-select"
+                                data-parameter="color"
+                            >
+                                <option value="1+0">1+0 (односторонняя одноцветная)</option>
+                                <option value="1+1">1+1 (двусторонняя одноцветная)</option>
+                                <option value="4+0" selected>4+0 (односторонняя полноцветная)</option>
+                                <option value="4+4">4+4 (двусторонняя полноцветная)</option>
+                            </select>
+                            <span class="help-icon" title="Вариант цветности печати">
+                                <i class="fas fa-question-circle"></i>
+                            </span>
+                        </div>
+                        <span class="input-note">Значение по умолчанию: 4+0</span>
+                    </div>
+                    
+                    <!-- Кнопки управления -->
+                    <div class="vichisliniya-listov-form-actions">
+                        <button 
+                            type="button" 
+                            id="vichisliniya-listov-calculate-btn" 
+                            class="btn-action btn-primary"
+                            title="Выполнить расчёт количества листов на основе текущего тиража и параметров"
+                        >
+                            <i class="fas fa-calculator"></i>
+                            Рассчитать листы
+                        </button>
+                        
+                        <button 
+                            type="button" 
+                            id="vichisliniya-listov-save-btn" 
+                            class="btn-action btn-success"
+                            title="Сохранить текущие параметры в базу данных"
+                        >
+                            <i class="fas fa-save"></i>
+                            Сохранить параметры
+                        </button>
+                        
+                        <button 
+                            type="button" 
+                            id="vichisliniya-listov-reset-btn" 
+                            class="btn-action btn-secondary"
+                            title="Сбросить параметры к значениям по умолчанию"
+                        >
+                            <i class="fas fa-undo"></i>
+                            Сбросить
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Результаты вычислений -->
+            <div class="vichisliniya-listov-results">
+                <h3>
+                    <i class="fas fa-chart-bar"></i>
+                    Результаты вычислений
+                </h3>
+                
+                <!-- Блок с результатом расчёта -->
+                <div class="vichisliniya-listov-result-card">
+                    <div class="result-header">
+                        <h4>Количество листов</h4>
+                        <span class="result-badge" id="vichisliniya-listov-result-badge">ожидает расчёта</span>
+                    </div>
+                    
+                    <div class="result-content">
+                        <div class="result-value-container">
+                            <span class="result-value" id="vichisliniya-listov-result-value">0.00</span>
+                            <span class="result-unit">листов</span>
+                        </div>
+                        
+                        <div class="result-details">
+                            <div class="result-formula">
+                                <span class="formula-label">Формула расчёта:</span>
+                                <span class="formula-text" id="vichisliniya-listov-formula-text">
+                                    (тираж / количество полос) + вылеты
+                                </span>
+                            </div>
+                            
+                            <div class="result-breakdown">
+                                <span class="breakdown-label">Расшифровка:</span>
+                                <ul class="breakdown-list" id="vichisliniya-listov-breakdown-list">
+                                    <li>Тираж: <span id="vichisliniya-listov-breakdown-circulation">0</span> шт.</li>
+                                    <li>Вылеты: <span id="vichisliniya-listov-breakdown-vyleta">1</span></li>
+                                    <li>Количество полос: <span id="vichisliniya-listov-breakdown-polosa-count">1</span></li>
+                                    <li>Цветность: <span id="vichisliniya-listov-breakdown-color">4+0</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-footer">
+                        <span class="result-timestamp" id="vichisliniya-listov-result-timestamp">
+                            <i class="fas fa-clock"></i>
+                            Последний расчёт: не выполнялся
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Блок с сохранёнными данными -->
+                <div class="vichisliniya-listov-saved-data" id="vichisliniya-listov-saved-data-container" style="display: none;">
+                    <h4>
+                        <i class="fas fa-database"></i>
+                        Сохранённые данные
+                    </h4>
+                    <div class="saved-data-content">
+                        <p>
+                            Параметры сохранены в базе данных. 
+                            При следующем открытии печатного компонента они будут загружены автоматически.
+                        </p>
+                        <div class="saved-data-info">
+                            <span class="saved-data-label">Обновлено:</span>
+                            <span class="saved-data-value" id="vichisliniya-listov-saved-data-updated">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Блок с примечанием -->
+            <div class="vichisliniya-listov-note">
+                <i class="fas fa-info-circle"></i>
+                <p>
+                    <strong>Важно:</strong> Все вычисления выполняются на основе значения тиража из печатного компонента. 
+                    При изменении тиража значения в этой секции будут автоматически обновляться.
+                    Для выполнения расчёта нажмите кнопку "Рассчитать листы".
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Мета-тег для CSRF-токена -->
+<meta name="csrf-token" content="{{ csrf_token }}">

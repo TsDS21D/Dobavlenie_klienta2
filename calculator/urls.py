@@ -91,5 +91,13 @@ urlpatterns = [
          views.get_proschet_price_data, 
          name='get_proschet_price_data'),
 
-
+    # ========== НОВЫЙ МАРШРУТ: Обновление стоимости компонента на основе количества листов ==========
+    # Этот маршрут вызывается из JavaScript, когда изменяется количество листов в секции "Вычисления листов"
+    # Принимает POST запрос с JSON данными: component_id, sheet_count, proschet_id
+    # Возвращает обновленные данные компонента и общую стоимость
+    path(
+        'update-component-price/',  # URL для обновления стоимости
+        views.update_component_price,  # Функция-обработчик
+        name='update_component_price'  # Имя маршрута
+    ),
 ]

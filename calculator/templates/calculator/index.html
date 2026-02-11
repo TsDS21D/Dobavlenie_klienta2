@@ -13,6 +13,9 @@ calculator/templates/calculator/index.html
 {% block extra_css %}
 {{ block.super }}
 {% load static %}
+
+<!-- Подключаем CSS для новой секции ВЫЧИСЛЕНИЙ ЛИСТОВ -->
+<link rel="stylesheet" href="{% static 'vichisliniya_listov/css/sections/vichisliniya_listov.css' %}">
 <!-- Подключаем CSS для новой секции -->
 <link rel="stylesheet" href="{% static 'calculator/css/sections/list_proschet.css' %}">
 <link rel="stylesheet" href="{% static 'calculator/css/sections/proschet.css' %}">
@@ -81,6 +84,19 @@ calculator/templates/calculator/index.html
                         </div>
                     </div>
                     
+                    <!-- ===== НОВАЯ СЕКЦИЯ: ВЫЧИСЛЕНИЯ ЛИСТОВ ===== -->
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            <!-- Подключаем секцию вычислений листов из нового приложения -->
+                            <!-- Обновляем номер секции на 3 (так как она третья по счету) -->
+                            {% with section_number=3 %}
+                                {% include "vichisliniya_listov/sections/vichisliniya_listov.html" %}
+                            {% endwith %}
+                        </div>
+                    </div>
+
+
+
                     <div class="nested-row">
                         <div class="nested-col" data-col-size="full">
                             {% include "calculator/sections/print_components.html" %}
@@ -109,6 +125,9 @@ calculator/templates/calculator/index.html
 {% block extra_js %}
 {{ block.super }}
 {% load static %}
+<!-- Подключаем JavaScript для новой секции ВЫЧИСЛЕНИЙ ЛИСТОВ -->
+<script src="{% static 'vichisliniya_listov/js/sections/vichisliniya_listov.js' %}"></script>
+
 <!-- Подключаем JavaScript для всех секций -->
 <script src="{% static 'calculator/js/sections/product.js' %}"></script>
 <script src="{% static 'calculator/js/sections/list_proschet.js' %}"></script>
