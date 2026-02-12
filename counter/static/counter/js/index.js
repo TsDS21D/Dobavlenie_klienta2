@@ -24,6 +24,13 @@ const readyDatetimeInput = document.getElementById('ready-datetime');// поле
 const submitBtn = document.getElementById('submit-btn');            // кнопка "Добавить заказ"
 const clearBtn = document.getElementById('clear-btn');              // кнопка "Очистить"
 
+// ===== ДОБАВЛЕНЫ НОВЫЕ ГЛОБАЛЬНЫЕ ЭЛЕМЕНТЫ =====
+const exportExcelBtn = document.getElementById('export-excel-btn');
+const backupDownloadBtn = document.getElementById('backup-download-btn');
+const backupUploadBtn = document.getElementById('backup-upload-btn');
+const backupUploadForm = document.getElementById('backup-upload-form');
+const backupFileInput = document.getElementById('backup-file-input');
+
 // Списки активных заказов (группировка по статусам) — элементы <ul> для каждой группы
 const inProgressOrdersList = document.getElementById('in-progress-orders-list'); // заказы в работе
 const acceptedOrdersList = document.getElementById('accepted-orders-list');     // принятые заказы
@@ -681,6 +688,100 @@ function deleteOrder(orderNumber) {
         action: 'delete_order',
         order_number: parseInt(orderNumber)
     }));
+}
+
+// ===== НОВЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С РЕЗЕРВИРОВАНИЕМ =====
+
+/**
+ * Инициирует скачивание Excel-файла с заказами.
+ * Просто перенаправляет браузер на соответствующий URL.
+ */
+function exportOrdersToExcel() {
+    // URL определён в urls.py с именем 'export_orders_excel'
+    window.location.href = '/counter/orders/export/excel/';
+}
+
+/**
+ * Инициирует скачивание резервной копии БД (JSON).
+ * Перенаправляет на URL /backup/download/.
+ */
+function downloadBackup() {
+    window.location.href = '/counter/backup/download/';
+}
+
+/**
+ * Открывает системный диалог выбора файла для восстановления.
+ * При выборе файла автоматически отправляет форму на сервер.
+ */
+function uploadBackup() {
+    // Программно кликаем по скрытому input[type=file], чтобы открыть окно выбора файла
+    backupFileInput.click();
+}
+
+/**
+ * Обработчик события 'change' на input[type=file].
+ * Срабатывает сразу после того, как пользователь выбрал файл.
+ */
+function handleBackupFileSelect(event) {
+    const file = event.target.files[0];  // Получаем выбранный файл
+    if (!file) return;                  // Если файл не выбран, ничего не делаем
+
+    // Отправляем форму асинхронно через fetch, чтобы обработать JSON-ответ
+    const formData = new FormData(backupUploadForm);
+    
+    // Отображаем статус "Загрузка..." (можно использовать существующий блок статуса)
+    statusElement.textContent = '⏳ Восстановление данных...';
+    statusElement.className = 'status disconnected';
+
+    fetch(backupUploadForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',  // Помечаем запрос как AJAX
+        }
+    })
+    .then(response => response.json())  // Ожидаем JSON от сервера
+    .then(data => {
+        if (data.success) {
+            // Успешное восстановление
+            alert(`✅ ${data.message}`);
+            // Перезагружаем страницу, чтобы увидеть актуальные данные
+            location.reload();
+        } else {
+            // Ошибка от сервера
+            alert(`❌ Ошибка восстановления: ${data.error}`);
+            statusElement.textContent = '❌ Ошибка восстановления';
+            statusElement.className = 'status disconnected';
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при отправке файла:', error);
+        alert('❌ Произошла ошибка при загрузке файла.');
+        statusElement.textContent = '❌ Ошибка соединения';
+        statusElement.className = 'status disconnected';
+    })
+    .finally(() => {
+        // Очищаем input, чтобы можно было загрузить тот же файл повторно
+        backupFileInput.value = '';
+    });
+}
+
+// ===== ПРИВЯЗКА ОБРАБОТЧИКОВ К НОВЫМ КНОПКАМ =====
+if (exportExcelBtn) {
+    exportExcelBtn.addEventListener('click', exportOrdersToExcel);
+}
+
+if (backupDownloadBtn) {
+    backupDownloadBtn.addEventListener('click', downloadBackup);
+}
+
+if (backupUploadBtn) {
+    backupUploadBtn.addEventListener('click', uploadBackup);
+}
+
+// Привязываем обработчик выбора файла к скрытому input
+if (backupFileInput) {
+    backupFileInput.addEventListener('change', handleBackupFileSelect);
 }
 
 // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====

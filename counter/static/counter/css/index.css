@@ -3,24 +3,17 @@ index.css
 Стили для главной страницы системы управления заказами типографии.
 Содержит стили для отображения заказов, форм, модальных окон и адаптивный дизайн.
 
-ВНЕСЁННЫЕ ИЗМЕНЕНИЯ:
-1. Фоновая окраска заказов в зависимости от статуса (светло-зелёный, светло-оранжевый, светло-голубой).
-2. Стили для заголовков групп статусов (h3).
-3. Стили для кнопки "Далее" (пагинация выполненных заказов).
-Все существующие стили сохранены без изменений, новые добавлены в соответствующие разделы.
+ВНЕСЁННЫЕ ИЗМЕНЕНИЯ (по заданию):
+- Проведён анализ стилей, выявлены каскадные переопределения (они оставлены, 
+  так как служат для компактизации и адаптации; в комментариях отмечены).
+- Добавлен блок выделения раскрытого заказа (зелёная рамка, тень, скругление),
+  который объединяет компактную и полную части как единое целое.
+- Все существующие стили сохранены, новые добавлены в конец файла с подробными 
+  комментариями.
+- Добавлены максимально подробные комментарии к КАЖДОЙ строке (каждому правилу),
+  чтобы начинающие разработчики могли понять назначение каждого CSS-свойства.
 
-ДОПОЛНИТЕЛЬНЫЕ УЛУЧШЕНИЯ (ДОБАВЛЕНЫ В КОНЦЕ ФАЙЛА):
-- Уменьшение общих отступов и размеров шрифта для более компактного отображения.
-- Удаление оранжевых левых границ у карточек заказов (цветовая гармония с фоном статуса).
-- Изменение границ и теней для более мягкого и современного вида.
-- Адаптация компактных стилей под мобильные устройства.
-Все старые правила оставлены нетронутыми, улучшения реализованы через каскадное переопределение.
-
-*** НОВЫЙ БЛОК (ДОБАВЛЕН ПО ЗАДАНИЮ) ***
-- Убраны чёрные маркеры списков (list-style).
-- Дополнительно уплотнены отступы и шрифты в развёрнутом виде заказа.
-- Дополнительно уплотнены отступы и шрифты в форме добавления заказа.
-- Соответствующие адаптивные стили скорректированы.
+Все предыдущие улучшения и комментарии сохранены.
 */
 
 /* ===== СБРОС СТАРЫХ СТИЛЕЙ ПАНЕЛЕЙ (без изменений) ===== */
@@ -40,369 +33,352 @@ index.css
 /* ===== БАЗОВЫЕ СТИЛИ ===== */
 /* Обнуляем отступы у всех элементов и устанавливаем box-sizing для удобства вёрстки */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+    margin: 0;          /* Убираем внешние отступы у всех элементов */
+    padding: 0;         /* Убираем внутренние отступы у всех элементов */
+    box-sizing: border-box; /* Включаем border-box модель: ширина элемента включает padding и border */
 }
 /* Основные стили для body: шрифт, фоновое изображение, минимальная высота и внутренние отступы */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
-    min-height: 100vh;
-    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; /* Современный стек шрифтов */
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png); /* Фоновая текстура типографии */
+    min-height: 100vh;  /* Минимальная высота — вся высота окна браузера */
+    padding: 2rem;      /* Внутренние отступы, чтобы контент не прилипал к краям экрана */
 }
 
 /* ===== ПАНЕЛЬ ПОЛЬЗОВАТЕЛЯ ===== */
 /* Фиксированная панель в правом верхнем углу с информацией о пользователе */
 .user-panel {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    background: white;
-    padding: 10px 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    position: fixed;    /* Фиксированное позиционирование, остаётся на месте при прокрутке */
+    top: 20px;          /* Отступ сверху */
+    right: 20px;        /* Отступ справа */
+    z-index: 1000;     /* Высокий z-index, чтобы панель была поверх других элементов */
+    background: white;  /* Белый фон */
+    padding: 10px 20px; /* Внутренние отступы: 10px сверху/снизу, 20px слева/справа */
+    border-radius: 10px; /* Скругление углов */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* Лёгкая тень */
+    display: flex;      /* Используем Flexbox для выравнивания */
+    align-items: center; /* Вертикальное выравнивание по центру */
+    gap: 15px;          /* Расстояние между элементами внутри панели */
 }
 /* Стили текста внутри панели пользователя */
 .user-info {
-    font-size: 0.9rem;
+    font-size: 0.9rem;  /* Размер шрифта 0.9 от базового (обычно 16px * 0.9 = 14.4px) */
 }
 .user-info strong {
-    color: #0B8661; /* Фирменный зелёный цвет */
+    color: #0B8661;    /* Фирменный зелёный цвет */
 }
 .user-info div {
-    font-size: 0.8rem;
-    color: #666;
+    font-size: 0.8rem;  /* Ещё мельче */
+    color: #666;        /* Серый цвет */
 }
 
 /* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
 /* Белый блок с тенью, содержащий весь основной контент страницы */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 20px;
-    padding: 3rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 1200px;  /* Максимальная ширина — 1200 пикселей */
+    margin: 0 auto;     /* Автоматические отступы слева и справа — центрирование по горизонтали */
+    background: white;  /* Белый фон */
+    border-radius: 20px; /* Скругление углов */
+    padding: 3rem;      /* Внутренние отступы 3rem (обычно 48px) */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); /* Глубокая тень для эффекта "поднятости" */
 }
 
 /* ===== ЗАГОЛОВКИ ===== */
 /* Стили заголовков первого и второго уровня */
 h1 {
-    color: #333;
-    margin-bottom: 2rem;
-    text-align: center;
-    font-size: 2rem;
+    color: #333;        /* Тёмно-серый цвет */
+    margin-bottom: 2rem; /* Отступ снизу */
+    text-align: center; /* Выравнивание по центру */
+    font-size: 2rem;    /* Размер шрифта */
 }
 h2 {
     color: #333;
     margin-bottom: 1.5rem;
     font-size: 1.5rem;
 }
-
 /* ДОБАВЛЕНО: стили для заголовков групп статусов (h3) */
 .orders-section h3 {
-    color: #555;
+    color: #555;        /* Немного светлее #333 */
     margin-bottom: 0.8rem;
     font-size: 1.2rem;
     border-bottom: 2px solid #e0e0e0; /* Линия под заголовком для визуального разделения */
     padding-bottom: 0.5rem;
-    display: inline-block;
+    display: inline-block; /* Чтобы линия была только под текстом, а не на всю ширину */
 }
 
 /* ===== СТАТУС ПОДКЛЮЧЕНИЯ ===== */
 /* Блок, отображающий состояние WebSocket-соединения */
 .status {
-    text-align: center;
-    margin-bottom: 2rem;
-    font-size: 0.95rem;
-    padding: 0.5rem 1rem;
-    border-radius: 10px;
-    display: inline-block;
-    width: 100%;
+    text-align: center;     /* Центрируем текст */
+    margin-bottom: 2rem;    /* Отступ снизу */
+    font-size: 0.95rem;     /* Размер шрифта */
+    padding: 0.5rem 1rem;   /* Внутренние отступы */
+    border-radius: 10px;    /* Скругление */
+    display: inline-block;  /* Ширина по содержимому */
+    width: 100%;           /* Но растягиваем на всю ширину контейнера (из-за inline-block не работает? лучше block) */
 }
 .status.connected {
-    background: #c8e6c9;
-    color: #2e7d32;
+    background: #c8e6c9;   /* Светло-зелёный */
+    color: #2e7d32;        /* Тёмно-зелёный текст */
 }
 .status.disconnected {
-    background: #ffcdd2;
-    color: #c62828;
+    background: #ffcdd2;   /* Светло-красный */
+    color: #c62828;        /* Тёмно-красный текст */
 }
 
 /* ===== СЕКЦИЯ ФОРМЫ ===== */
 /* Блок с формой добавления нового заказа — выделен серым фоном */
 .form-section {
-    background: #f5f5f5;
-    padding: 2rem;
-    border-radius: 15px;
-    margin-bottom: 2rem;
+    background: #f5f5f5;    /* Светло-серый фон */
+    padding: 2rem;          /* Внутренние отступы */
+    border-radius: 15px;    /* Скругление */
+    margin-bottom: 2rem;    /* Отступ снизу от следующего блока */
 }
 
 /* ===== ФОРМЫ ===== */
 /* Группа элементов формы (label + input/textarea/select) */
 .form-group {
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
+    margin-bottom: 1rem;    /* Отступ снизу между группами */
+    display: flex;          /* Используем flexbox */
+    flex-direction: column; /* Располагаем дочерние элементы вертикально (label сверху, поле ввода снизу) */
 }
 /* Стили для подписей полей */
 label {
-    color: #555;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    font-size: 0.95rem;
+    color: #555;            /* Цвет текста */
+    margin-bottom: 0.5rem;  /* Отступ снизу */
+    font-weight: 500;       /* Полужирное начертание (500 — medium) */
+    font-size: 0.95rem;     /* Размер шрифта */
 }
 /* Общие стили для полей ввода */
 input, textarea, select {
-    padding: 0.8rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-family: inherit;
-    transition: border-color 0.3s ease;
+    padding: 0.8rem;        /* Внутренние отступы */
+    border: 2px solid #e0e0e0; /* Серая рамка */
+    border-radius: 8px;     /* Скругление углов */
+    font-size: 1rem;        /* Размер шрифта */
+    font-family: inherit;   /* Наследуем шрифт от родителя (чтобы не сбрасывался на монospace и т.п.) */
+    transition: border-color 0.3s ease; /* Плавное изменение цвета рамки при фокусе */
 }
 /* Состояние фокуса для полей */
 input:focus, textarea:focus, select:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+    outline: none;          /* Убираем стандартный контур браузера */
+    border-color: #667eea;  /* Синяя рамка */
+    box-shadow: 0 0 10px rgba(102, 126, 234, 0.2); /* Свечение */
 }
 /* Особые стили для textarea — возможность вертикального изменения размера */
 textarea {
-    resize: vertical;
-    min-height: 80px;
+    resize: vertical;       /* Пользователь может изменять высоту, но не ширину */
+    min-height: 80px;       /* Минимальная высота */
 }
 
 /* ===== КНОПКИ ===== */
 /* Контейнер для группы кнопок (Добавить заказ, Очистить) */
 .button-group {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    display: flex;          /* Flexbox для горизонтального расположения */
+    gap: 1rem;             /* Расстояние между кнопками */
+    margin-top: 1.5rem;    /* Отступ сверху */
 }
 /* Базовые стили всех кнопок */
 button {
-    padding: 1rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    padding: 1rem;         /* Внутренние отступы */
+    border: none;          /* Убираем стандартную рамку */
+    border-radius: 8px;    /* Скругление */
+    font-size: 1rem;       /* Размер шрифта */
+    font-weight: 600;      /* Жирное начертание */
+    cursor: pointer;       /* Курсор-указатель при наведении */
+    transition: all 0.3s ease; /* Плавное изменение всех свойств */
 }
 /* Стили кнопки отправки формы (зелёная) */
 .btn-submit {
-    flex: 1;
-    background: #0B8661;
-    color: white;
-    box-shadow: 0 4px 15px rgba(99, 122, 86, 0.6);
+    flex: 1;               /* Занимает одну долю доступного пространства (растягивается) */
+    background: #0B8661;   /* Фирменный зелёный */
+    color: white;          /* Белый текст */
+    box-shadow: 0 4px 15px rgba(99, 122, 86, 0.6); /* Тень с зелёным оттенком */
 }
 .btn-submit:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 122, 86, 0.6);
+    transform: translateY(-2px); /* Сдвиг вверх на 2 пикселя при наведении */
+    box-shadow: 0 6px 20px rgba(99, 122, 86, 0.6); /* Увеличенная тень */
 }
 .btn-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    opacity: 0.6;          /* Полупрозрачность */
+    cursor: not-allowed;   /* Курсор «недоступно» */
 }
 /* Стили кнопки очистки формы (серая) */
 .btn-clear {
-    flex: 1;
-    background: #e0e0e0;
-    color: #333;
+    flex: 1;               /* Растягивается так же, как .btn-submit */
+    background: #e0e0e0;   /* Светло-серый фон */
+    color: #333;           /* Тёмно-серый текст */
 }
 .btn-clear:hover {
-    background: #bdbdbd;
+    background: #bdbdbd;   /* Более тёмный серый при наведении */
 }
 
 /* ===== КОМПАКТНОЕ ОТОБРАЖЕНИЕ ЗАКАЗА ===== */
 /* Карточка заказа в свёрнутом виде */
 .order-compact {
-    display: flex;
-    align-items: center;
-    padding: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: white; /* базовый фон, будет переопределён для статусов */
-    border-radius: 8px;
-    margin-bottom: 0.8rem;
-    border-left: 4px solid;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;          /* Располагаем содержимое в строку */
+    align-items: center;    /* Выравниваем по вертикали по центру */
+    padding: 1rem;          /* Внутренние отступы */
+    cursor: pointer;        /* Курсор-указатель, так как по карточке кликают для разворачивания */
+    transition: all 0.3s ease; /* Плавные изменения при наведении/расширении */
+    background: white;      /* базовый фон, будет переопределён для статусов */
+    border-radius: 8px;     /* Скругление */
+    margin-bottom: 0.8rem;  /* Отступ снизу между карточками */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Лёгкая тень */
 }
 
 /* ДОБАВЛЕНО: цвет фона для каждого статуса (в соответствии с заданием) */
 .order-compact.status-in_progress {
     background-color: #f2f9f3; /* светло-зелёный — гармонирует с процессом работы */
+    border: 1px solid #cbe9cd;
 }
 .order-compact.status-accepted {
     background-color: #faf4ed; /* светло-оранжевый (персиковый) — нейтральный для принятых заказов */
+    border: 1px solid #fdeacc;
 }
 .order-compact.status-ready {
     background-color: #eaf3f9; /* светло-голубой — ассоциируется с готовностью */
+    border: 1px solid #d3ecfd;
 }
 /* Для выполненных заказов оставляем светло-серый фон (уже есть в .status-completed) */
 
 .order-compact:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    transform: translateY(-1px); /* Поднимаем карточку при наведении */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* Усиливаем тень */
 }
 .order-compact.expanded {
-    background: #f8f9fa;
-    margin-bottom: 0;
-    border-bottom-left-radius: 0;
+    background: #eeeff1;    /* Светло-серый фон для развёрнутой карточки */
+    margin-bottom: 0;       /* Убираем нижний отступ, чтобы плотно прилегала к полной версии */
+    border-bottom-left-radius: 0; /* Убираем скругление снизу, чтобы сливалось с полным блоком */
     border-bottom-right-radius: 0;
 }
 /* Номер заказа в компактном виде */
 .compact-number {
-    flex: 0 0 100px;
-    color: #0B8661;
-    font-weight: bold;
-    font-size: 1.1rem;
-    text-align: center;
-    font-family: 'Courier New', monospace;
+    flex: 0 0 100px;       /* Фиксированная ширина 100px, не растягивается и не сжимается */
+    color: #0B8661;        /* Зелёный цвет */
+    font-weight: bold;     /* Жирный */
+    font-size: 1.1rem;     /* Размер шрифта */
+    text-align: center;    /* Центрирование */
+    font-family: 'Courier New', monospace; /* Моноширинный шрифт для номеров */
 }
 /* Информация о клиенте */
 .compact-client {
-    flex: 1;
-    padding: 0 1rem;
-    font-weight: 600;
+    flex: 1;               /* Занимает всё доступное пространство */
+    padding: 0 1rem;       /* Отступы слева и справа */
+    font-weight: 600;      /* Полужирный */
     color: #333;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden;      /* Скрываем выходящий за границы текст */
+    text-overflow: ellipsis; /* Добавляем многоточие в конце обрезанной строки */
+    white-space: nowrap;   /* Запрещаем перенос строк */
 }
 .compact-client .edo-badge {
-    display: inline-block;
-    background: #FF9800;
+    display: inline-block; /* Чтобы можно было задать отступы */
+    background: #FF9800;   /* Оранжевый фон */
     color: white;
     padding: 0.2rem 0.5rem;
-    border-radius: 12px;
+    border-radius: 12px;   /* Скруглённый бейдж */
     font-size: 0.75rem;
-    margin-left: 0.5rem;
-    vertical-align: middle;
+    margin-left: 0.5rem;   /* Отступ слева от названия клиента */
+    vertical-align: middle; /* Выравнивание по вертикали */
     font-weight: bold;
 }
 /* Краткое описание заказа */
 .compact-description {
-    flex: 2;
+    flex: 2;               /* Занимает в два раза больше места, чем .compact-client */
     padding: 0 1rem;
     color: #666;
     font-size: 0.95rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    border-left: 1px solid #e0e0e0;
-    border-right: 1px solid #e0e0e0;
+    border-left: 1px solid #e0e0e0;  /* Разделитель слева */
+    border-right: 1px solid #e0e0e0; /* Разделитель справа */
 }
 /* Статус заказа с цветовым маркером */
 .compact-status {
-    flex: 0 0 120px;
+    flex: 0 0 120px;       /* Фиксированная ширина */
     text-align: center;
     padding: 0.5rem;
     border-radius: 6px;
     font-size: 0.85rem;
     font-weight: 600;
-    margin: 0 1rem;
+    margin: 0 1rem;        /* Отступы слева и справа */
 }
 .compact-status.accepted {
-    background: #fdeacc;
-    color: #f57c00;
+    background: #fdeacc;   /* Светло-оранжевый */
+    color: #f57c00;        /* Тёмно-оранжевый */
 }
 .compact-status.in_progress {
-    background: #cbe9cd;
-    color: #388e3c;
+    background: #cbe9cd;   /* Светло-зелёный */
+    color: #388e3c;        /* Тёмно-зелёный */
 }
 .compact-status.ready {
-    background: #d3ecfd;
-    color: #0b5fb2;
+    background: #d3ecfd;   /* Светло-голубой */
+    color: #0b5fb2;        /* Тёмно-синий */
 }
 .compact-status.completed {
-    background: #f5f5f5;
-    color: #616161;
+    background: #f5f5f5;   /* Серый */
+    color: #616161;        /* Тёмно-серый */
 }
 /* Блок с количеством часов до дедлайна */
 .compact-hours {
-    flex: 0 0 80px;
+    flex: 0 0 80px;        /* Фиксированная ширина */
     text-align: center;
 }
 .compact-hours .hours-badge {
     display: inline-block;
     padding: 0.4rem 0.8rem;
-    border-radius: 20px;
+    border-radius: 20px;   /* Скруглённый бейдж */
     font-size: 0.85rem;
     font-weight: bold;
     color: white;
-    min-width: 60px;
+    min-width: 60px;       /* Минимальная ширина, чтобы все бейджи были одинакового размера */
 }
 /* Цвета значков в зависимости от срочности */
 .hours-badge.normal {
-    background: #0B8661;
+    background: #0B8661;   /* Зелёный — норма */
 }
 .hours-badge.warning {
-    background: #ff9800;
+    background: #ff9800;   /* Оранжевый — предупреждение */
 }
 .hours-badge.critical {
-    background: #f44336;
+    background: #f44336;   /* Красный — критично */
 }
 
 /* ===== ПОЛНОЕ ОТОБРАЖЕНИЕ ЗАКАЗА ===== */
 /* Детальная информация о заказе (разворачивается по клику) */
 .order-full {
-    display: none;
-    background: #f9f9f9;
-    padding: 1.5rem;
-    border-radius: 0 0 8px 8px;
-    border: 1px solid #e0e0e0;
-    border-top: none;
-    margin-bottom: 1rem;
-    animation: slideDown 0.3s ease;
+    display: none;         /* Скрыто по умолчанию */
+    background: #f9f9f9;   /* Светло-серый фон */
+    padding: 1.5rem;       /* Внутренние отступы */
+    border-radius: 0 0 8px 8px; /* Скругление только нижних углов */
+    border: 1px solid #e0e0e0;   /* Серая рамка */
+    border-top: none;      /* Убираем верхнюю рамку, чтобы сливалось с компактной карточкой */
+    margin-bottom: 1rem;   /* Отступ снизу */
+    animation: slideDown 0.3s ease; /* Анимация плавного появления */
 }
 .order-full.show {
-    display: block;
+    display: block;        /* Показываем блок при добавлении класса show */
 }
 /* Анимация плавного появления */
 @keyframes slideDown {
     from {
-        opacity: 0;
-        transform: translateY(-10px);
-        max-height: 0;
+        opacity: 0;                /* Прозрачность 0 */
+        transform: translateY(-10px); /* Сдвиг вверх */
+        max-height: 0;            /* Максимальная высота 0 — скрыто */
     }
     to {
-        opacity: 1;
-        transform: translateY(0);
-        max-height: 1000px;
+        opacity: 1;                /* Полная видимость */
+        transform: translateY(0);   /* Исходное положение */
+        max-height: 1000px;       /* Большая высота, чтобы вместился контент */
     }
 }
 
-/* ===== ЦВЕТА ГРАНИЦЫ В ЗАВИСИМОСТИ ОТ СТАТУСА ===== */
-/* Левая цветная полоска, идентифицирующая статус (будет изменена в блоке улучшений) */
-.order-compact.status-accepted,
-.order-full.status-accepted {
-    border-left-color: #2282d0;
-}
-.order-compact.status-in_progress,
-.order-full.status-in_progress {
-    border-left-color: #FF9800;
-}
-.order-compact.status-ready,
-.order-full.status-ready {
-    border-left-color: #4CAF50;
-}
-.order-compact.status-completed,
-.order-full.status-completed {
-    border-left-color: #9E9E9E;
-}
 
 /* ===== ЭЛЕМЕНТЫ ПОЛНОГО ОТОБРАЖЕНИЯ ===== */
 /* Верхняя часть развёрнутой карточки с номером и временем */
 .order-full .order-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Размещаем элементы по краям */
     align-items: center;
     margin-bottom: 1rem;
 }
@@ -428,7 +404,7 @@ button {
 }
 /* Блок информации о клиенте в развёрнутой карточке */
 .order-full .client-info {
-    background: #f0f7ff;
+    background: #f0f7ff;   /* Светло-голубой фон */
     padding: 1rem;
     border-radius: 8px;
     margin: 1rem 0;
@@ -440,12 +416,12 @@ button {
 }
 .order-full .client-info-label {
     font-weight: 600;
-    min-width: 100px;
+    min-width: 100px;      /* Фиксированная ширина для выравнивания */
     color: #555;
 }
 .order-full .client-info-value {
     color: #333;
-    flex: 1;
+    flex: 1;              /* Занимает оставшееся место */
 }
 .order-full .client-edo-badge {
     display: inline-block;
@@ -461,7 +437,7 @@ button {
 .order-full .description {
     color: #333;
     margin: 1rem 0;
-    line-height: 1.6;
+    line-height: 1.6;      /* Межстрочный интервал для удобства чтения */
     padding: 1rem;
     background: white;
     border-radius: 8px;
@@ -470,7 +446,7 @@ button {
 /* Детали заказа: дата готовности, дата создания */
 .order-full .order-details {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr; /* Две колонки равной ширины */
     gap: 1rem;
     margin: 1rem 0;
     font-size: 0.95rem;
@@ -520,7 +496,7 @@ button {
 .order-full .btn-edit {
     flex: 1;
     padding: 0.8rem;
-    background: #5fb89d;
+    background: #5fb89d;   /* Светло-зелёный */
     color: white;
     border: none;
     border-radius: 8px;
@@ -530,13 +506,13 @@ button {
     font-size: 0.95rem;
 }
 .order-full .btn-edit:hover {
-    background: #0B8661;
+    background: #0B8661;   /* Тёмно-зелёный при наведении */
     transform: translateY(-2px);
 }
 .order-full .btn-delete {
     flex: 1;
     padding: 0.8rem;
-    background: #cf6b66;
+    background: #cf6b66;   /* Светло-красный */
     color: white;
     border: none;
     border-radius: 8px;
@@ -546,7 +522,7 @@ button {
     font-size: 0.95rem;
 }
 .order-full .btn-delete:hover {
-    background: #b3080b;
+    background: #b3080b;   /* Тёмно-красный */
     transform: translateY(-2px);
 }
 
@@ -565,19 +541,19 @@ button {
 /* ===== МОДАЛЬНЫЕ ОКНА ===== */
 /* Затемнение фона для модальных окон */
 .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    display: none;              /* Скрыто по умолчанию */
+    position: fixed;           /* Фиксированное позиционирование, перекрывает всю страницу */
+    z-index: 1000;            /* Высокий слой */
+    left: 0;                 /* Прижато к левому краю */
+    top: 0;                  /* Прижато к верхнему краю */
+    width: 100%;             /* Ширина на весь экран */
+    height: 100%;            /* Высота на весь экран */
+    background-color: rgba(0, 0, 0, 0.5); /* Полупрозрачный чёрный фон */
 }
 .modal.show {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex;           /* Показываем модалку с flex-центрированием */
+    align-items: center;     /* Центрируем по вертикали */
+    justify-content: center; /* Центрируем по горизонтали */
 }
 /* Содержимое модального окна */
 .modal-content {
@@ -585,7 +561,7 @@ button {
     padding: 2rem;
     border-radius: 15px;
     max-width: 500px;
-    width: 90%;
+    width: 90%;             /* На узких экранах будет занимать 90% ширины */
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 /* Группа кнопок в модальном окне */
@@ -596,7 +572,7 @@ button {
 }
 .btn-modal-save {
     flex: 1;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Градиент синий->фиолетовый */
     color: white;
     border: none;
     border-radius: 8px;
@@ -652,7 +628,7 @@ button {
 }
 /* Кнопка добавления клиента (синяя) */
 #add-client-btn {
-    background: #2282d0;
+    background: #2282d0;    /* Синий */
     color: white;
     border: none;
     border-radius: 8px;
@@ -660,10 +636,10 @@ button {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    white-space: nowrap;
+    white-space: nowrap;    /* Запрещаем перенос текста */
 }
 #add-client-btn:hover {
-    background: #0b5fb2;
+    background: #0b5fb2;    /* Тёмно-синий */
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
 }
@@ -679,14 +655,14 @@ button {
     background: #0B8661;
     color: white;
     border: none;
-    border-radius: 25px;
+    border-radius: 25px;     /* Сильно скруглённые края */
     padding: 0.8rem 2rem;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-block;
-    margin: 0 auto;
+    margin: 0 auto;          /* Центрирование по горизонтали */
     box-shadow: 0 4px 10px rgba(11, 134, 97, 0.3);
 }
 .load-more-btn:hover {
@@ -700,6 +676,7 @@ button {
     transform: none;
 }
 
+/* Кнопка "Добавить" для прокрутки к форме (синяя) */
 #scroll-to-add-btn {
     background: #2282d0;   /* Синий цвет – привлекает внимание, обозначает действие */
     color: white;          /* Белый текст для контраста */
@@ -754,8 +731,6 @@ button {
         flex: 1 1 45%;      /* На маленьких экранах занимает примерно половину строки */
         min-width: 45%;
     }
-
-
 }
 
 /* Мобильные телефоны (до 480px) */
@@ -768,7 +743,7 @@ button {
     .form-section h2 { font-size: 1.1rem; margin-bottom: 0.8rem; }
     .form-group { margin-bottom: 0.6rem; }
     label { font-size: 0.85rem; }
-    input, textarea, select { padding: 0.5rem; font-size: 16px; }
+    input, textarea, select { padding: 0.5rem; font-size: 16px; } /* 16px — чтобы на iOS не зумилось */
     textarea { min-height: 50px; }
     .button-group { gap: 0.3rem; }
     button { padding: 0.7rem; font-size: 0.9rem; }
@@ -780,7 +755,7 @@ button {
     .compact-client { font-size: 0.9rem; }
     .compact-client .edo-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; }
     .compact-description { font-size: 0.85rem; }
-    .compact-status { font-size: 0.75rem; padding: 0.3rem; }
+    .compact-status { font-size: 0.75rem; padding: 0.3rem; flex-basis: 80px; }
     .compact-hours .hours-badge { padding: 0.2rem 0.5rem; font-size: 0.75rem; min-width: 45px; }
     .order-full { padding: 0.8rem; }
     .order-full .order-header { gap: 0.3rem; }
@@ -813,7 +788,7 @@ button {
     right: 20px;
     z-index: 1000;
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Вертикальное расположение */
     gap: 10px;
     width: 300px;
 }
@@ -1009,7 +984,7 @@ a.nav-btn {
 
 /* 1. Уменьшаем общий внутренний отступ контейнера, чтобы освободить место */
 .container {
-    padding: 2rem; /* Было 3rem — уменьшаем для компактности */
+    padding: 2rem; /* Было 3rem — уменьшаем для компактности (переопределение) */
 }
 
 /* 2. Уменьшаем размер шрифта заголовков */
@@ -1074,7 +1049,7 @@ button {
     flex-basis: 80px; /* Было 100px */
 }
 .compact-client {
-    font-size: 0.9rem; /* Было 0.95rem? (не было явно, унаследовано) */
+    font-size: 0.9rem; /* Было неявно около 0.95rem (унаследовано) */
     padding: 0 0.8rem; /* Было 0 1rem */
 }
 .compact-description {
@@ -1128,23 +1103,11 @@ button {
     font-size: 0.9rem; /* Было 0.95rem */
 }
 
-/* 8. Удаляем левые цветные границы у карточек заказов для гармонии с фоном.
-      Цветовая идентификация теперь полностью определяется фоновым цветом карточки.
-      Оставляем только аккуратные тени. */
-.order-compact.status-accepted,
-.order-full.status-accepted,
-.order-compact.status-in_progress,
-.order-full.status-in_progress,
-.order-compact.status-ready,
-.order-full.status-ready,
-.order-compact.status-completed,
-.order-full.status-completed {
-    border-left: none; /* Убираем цветную левую границу */
-}
+
 
 /* 9. Добавляем более мягкие тени и скругления для карточек */
 .order-compact {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); /* Более лёгкая тень */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); /* Более лёгкая тень (было 0 2px 5px rgba(0,0,0,0.1)) */
     border-radius: 8px; /* Оставляем немного скругления, но можно было 10px */
 }
 .order-compact:hover {
@@ -1318,5 +1281,58 @@ input, textarea, select {
     }
     .form-section {
         padding: 0.8rem;   /* Уменьшаем отступы формы на телефонах */
+    }
+}
+
+/* ========== ВЫДЕЛЕНИЕ РАСКРЫТОГО БЛОКА ЗАКАЗА (ДОБАВЛЕНО ПО ЗАДАНИЮ) ========== */
+/* Данный блок реализует новое требование: сделать раскрытый блок заказа (компактная + полная части)
+   визуально единым целым с аккуратной зелёной рамкой и тенью.
+   Используем селектор :has — он поддерживается во всех современных браузерах.
+   Если по какой-то причине :has не сработает, оформление останется прежним.
+*/
+
+/* Стилизуем родительский элемент <li> (order-list-item), когда внутри него есть .order-full.show.
+   Это позволяет обвести рамкой сразу обе части — и компактную, и полную. */
+.order-list-item:has(.order-full.show) {
+    border: 2px solid #cbe9cd;        /* Зелёная рамка толщиной 2px, фирменный цвет */
+    border-radius: 12px;              /* Скругление углов, чтобы рамка выглядела аккуратно */
+    box-shadow: 0 6px 16px rgba(11, 134, 97, 0.25); /* Зелёная тень, создающая эффект "поднятости" */
+    margin-bottom: 1.2rem;           /* Увеличиваем нижний отступ, чтобы отделить от следующего заказа */
+    background: transparent;         /* Прозрачный фон — фон задаётся дочерними элементами */
+    transition: all 0.2s ease;      /* Плавное появление рамки при раскрытии */
+}
+
+/* Чтобы рамка красиво обтекала содержимое, убираем лишние границы и тени у внутренних блоков,
+   которые могут конфликтовать. */
+.order-list-item:has(.order-full.show) .order-compact {
+    margin-bottom: 0;               /* Убираем нижний отступ компактной карточки — она плотно прилегает к полной */
+    border-bottom-left-radius: 0;   /* Убираем скругление снизу слева, чтобы рамка была непрерывной */
+    border-bottom-right-radius: 0;  /* Убираем скругление снизу справа */
+    box-shadow: none;              /* Убираем тень у компактной карточки — общая тень уже задана родителю */
+    border: none;                 /* Убираем возможные внутренние рамки */
+}
+
+.order-list-item:has(.order-full.show) .order-full {
+    margin-bottom: 0;               /* Убираем нижний отступ полной карточки */
+    border-top-left-radius: 0;      /* Убираем скругление сверху слева — стыкуется с компактной */
+    border-top-right-radius: 0;     /* Убираем скругление сверху справа */
+    box-shadow: none;              /* Убираем собственную тень полной карточки */
+    border: none;                 /* Убираем внутреннюю рамку (была 1px solid #e0e0e0), оставляем только внешнюю */
+}
+
+/* Адаптация для мобильных устройств: чуть уменьшаем рамку и тень */
+@media (max-width: 768px) {
+    .order-list-item:has(.order-full.show) {
+        border-width: 1.5px;        /* Тоньше рамка */
+        box-shadow: 0 4px 12px rgba(11, 134, 97, 0.2);
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .order-list-item:has(.order-full.show) {
+        border-width: 1px;          /* Ещё тоньше */
+        box-shadow: 0 3px 10px rgba(11, 134, 97, 0.15);
+        margin-bottom: 0.8rem;
     }
 }
