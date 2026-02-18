@@ -3,11 +3,19 @@
 Модель Proscheт (Просчёт) для калькулятора типографии и связанные модели.
 Включает Компоненты печати (с уникальным номером KP-) и Дополнительные работы (с уникальным номером DR-).
 
-ИСПРАВЛЕНИЯ:
-1. Добавлено свойство `formatted_circulation` в PrintComponent – возвращает отформатированный тираж из просчёта.
-2. Добавлено свойство `circulation_display` для обратной совместимости с админкой.
-3. Добавлен метод `recalculate_price()` – пересчёт цены по действию в админке.
-4. Все комментарии максимально подробны для новичков.
+ИСПРАВЛЕНИЕ ОШИБКИ (16.02.2026):
+- Удалён автоматический пересчёт sheet_count компонентов при изменении тиража просчёта.
+  Раньше при сохранении просчёта (например, после изменения тиража) выполнялся код:
+      for component in self.print_components.all():
+          component.sheet_count = self.circulation
+          component.save()
+  Это приводило к тому, что количество листов в компонентах принудительно становилось равным тиражу,
+  игнорируя вычисления из приложения vichisliniya_listov.
+  Теперь эта автоматическая синхронизация убрана – количество листов должно обновляться только
+  через вызов специального API (recalculate-components-for-circulation), который учитывает
+  параметры вычислений листов для каждого компонента.
+
+Все остальные свойства и методы сохранены без изменений.
 """
 
 from django.db import models
@@ -69,15 +77,14 @@ class Proschet(models.Model):
         return f"{self.number}: {self.title} ({circulation_text})"
 
     def save(self, *args, **kwargs):
-        """Генерация номера и обновление компонентов при изменении тиража."""
+        """
+        Сохранение просчёта.
+        - Генерирует номер просчёта в формате PR-..., если он не задан.
+        - Устанавливает тираж по умолчанию = 1 для новых записей.
+        - ВАЖНО: Больше НЕ обновляет sheet_count в связанных компонентах печати!
+          Это было удалено, чтобы количество листов не сбрасывалось на тираж.
+        """
         is_new = self.pk is None
-        old_circulation = None
-        if not is_new:
-            try:
-                old_instance = Proschet.objects.get(pk=self.pk)
-                old_circulation = old_instance.circulation
-            except Proschet.DoesNotExist:
-                pass
 
         # Установка тиража по умолчанию
         if is_new and self.circulation is None:
@@ -104,11 +111,12 @@ class Proschet(models.Model):
 
         super().save(*args, **kwargs)
 
-        # Если тираж изменился – обновляем sheet_count во всех компонентах печати
-        if not is_new and old_circulation != self.circulation:
-            for component in self.print_components.all():
-                component.sheet_count = self.circulation
-                component.save()
+        # ===== УДАЛЕНО АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ КОМПОНЕНТОВ =====
+        # Ранее здесь был код, который при изменении тиража перезаписывал
+        # sheet_count во всех компонентах, делая его равным тиражу.
+        # Это нарушало логику вычислений листов. Теперь компоненты
+        # обновляются только через отдельный API-вызов, который учитывает
+        # параметры из vichisliniya_listov.
 
     @property
     def formatted_created_at(self):
@@ -150,7 +158,9 @@ class Proschet(models.Model):
             self.circulation = circulation_int
             self.save()
             if old_circulation != circulation_int:
-                return True, f"Тираж успешно обновлен с {old_circulation} на {circulation_int}. Связанные компоненты печати также обновлены."
+                # Возвращаем сообщение, но без упоминания обновления компонентов,
+                # так как теперь это не происходит автоматически.
+                return True, f"Тираж успешно обновлен с {old_circulation} на {circulation_int}. Для пересчёта количества листов в компонентах используйте соответствующую функцию."
             else:
                 return True, "Тираж успешно обновлен (значение не изменилось)"
         except ValueError:
@@ -162,13 +172,8 @@ class Proschet(models.Model):
 class PrintComponent(models.Model):
     """
     Компонент печати с уникальным номером KP-.
-
-    ИСПРАВЛЕНИЯ:
-    - Добавлено свойство `formatted_circulation` – доступ к тиражу просчёта.
-    - Добавлено свойство `circulation_display` – для обратной совместимости с админкой.
-    - Добавлен метод `recalculate_price()` – пересчёт цены по действию в админке.
     """
-
+    # ... (поля без изменений) ...
     number = models.CharField(
         verbose_name='Номер компонента',
         max_length=20,
@@ -245,43 +250,31 @@ class PrintComponent(models.Model):
         sheet_count_text = f"Листов: {self.sheet_count}" if self.sheet_count else "Листов не указано"
         return f"{self.number}: {printer_name} - {paper_name} ({sheet_count_text})"
 
-    # ---------- ИСПРАВЛЕНИЕ 1: Свойства для работы с тиражом просчёта ----------
+    # ---------- Свойства для работы с тиражом просчёта ----------
     @property
     def formatted_circulation(self):
-        """
-        Возвращает отформатированный тираж из связанного просчёта.
-        Используется в админке для отображения в списке и inline-формах.
-        """
+        """Возвращает отформатированный тираж из связанного просчёта."""
         if self.proschet:
             return self.proschet.formatted_circulation
-        return "—"   # прочерк, если просчёт не задан
+        return "—"
 
     @property
     def circulation_display(self):
-        """
-        Свойство для обратной совместимости – админка ожидает поле 'circulation_display'.
-        Просто вызывает formatted_circulation.
-        """
+        """Свойство для обратной совместимости с админкой."""
         return self.formatted_circulation
 
-    # ---------- ИСПРАВЛЕНИЕ 2: Метод для пересчёта цены (действие в админке) ----------
+    # ---------- Метод для пересчёта цены (действие в админке) ----------
     def recalculate_price(self):
         """
         Пересчитывает цену за лист на основе текущего принтера и количества листов.
-        Вызывается из действия админки "Пересчитать цены на основе справочника".
-
-        Returns:
-            tuple: (bool успех, str сообщение)
         """
         try:
             if self.printer and self.sheet_count:
-                # Используем статический метод интерполяции
                 self.price_per_sheet = self.calculate_price_for_printer_and_copies(
                     self.printer,
                     self.sheet_count
                 )
                 self.is_price_calculated = True
-                # Сохраняем только изменённые поля (оптимизация)
                 self.save(update_fields=['price_per_sheet', 'is_price_calculated'])
                 return True, f"Цена успешно пересчитана: {self.price_per_sheet} руб./лист"
             else:
@@ -289,7 +282,6 @@ class PrintComponent(models.Model):
         except Exception as e:
             return False, f"Ошибка при пересчёте цены: {str(e)}"
 
-    # ---------- Остальные методы (без изменений) ----------
     def save(self, *args, **kwargs):
         """Переопределённый метод сохранения с генерацией номера и расчётом цены."""
         # Генерация номера KP-...

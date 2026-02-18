@@ -2,20 +2,25 @@
  * ФАЙЛ: vichisliniya_listov.js
  * НАЗНАЧЕНИЕ: JavaScript для секции "Вычисления листов"
  * 
- * ИСПРАВЛЕНО: Теперь секция гарантированно показывает контент ТОЛЬКО тогда,
- * когда в секции "Печатные компоненты" выбран конкретный печатный компонент.
- * Во всех остальных случаях отображается сообщение с предложением выбрать компонент.
+ * ОСНОВНАЯ ЗАДАЧА: Рассчитывать количество листов на основе параметров (вылеты, полосы, цветность)
+ * и тиража из связанного просчёта.
  * 
- * КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ:
- * 1. При получении события 'printComponentDeselected' – немедленный сброс секции.
- * 2. В обработчике 'proschetSelected' – если нет выбранного компонента, сбрасываем секцию.
- * 3. В функции checkForSelectedProschet – обязательно вызываем resetSection().
- * 4. В toggleSectionDisplay добавлена проверка: контент показывается только если
- *    this.currentPrintComponentId не null.
- * 5. Улучшена функция resetSection – теперь она гарантированно переводит интерфейс
- *    в состояние «печатный компонент не выбран».
+ * ВАЖНО: При любом изменении параметров или тиража автоматически выполняется расчёт,
+ * результат отображается в поле 'result-value' и отправляется событие 'vichisliniyaListovUpdated',
+ * которое перехватывается секцией "Печатные компоненты" для пересчёта стоимости.
  * 
- * ПОДРОБНЫЕ КОММЕНТАРИИ: Каждая строка объяснена для новичков.
+ * ИЗМЕНЕНО (для исправления проблемы с отображением количества листов):
+ * - В функции loadVichisliniyaListovParameters после загрузки данных с сервера добавлен вызов
+ *   this.calculateVichisliniyaListovListCount(), который пересчитывает количество листов на основе
+ *   текущего тиража и загруженных параметров. Это гарантирует, что после выбора печатного компонента
+ *   отображаемое количество листов всегда будет актуальным, даже если тираж изменился с момента
+ *   последнего сохранения параметров.
+ * 
+ * КЛЮЧЕВЫЕ МОМЕНТЫ:
+ * 1. При изменении любого поля (или тиража) запускается handleFieldChange().
+ * 2. handleFieldChange() проверяет наличие выбранного компонента и тиража, затем вызывает calculateVichisliniyaListovListCount().
+ * 3. calculateVichisliniyaListovListCount() выполняет локальный расчёт, обновляет интерфейс, отправляет событие и сохраняет данные на сервер.
+ * 4. Все кнопки управления удалены – всё происходит автоматически.
  */
 
 "use strict";
@@ -97,24 +102,10 @@ var vichisliniyaListov = {
 
     /**
      * Флаг, указывающий, были ли параметры изменены пользователем.
-     * Используется для отслеживания необходимости сохранения и показа предупреждений.
+     * Используется для отслеживания необходимости сохранения.
      * @type {boolean}
      */
     isParametersModified: false,
-
-    /**
-     * Таймер для отложенного сохранения параметров.
-     * Используется для избежания частых запросов к серверу при быстром вводе.
-     * @type {number|null}
-     */
-    saveParametersTimeout: null,
-
-    /**
-     * Интервал автосохранения в миллисекундах.
-     * Параметры будут сохраняться автоматически через 2 секунды после последнего изменения.
-     * @type {number}
-     */
-    AUTO_SAVE_DELAY: 2000,
 
     // ============================================================================
     // ===== РАЗДЕЛ 2: ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ =====
@@ -166,7 +157,8 @@ var vichisliniyaListov = {
 
     /**
      * Установка обработчиков событий для элементов секции.
-     * Настраивает обработчики кликов для всех кнопок и интерактивных элементов.
+     * Для полей ввода добавлены обработчики 'change' (срабатывает при потере фокуса)
+     * и 'keypress' для обработки нажатия Enter.
      * @returns {void}
      */
     setupEventListeners: function() {
@@ -176,56 +168,47 @@ var vichisliniyaListov = {
         const vyletaInput = document.getElementById('vichisliniya-listov-vyleta-input');
         if (vyletaInput) {
             vyletaInput.addEventListener('input', (event) => this.handleVyletaInputChange(event));
-            vyletaInput.addEventListener('change', (event) => this.handleVyletaInputChange(event));
-            console.log('✅ Обработчик для поля "Вылеты" установлен');
+            vyletaInput.addEventListener('change', (event) => this.handleFieldChange());
+            vyletaInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.target.blur(); // Потеря фокуса вызовет событие change
+                }
+            });
+            console.log('✅ Обработчики для поля "Вылеты" установлены');
         }
 
         // ----- Поле "Количество полос" -----
         const polosaCountInput = document.getElementById('vichisliniya-listov-polosa-count-input');
         if (polosaCountInput) {
             polosaCountInput.addEventListener('input', (event) => this.handlePolosaCountInputChange(event));
-            polosaCountInput.addEventListener('change', (event) => this.handlePolosaCountInputChange(event));
-            console.log('✅ Обработчик для поля "Количество полос" установлен');
+            polosaCountInput.addEventListener('change', (event) => this.handleFieldChange());
+            polosaCountInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.target.blur();
+                }
+            });
+            console.log('✅ Обработчики для поля "Количество полос" установлены');
         }
 
-        // ----- Поле "Цветность" -----
+        // ----- Поле "Цветность" (select) -----
         const colorSelect = document.getElementById('vichisliniya-listov-color-select');
         if (colorSelect) {
-            colorSelect.addEventListener('change', (event) => this.handleColorSelectChange(event));
-            console.log('✅ Обработчик для поля "Цветность" установлен');
-        }
-
-        // ----- Кнопка "Рассчитать листы" -----
-        const calculateBtn = document.getElementById('vichisliniya-listov-calculate-btn');
-        if (calculateBtn) {
-            calculateBtn.addEventListener('click', () => this.handleCalculateButtonClick());
-            console.log('✅ Обработчик для кнопки "Рассчитать листы" установлен');
-        }
-
-        // ----- Кнопка "Сохранить параметры" -----
-        const saveBtn = document.getElementById('vichisliniya-listov-save-btn');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => this.handleSaveButtonClick());
-            console.log('✅ Обработчик для кнопки "Сохранить параметры" установлен');
-        }
-
-        // ----- Кнопка "Сбросить" -----
-        const resetBtn = document.getElementById('vichisliniya-listov-reset-btn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => this.handleResetButtonClick());
-            console.log('✅ Обработчик для кнопки "Сбросить" установлен');
+            colorSelect.addEventListener('change', (event) => {
+                this.handleColorSelectChange(event);
+                this.handleFieldChange(); // сразу после выбора цветности запускаем расчёт
+            });
+            console.log('✅ Обработчики для поля "Цветность" установлены');
         }
 
         console.log('✅ Все обработчики событий успешно настроены');
     },
 
     // ============================================================================
-    // ===== [ИСПРАВЛЕНО] РАЗДЕЛ 4: ОБРАБОТЧИКИ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ =====
+    // ===== РАЗДЕЛ 4: ОБРАБОТЧИКИ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ =====
     // ============================================================================
 
     /**
      * Настройка обработчиков для взаимодействия с другими секциями.
-     * ВАЖНОЕ ИЗМЕНЕНИЕ: Добавлена обработка события отмены выбора печатного компонента.
      * @returns {void}
      */
     setupIntersectionHandlers: function() {
@@ -242,25 +225,19 @@ var vichisliniyaListov = {
         });
 
         // ------------------------------------------------------------
-        // 2. [ИСПРАВЛЕНО] ОТМЕНА ВЫБОРА ПЕЧАТНОГО КОМПОНЕНТА – сбрасываем секцию
-        //    Это событие теперь генерируется в print_components.js при снятии выбора.
+        // 2. ОТМЕНА ВЫБОРА ПЕЧАТНОГО КОМПОНЕНТА – сбрасываем секцию
         // ------------------------------------------------------------
         document.addEventListener('printComponentDeselected', (event) => {
             console.log('📥 Получено событие отмены выбора печатного компонента:', event.detail);
-            // Гарантированно сбрасываем секцию – скрываем контент, показываем сообщение
             this.resetSection();
-            // Показываем понятное уведомление
             this.showNotification('Печатный компонент не выбран. Выберите компонент для расчёта.', 'info');
         });
 
         // ------------------------------------------------------------
-        // 3. [ИСПРАВЛЕНО] ВЫБОР ПРОСЧЁТА (без выбранного компонента) – сбрасываем секцию
-        //    Раньше здесь только показывалось уведомление, но контент мог остаться.
-        //    Теперь гарантированно переводим секцию в состояние "нет компонента".
+        // 3. ВЫБОР ПРОСЧЁТА (без выбранного компонента) – сбрасываем секцию
         // ------------------------------------------------------------
         document.addEventListener('proschetSelected', (event) => {
             console.log('📥 Получено событие выбора просчёта:', event.detail);
-            // Если нет выбранного печатного компонента – сбрасываем секцию
             if (!this.currentPrintComponentId) {
                 console.log('⚠️ Выбран просчёт, но печатный компонент не выбран – сбрасываем секцию');
                 this.resetSection();
@@ -274,8 +251,11 @@ var vichisliniyaListov = {
         document.addEventListener('productCirculationUpdated', (event) => {
             console.log('📥 Получено событие обновления тиража:', event.detail);
             if (event.detail && event.detail.proschetId === this.currentProschetId) {
+                // 1. Обновляем отображение тиража и сохраняем новое значение в this.currentCirculation
                 this.updateCirculationDisplay(event.detail.circulation);
-                this.calculateVichisliniyaListovListCount();
+                // 2. Запускаем автоматический пересчёт количества листов (если выбран печатный компонент)
+                //    Метод handleFieldChange сам проверит наличие компонента и тиража, затем вызовет расчёт и сохранение.
+                this.handleFieldChange();
             }
         });
 
@@ -296,7 +276,6 @@ var vichisliniyaListov = {
 
     /**
      * Проверка, есть ли уже выбранный печатный компонент на странице при загрузке.
-     * Ищет активную строку в секции "Печатные компоненты".
      * @returns {void}
      */
     checkForSelectedPrintComponent: function() {
@@ -320,14 +299,12 @@ var vichisliniyaListov = {
             }
         } else {
             console.log('ℹ️ Выбранный печатный компонент не найден');
-            // [ИСПРАВЛЕНО] Проверяем, есть ли выбранный просчёт, и если да – сбрасываем секцию
             this.checkForSelectedProschet();
         }
     },
 
     /**
-     * [ИСПРАВЛЕНО] Проверка выбранного просчёта (для обратной совместимости).
-     * Теперь гарантированно сбрасывает секцию, если просчёт выбран, а компонент – нет.
+     * Проверка выбранного просчёта (для обратной совместимости).
      * @returns {void}
      */
     checkForSelectedProschet: function() {
@@ -337,8 +314,6 @@ var vichisliniyaListov = {
             const proschetId = selectedProschetRow.dataset.proschetId;
             if (proschetId) {
                 console.log(`✅ Найден выбранный просчёт ID: ${proschetId}`);
-                // [ИСПРАВЛЕНО] Сбрасываем секцию, потому что компонент не выбран,
-                // а просчёт выбран – нужно показать сообщение о выборе компонента
                 this.resetSection();
                 this.showNotification('Для выполнения вычислений листов выберите печатный компонент в секции "Печатные компоненты"', 'info');
             }
@@ -347,7 +322,6 @@ var vichisliniyaListov = {
 
     /**
      * Обновление секции данными печатного компонента.
-     * Вызывается при выборе печатного компонента.
      * @param {Object} printComponentData - Объект с данными печатного компонента
      * @returns {void}
      */
@@ -358,17 +332,13 @@ var vichisliniyaListov = {
             return;
         }
 
-        // Сохраняем все полученные данные
         this.currentPrintComponentId = String(printComponentData.printComponentId);
         this.currentPrintComponentNumber = printComponentData.printComponentNumber || 'N/A';
         this.currentProschetId = printComponentData.proschetId || null;
         this.currentPrintComponentInfo = printComponentData;
         this.currentCirculation = printComponentData.circulation || 1;
 
-        // Обновляем интерфейс секции
         this.updateUI(printComponentData);
-
-        // Загружаем параметры вычислений листов для этого печатного компонента
         this.loadVichisliniyaListovParameters(this.currentPrintComponentId, printComponentData);
 
         this.showNotification(`Данные печатного компонента "${printComponentData.printComponentNumber}" загружены`, 'success');
@@ -385,7 +355,6 @@ var vichisliniyaListov = {
         this.updatePrintComponentTitle(printComponentData);
         this.updateCirculationDisplay(printComponentData.circulation || 1);
         this.updatePrintComponentInfo(printComponentData);
-        // [ИСПРАВЛЕНО] Убедимся, что контент отображается, а сообщение скрыто
         this.toggleSectionDisplay(true);
     },
 
@@ -433,7 +402,6 @@ var vichisliniyaListov = {
             formattedElement.textContent = `(${formattedCirculation} шт.)`;
         }
 
-        // Также обновляем тираж в блоке расшифровки расчёта
         const breakdownCirculationElement = document.getElementById('vichisliniya-listov-breakdown-circulation');
         if (breakdownCirculationElement) {
             breakdownCirculationElement.textContent = circulation;
@@ -462,8 +430,7 @@ var vichisliniyaListov = {
     },
 
     /**
-     * [ИСПРАВЛЕНО] Переключение отображения секции (показ/скрытие контента).
-     * Добавлена проверка: контент показывается ТОЛЬКО если выбран печатный компонент.
+     * Переключение отображения секции (показ/скрытие контента).
      * @param {boolean} show - Показывать ли контент (true) или сообщение о выборе компонента (false)
      * @returns {void}
      */
@@ -474,7 +441,6 @@ var vichisliniyaListov = {
 
         if (noComponentMessage && container) {
             if (show) {
-                // [ИСПРАВЛЕНО] Дополнительная проверка: показываем контент ТОЛЬКО если выбран компонент
                 if (this.currentPrintComponentId) {
                     noComponentMessage.style.display = 'none';
                     container.style.display = 'block';
@@ -530,11 +496,20 @@ var vichisliniyaListov = {
                 if (!data.is_default) {
                     this.showSavedData(data);
                 }
-                if (this.currentCirculation) {
-                    this.calculateVichisliniyaListovListCount();
+                if (data.list_count !== undefined) {
+                    this.currentParameters.list_count = data.list_count;
+                    this.updateResultValue(data.list_count);
                 }
                 this.isParametersModified = false;
                 this.updateProschetInfo(data);
+                
+                // ===== ИСПРАВЛЕНИЕ: после загрузки параметров пересчитываем количество листов =====
+                // Это гарантирует, что отображаемое количество листов будет соответствовать
+                // текущему тиражу, даже если тираж изменился с момента последнего сохранения.
+                // Метод calculateVichisliniyaListovListCount выполнит расчёт, обновит интерфейс
+                // и сохранит актуальное значение на сервер.
+                this.calculateVichisliniyaListovListCount();
+                
             } else {
                 console.error('❌ Ошибка при загрузке параметров:', data.message);
                 this.showNotification(`Ошибка: ${data.message}`, 'error');
@@ -598,8 +573,7 @@ var vichisliniyaListov = {
         if (polosaCountInput) polosaCountInput.value = this.currentParameters.polosa_count;
         const colorSelect = document.getElementById('vichisliniya-listov-color-select');
         if (colorSelect) colorSelect.value = this.currentParameters.color;
-        const resultValueElement = document.getElementById('vichisliniya-listov-result-value');
-        if (resultValueElement) resultValueElement.textContent = this.currentParameters.list_count.toFixed(2);
+        this.updateResultValue(this.currentParameters.list_count);
         this.updateBreakdownDisplay();
         console.log('✅ Интерфейс формы параметров вычислений листов обновлён');
     },
@@ -629,6 +603,18 @@ var vichisliniyaListov = {
         if (formulaElement && this.currentCirculation) {
             const formula = `(${this.currentCirculation} / ${this.currentParameters.polosa_count}) + ${this.currentParameters.vyleta}`;
             formulaElement.textContent = formula;
+        }
+    },
+
+    /**
+     * Обновление отображаемого значения количества листов.
+     * @param {number} value - Количество листов
+     * @returns {void}
+     */
+    updateResultValue: function(value) {
+        const resultValueElement = document.getElementById('vichisliniya-listov-result-value');
+        if (resultValueElement) {
+            resultValueElement.textContent = value.toFixed(2);
         }
     },
 
@@ -672,10 +658,6 @@ var vichisliniyaListov = {
                 console.log('✅ Параметры успешно сохранены:', data);
                 this.showSavedData(data);
                 this.isParametersModified = false;
-                if (this.saveParametersTimeout) {
-                    clearTimeout(this.saveParametersTimeout);
-                    this.saveParametersTimeout = null;
-                }
                 this.showNotification('Параметры успешно сохранены', 'success');
             } else {
                 console.error('❌ Ошибка при сохранении параметров:', data.message);
@@ -713,6 +695,7 @@ var vichisliniyaListov = {
 
     /**
      * Обработчик изменения поля "Вылеты".
+     * Обновляет currentParameters и флаг модификации, но не запускает расчёт/сохранение.
      * @param {Event} event - Событие изменения поля ввода
      * @returns {void}
      */
@@ -729,11 +712,12 @@ var vichisliniyaListov = {
         const vyletaElement = document.getElementById('vichisliniya-listov-breakdown-vyleta');
         if (vyletaElement) vyletaElement.textContent = newValue;
         this.updateFormulaDisplay();
-        this.scheduleAutoSave();
+        // Расчёт и сохранение не вызываем — они произойдут по событию change (потеря фокуса или Enter)
     },
 
     /**
      * Обработчик изменения поля "Количество полос".
+     * Обновляет currentParameters и флаг модификации, но не запускает расчёт/сохранение.
      * @param {Event} event - Событие изменения поля ввода
      * @returns {void}
      */
@@ -750,11 +734,11 @@ var vichisliniyaListov = {
         const polosaCountElement = document.getElementById('vichisliniya-listov-breakdown-polosa-count');
         if (polosaCountElement) polosaCountElement.textContent = newValue;
         this.updateFormulaDisplay();
-        this.scheduleAutoSave();
     },
 
     /**
      * Обработчик изменения поля "Цветность".
+     * Обновляет currentParameters и флаг модификации.
      * @param {Event} event - Событие изменения поля выбора
      * @returns {void}
      */
@@ -764,163 +748,89 @@ var vichisliniyaListov = {
         this.isParametersModified = true;
         const colorElement = document.getElementById('vichisliniya-listov-breakdown-color');
         if (colorElement) colorElement.textContent = event.target.value;
-        this.scheduleAutoSave();
+        // Расчёт и сохранение будут вызваны из отдельного обработчика change для select,
+        // который вызывает handleFieldChange() после этого метода.
     },
 
     /**
-     * Запуск отложенного автосохранения параметров.
+     * Обработчик подтверждения изменения поля (событие change или нажатие Enter).
+     * Выполняет расчёт количества листов и сохраняет параметры.
      * @returns {void}
      */
-    scheduleAutoSave: function() {
-        console.log('⏰ Запуск отложенного автосохранения...');
-        if (this.saveParametersTimeout) {
-            clearTimeout(this.saveParametersTimeout);
-        }
-        this.saveParametersTimeout = setTimeout(() => {
-            if (this.isParametersModified) {
-                this.saveVichisliniyaListovParameters();
-            }
-        }, this.AUTO_SAVE_DELAY);
-    },
-
-    // ============================================================================
-    // ===== РАЗДЕЛ 8: ОБРАБОТЧИКИ КНОПОК УПРАВЛЕНИЯ =====
-    // ============================================================================
-
-    /**
-     * Обработчик нажатия кнопки "Рассчитать листы".
-     * @returns {void}
-     */
-    handleCalculateButtonClick: function() {
-        console.log('🧮 Нажата кнопка "Рассчитать листы"');
+    handleFieldChange: function() {
+        console.log('✅ Подтверждение изменения поля — запуск расчёта и сохранения');
         if (!this.currentPrintComponentId) {
             this.showNotification('Для расчёта необходимо выбрать печатный компонент', 'warning');
-            console.warn('⚠️ Невозможно выполнить расчёт: не выбран печатный компонент');
             return;
         }
         if (!this.currentCirculation) {
             this.showNotification('Для расчёта необходимо указать тираж', 'warning');
-            console.warn('⚠️ Невозможно выполнить расчёт: не указан тираж');
             return;
         }
+        // Если параметры не были изменены, возможно, расчёт уже актуален, но мы всё равно пересчитаем
         this.calculateVichisliniyaListovListCount();
     },
 
-    /**
-     * Обработчик нажатия кнопки "Сохранить параметры".
-     * @returns {void}
-     */
-    handleSaveButtonClick: function() {
-        console.log('💾 Нажата кнопка "Сохранить параметры"');
-        this.saveVichisliniyaListovParameters();
-    },
-
-    /**
-     * Обработчик нажатия кнопки "Сбросить".
-     * @returns {void}
-     */
-    handleResetButtonClick: function() {
-        console.log('🔄 Нажата кнопка "Сбросить"');
-        this.resetToDefaults();
-        this.showNotification('Параметры сброшены к значениям по умолчанию', 'info');
-    },
-
-    /**
-     * Сброс параметров к значениям по умолчанию.
-     * @returns {void}
-     */
-    resetToDefaults: function() {
-        console.log('🔄 Сброс параметров к значениям по умолчанию');
-        this.currentParameters = {
-            vyleta: 1,
-            polosa_count: 1,
-            color: '4+0',
-            list_count: 0.00
-        };
-        this.isParametersModified = false;
-        if (this.saveParametersTimeout) {
-            clearTimeout(this.saveParametersTimeout);
-            this.saveParametersTimeout = null;
-        }
-        this.updateVichisliniyaListovUI();
-        this.updateFormulaDisplay();
-        const savedDataContainer = document.getElementById('vichisliniya-listov-saved-data-container');
-        if (savedDataContainer) savedDataContainer.style.display = 'none';
-        const timestampElement = document.getElementById('vichisliniya-listov-result-timestamp');
-        if (timestampElement) {
-            timestampElement.innerHTML = `<i class="fas fa-clock"></i> Последний расчёт: не выполнялся`;
-        }
-    },
-
     // ============================================================================
-    // ===== РАЗДЕЛ 9: ФУНКЦИИ ВЫЧИСЛЕНИЯ И РАСЧЁТА =====
+    // ===== РАЗДЕЛ 8: ФУНКЦИИ ВЫЧИСЛЕНИЯ И РАСЧЁТА =====
     // ============================================================================
 
     /**
-     * Вычисление количества листов на основе текущих параметров и тиража.
+     * Вычисление количества листов на основе текущих параметров и тиража (локально).
      * @returns {void}
      */
     calculateVichisliniyaListovListCount: function() {
-        console.log('🧮 Вычисление количества листов...');
+        console.log('🧮 Вычисление количества листов локально...');
+
         if (!this.currentCirculation) {
             console.warn('⚠️ Невозможно выполнить расчёт: не указан тираж');
             return;
         }
 
-        const url = `/vichisliniya_listov/calculate/${this.currentPrintComponentId}/${this.currentCirculation}/`;
-        const csrfToken = this.getCsrfToken();
+        const calculated = (this.currentCirculation / this.currentParameters.polosa_count) + this.currentParameters.vyleta;
 
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': csrfToken
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                console.log('✅ Расчёт выполнен успешно:', data);
-                this.currentParameters.list_count = data.calculated_list_count || 0;
-                this.updateCalculationResult(data);
-                this.showNotification('Расчёт выполнен успешно', 'success');
-            } else {
-                console.error('❌ Ошибка при выполнении расчёта:', data.message);
-                this.showNotification(`Ошибка: ${data.message}`, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('❌ Ошибка сети при выполнении расчёта:', error);
-            this.showNotification('Ошибка сети при выполнении расчёта', 'error');
-        });
-    },
+        this.currentParameters.list_count = calculated;
 
-    /**
-     * Обновление отображения результата расчёта.
-     * @param {Object} data - Данные с результатом расчёта
-     * @returns {void}
-     */
-    updateCalculationResult: function(data) {
-        console.log('📊 Обновление отображения результата расчёта:', data);
-        const resultValueElement = document.getElementById('vichisliniya-listov-result-value');
-        if (resultValueElement && data.calculated_list_count) {
-            resultValueElement.textContent = data.calculated_list_count.toFixed(2);
-        }
+        const resultData = {
+            calculated_list_count: calculated,
+            circulation: this.currentCirculation,
+            formula: `(${this.currentCirculation} / ${this.currentParameters.polosa_count}) + ${this.currentParameters.vyleta}`,
+            vyleta: this.currentParameters.vyleta,
+            polosa_count: this.currentParameters.polosa_count,
+            color: this.currentParameters.color
+        };
 
-        // Отправляем событие об обновлении количества листов для секции "Печатные компоненты"
-        if (this.currentPrintComponentId && data.calculated_list_count) {
+        this.updateCalculationResult(resultData);
+
+        if (this.currentPrintComponentId) {
+            // Генерируем событие, которое будет обработано в print_components.js
             const event = new CustomEvent('vichisliniyaListovUpdated', {
                 detail: {
                     printComponentId: this.currentPrintComponentId,
-                    listCount: data.calculated_list_count,
+                    listCount: calculated,
                     timestamp: new Date().toISOString()
                 }
             });
             document.dispatchEvent(event);
             console.log(`📤 Событие vichisliniyaListovUpdated отправлено для компонента ${this.currentPrintComponentId}`);
+        }
+
+        // После расчёта сразу сохраняем параметры на сервер
+        this.saveVichisliniyaListovParameters();
+
+        this.showNotification('Расчёт выполнен успешно', 'success');
+    },
+
+    /**
+     * Обновление отображения результата расчёта.
+     * @param {Object} data - Данные с результатом расчёта (могут быть локальными или с сервера)
+     * @returns {void}
+     */
+    updateCalculationResult: function(data) {
+        console.log('📊 Обновление отображения результата расчёта:', data);
+        const resultValueElement = document.getElementById('vichisliniya-listov-result-value');
+        if (resultValueElement && data.calculated_list_count !== undefined) {
+            resultValueElement.textContent = data.calculated_list_count.toFixed(2);
         }
 
         const resultBadgeElement = document.getElementById('vichisliniya-listov-result-badge');
@@ -940,22 +850,25 @@ var vichisliniyaListov = {
         if (circulationElement && data.circulation) {
             circulationElement.textContent = data.circulation;
         }
+        const vyletaElement = document.getElementById('vichisliniya-listov-breakdown-vyleta');
+        if (vyletaElement && data.vyleta !== undefined) vyletaElement.textContent = data.vyleta;
+        const polosaCountElement = document.getElementById('vichisliniya-listov-breakdown-polosa-count');
+        if (polosaCountElement && data.polosa_count !== undefined) polosaCountElement.textContent = data.polosa_count;
+        const colorElement = document.getElementById('vichisliniya-listov-breakdown-color');
+        if (colorElement && data.color) colorElement.textContent = data.color;
     },
 
     // ============================================================================
-    // ===== [ИСПРАВЛЕНО] РАЗДЕЛ 10: СБРОС СЕКЦИИ =====
+    // ===== РАЗДЕЛ 9: СБРОС СЕКЦИИ =====
     // ============================================================================
 
     /**
      * Полный сброс секции "Вычисления листов".
-     * Вызывается, когда печатный компонент больше не выбран.
-     * Переводит интерфейс в состояние "печатный компонент не выбран".
      * @returns {void}
      */
     resetSection: function() {
         console.log('🔄 Сброс секции "Вычисления листов"');
 
-        // Сбрасываем все переменные, связанные с текущим компонентом
         this.currentPrintComponentId = null;
         this.currentPrintComponentNumber = null;
         this.currentProschetId = null;
@@ -964,26 +877,15 @@ var vichisliniyaListov = {
         this.currentPrintComponentInfo = null;
         this.isDataLoaded = false;
 
-        // Сбрасываем параметры к значениям по умолчанию
         this.resetToDefaults();
 
-        // Сбрасываем заголовок секции
         const titleElement = document.getElementById('vichisliniya-listov-proschet-title');
         if (titleElement) {
             titleElement.innerHTML = `<span class="placeholder-text">(печатный компонент не выбран)</span>`;
         }
 
-        // [ИСПРАВЛЕНО] Показываем сообщение о выборе компонента, скрываем контент
         this.toggleSectionDisplay(false);
-
-        // Сбрасываем всю информацию о печатном компоненте в интерфейсе
         this.resetPrintComponentInfo();
-
-        // Отменяем таймер автосохранения
-        if (this.saveParametersTimeout) {
-            clearTimeout(this.saveParametersTimeout);
-            this.saveParametersTimeout = null;
-        }
 
         console.log('✅ Секция сброшена – ожидание выбора печатного компонента');
     },
@@ -1032,8 +934,31 @@ var vichisliniyaListov = {
         }
     },
 
+    /**
+     * Сброс параметров к значениям по умолчанию (используется внутри resetSection).
+     * @returns {void}
+     */
+    resetToDefaults: function() {
+        console.log('🔄 Сброс параметров к значениям по умолчанию');
+        this.currentParameters = {
+            vyleta: 1,
+            polosa_count: 1,
+            color: '4+0',
+            list_count: 0.00
+        };
+        this.isParametersModified = false;
+        this.updateVichisliniyaListovUI();
+        this.updateFormulaDisplay();
+        const savedDataContainer = document.getElementById('vichisliniya-listov-saved-data-container');
+        if (savedDataContainer) savedDataContainer.style.display = 'none';
+        const timestampElement = document.getElementById('vichisliniya-listov-result-timestamp');
+        if (timestampElement) {
+            timestampElement.innerHTML = `<i class="fas fa-clock"></i> Последний расчёт: не выполнялся`;
+        }
+    },
+
     // ============================================================================
-    // ===== РАЗДЕЛ 11: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    // ===== РАЗДЕЛ 10: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     // ============================================================================
 
     /**

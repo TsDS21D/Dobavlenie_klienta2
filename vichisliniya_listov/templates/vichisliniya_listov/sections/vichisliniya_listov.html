@@ -1,7 +1,10 @@
 <!--
 Файл: vichisliniya_listov/templates/vichisliniya_listov/sections/vichisliniya_listov.html
 Шаблон секции "Вычисления листов" для вставки в калькулятор.
-ОБНОВЛЕНО: Теперь работает с печатными компонентами вместо просчётов.
+ОБНОВЛЕНО:
+- Удалены кнопки "Рассчитать листы", "Сохранить параметры", "Сбросить".
+- Расчёт и сохранение происходят автоматически после подтверждения ввода.
+- Дизайн сделан более компактным (уменьшены отступы и шрифты).
 -->
 
 <section class="calculator-section vichisliniya-listov-section" id="vichisliniya-listov-section">
@@ -109,7 +112,7 @@
                     Настройте параметры для расчёта количества листов на основе тиража:
                 </p>
                 
-                <!-- Форма для ввода параметров -->
+                <!-- Форма для ввода параметров (без кнопок) -->
                 <div class="vichisliniya-listov-form">
                     <!-- Поле: Вылеты -->
                     <div class="vichisliniya-listov-form-group">
@@ -186,38 +189,8 @@
                         <span class="input-note">Значение по умолчанию: 4+0</span>
                     </div>
                     
-                    <!-- Кнопки управления -->
-                    <div class="vichisliniya-listov-form-actions">
-                        <button 
-                            type="button" 
-                            id="vichisliniya-listov-calculate-btn" 
-                            class="btn-action btn-primary"
-                            title="Выполнить расчёт количества листов на основе текущего тиража и параметров"
-                        >
-                            <i class="fas fa-calculator"></i>
-                            Рассчитать листы
-                        </button>
-                        
-                        <button 
-                            type="button" 
-                            id="vichisliniya-listov-save-btn" 
-                            class="btn-action btn-success"
-                            title="Сохранить текущие параметры в базу данных"
-                        >
-                            <i class="fas fa-save"></i>
-                            Сохранить параметры
-                        </button>
-                        
-                        <button 
-                            type="button" 
-                            id="vichisliniya-listov-reset-btn" 
-                            class="btn-action btn-secondary"
-                            title="Сбросить параметры к значениям по умолчанию"
-                        >
-                            <i class="fas fa-undo"></i>
-                            Сбросить
-                        </button>
-                    </div>
+                    <!-- БЛОК С КНОПКАМИ УДАЛЁН -->
+                    <!-- Ранее здесь были кнопки "Рассчитать листы", "Сохранить параметры", "Сбросить" -->
                 </div>
             </div>
             
@@ -294,7 +267,7 @@
                 <p>
                     <strong>Важно:</strong> Все вычисления выполняются на основе значения тиража из печатного компонента. 
                     При изменении тиража значения в этой секции будут автоматически обновляться.
-                    Для выполнения расчёта нажмите кнопку "Рассчитать листы".
+                    Для выполнения расчёта достаточно изменить любое поле и подтвердить ввод (нажать Enter или убрать фокус).
                 </p>
             </div>
         </div>

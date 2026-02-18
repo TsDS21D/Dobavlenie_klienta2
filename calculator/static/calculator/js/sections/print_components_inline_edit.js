@@ -1,36 +1,75 @@
-/*
-print_components_inline_edit.js - JavaScript для inline-редактирования компонентов печати
-ОБНОВЛЕНО: Исправлено открытие модального окна добавления компонента
-ИСПРАВЛЕНИЕ: Добавлен комментарий о том, что колонка "Тираж" не редактируется
-*/
+/**
+ * print_components_inline_edit.js - JavaScript для inline-редактирования компонентов печати
+ * 
+ * ОБНОВЛЕНО (16.02.2026):
+ * - Из модального окна добавления компонента удалено поле "Количество листов" (sheet_count),
+ *   так как теперь количество листов всегда берётся из приложения vichisliniya_listov.
+ * - В обработчике отправки формы больше не передаётся sheet_count на сервер.
+ * - Все функции снабжены подробными комментариями.
+ * 
+ * ОСНОВНЫЕ ВОЗМОЖНОСТИ:
+ * 1. Двойной клик по ячейкам таблицы для редактирования принтера, бумаги, цены за лист.
+ * 2. Выпадающие списки для выбора принтера и бумаги (данные загружаются с сервера).
+ * 3. Модальное окно для добавления нового компонента печати.
+ * 4. Автоматический расчёт цены за лист при выборе принтера в модальном окне.
+ * 5. Удаление компонентов с подтверждением.
+ */
 
-"use strict";
+"use strict"; // Строгий режим – запрещает использование необъявленных переменных
 
-// ===== 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНСТАНТЫ =====
+// ============================================================================
+// 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНСТАНТЫ
+// ============================================================================
 
+/**
+ * Объект с URL-ами API эндпоинтов для работы с компонентами печати.
+ * Все эндпоинты находятся в приложении calculator.
+ * @constant {Object}
+ */
 const print_components_api_urls = {
-    add: '/calculator/add-print-component/',
-    update: '/calculator/update-print-component/',
-    delete: '/calculator/delete-print-component/',
-    getPrinters: '/calculator/get-printers/',
-    getPapers: '/calculator/get-papers/',
-    getComponents: '/calculator/get-print-components/',
+    add: '/calculator/add-print-component/',           // POST: добавить компонент
+    update: '/calculator/update-print-component/',      // POST: обновить поле компонента
+    delete: '/calculator/delete-print-component/',      // POST: удалить компонент
+    getPrinters: '/calculator/get-printers/',           // GET: список принтеров
+    getPapers: '/calculator/get-papers/',               // GET: список бумаги
+    getComponents: '/calculator/get-print-components/', // GET: компоненты для просчёта (используется в основном скрипте)
 };
 
+// Переменные для inline-редактирования
+
+/** ID компонента, который сейчас редактируется (если есть). @type {string|null} */
 let print_components_current_editing_id = null;
+
+/** DOM-элемент ячейки, которая сейчас редактируется. @type {HTMLElement|null} */
 let print_components_current_editing_element = null;
+
+/** Исходное значение ячейки до начала редактирования (для отмены). @type {string|null} */
 let print_components_original_value = null;
+
+/** Тип редактируемого поля ('printer', 'paper', 'price' и т.д.). @type {string|null} */
 let print_components_current_field_type = null;
+
+/** Кэш списка принтеров, загруженных с сервера. @type {Array} */
 let print_components_printers_list = [];
+
+/** Кэш списка материалов (бумаги), загруженных с сервера. @type {Array} */
 let print_components_papers_list = [];
+
+/** Флаг, указывающий, что inline-редактирование уже инициализировано. @type {boolean} */
 let print_components_initialized = false;
+
+/** Блокировка повторного двойного клика (чтобы не открыть два редактора). @type {boolean} */
 let print_components_dblclick_lock = false;
+
+/** Флаг, указывающий, что в данный момент идёт редактирование. @type {boolean} */
 let print_components_is_editing = false;
+
+/** Флаг, что данные для выпадающих списков уже загружены. @type {boolean} */
 let print_components_data_loaded = false;
 
-
-
-// ===== 2. ФУНКЦИЯ ДЛЯ РАСЧЁТА ЦЕНЫ НА ОСНОВЕ ТИРАЖА И ПРИНТЕРА =====
+// ============================================================================
+// 2. ФУНКЦИЯ ДЛЯ РАСЧЁТА ЦЕНЫ НА ОСНОВЕ ТИРАЖА И ПРИНТЕРА
+// ============================================================================
 
 /**
  * Функция для автоматического расчёта цены за лист на основе:
@@ -41,149 +80,154 @@ let print_components_data_loaded = false;
  * @param {number|string} printerId - ID выбранного принтера
  * @param {number|string} circulation - Тиража из просчёта
  * @param {string} modalId - Уникальный ID модального окна (для обновления поля)
- * @returns {Promise} - Promise с результатом расчёта
+ * @returns {Promise} - Promise с результатом расчёта (строка с ценой или null)
  */
 function print_components_calculate_price_for_circulation(printerId, circulation, modalId) {
+    // Логируем начало расчёта
     console.log(`💰 Запрос расчёта цены: принтер=${printerId}, тираж=${circulation}`);
-    
+
     // Проверяем обязательные параметры
     if (!printerId || !circulation) {
         console.warn('❌ Не указан принтер или тираж для расчёта цены');
-        return Promise.resolve(null);
+        return Promise.resolve(null); // Возвращаем Promise с null
     }
-    
-    // Преобразуем тираж в число
+
+    // Преобразуем тираж в целое число
     const circulationNumber = parseInt(circulation);
     if (isNaN(circulationNumber) || circulationNumber <= 0) {
         console.warn(`⚠️ Некорректный тираж для расчёта: ${circulation}`);
         return Promise.resolve(null);
     }
-    
-    // Находим поле ввода цены по modalId
+
+    // Находим поле ввода цены по modalId (это поле будет обновлено)
     const priceInput = document.getElementById(`component-price-per-sheet-${modalId}`);
     if (!priceInput) {
         console.error('❌ Поле ввода цены не найдено');
         return Promise.resolve(null);
     }
-    
-    // Находим элемент с информацией о расчёте
+
+    // Находим элементы для отображения информации о расчёте
     const calculationInfo = document.getElementById(`price-calculation-info-${modalId}`);
     const calculationDetails = document.getElementById(`calculation-details-${modalId}`);
-    
-    // Показываем статус "Расчёт..."
+
+    // Показываем статус "Расчёт..." в поле цены
     if (priceInput) {
         priceInput.value = 'Расчёт...';
-        priceInput.style.color = '#666';
-        priceInput.style.fontStyle = 'italic';
+        priceInput.style.color = '#666';      // Серый цвет текста
+        priceInput.style.fontStyle = 'italic'; // Курсив
     }
-    
+
+    // Отображаем блок с информацией о расчёте
     if (calculationInfo) {
         calculationInfo.style.display = 'block';
     }
-    
+
+    // Вставляем сообщение о начале расчёта
     if (calculationDetails) {
         calculationDetails.innerHTML = `
             <i class="fas fa-spinner fa-spin"></i>
             Расчёт цены для тиража ${circulationNumber} шт...
         `;
     }
-    
+
     // Подготавливаем данные для отправки в API print_price
     const formData = new FormData();
-    formData.append('arbitrary_copies', circulationNumber);
-    formData.append('csrfmiddlewaretoken', print_components_get_csrf_token());
-    
+    formData.append('arbitrary_copies', circulationNumber); // переданное количество копий (тираж)
+    formData.append('csrfmiddlewaretoken', print_components_get_csrf_token()); // CSRF-токен
+
     console.log(`📤 Отправка запроса в print_price API: /print_price/api/calculate_arbitrary_price/${printerId}/`);
-    
-    // Отправляем запрос в приложение print_price для расчёта цены
+
+    // Отправляем POST-запрос в приложение print_price для расчёта цены
     return fetch(`/print_price/api/calculate_arbitrary_price/${printerId}/`, {
         method: 'POST',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest' // Помечаем как AJAX-запрос
         },
         body: formData
     })
     .then(response => {
+        // Проверяем, что ответ успешный (статус 2xx)
         if (!response.ok) {
             throw new Error(`HTTP ошибка: ${response.status}`);
         }
-        return response.json();
+        return response.json(); // Парсим JSON-ответ
     })
     .then(data => {
         console.log('📊 Ответ от API расчёта цены:', data);
-        
+
         if (data.success) {
-            // Успешный расчёт - получаем рассчитанную цену
+            // Успешный расчёт – получаем рассчитанную цену
             const calculatedPrice = data.calculated_price;
-            
-            // Форматируем цену до 2 знаков после запятой
+
+            // Форматируем цену до двух знаков после запятой
             const formattedPrice = parseFloat(calculatedPrice).toFixed(2);
-            
+
             // Обновляем поле ввода цены
             if (priceInput) {
                 priceInput.value = formattedPrice;
-                priceInput.style.color = '#0B8661';
-                priceInput.style.fontStyle = 'normal';
-                priceInput.style.fontWeight = 'bold';
+                priceInput.style.color = '#0B8661';      // Зелёный цвет
+                priceInput.style.fontStyle = 'normal';    // Обычный стиль
+                priceInput.style.fontWeight = 'bold';     // Жирный шрифт
             }
-            
-            // Обновляем информацию о расчёте
+
+            // Обновляем информацию о расчёте (успех)
             if (calculationInfo && calculationDetails) {
                 calculationDetails.innerHTML = `
                     <i class="fas fa-check-circle" style="color: #4CAF50;"></i>
                     Цена рассчитана для тиража ${circulationNumber} шт: <strong>${formattedPrice} руб./лист</strong>
                     <br><small>На основе ${data.points_count || 0} опорных точек (${data.interpolation_method_display || 'линейная интерполяция'})</small>
                 `;
-                calculationInfo.style.backgroundColor = '#e8f5e9';
-                calculationInfo.style.borderLeftColor = '#4CAF50';
+                calculationInfo.style.backgroundColor = '#e8f5e9'; // Светло-зелёный фон
+                calculationInfo.style.borderLeftColor = '#4CAF50'; // Зелёная полоса слева
             }
-            
+
             console.log(`✅ Цена успешно рассчитана: ${formattedPrice} руб./лист`);
             print_components_show_notification(
                 `Цена рассчитана: ${formattedPrice} руб./лист для тиража ${circulationNumber} шт`, 
                 'success'
             );
-            
-            return formattedPrice;
+
+            return formattedPrice; // Возвращаем цену как строку
         } else {
-            // Ошибка расчёта
+            // Ошибка расчёта (например, нет цен для принтера)
             console.warn('⚠️ Не удалось рассчитать цену:', data.error);
-            
+
             // Восстанавливаем поле ввода
             if (priceInput) {
                 priceInput.value = '0.00';
-                priceInput.style.color = '#e74c3c';
+                priceInput.style.color = '#e74c3c'; // Красный цвет
                 priceInput.style.fontStyle = 'normal';
             }
-            
+
             // Обновляем информацию об ошибке
             if (calculationInfo && calculationDetails) {
                 calculationDetails.innerHTML = `
                     <i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i>
                     Не удалось рассчитать цену: ${data.error || 'неизвестная ошибка'}
                 `;
-                calculationInfo.style.backgroundColor = '#ffebee';
-                calculationInfo.style.borderLeftColor = '#e74c3c';
+                calculationInfo.style.backgroundColor = '#ffebee'; // Светло-красный фон
+                calculationInfo.style.borderLeftColor = '#e74c3c'; // Красная полоса
             }
-            
+
             print_components_show_notification(
                 `Не удалось рассчитать цену: ${data.error || 'неизвестная ошибка'}`,
                 'warning'
             );
-            
+
             return null;
         }
     })
     .catch(error => {
+        // Ошибка сети или другой сбой
         console.error('❌ Ошибка сети при расчёте цены:', error);
-        
+
         // Восстанавливаем поле ввода
         if (priceInput) {
             priceInput.value = '0.00';
             priceInput.style.color = '#e74c3c';
             priceInput.style.fontStyle = 'normal';
         }
-        
+
         // Обновляем информацию об ошибке
         if (calculationInfo && calculationDetails) {
             calculationDetails.innerHTML = `
@@ -193,36 +237,39 @@ function print_components_calculate_price_for_circulation(printerId, circulation
             calculationInfo.style.backgroundColor = '#ffebee';
             calculationInfo.style.borderLeftColor = '#e74c3c';
         }
-        
+
         print_components_show_notification(
             'Ошибка сети при расчёте цены. Проверьте подключение.',
             'error'
         );
-        
+
         return null;
     });
 }
 
-// ===== 3. ОБНОВЛЁННАЯ ФУНКЦИЯ СОЗДАНИЯ МОДАЛЬНОГО ОКНА =====
+// ============================================================================
+// 3. ФУНКЦИЯ СОЗДАНИЯ МОДАЛЬНОГО ОКНА ДЛЯ ДОБАВЛЕНИЯ КОМПОНЕНТА
+// ============================================================================
 
 /**
- * Функция создания модального окна для добавления компонента печати
- * ОБНОВЛЕНО: Добавлен автоматический расчёт цены при выборе принтера
+ * Функция создания модального окна для добавления компонента печати.
+ * ОБНОВЛЕНО: Поле "Количество листов" удалено, так как оно теперь определяется
+ * через приложение vichisliniya_listov после создания компонента.
  * 
  * @param {number|string} proschetId - ID просчёта, для которого добавляется компонент
  */
 function print_components_create_add_modal(proschetId) {
     console.log(`🖨️ Создание модального окна добавления компонента для просчёта ID: ${proschetId}`);
-    
-    // Создаем уникальный идентификатор для модального окна
+
+    // Создаём уникальный идентификатор для этого модального окна (на основе времени)
     const modalId = `print-components-modal-${Date.now()}`;
-    
-    // Переменная для хранения тиража просчёта
-    let proschetCirculation = 1; // Значение по умолчанию
-    
+
+    // Переменная для хранения тиража просчёта (значение по умолчанию 1)
+    let proschetCirculation = 1;
+
     // Сначала получаем данные просчёта, чтобы узнать тираж
     console.log(`📋 Запрос данных просчёта ID: ${proschetId} для получения тиража`);
-    
+
     fetch(`/calculator/get-proschet/${proschetId}/`, {
         method: 'GET',
         headers: {
@@ -233,7 +280,7 @@ function print_components_create_add_modal(proschetId) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.proschet) {
-            // Получаем тираж из данных просчёта
+            // Извлекаем тираж из ответа
             proschetCirculation = data.proschet.circulation || 1;
             console.log(`✅ Получен тираж просчёта: ${proschetCirculation} шт.`);
         } else {
@@ -244,7 +291,8 @@ function print_components_create_add_modal(proschetId) {
         console.error('❌ Ошибка при получении данных просчёта:', error);
     })
     .finally(() => {
-        // Создаем HTML для модального окна
+        // Создаём HTML-структуру модального окна
+        // Обратите внимание: поле "Количество листов" (sheet-count) отсутствует!
         const modalHTML = `
             <div class="print-components-modal-overlay active" id="${modalId}">
                 <div class="print-components-modal active">
@@ -271,7 +319,7 @@ function print_components_create_add_modal(proschetId) {
                                 </label>
                                 <select id="component-printer-${modalId}" class="modal-select" required>
                                     <option value="">-- Выберите принтер --</option>
-                                    <!-- Принтеры будут добавлены динамически -->
+                                    <!-- Принтеры будут добавлены динамически из JavaScript -->
                                 </select>
                                 <small class="form-hint">
                                     При выборе принтера цена за лист будет рассчитана автоматически
@@ -291,8 +339,6 @@ function print_components_create_add_modal(proschetId) {
                                 </select>
                             </div>
                             
-
-                            
                             <!-- Цена за лист (автоматически рассчитывается, только для чтения) -->
                             <div class="form-group">
                                 <label for="component-price-per-sheet-${modalId}">
@@ -307,11 +353,11 @@ function print_components_create_add_modal(proschetId) {
                                        readonly
                                        title="Цена рассчитывается автоматически при выборе принтера">
                                 
-                                <!-- Блок информации о расчёте -->
+                                <!-- Блок информации о расчёте (изначально скрыт) -->
                                 <div class="price-calculation-info" id="price-calculation-info-${modalId}" 
                                      style="display: none; margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid #2196F3;">
                                     <div id="calculation-details-${modalId}" style="font-size: 0.9em; color: #555;">
-                                        <!-- Здесь будет отображаться информация о расчёте -->
+                                        <!-- Сюда будет вставляться информация о ходе расчёта -->
                                     </div>
                                 </div>
                                 
@@ -320,6 +366,7 @@ function print_components_create_add_modal(proschetId) {
                                 </small>
                             </div>
                             
+                            <!-- Кнопки формы -->
                             <div class="form-footer">
                                 <button type="button" class="modal-cancel-btn" id="modal-cancel-btn-${modalId}">
                                     <i class="fas fa-times"></i> Отмена
@@ -333,12 +380,12 @@ function print_components_create_add_modal(proschetId) {
                 </div>
             </div>
         `;
-        
-        // Создаем контейнер для модального окна
+
+        // Создаём контейнер для модального окна и вставляем HTML
         const modalContainer = document.createElement('div');
         modalContainer.innerHTML = modalHTML;
         document.body.appendChild(modalContainer);
-        
+
         // Получаем элементы формы по уникальным ID
         const printerSelect = document.getElementById(`component-printer-${modalId}`);
         const paperSelect = document.getElementById(`component-paper-${modalId}`);
@@ -346,8 +393,8 @@ function print_components_create_add_modal(proschetId) {
         const calculationInfo = document.getElementById(`price-calculation-info-${modalId}`);
         const calculationDetails = document.getElementById(`calculation-details-${modalId}`);
         const submitBtn = document.getElementById(`modal-submit-btn-${modalId}`);
-        
-        // Заполняем список принтеров
+
+        // Заполняем список принтеров данными из кэша
         if (printerSelect) {
             print_components_printers_list.forEach(printer => {
                 const option = document.createElement('option');
@@ -355,7 +402,8 @@ function print_components_create_add_modal(proschetId) {
                 option.textContent = printer.name;
                 printerSelect.appendChild(option);
             });
-            
+
+            // Если принтеров нет, добавляем заглушку
             if (print_components_printers_list.length === 0) {
                 const noPrinterOption = document.createElement('option');
                 noPrinterOption.value = '';
@@ -364,8 +412,8 @@ function print_components_create_add_modal(proschetId) {
                 printerSelect.appendChild(noPrinterOption);
             }
         }
-        
-        // Заполняем список бумаги
+
+        // Заполняем список бумаги данными из кэша
         if (paperSelect) {
             print_components_papers_list.forEach(paper => {
                 const option = document.createElement('option');
@@ -373,7 +421,7 @@ function print_components_create_add_modal(proschetId) {
                 option.textContent = paper.name;
                 paperSelect.appendChild(option);
             });
-            
+
             if (print_components_papers_list.length === 0) {
                 const noPaperOption = document.createElement('option');
                 noPaperOption.value = '';
@@ -382,23 +430,23 @@ function print_components_create_add_modal(proschetId) {
                 paperSelect.appendChild(noPaperOption);
             }
         }
-        
+
         // Обработчик изменения выбора принтера
         if (printerSelect) {
             printerSelect.addEventListener('change', function() {
                 const selectedPrinterId = this.value;
                 const selectedPrinterName = this.options[this.selectedIndex]?.textContent || '';
-                
+
                 if (selectedPrinterId) {
                     console.log(`🖨️ Выбран принтер: ${selectedPrinterName} (ID: ${selectedPrinterId})`);
-                    
+
                     // Сбрасываем цену перед новым расчётом
                     if (priceInput) {
                         priceInput.value = 'Расчёт...';
                         priceInput.style.color = '#666';
                     }
-                    
-                    // Показываем информацию о расчёте
+
+                    // Показываем блок информации о расчёте
                     if (calculationInfo && calculationDetails) {
                         calculationInfo.style.display = 'block';
                         calculationDetails.innerHTML = `
@@ -406,14 +454,14 @@ function print_components_create_add_modal(proschetId) {
                             Расчёт цены для принтера "${selectedPrinterName}" и тиража ${proschetCirculation} шт...
                         `;
                     }
-                    
+
                     // Вызываем функцию расчёта цены
                     print_components_calculate_price_for_circulation(
                         selectedPrinterId, 
                         proschetCirculation, 
                         modalId
                     ).then(calculatedPrice => {
-                        // Включаем кнопку отправки, если цена рассчитана
+                        // Если цена рассчитана успешно, разблокируем кнопку отправки
                         if (calculatedPrice !== null && submitBtn) {
                             submitBtn.disabled = false;
                         } else {
@@ -421,39 +469,38 @@ function print_components_create_add_modal(proschetId) {
                         }
                     });
                 } else {
-                    // Если принтер не выбран, сбрасываем цену
+                    // Если принтер снят, сбрасываем цену и блокируем кнопку
                     if (priceInput) {
                         priceInput.value = '0.00';
                         priceInput.style.color = '';
                         priceInput.style.fontStyle = '';
                     }
-                    
-                    // Скрываем информацию о расчёте
                     if (calculationInfo) {
                         calculationInfo.style.display = 'none';
                     }
-                    
-                    // Блокируем кнопку отправки
                     if (submitBtn) {
                         submitBtn.disabled = true;
                     }
                 }
             });
         }
-        
-        // Получаем элементы для управления модальным окном
+
+        // Получаем элементы для управления модальным окном (оверлей, кнопки)
         const overlay = document.getElementById(modalId);
         const closeBtn = document.getElementById(`modal-close-btn-${modalId}`);
         const cancelBtn = document.getElementById(`modal-cancel-btn-${modalId}`);
         const form = document.getElementById(`print-components-add-form-${modalId}`);
-        
-        // Функция закрытия модального окна
+
+        /**
+         * Функция закрытия модального окна с анимацией
+         */
         const closeModal = () => {
             if (overlay && overlay.parentNode) {
-                overlay.classList.remove('active');
+                overlay.classList.remove('active'); // убираем класс active для анимации
                 const modal = overlay.querySelector('.print-components-modal');
                 if (modal) modal.classList.remove('active');
-                
+
+                // Удаляем элемент из DOM после завершения анимации (300 мс)
                 setTimeout(() => {
                     if (overlay.parentNode) {
                         overlay.parentNode.removeChild(overlay);
@@ -461,8 +508,8 @@ function print_components_create_add_modal(proschetId) {
                 }, 300);
             }
         };
-        
-        // Обработчик клика по оверлею (закрытие при клике вне окна)
+
+        // Закрытие при клике на оверлей (вне окна)
         if (overlay) {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
@@ -470,70 +517,68 @@ function print_components_create_add_modal(proschetId) {
                 }
             });
         }
-        
-        // Обработчик кнопки закрытия
+
+        // Закрытие по кнопке "крестик"
         if (closeBtn) {
             closeBtn.addEventListener('click', closeModal);
         }
-        
-        // Обработчик кнопки отмены
+
+        // Закрытие по кнопке "Отмена"
         if (cancelBtn) {
             cancelBtn.addEventListener('click', closeModal);
         }
-        
-        // Обработчик отправки формы
+
+        // Обработчик отправки формы (добавление компонента)
         if (form && submitBtn) {
             form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                
+                e.preventDefault(); // Предотвращаем стандартную отправку формы
+
                 // Получаем значения из формы
                 const printerId = printerSelect?.value || '';
                 const paperId = paperSelect?.value || '';
-                const sheetCount = document.getElementById(`component-sheet-count-${modalId}`)?.value || '';
+                // ВАЖНО: поле sheet_count больше не используется, удалено из формы
                 const pricePerSheet = priceInput?.value || '';
-                
+
                 // Валидация обязательных полей
                 if (!printerId) {
                     print_components_show_notification('Выберите принтер', 'warning');
                     printerSelect.focus();
                     return;
                 }
-                
                 if (!paperId) {
                     print_components_show_notification('Выберите бумагу', 'warning');
                     paperSelect.focus();
                     return;
                 }
-                
                 if (!pricePerSheet || pricePerSheet === '0.00' || pricePerSheet === 'Расчёт...') {
                     print_components_show_notification('Цена за лист не рассчитана. Выберите принтер для расчета.', 'warning');
                     printerSelect.focus();
                     return;
                 }
-                
+
                 // Преобразуем цену в число для проверки
                 const priceNumber = parseFloat(pricePerSheet);
                 if (isNaN(priceNumber) || priceNumber <= 0) {
                     print_components_show_notification('Некорректная цена за лист', 'warning');
                     return;
                 }
-                
-                // Подготавливаем данные для отправки
+
+                // Подготавливаем данные для отправки на сервер
                 const formData = new FormData();
                 formData.append('proschet_id', proschetId);
                 formData.append('printer_id', printerId);
                 formData.append('paper_id', paperId);
-                formData.append('sheet_count', sheetCount || 1);
+                // sheet_count не передаём – сервер установит None (будет получено из vichisliniya_listov)
                 formData.append('price_per_sheet', priceNumber.toFixed(2));
-                
-                // Сохраняем исходный текст кнопки
+
+                // Сохраняем исходный текст кнопки для восстановления
                 const originalText = submitBtn.innerHTML;
-                
-                // Изменяем текст кнопки и блокируем её
+
+                // Блокируем кнопку и меняем текст на индикатор загрузки
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
                 submitBtn.disabled = true;
-                
-                // Отправляем данные на сервер
+
+                // Отправляем POST-запрос на сервер
                 fetch(print_components_api_urls.add, {
                     method: 'POST',
                     headers: {
@@ -545,87 +590,95 @@ function print_components_create_add_modal(proschetId) {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Показываем уведомление об успехе
+                        // Успех – показываем уведомление и закрываем окно
                         print_components_show_notification('Компонент успешно добавлен', 'success');
-                        
-                        // Закрываем модальное окно
                         closeModal();
-                        
-                        // Обновляем таблицу компонентов
+
+                        // Обновляем таблицу компонентов, вызывая функцию из основного скрипта
                         const proschetRow = document.querySelector('.proschet-row.selected');
                         if (proschetRow && window.printComponentsSection?.updateForProschet) {
                             window.printComponentsSection.updateForProschet(proschetId, proschetRow);
                         }
                     } else {
-                        // Восстанавливаем кнопку
+                        // Ошибка на сервере – восстанавливаем кнопку и показываем сообщение
                         submitBtn.innerHTML = originalText;
                         submitBtn.disabled = false;
-                        
-                        // Показываем ошибку
                         print_components_show_notification('Ошибка добавления: ' + data.message, 'error');
                     }
                 })
                 .catch(error => {
-                    // Восстанавливаем кнопку
+                    // Ошибка сети – восстанавливаем кнопку и показываем сообщение
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
-                    
-                    // Показываем ошибку сети
                     print_components_show_notification('Ошибка сети при добавлении', 'error');
                 });
             });
         }
-        
+
         console.log('✅ Модальное окно добавления компонента создано с функцией авторасчёта цены');
-    });
+    }); // конец .finally()
 }
 
-// ===== 4. ОБНОВЛЁННАЯ ФУНКЦИЯ ОБРАБОТЧИКА ДОБАВЛЕНИЯ =====
+// ============================================================================
+// 4. ОБРАБОТЧИК НАЖАТИЯ НА КНОПКУ ДОБАВЛЕНИЯ КОМПОНЕНТА
+// ============================================================================
 
 /**
- * Обработчик нажатия на кнопку добавления компонента печати
- * Теперь включает получение тиража просчёта перед созданием модального окна
+ * Обработчик нажатия на кнопку добавления компонента печати.
+ * Проверяет, что просчёт выбран, и вызывает создание модального окна.
  */
 function print_components_handle_add_component() {
     console.log('🖨️ Обработчик добавления компонента печати вызван');
-    
-    // Получаем ID текущего просчёта
+
+    // Получаем ID текущего просчёта из основного объекта printComponentsSection
     const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
-    
+
     if (!currentProschetId) {
         print_components_show_notification('Сначала выберите просчёт', 'warning');
         return;
     }
 
-    // ДОБАВЛЕНО: Проверяем, что секция "Печатные компоненты" готова
+    // Дополнительная проверка готовности секции (если есть метод isReady)
     if (window.printComponentsSection?.isReady && !window.printComponentsSection.isReady()) {
         print_components_show_notification('Подождите, секция ещё загружается...', 'warning');
         return;
-    }    
+    }
 
     console.log(`🖨️ Создание модального окна для просчёта ID: ${currentProschetId}`);
-    
+
     // Вызываем функцию создания модального окна
     print_components_create_add_modal(currentProschetId);
 }
 
+// ============================================================================
+// 5. ФУНКЦИИ УВЕДОМЛЕНИЙ (всплывающие сообщения)
+// ============================================================================
 
-
-
-// ===== 2. ФУНКЦИИ УВЕДОМЛЕНИЙ =====
-
+/**
+ * Показывает временное уведомление в правом верхнем углу экрана.
+ * 
+ * @param {string} message - Текст сообщения
+ * @param {string} type - Тип сообщения: 'success', 'error', 'warning', 'info'
+ */
 function print_components_show_notification(message, type = 'info') {
     console.log(`💬 Уведомление [${type}]: ${message}`);
-    
+
+    // Создаём элемент уведомления
     const notification = document.createElement('div');
+
+    // Определяем цвет фона и иконку в зависимости от типа
+    let backgroundColor = '#2196F3'; // info – синий
+    if (type === 'success') backgroundColor = '#4CAF50'; // зелёный
+    else if (type === 'error') backgroundColor = '#f44336'; // красный
+    else if (type === 'warning') backgroundColor = '#ff9800'; // оранжевый
+
+    // Применяем стили
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
         padding: 12px 20px;
-        background: ${type === 'success' ? '#4CAF50' : 
-                     type === 'error' ? '#f44336' : 
-                     type === 'warning' ? '#ff9800' : '#2196F3'};
+        background: ${backgroundColor};
         color: white;
         border-radius: 4px;
         z-index: 10000;
@@ -636,14 +689,16 @@ function print_components_show_notification(message, type = 'info') {
         transition: opacity 0.3s;
         opacity: 0;
     `;
-    
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
+
+    notification.textContent = message; // Текст сообщения
+    document.body.appendChild(notification); // Добавляем в DOM
+
+    // Плавное появление
     setTimeout(() => {
         notification.style.opacity = '1';
     }, 10);
-    
+
+    // Автоматическое скрытие через 3 секунды
     setTimeout(() => {
         notification.style.opacity = '0';
         setTimeout(() => {
@@ -654,32 +709,50 @@ function print_components_show_notification(message, type = 'info') {
     }, 3000);
 }
 
-// ===== 3. ИНИЦИАЛИЗАЦИЯ =====
+// ============================================================================
+// 6. ИНИЦИАЛИЗАЦИЯ INLINE-РЕДАКТИРОВАНИЯ
+// ============================================================================
 
+/**
+ * Инициализация inline-редактирования компонентов печати.
+ * Загружает данные для выпадающих списков, настраивает обработчики.
+ */
 function print_components_init_inline_edit() {
     console.log('🔧 Инициализация inline-редактирования...');
-    
+
+    // Предотвращаем повторную инициализацию
     if (print_components_initialized) {
         return;
     }
-    
+
+    // Загружаем списки принтеров и бумаги
     print_components_load_dropdown_data();
+
+    // Настраиваем обработчики событий для таблицы
     print_components_setup_table_event_listeners();
+
+    // Настраиваем глобальный обработчик для кнопок удаления
     print_components_setup_global_delete_handler();
+
+    // Настраиваем глобальные обработчики кликов и клавиш для завершения редактирования
     print_components_setup_global_click_handler();
-    
+
     print_components_initialized = true;
     console.log('✅ Inline-редактирование инициализировано');
 }
 
+/**
+ * Загрузка данных для выпадающих списков (принтеры и бумага) с сервера.
+ */
 function print_components_load_dropdown_data() {
     console.log('📥 Загрузка данных для выпадающих списков...');
-    
+
+    // Если данные уже загружены, не загружаем повторно
     if (print_components_data_loaded) {
         return;
     }
-    
-    // Загрузка принтеров
+
+    // Запрос на получение списка принтеров
     fetch(print_components_api_urls.getPrinters, {
         method: 'GET',
         headers: {
@@ -699,8 +772,8 @@ function print_components_load_dropdown_data() {
     .catch(error => {
         console.error('❌ Ошибка загрузки принтеров:', error);
     });
-    
-    // Загрузка бумаги
+
+    // Запрос на получение списка бумаги
     fetch(print_components_api_urls.getPapers, {
         method: 'GET',
         headers: {
@@ -721,154 +794,214 @@ function print_components_load_dropdown_data() {
         console.error('❌ Ошибка загрузки бумаги:', error);
     })
     .finally(() => {
+        // Помечаем, что данные загружены (даже если ошибка, чтобы не пытаться снова)
         print_components_data_loaded = true;
     });
 }
 
+/**
+ * Настройка обработчиков событий на таблице компонентов.
+ * Двойной клик для редактирования, клик для выделения строки.
+ */
 function print_components_setup_table_event_listeners() {
     const tableBody = document.getElementById('print-components-table-body');
-    
+
+    // Если таблица ещё не загружена, пробуем снова через 500 мс
     if (!tableBody) {
         setTimeout(print_components_setup_table_event_listeners, 500);
         return;
     }
-    
-    // Двойной клик для начала редактирования
+
+    // Обработчик двойного клика по ячейке таблицы
     tableBody.addEventListener('dblclick', function(event) {
+        // Блокируем повторный двойной клик на короткое время
         if (print_components_dblclick_lock) {
             return;
         }
-        
         print_components_dblclick_lock = true;
         setTimeout(() => {
             print_components_dblclick_lock = false;
         }, 300);
-        
+
+        // Определяем, по какой ячейке кликнули
         const cell = event.target.closest('td');
         const row = event.target.closest('tr');
-        
+
+        // Если клик не по ячейке или по колонке действий – игнорируем
         if (!cell || !row || cell.classList.contains('component-actions')) {
             return;
         }
-        
-        const componentId = row.dataset.componentId;
+
+        const componentId = row.dataset.componentId; // ID компонента из data-атрибута
         if (!componentId) {
             return;
         }
-        
+
+        // Определяем индекс колонки, чтобы понять, какое поле редактируем
         const cellIndex = Array.from(row.children).indexOf(cell);
         let fieldName = '';
         let fieldType = 'text';
-        
+
+        // Соответствие индексов колонкам:
+        // 0 – № компонента (не редактируется)
+        // 1 – Принтер
+        // 2 – Бумага
+        // 3 – Количество листов (не редактируется, т.к. берётся из вычислений)
+        // 4 – Цена за лист
+        // 5 – Стоимость (не редактируется, вычисляемое поле)
+        // 6 – Действия (кнопки)
         switch (cellIndex) {
-            case 0: return; // № компонента - не редактируем
-            case 1: fieldName = 'printer'; fieldType = 'printer'; break; // Принтер
-            case 2: fieldName = 'paper'; fieldType = 'paper'; break; // Бумага
-            case 3: return; // ИСПРАВЛЕНО: Колонка "Тираж" - не редактируем, так как берется из просчёта
-            case 4: fieldName = 'price_per_sheet'; fieldType = 'price'; break; // Цена за лист
-            case 5: return; // Стоимость - не редактируем (вычисляемое поле)
-            case 6: return; // Действия - не редактируем
+            case 0: return; // не редактируем
+            case 1: fieldName = 'printer'; fieldType = 'printer'; break;
+            case 2: fieldName = 'paper'; fieldType = 'paper'; break;
+            case 3: return; // количество листов – не редактируем
+            case 4: fieldName = 'price_per_sheet'; fieldType = 'price'; break;
+            case 5: return; // стоимость – не редактируем
+            case 6: return; // действия – не редактируем
             default: return;
         }
-        
+
+        // Запускаем режим редактирования
         print_components_start_edit(cell, componentId, fieldName, fieldType, row);
     });
-    
-    // Выделение строки
+
+    // Обработчик клика для выделения строки (без редактирования)
     tableBody.addEventListener('click', function(event) {
         const row = event.target.closest('tr');
+        // Если кликнули не по кнопке удаления
         if (row && !event.target.closest('.delete-component-btn')) {
             const allRows = tableBody.querySelectorAll('tr');
-            allRows.forEach(r => r.classList.remove('selected'));
-            row.classList.add('selected');
+            allRows.forEach(r => r.classList.remove('selected')); // убираем выделение со всех
+            row.classList.add('selected'); // выделяем текущую строку
         }
     });
 }
 
-// ===== ИСПРАВЛЕНИЕ: Глобальный обработчик для кнопок удаления =====
+// ============================================================================
+// 7. ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ДЛЯ КНОПОК УДАЛЕНИЯ
+// ============================================================================
 
+/**
+ * Настройка глобального обработчика кликов для кнопок удаления компонентов.
+ * Используется, потому что кнопки могут быть динамически пересозданы.
+ */
 function print_components_setup_global_delete_handler() {
     console.log('🔧 Настройка глобального обработчика для кнопок удаления...');
-    
+
     const tableContainer = document.getElementById('print-components-container');
-    
+
+    // Если контейнер таблицы ещё не загружен, пробуем снова через 500 мс
     if (!tableContainer) {
         console.warn('❌ Контейнер таблицы не найден, пытаемся снова через 500мс');
         setTimeout(print_components_setup_global_delete_handler, 500);
         return;
     }
-    
+
+    // Удаляем предыдущий обработчик, если был, чтобы не было дубликатов
     tableContainer.removeEventListener('click', print_components_handle_delete_click_global);
-    
+
+    // Добавляем новый обработчик
     tableContainer.addEventListener('click', print_components_handle_delete_click_global);
-    
+
     console.log('✅ Глобальный обработчик для кнопок удаления настроен');
 }
 
+/**
+ * Обработчик клика по кнопке удаления компонента.
+ * @param {Event} event - объект события
+ */
 function print_components_handle_delete_click_global(event) {
     const deleteBtn = event.target.closest('.delete-component-btn');
-    
+
     if (deleteBtn) {
-        event.preventDefault();
-        event.stopPropagation();
-        
+        event.preventDefault();      // предотвращаем возможные действия по умолчанию
+        event.stopPropagation();     // не даём событию всплыть выше
+
         const componentId = deleteBtn.dataset.componentId;
         const row = deleteBtn.closest('tr');
-        
+
         if (!componentId) {
             console.error('❌ Не удалось получить ID компонента из кнопки удаления');
             return;
         }
-        
+
+        // Запрашиваем подтверждение
         if (confirm('Вы уверены, что хотите удалить этот компонент печати?')) {
             print_components_delete_component(componentId, row);
         }
     }
 }
 
+// ============================================================================
+// 8. ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ ДЛЯ ЗАВЕРШЕНИЯ РЕДАКТИРОВАНИЯ
+// ============================================================================
+
+/**
+ * Настройка глобальных обработчиков кликов и клавиш для завершения редактирования.
+ * Если пользователь кликает вне редактируемой ячейки или нажимает Enter/Esc.
+ */
 function print_components_setup_global_click_handler() {
+    // Обработчик клика мышью (mousedown срабатывает до потери фокуса)
     document.addEventListener('mousedown', function(event) {
+        // Если не в режиме редактирования или нет редактируемого элемента – выходим
         if (!print_components_is_editing || !print_components_current_editing_element) {
             return;
         }
-        
+
         const clickedElement = event.target;
         const editingCell = print_components_current_editing_element;
-        
+
+        // Проверяем, находится ли кликнутый элемент внутри редактируемой ячейки
         const clickedInside = editingCell.contains(clickedElement);
-        
+
+        // Если клик вне ячейки – завершаем редактирование с сохранением
         if (!clickedInside) {
             print_components_finish_edit(true);
         }
     });
-    
+
+    // Обработчик нажатия клавиш
     document.addEventListener('keydown', function(event) {
         if (!print_components_is_editing) {
             return;
         }
-        
+
         if (event.key === 'Enter') {
-            event.preventDefault();
-            print_components_finish_edit(true);
+            event.preventDefault();      // предотвращаем отправку формы
+            print_components_finish_edit(true); // сохраняем
         } else if (event.key === 'Escape') {
             event.preventDefault();
-            print_components_finish_edit(false);
+            print_components_finish_edit(false); // отменяем
         }
     });
 }
 
-// ===== 4. ФУНКЦИИ INLINE-РЕДАКТИРОВАНИЯ =====
+// ============================================================================
+// 9. ФУНКЦИИ INLINE-РЕДАКТИРОВАНИЯ
+// ============================================================================
 
+/**
+ * Начинает редактирование ячейки.
+ * 
+ * @param {HTMLElement} cell - ячейка таблицы, которую редактируем
+ * @param {string} componentId - ID компонента
+ * @param {string} fieldName - имя поля ('printer', 'paper', 'price_per_sheet')
+ * @param {string} fieldType - тип поля ('printer', 'paper', 'price')
+ * @param {HTMLElement} row - строка таблицы
+ */
 function print_components_start_edit(cell, componentId, fieldName, fieldType, row) {
     console.log(`✏️ Начало редактирования: поле=${fieldName}, тип=${fieldType}, ID=${componentId}`);
-    
+
+    // Если уже редактируется другая ячейка, завершаем её с сохранением
     if (print_components_is_editing && print_components_current_editing_element !== cell) {
         print_components_finish_edit(true);
     }
-    
+
+    // Если это выпадающий список (принтер/бумага), а данные ещё не загружены – загружаем и ждём
     if ((fieldType === 'printer' || fieldType === 'paper') && !print_components_data_loaded) {
         cell.innerHTML = '<div style="padding: 5px; color: #666;"><i class="fas fa-spinner fa-spin"></i> Загрузка данных...</div>';
-        
+
+        // Загружаем данные с небольшой задержкой и пробуем снова
         setTimeout(() => {
             print_components_load_dropdown_data();
             setTimeout(() => {
@@ -877,19 +1010,23 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
         }, 300);
         return;
     }
-    
+
+    // Сохраняем текущее состояние редактирования
     print_components_current_editing_id = componentId;
     print_components_current_editing_element = cell;
-    print_components_original_value = cell.textContent.trim();
+    print_components_original_value = cell.textContent.trim(); // исходное значение для отмены
     print_components_current_field_type = fieldType;
     print_components_is_editing = true;
-    
+
+    // Добавляем класс для стилизации редактируемой ячейки
     cell.classList.add('editing-cell');
-    
+
+    // Очищаем содержимое ячейки
     cell.innerHTML = '';
-    
+
     let inputElement;
-    
+
+    // Создаём соответствующий элемент ввода в зависимости от типа поля
     if (fieldType === 'printer') {
         inputElement = print_components_create_printer_dropdown(cell);
     } else if (fieldType === 'paper') {
@@ -914,16 +1051,19 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
         inputElement.value = print_components_original_value;
         inputElement.className = 'inline-edit-input';
     }
-    
+
+    // Добавляем элемент в ячейку
     cell.appendChild(inputElement);
-    
+
+    // Устанавливаем фокус на элемент ввода после небольшой задержки
     setTimeout(() => {
         inputElement.focus();
         if (inputElement.tagName === 'INPUT') {
-            inputElement.select();
+            inputElement.select(); // выделяем текст
         }
     }, 10);
-    
+
+    // Обработчик клавиш внутри поля ввода
     inputElement.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -935,38 +1075,49 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
     });
 }
 
+/**
+ * Создаёт выпадающий список для выбора принтера.
+ * @param {HTMLElement} cell - ячейка, в которую будет вставлен список (не используется, но передаётся для контекста)
+ * @returns {HTMLSelectElement} элемент select
+ */
 function print_components_create_printer_dropdown(cell) {
     const select = document.createElement('select');
     select.className = 'inline-edit-select';
-    
+
+    // Пустой пункт для возможности снять выбор
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
     emptyOption.textContent = 'Выберите принтер';
     select.appendChild(emptyOption);
-    
+
     if (print_components_printers_list.length === 0) {
+        // Если принтеров нет, показываем заглушку
         const noDataOption = document.createElement('option');
         noDataOption.value = '';
         noDataOption.textContent = 'Нет доступных принтеров';
         noDataOption.disabled = true;
         select.appendChild(noDataOption);
     } else {
-        const currentValue = print_components_original_value;
+        const currentValue = print_components_original_value; // исходное название принтера
         let found = false;
-        
+
+        // Добавляем все принтеры из списка
         print_components_printers_list.forEach(printer => {
             const option = document.createElement('option');
             option.value = printer.id;
             option.textContent = printer.name;
-            
+
+            // Если название совпадает с текущим значением, делаем его выбранным
             if (currentValue && printer.name === currentValue) {
                 option.selected = true;
                 found = true;
             }
-            
+
             select.appendChild(option);
         });
-        
+
+        // Если текущее значение не соответствует ни одному принтеру (например, удалённый принтер),
+        // добавляем его как заблокированный вариант
         if (currentValue && !found && currentValue !== 'Принтер не выбран') {
             const disabledOption = document.createElement('option');
             disabledOption.value = '';
@@ -977,19 +1128,24 @@ function print_components_create_printer_dropdown(cell) {
             select.appendChild(disabledOption);
         }
     }
-    
+
     return select;
 }
 
+/**
+ * Создаёт выпадающий список для выбора бумаги.
+ * @param {HTMLElement} cell - ячейка
+ * @returns {HTMLSelectElement}
+ */
 function print_components_create_paper_dropdown(cell) {
     const select = document.createElement('select');
     select.className = 'inline-edit-select';
-    
+
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
     emptyOption.textContent = 'Выберите бумагу';
     select.appendChild(emptyOption);
-    
+
     if (print_components_papers_list.length === 0) {
         const noDataOption = document.createElement('option');
         noDataOption.value = '';
@@ -999,20 +1155,20 @@ function print_components_create_paper_dropdown(cell) {
     } else {
         const currentValue = print_components_original_value;
         let found = false;
-        
+
         print_components_papers_list.forEach(paper => {
             const option = document.createElement('option');
             option.value = paper.id;
             option.textContent = paper.name;
-            
+
             if (currentValue && paper.name === currentValue) {
                 option.selected = true;
                 found = true;
             }
-            
+
             select.appendChild(option);
         });
-        
+
         if (currentValue && !found && currentValue !== 'Бумага не выбрана') {
             const disabledOption = document.createElement('option');
             disabledOption.value = '';
@@ -1023,65 +1179,85 @@ function print_components_create_paper_dropdown(cell) {
             select.appendChild(disabledOption);
         }
     }
-    
+
     return select;
 }
 
+/**
+ * Извлекает целое число из текста (удаляет всё, кроме цифр).
+ * @param {string} text - исходный текст
+ * @returns {number} извлечённое число или 1, если не удалось
+ */
 function print_components_extract_number(text) {
-    const numberString = text.replace(/[^\d]/g, '');
+    const numberString = text.replace(/[^\d]/g, ''); // оставляем только цифры
     return numberString ? parseInt(numberString, 10) : 1;
 }
 
+/**
+ * Извлекает десятичное число (цену) из текста.
+ * @param {string} text - исходный текст (например, "150.50 ₽")
+ * @returns {number} цена или 0.00
+ */
 function print_components_extract_price(text) {
+    // Убираем всё, кроме цифр, точки и запятой; заменяем запятую на точку
     const priceString = text.replace(/[^\d.,]/g, '').replace(',', '.');
     return priceString ? parseFloat(priceString) : 0.00;
 }
 
+/**
+ * Завершает редактирование ячейки.
+ * @param {boolean} save - true – сохранить изменения, false – отменить
+ */
 function print_components_finish_edit(save) {
+    // Если не в режиме редактирования – выходим
     if (!print_components_is_editing || !print_components_current_editing_element) {
         return;
     }
-    
+
     const cell = print_components_current_editing_element;
     const componentId = print_components_current_editing_id;
     const fieldType = print_components_current_field_type;
-    
+
+    // Определяем имя поля по индексу колонки
     let fieldName = '';
     const cellIndex = Array.from(cell.parentElement.children).indexOf(cell);
-    
+
     switch (cellIndex) {
         case 1: fieldName = 'printer'; break;
         case 2: fieldName = 'paper'; break;
-        case 3: return; // ИСПРАВЛЕНО: Колонка "Тираж" - не редактируется, не сохраняем
+        case 3: return; // количество листов – не сохраняем
         case 4: fieldName = 'price_per_sheet'; break;
-        default: 
+        default:
             print_components_cancel_edit();
             return;
     }
-    
+
     if (save) {
+        // Находим элемент ввода внутри ячейки
         let inputElement = cell.querySelector('input, select');
-        
+
         if (!inputElement) {
             console.log('⚠️ Элемент ввода не найден, отменяем редактирование');
             print_components_cancel_edit();
             return;
         }
-        
+
         let newValue = '';
         let displayText = '';
-        
+
+        // В зависимости от типа элемента получаем новое значение и текст для отображения
         if (inputElement.tagName === 'SELECT') {
             const selectedOption = inputElement.options[inputElement.selectedIndex];
             newValue = selectedOption.value;
             displayText = selectedOption.textContent;
-            
+
             if (newValue === '') {
+                // Если выбрано пустое значение, показываем соответствующий текст
                 displayText = fieldType === 'printer' ? 'Принтер не выбран' : 'Бумага не выбрана';
             }
         } else {
             newValue = inputElement.value.trim();
-            
+
             if (fieldType === 'number') {
                 displayText = newValue;
             } else if (fieldType === 'price') {
@@ -1090,32 +1266,44 @@ function print_components_finish_edit(save) {
                 displayText = newValue;
             }
         }
-        
+
+        // Валидируем значение
         if (!print_components_validate_value(newValue, fieldType)) {
             print_components_show_notification('Некорректное значение', 'error');
             inputElement.focus();
             return;
         }
-        
+
+        // Если значение изменилось, отправляем на сервер
         if (print_components_has_value_changed(newValue, fieldType)) {
             print_components_save_to_server(componentId, fieldName, newValue, displayText, cell);
         } else {
+            // Если не изменилось, просто выходим из режима редактирования
             print_components_cancel_edit();
         }
     } else {
+        // Отмена редактирования
         print_components_cancel_edit();
     }
 }
 
+/**
+ * Проверяет корректность введённого значения.
+ * @param {string} value - введённое значение
+ * @param {string} fieldType - тип поля
+ * @returns {boolean} true, если значение допустимо
+ */
 function print_components_validate_value(value, fieldType) {
+    // Для выпадающих списков любое значение допустимо (даже пустое)
     if (fieldType === 'printer' || fieldType === 'paper') {
         return true;
     }
-    
+
+    // Пустое значение не допускается (кроме '0' для цены)
     if (!value && value !== '0') {
         return false;
     }
-    
+
     switch (fieldType) {
         case 'number':
             const intValue = parseInt(value, 10);
@@ -1128,28 +1316,45 @@ function print_components_validate_value(value, fieldType) {
     }
 }
 
+/**
+ * Проверяет, изменилось ли значение по сравнению с исходным.
+ * @param {string} newValue - новое значение
+ * @param {string} fieldType - тип поля
+ * @returns {boolean} true, если значение изменилось
+ */
 function print_components_has_value_changed(newValue, fieldType) {
     if (fieldType === 'number') {
         const originalNumber = print_components_extract_number(print_components_original_value);
         return parseInt(newValue, 10) !== originalNumber;
     }
-    
+
     if (fieldType === 'price') {
         const originalPrice = print_components_extract_price(print_components_original_value);
         return parseFloat(newValue) !== originalPrice;
     }
-    
+
     return newValue !== print_components_original_value;
 }
 
+/**
+ * Отправляет изменённое значение на сервер и обновляет ячейку.
+ * @param {string} componentId - ID компонента
+ * @param {string} fieldName - имя поля
+ * @param {string} fieldValue - новое значение (для сервера)
+ * @param {string} displayValue - текст для отображения в ячейке
+ * @param {HTMLElement} cell - ячейка, которую обновляем
+ */
 function print_components_save_to_server(componentId, fieldName, fieldValue, displayValue, cell) {
+    // Показываем индикатор сохранения
     cell.innerHTML = '<div style="padding: 5px; color: #3498db;"><i class="fas fa-spinner fa-spin"></i> Сохранение...</div>';
-    
+
+    // Подготавливаем данные для отправки
     const formData = new FormData();
     formData.append('component_id', componentId);
     formData.append('field_name', fieldName);
     formData.append('field_value', fieldValue);
-    
+
+    // Отправляем POST-запрос
     fetch(print_components_api_urls.update, {
         method: 'POST',
         headers: {
@@ -1161,11 +1366,13 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Успех – отображаем новое значение
             cell.innerHTML = displayValue;
             cell.classList.remove('editing-cell');
-            
+
             print_components_show_notification('Изменения сохранены', 'success');
-            
+
+            // Обновляем таблицу компонентов, чтобы отразить возможные изменения цены
             const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
             if (currentProschetId) {
                 setTimeout(() => {
@@ -1176,9 +1383,11 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
                 }, 300);
             }
         } else {
+            // Ошибка на сервере – показываем исходное значение красным
             cell.innerHTML = `<span style="color: #e74c3c;">${print_components_original_value}</span>`;
             print_components_show_notification('Ошибка сохранения: ' + data.message, 'error');
-            
+
+            // Возвращаем исходное значение через 2 секунды
             setTimeout(() => {
                 cell.innerHTML = print_components_original_value;
                 cell.classList.remove('editing-cell');
@@ -1187,9 +1396,10 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         }
     })
     .catch(error => {
+        // Ошибка сети – показываем сообщение
         cell.innerHTML = `<span style="color: #e74c3c;">Ошибка сети</span>`;
         print_components_show_notification('Ошибка сети при сохранении', 'error');
-        
+
         setTimeout(() => {
             cell.innerHTML = print_components_original_value;
             cell.classList.remove('editing-cell');
@@ -1197,22 +1407,29 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         }, 2000);
     })
     .finally(() => {
+        // Сбрасываем состояние редактирования (но не сразу, т.к. ячейка ещё может обновляться)
         print_components_reset_editing_state();
     });
 }
 
+/**
+ * Отменяет редактирование без сохранения.
+ */
 function print_components_cancel_edit() {
     if (!print_components_is_editing || !print_components_current_editing_element) {
         return;
     }
-    
+
     const cell = print_components_current_editing_element;
-    cell.innerHTML = print_components_original_value;
+    cell.innerHTML = print_components_original_value; // возвращаем исходное значение
     cell.classList.remove('editing-cell');
-    
+
     print_components_reset_editing_state();
 }
 
+/**
+ * Сбрасывает все переменные состояния редактирования.
+ */
 function print_components_reset_editing_state() {
     print_components_current_editing_id = null;
     print_components_current_editing_element = null;
@@ -1221,15 +1438,22 @@ function print_components_reset_editing_state() {
     print_components_is_editing = false;
 }
 
-// ===== 5. ФУНКЦИИ УДАЛЕНИЯ =====
+// ============================================================================
+// 10. ФУНКЦИИ УДАЛЕНИЯ КОМПОНЕНТОВ
+// ============================================================================
 
+/**
+ * Удаляет компонент печати (мягкое удаление).
+ * @param {string} componentId - ID компонента
+ * @param {HTMLElement} row - строка таблицы, которая удаляется (для визуальной обратной связи)
+ */
 function print_components_delete_component(componentId, row) {
-    const originalHTML = row.innerHTML;
+    const originalHTML = row.innerHTML; // сохраняем для восстановления в случае ошибки
     row.innerHTML = '<td colspan="7" style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Удаление...</td>';
-    
+
     const formData = new FormData();
     formData.append('component_id', componentId);
-    
+
     fetch(print_components_api_urls.delete, {
         method: 'POST',
         headers: {
@@ -1242,7 +1466,8 @@ function print_components_delete_component(componentId, row) {
     .then(data => {
         if (data.success) {
             print_components_show_notification('Компонент успешно удален', 'success');
-            
+
+            // Обновляем таблицу компонентов для текущего просчёта
             const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
             if (currentProschetId) {
                 const proschetRow = document.querySelector('.proschet-row.selected');
@@ -1251,6 +1476,7 @@ function print_components_delete_component(componentId, row) {
                 }
             }
         } else {
+            // Восстанавливаем строку при ошибке
             row.innerHTML = originalHTML;
             print_components_show_notification('Ошибка удаления: ' + data.message, 'error');
         }
@@ -1261,35 +1487,22 @@ function print_components_delete_component(componentId, row) {
     });
 }
 
-// ===== 6. ФУНКЦИИ ДОБАВЛЕНИЯ - ИСПРАВЛЕННАЯ ВЕРСИЯ =====
+// ============================================================================
+// 11. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================================
 
 /**
- * Обработчик нажатия на кнопку добавления компонента печати
+ * Получает CSRF-токен из meta-тега или cookies.
+ * @returns {string} CSRF-токен
  */
-function print_components_handle_add_component() {
-    console.log('🖨️ Обработчик добавления компонента печати вызван');
-    
-    const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
-    
-    if (!currentProschetId) {
-        print_components_show_notification('Сначала выберите просчёт', 'warning');
-        return;
-    }
-    
-    console.log(`🖨️ Создание модального окна для просчёта ID: ${currentProschetId}`);
-    
-    print_components_create_add_modal(currentProschetId);
-}
-
-
-// ===== 7. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-
 function print_components_get_csrf_token() {
+    // Пробуем получить из meta-тега
     const metaToken = document.querySelector('meta[name="csrf-token"]');
     if (metaToken) {
         return metaToken.getAttribute('content');
     }
-    
+
+    // Ищем в cookies
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
         const cookie = cookies[i].trim();
@@ -1297,45 +1510,58 @@ function print_components_get_csrf_token() {
             return decodeURIComponent(cookie.substring('csrftoken='.length));
         }
     }
-    
+
     return '';
 }
 
-// ===== 8. ИНИЦИАЛИЗАЦИЯ И ЭКСПОРТ ФУНКЦИЙ =====
+// ============================================================================
+// 12. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ DOM
+// ============================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔄 Загрузка inline-редактирования компонентов печати...');
-    
-    // Инициализируем inline-редактирование
+
+    // Даём небольшую задержку, чтобы основной скрипт (print_components.js) успел инициализироваться
     setTimeout(() => {
         print_components_init_inline_edit();
-        
+
         // Экспортируем функции для использования в print_components.js
         window.print_components_handle_add_component = print_components_handle_add_component;
         window.print_components_create_add_modal = print_components_create_add_modal;
         window.print_components_show_notification = print_components_show_notification;
-        
+
+        // Также экспортируем объект с методами для удобства
         window.printComponentsInlineEdit = {
             init: print_components_init_inline_edit,
             showNotification: print_components_show_notification,
             handleAddComponent: print_components_handle_add_component,
             createAddModal: print_components_create_add_modal
         };
-        
+
         console.log('✅ Inline-редактирование компонентов печати готово');
     }, 1000);
 });
 
-// ===== 9. МОДИФИКАЦИЯ ФУНКЦИИ ОБНОВЛЕНИЯ =====
+// ============================================================================
+// 13. МОДИФИКАЦИЯ ФУНКЦИИ ОБНОВЛЕНИЯ (для поддержки динамической перезагрузки)
+// ============================================================================
 
+/**
+ * Этот блок переопределяет метод updateForProschet из основного скрипта,
+ * чтобы после обновления таблицы заново инициализировать inline-редактирование.
+ * Это гарантирует, что новые строки таблицы будут реагировать на двойной клик.
+ */
 setTimeout(() => {
     const originalUpdateFunction = window.printComponentsSection?.updateForProschet;
-    
+
     if (originalUpdateFunction) {
         window.printComponentsSection.updateForProschet = function(proschetId, rowElement) {
+            // Вызываем оригинальную функцию
             originalUpdateFunction.call(this, proschetId, rowElement);
-            
+
+            // После обновления таблицы (с небольшой задержкой) переинициализируем inline-редактирование
             setTimeout(() => {
+                // Сбрасываем флаг инициализации, чтобы обработчики снова навесились
                 print_components_initialized = false;
                 print_components_init_inline_edit();
             }, 500);

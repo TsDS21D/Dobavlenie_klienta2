@@ -1,7 +1,13 @@
 /*
 calculator/static/calculator/js/sections/product.js
 JavaScript для секции "Изделие"
-ДОБАВЛЕНО: Генерация событий при изменении тиража для автоматической синхронизации с печатными компонентами
+
+ИСПРАВЛЕНИЕ (17.02.2026):
+- Удалён вызов функции recalculateAllComponentsAfterCirculationChange, которая ранее запускала
+  пересчёт цен печати для всех компонентов при изменении тиража. Это было ошибочно, так как
+  цена печати за лист зависит от количества листов (из vichisliniya_listov), а не от тиража.
+- Удалена сама функция recalculateAllComponentsAfterCirculationChange как неиспользуемая.
+- Добавлены подробные комментарии, объясняющие каждую часть кода.
 */
 
 "use strict";
@@ -236,7 +242,8 @@ function productUpdateCirculationDisplay(circulation) {
     console.log(`✅ Отображение тиража обновлено: ${displayText} (для просчёта: ${productSelectedProschetId})`);
     
     // Генерируем событие об изменении тиража для синхронизации с другими секциями
-    // Это событие будет обработано в секции "Печатные компоненты"
+    // Это событие может быть использовано, например, секцией "Клиент" для пересчёта скидок,
+    // но НЕ должно влиять на цены печатных компонентов – они зависят от количества листов, а не от тиража.
     const event = new CustomEvent('productCirculationUpdated', {
         detail: { 
             proschetId: productSelectedProschetId,
@@ -274,7 +281,7 @@ function updateProductTitle(proschetData) {
     } else if (proschetData.title) {
         titleElement.innerHTML = `
             <span class="proschet-title-active">
-                ${proscheтData.title}
+                ${proschetData.title}
             </span>
         `;
     }
@@ -339,7 +346,7 @@ function productActivateCirculationEdit(displayElement) {
     if (!inputElement) {
         console.error('❌ Поле ввода тиража не найдено');
         productIsEditingCirculation = false;
-        productEditingProscheтId = null;
+        productEditingProschetId = null;
         return;
     }
     
@@ -545,6 +552,15 @@ function productValidateCirculation(value) {
 }
 
 /**
+ * ===== УДАЛЕНО (17.02.2026) =====
+ * Ранее здесь была функция recalculateAllComponentsAfterCirculationChange,
+ * которая отправляла запрос на сервер для пересчёта цен всех компонентов печати.
+ * Это было ошибочно, потому что цена печати за лист должна зависеть от количества листов,
+ * а не от тиража просчёта. Теперь эта функция удалена, чтобы предотвратить неверный пересчёт.
+ * Секция "Печатные компоненты" обновляется только при изменении количества листов или выборе компонента.
+ */
+
+/**
  * Отправляет обновление тиража на сервер
  * ВАЖНО: Используем productEditingProschetId, который был установлен при начале редактирования
  * @param {number} newCirculation - Новое значение тиража
@@ -624,6 +640,11 @@ function productSendCirculationUpdate(newCirculation) {
                 }
             });
             document.dispatchEvent(saveEvent);
+            
+            // ===== ИСПРАВЛЕНИЕ: Убран вызов recalculateAllComponentsAfterCirculationChange =====
+            // Теперь после изменения тиража не происходит автоматический пересчёт компонентов печати.
+            // Цена печати за лист должна пересчитываться только при изменении количества листов
+            // (из секции "Вычисления листов") или при выборе компонента.
             
             // Показываем уведомление об успехе
             productShowNotification(data.message || 'Тираж успешно обновлен', 'success');
@@ -808,7 +829,7 @@ window.productSection = {
     
     // Геттеры для состояния
     getSelectedProschetId: () => productSelectedProschetId,
-    getEditingProschetId: () => productEditingProscheтId,
+    getEditingProschetId: () => productEditingProschetId,
     getCurrentCirculation: () => productCurrentCirculation,
     isEditingCirculation: () => productIsEditingCirculation,
     

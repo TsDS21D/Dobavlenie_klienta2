@@ -84,6 +84,13 @@ calculator/templates/calculator/index.html
                         </div>
                     </div>
                     
+
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            {% include "calculator/sections/print_components.html" %}
+                        </div>
+                    </div>
+                    
                     <!-- ===== НОВАЯ СЕКЦИЯ: ВЫЧИСЛЕНИЯ ЛИСТОВ ===== -->
                     <div class="nested-row">
                         <div class="nested-col" data-col-size="full">
@@ -96,12 +103,6 @@ calculator/templates/calculator/index.html
                     </div>
 
 
-
-                    <div class="nested-row">
-                        <div class="nested-col" data-col-size="full">
-                            {% include "calculator/sections/print_components.html" %}
-                        </div>
-                    </div>
                     
                     <div class="nested-row">
                         <div class="nested-col" data-col-size="full">
