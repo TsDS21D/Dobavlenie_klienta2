@@ -1,7 +1,7 @@
 """
 Файл admin.py для приложения vichisliniya_listov.
 Регистрация моделей в административной панели Django.
-ОБНОВЛЕНО: Теперь модель связана с печатными компонентами.
+ОБНОВЛЕНО: Добавлены новые поля для размеров изделия и размещения на листе.
 """
 
 # Импортируем модуль admin из Django для регистрации моделей
@@ -17,6 +17,7 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
     Класс VichisliniyaListovModelAdmin для настройки отображения модели 
     VichisliniyaListovModel в административной панели Django.
     ВАЖНОЕ ИЗМЕНЕНИЕ: Теперь модель связана с печатными компонентами.
+    Добавлены новые поля для размеров изделия и расчёта размещения.
     """
     
     # ===== НАСТРОЙКА ОТОБРАЖАЕМЫХ ПОЛЕЙ В СПИСКЕ =====
@@ -26,8 +27,11 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
         'vichisliniya_listov_get_print_component_number',  # Номер печатного компонента
         'vichisliniya_listov_get_proschet_info',           # Информация о просчёте
         'vichisliniya_listov_list_count',                  # Количество листов
-        'vichisliniya_listov_vyleta',                      # Вылеты
-        'vichisliniya_listov_polosa_count',                # Количество полос
+        'vichisliniya_listov_vyleta',                      # Вылеты (расстояние)
+        'vichisliniya_listov_item_width',                  # Ширина изделия (новое)
+        'vichisliniya_listov_item_height',                 # Высота изделия (новое)
+        'vichisliniya_listov_fit_total',                   # Всего изделий на листе (новое)
+        'vichisliniya_listov_fit_selected_orientation',    # Выбранная ориентация (новое)
         'vichisliniya_listov_color',                       # Цветность
         'vichisliniya_listov_created_at',                  # Дата создания
         'vichisliniya_listov_updated_at',                  # Дата обновления
@@ -37,15 +41,16 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
     
     # Поля, по которым можно фильтровать записи в правой панели
     list_filter = [
-        'vichisliniya_listov_color',            # Фильтр по цветности
-        'vichisliniya_listov_created_at',       # Фильтр по дате создания
+        'vichisliniya_listov_color',                        # Фильтр по цветности
+        'vichisliniya_listov_fit_selected_orientation',     # Фильтр по выбранной ориентации (новое)
+        'vichisliniya_listov_created_at',                   # Фильтр по дате создания
     ]
     
     # ===== НАСТРОЙКА ПОИСКА =====
     
     # Поля, по которым будет работать поиск в административной панели
     search_fields = [
-        'vichisliniya_listov_print_component__number',  # Поиск по номеру компонента
+        'vichisliniya_listov_print_component__number',       # Поиск по номеру компонента
         'vichisliniya_listov_print_component__proschet__number',  # Поиск по номеру просчёта
     ]
     
@@ -53,9 +58,9 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
     
     # Поля, которые нельзя редактировать в форме редактирования
     readonly_fields = [
-        'vichisliniya_listov_created_at',       # Дата создания (автоматическая)
-        'vichisliniya_listov_updated_at',       # Дата обновления (автоматическая)
-        'vichisliniya_listov_get_proschet_info_display',  # Информация о просчёте (только для чтения)
+        'vichisliniya_listov_created_at',                    # Дата создания (автоматическая)
+        'vichisliniya_listov_updated_at',                    # Дата обновления (автоматическая)
+        'vichisliniya_listov_get_proschet_info_display',     # Информация о просчёте (только для чтения)
     ]
     
     # ===== НАСТРОЙКА ГРУППИРОВКИ ПОЛЕЙ В ФОРМЕ =====
@@ -71,8 +76,8 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
             'description': 'Связь с печатным компонентом и просчётом',
         }),
         
-        # Вторая группа: Основные параметры
-        ('Основные параметры', {
+        # Вторая группа: Основные параметры (результаты)
+        ('Основные результаты', {
             'fields': (
                 'vichisliniya_listov_list_count',
                 'vichisliniya_listov_vyleta',
@@ -80,16 +85,38 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
             'description': 'Основные параметры вычислений листов',
         }),
         
-        # Третья группа: Параметры печати
+        # Третья группа: Параметры изделия (новое)
+        ('Параметры изделия', {
+            'fields': (
+                'vichisliniya_listov_item_width',
+                'vichisliniya_listov_item_height',
+            ),
+            'description': 'Размеры одного изделия в миллиметрах',
+        }),
+        
+        # Четвёртая группа: Результаты размещения на листе (новое)
+        ('Размещение на листе', {
+            'fields': (
+                'vichisliniya_listov_fit_horizontal',
+                'vichisliniya_listov_fit_vertical',
+                'vichisliniya_listov_fit_total',
+                'vichisliniya_listov_fit_landscape_total',
+                'vichisliniya_listov_fit_portrait_total',
+                'vichisliniya_listov_fit_selected_orientation',
+            ),
+            'description': 'Количество изделий, помещающихся на листе (рассчитывается автоматически)',
+        }),
+        
+        # Пятая группа: Параметры печати
         ('Параметры печати', {
             'fields': (
                 'vichisliniya_listov_polosa_count',
                 'vichisliniya_listov_color',
             ),
-            'description': 'Параметры, влияющие на расчёт листов',
+            'description': 'Параметры, влияющие на расчёт листов (устаревшие)',
         }),
         
-        # Четвёртая группа: Служебная информация
+        # Шестая группа: Служебная информация
         ('Служебная информация', {
             'fields': (
                 'vichisliniya_listov_created_at',
@@ -186,7 +213,7 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
     def vichisliniya_listov_calculate_all(self, request, queryset):
         """
         Действие для пересчёта количества листов для выбранных записей.
-        Теперь использует тираж из связанного печатного компонента.
+        Теперь использует тираж из связанного печатного компонента и новую формулу.
         
         Аргументы:
             request: HTTP-запрос
@@ -207,7 +234,7 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
                 # Получаем тираж из связанного просчёта
                 circulation = obj.vichisliniya_listov_print_component.proschet.circulation
                 
-                # Выполняем расчёт
+                # Выполняем расчёт с использованием нового метода модели
                 obj.vichisliniya_listov_calculate_list_count(circulation)
                 obj.save()  # Сохраняем изменения в базе данных
                 updated_count += 1
@@ -215,8 +242,8 @@ class VichisliniyaListovModelAdmin(admin.ModelAdmin):
         # Показываем сообщение пользователю
         self.message_user(
             request, 
-            f'Количество листов пересчитано для {updated_count} записей.'
+            f'Количество листов пересчитано для {updated_count} записей (с округлением вверх).'
         )
     
     # Устанавливаем читаемое название действия
-    vichisliniya_listov_calculate_all.short_description = 'Пересчитать количество листов'
+    vichisliniya_listov_calculate_all.short_description = 'Пересчитать количество листов (новая формула)'

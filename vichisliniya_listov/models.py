@@ -1,14 +1,13 @@
 """
 Файл models.py для приложения vichisliniya_listov.
-ОБНОВЛЕНО: Теперь модель привязана к печатным компонентам (PrintComponent) вместо просчётов.
+ОБНОВЛЕНО:
+- Добавлены поля для хранения размеров изделия и результатов расчёта размещения на листе.
+- Исправлен метод расчёта количества листов: теперь используется fit_total и округление вверх.
 """
 
-# Импортируем модуль models из Django для создания моделей
 from django.db import models
-
-# Импортируем модель PrintComponent из приложения calculator
-# ВАЖНО: Используем строковое значение для избежания циклических импортов
-# ПРИМЕЧАНИЕ: PrintComponent находится в приложении calculator в файле models_list_proschet.py
+from decimal import Decimal
+import math  # для округления вверх
 
 
 class VichisliniyaListovModel(models.Model):
@@ -20,181 +19,213 @@ class VichisliniyaListovModel(models.Model):
     ВНИМАНИЕ: Все имена полей и переменных используют префикс "vichisliniya_listov_"
     для избежания конфликтов с другими приложениями.
     """
-    
+
     # ===== ВЫБОРЫ ДЛЯ ПОЛЕЙ =====
-    
+
     # Варианты цветности для поля vichisliniya_listov_color
-    # Формат: (значение_в_базе, читаемое_название)
     VICHISLINIYA_LISTOV_COLOR_CHOICES = [
         ('1+0', '1+0 (односторонняя одноцветная)'),
         ('1+1', '1+1 (двусторонняя одноцветная)'),
         ('4+0', '4+0 (односторонняя полноцветная)'),
         ('4+4', '4+4 (двусторонняя полноцветная)'),
     ]
-    
+
+    # Варианты выбранной ориентации размещения изделий на листе
+    VICHISLINIYA_LISTOV_ORIENTATION_CHOICES = [
+        ('landscape', 'Альбомная'),
+        ('portrait', 'Портретная'),
+        ('auto', 'Авто (оптимальная)'),
+    ]
+
     # ===== ОСНОВНЫЕ ПОЛЯ МОДЕЛИ =====
-    
-    # ВАЖНОЕ ИЗМЕНЕНИЕ: Заменяем proschet_id на ForeignKey к PrintComponent
-    # Связь один-к-одному с печатным компонентом
+
+    # Связь с печатным компонентом (один к одному)
     vichisliniya_listov_print_component = models.ForeignKey(
-        'calculator.PrintComponent',  # Ссылка на модель PrintComponent в приложении calculator
-        verbose_name='Печатный компонент',  # Человекочитаемое имя для админки
-        on_delete=models.CASCADE,  # При удалении компонента удаляются и связанные вычисления
-        related_name='vichisliniya_listov_data',  # Имя для обратной связи из PrintComponent
+        'calculator.PrintComponent',
+        verbose_name='Печатный компонент',
+        on_delete=models.CASCADE,
+        related_name='vichisliniya_listov_data',
         help_text='Печатный компонент, для которого выполняются вычисления листов',
-        db_index=True,  # Создаёт индекс для ускорения поиска
-        unique=True  # Гарантирует, что для каждого компонента будет только одна запись
+        db_index=True,
+        unique=True
     )
-    
+
     # Количество листов - основное вычисляемое значение
-    # Пока что получаем из значения тиража, в будущем может быть расчётным
-    # DecimalField: для точного хранения десятичных чисел
     vichisliniya_listov_list_count = models.DecimalField(
         verbose_name='Количество листов',
-        help_text='Расчётное количество листов на основе тиража и других параметров',
-        max_digits=10,          # Максимальное количество цифр всего
-        decimal_places=2,       # Количество цифр после запятой
-        default=0.00            # Значение по умолчанию
+        help_text='Расчётное количество листов на основе тиража и количества изделий на листе (округлено вверх)',
+        max_digits=10,
+        decimal_places=2,
+        default=0.00
     )
-    
-    # Вылеты - количество дополнительных листов на обрезку/брак
-    # PositiveIntegerField: только положительные целые числа
+
+    # Вылеты – теперь ИСПОЛЬЗУЕТСЯ КАК РАССТОЯНИЕ МЕЖДУ ИЗДЕЛИЯМИ НА ЛИСТЕ (согласно заданию)
     vichisliniya_listov_vyleta = models.PositiveIntegerField(
-        verbose_name='Вылеты',
-        help_text='Количество дополнительных листов на обрезку и возможный брак',
-        default=1               # Значение по умолчанию: 1
+        verbose_name='Вылеты (межвизиточное расстояние)',
+        help_text='Расстояние между изделиями на листе в миллиметрах (используется для расчёта размещения)',
+        default=1
     )
-    
-    # Количество полос - сколько полос (страниц) помещается на одном листе
-    # PositiveIntegerField: только положительные целые числа
+
+    # Количество полос – пока оставляем для обратной совместимости, но в новом алгоритме не участвует
     vichisliniya_listov_polosa_count = models.PositiveIntegerField(
         verbose_name='Количество полос',
-        help_text='Количество полос (страниц), размещаемых на одном листе',
-        default=1               # Значение по умолчанию: 1
+        help_text='Количество полос (страниц), размещаемых на одном листе (устаревает)',
+        default=1
     )
-    
-    # Цветность - вариант печати
-    # CharField с choices: текстовое поле с ограниченным набором значений
+
+    # Цветность
     vichisliniya_listov_color = models.CharField(
         verbose_name='Цветность',
         help_text='Вариант цветности печати',
-        max_length=10,          # Максимальная длина текста
-        choices=VICHISLINIYA_LISTOV_COLOR_CHOICES,  # Ограниченный выбор значений
-        default='4+0'           # Значение по умолчанию: 4+0
+        max_length=10,
+        choices=VICHISLINIYA_LISTOV_COLOR_CHOICES,
+        default='4+0'
     )
-    
+
+    # ===== НОВЫЕ ПОЛЯ ДЛЯ РАЗМЕРОВ ИЗДЕЛИЯ И РАЗМЕЩЕНИЯ =====
+
+    # Ширина изделия в миллиметрах (например, 90 мм для визитки)
+    vichisliniya_listov_item_width = models.DecimalField(
+        verbose_name='Ширина изделия (мм)',
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('90.00'),
+        help_text='Ширина одного изделия в миллиметрах (например, 90 для визитки)'
+    )
+
+    # Высота изделия в миллиметрах
+    vichisliniya_listov_item_height = models.DecimalField(
+        verbose_name='Высота изделия (мм)',
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('50.00'),
+        help_text='Высота одного изделия в миллиметрах (например, 50 для визитки)'
+    )
+
+    # Количество изделий, помещающихся по горизонтали при выбранной ориентации
+    vichisliniya_listov_fit_horizontal = models.PositiveIntegerField(
+        verbose_name='По горизонтали',
+        default=0,
+        help_text='Количество изделий, помещающихся по горизонтали при текущей выбранной ориентации'
+    )
+
+    # Количество изделий, помещающихся по вертикали при выбранной ориентации
+    vichisliniya_listov_fit_vertical = models.PositiveIntegerField(
+        verbose_name='По вертикали',
+        default=0,
+        help_text='Количество изделий, помещающихся по вертикали при текущей выбранной ориентации'
+    )
+
+    # Общее количество изделий на листе при выбранной ориентации
+    vichisliniya_listov_fit_total = models.PositiveIntegerField(
+        verbose_name='Всего изделий на листе',
+        default=0,
+        help_text='Общее количество изделий, помещающихся на одном листе при выбранной ориентации'
+    )
+
+    # Количество изделий при альбомной ориентации (без поворота изделия)
+    vichisliniya_listov_fit_landscape_total = models.PositiveIntegerField(
+        verbose_name='Альбомная ориентация',
+        default=0,
+        help_text='Количество изделий, если размещать их в альбомной ориентации (без поворота)'
+    )
+
+    # Количество изделий при портретной ориентации (с поворотом изделия на 90°)
+    vichisliniya_listov_fit_portrait_total = models.PositiveIntegerField(
+        verbose_name='Портретная ориентация',
+        default=0,
+        help_text='Количество изделий, если размещать их в портретной ориентации (с поворотом на 90°)'
+    )
+
+    # Выбранная ориентация (альбомная, портретная или авто)
+    vichisliniya_listov_fit_selected_orientation = models.CharField(
+        verbose_name='Выбранная ориентация',
+        max_length=10,
+        choices=VICHISLINIYA_LISTOV_ORIENTATION_CHOICES,
+        default='auto',
+        help_text='Какая ориентация размещения выбрана в данный момент'
+    )
+
     # ===== МЕТАДАННЫЕ И СЛУЖЕБНЫЕ ПОЛЯ =====
-    
-    # Дата и время создания записи
-    # auto_now_add=True: автоматически устанавливается при создании
+
     vichisliniya_listov_created_at = models.DateTimeField(
         verbose_name='Дата создания',
-        auto_now_add=True       # Автоматически устанавливается при создании
+        auto_now_add=True
     )
-    
-    # Дата и время последнего обновления записи
-    # auto_now=True: автоматически обновляется при каждом сохранении
+
     vichisliniya_listov_updated_at = models.DateTimeField(
         verbose_name='Дата обновления',
-        auto_now=True           # Автоматически обновляется при каждом сохранении
+        auto_now=True
     )
-    
-    # ===== МЕТАКЛАСС ДЛЯ НАСТРОЙКИ ПОВЕДЕНИЯ МОДЕЛИ =====
-    
+
+    # ===== МЕТАКЛАСС =====
+
     class Meta:
-        """
-        Класс Meta содержит метаданные модели.
-        Здесь настраиваются дополнительные параметры поведения модели.
-        """
-        
-        # Имя таблицы в базе данных
         db_table = 'vichisliniya_listov_data'
-        
-        # ВАЖНОЕ ИЗМЕНЕНИЕ: Убираем UniqueConstraint для proschet_id, так как теперь используем unique=True в поле
-        # constraints больше не нужны, так как unique=True в поле обеспечивает уникальность
-        
-        # Порядок сортировки по умолчанию
         ordering = ['-vichisliniya_listov_created_at']
-        
-        # Человеко-читаемое имя модели в единственном числе
         verbose_name = 'Вычисление листов'
-        
-        # Человеко-читаемое имя модели во множественном числе
         verbose_name_plural = 'Вычисления листов'
-    
+
     # ===== МАГИЧЕСКИЕ МЕТОДЫ =====
-    
+
     def __str__(self):
-        """
-        Магический метод __str__ возвращает строковое представление объекта.
-        Используется в административной панели и при отладке.
-        
-        Возвращает:
-            str: Строковое представление объекта
-        """
-        # Получаем ID компонента печати
         component_id = self.vichisliniya_listov_print_component_id
-        # Получаем номер компонента
         component_number = self.vichisliniya_listov_print_component.number if self.vichisliniya_listov_print_component else "N/A"
-        
         return (f"Вычисления для компонента {component_number} (ID: {component_id}): "
-                f"{self.vichisliniya_listov_list_count} листов")
-    
+                f"{self.vichisliniya_listov_list_count} листов, "
+                f"изделие {self.vichisliniya_listov_item_width}×{self.vichisliniya_listov_item_height} мм, "
+                f"на листе {self.vichisliniya_listov_fit_total} шт.")
+
     # ===== ПОЛЬЗОВАТЕЛЬСКИЕ МЕТОДЫ =====
-    
+
     def vichisliniya_listov_calculate_list_count(self, circulation):
         """
-        Метод для расчёта количества листов на основе тиража и параметров.
-        Пока что используем простую формулу: тираж / количество полос + вылеты.
-        
+        Метод для расчёта количества листов на основе тиража и количества изделий на листе.
+        Новая логика: количество листов = ceil(тираж / количество_изделий_на_листе).
+        Если количество_изделий_на_листе равно 0, возвращает 0 (чтобы избежать деления на ноль).
+
         Аргументы:
-            circulation (int): Значение тиража из печатного компонента
-            
+            circulation (int или Decimal): тираж изделий.
+
         Возвращает:
-            Decimal: Рассчитанное количество листов
+            Decimal: округлённое вверх количество листов с двумя знаками после запятой.
         """
         from decimal import Decimal
-        
-        # Преобразуем тираж в Decimal для точных вычислений
+        import math
+
+        # Преобразуем тираж в Decimal для точности
         circulation_decimal = Decimal(str(circulation))
-        
-        # Расчёт количества листов по формуле:
-        # (тираж / количество полос) + вылеты
-        # Используем Decimal для избежания ошибок округления
-        calculated_list_count = (
-            circulation_decimal / Decimal(self.vichisliniya_listov_polosa_count)
-        ) + Decimal(self.vichisliniya_listov_vyleta)
-        
-        # Округляем до 2 знаков после запятой
-        calculated_list_count = calculated_list_count.quantize(Decimal('0.01'))
-        
-        # Сохраняем расчётное значение
-        self.vichisliniya_listov_list_count = calculated_list_count
-        
-        return calculated_list_count
-    
+
+        # Получаем количество изделий на листе при выбранной ориентации
+        fit_total = self.vichisliniya_listov_fit_total
+
+        # Если изделий на листе 0, расчёт невозможен – возвращаем 0
+        if fit_total == 0:
+            self.vichisliniya_listov_list_count = Decimal('0.00')
+            return self.vichisliniya_listov_list_count
+
+        # Вычисляем количество листов как дробь
+        raw_list_count = circulation_decimal / Decimal(fit_total)
+
+        # Округляем вверх до целого числа (так как листы считаются целыми)
+        # Для округления вверх используем math.ceil, результат преобразуем в Decimal
+        ceil_list_count = math.ceil(float(raw_list_count))
+
+        # Сохраняем результат с двумя десятичными знаками (как целое число, но в формате 2 знака)
+        self.vichisliniya_listov_list_count = Decimal(ceil_list_count).quantize(Decimal('0.00'))
+
+        return self.vichisliniya_listov_list_count
+
     def vichisliniya_listov_get_color_display_name(self):
-        """
-        Метод для получения читаемого названия цветности.
-        
-        Возвращает:
-            str: Человеко-читаемое название цветности
-        """
-        # Проходим по всем вариантам цветности
         for value, display_name in self.VICHISLINIYA_LISTOV_COLOR_CHOICES:
-            # Если нашли совпадение, возвращаем читаемое название
             if value == self.vichisliniya_listov_color:
                 return display_name
-        # Если не нашли, возвращаем значение из базы
         return self.vichisliniya_listov_color
-    
+
     def vichisliniya_listov_to_dict(self):
         """
-        Метод для преобразования объекта в словарь.
-        Используется для передачи данных в JSON-формате.
-        
-        Возвращает:
-            dict: Словарь с данными модели
+        Преобразование объекта в словарь для JSON.
+        Теперь включает новые поля.
         """
         return {
             'print_component_id': self.vichisliniya_listov_print_component_id,
@@ -204,38 +235,27 @@ class VichisliniyaListovModel(models.Model):
             'polosa_count': self.vichisliniya_listov_polosa_count,
             'color': self.vichisliniya_listov_color,
             'color_display': self.vichisliniya_listov_get_color_display_name(),
+            'item_width': float(self.vichisliniya_listov_item_width),
+            'item_height': float(self.vichisliniya_listov_item_height),
+            'fit_horizontal': self.vichisliniya_listov_fit_horizontal,
+            'fit_vertical': self.vichisliniya_listov_fit_vertical,
+            'fit_total': self.vichisliniya_listov_fit_total,
+            'fit_landscape_total': self.vichisliniya_listov_fit_landscape_total,
+            'fit_portrait_total': self.vichisliniya_listov_fit_portrait_total,
+            'fit_selected_orientation': self.vichisliniya_listov_fit_selected_orientation,
             'created_at': self.vichisliniya_listov_created_at.isoformat(),
             'updated_at': self.vichisliniya_listov_updated_at.isoformat(),
         }
-    
-    # ===== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ПЕЧАТНЫМИ КОМПОНЕНТАМИ =====
-    
+
     def vichisliniya_listov_get_proschet_id(self):
-        """
-        Метод для получения ID просчёта через связанный печатный компонент.
-        Это позволяет сохранить обратную совместимость с кодом, который ожидает proschet_id.
-        
-        Возвращает:
-            int: ID просчёта или None, если компонент не связан с просчётом
-        """
-        # Проверяем, есть ли связанный печатный компонент
         if self.vichisliniya_listov_print_component and self.vichisliniya_listov_print_component.proschet:
             return self.vichisliniya_listov_print_component.proschet_id
         return None
-    
+
     def vichisliniya_listov_get_proschet_info(self):
-        """
-        Метод для получения информации о просчёте через связанный печатный компонент.
-        
-        Возвращает:
-            dict: Словарь с информацией о просчёте или None
-        """
-        # Проверяем наличие связанного компонента и просчёта
-        if (self.vichisliniya_listov_print_component and 
+        if (self.vichisliniya_listov_print_component and
             self.vichisliniya_listov_print_component.proschet):
-            
             proschet = self.vichisliniya_listov_print_component.proschet
-            
             return {
                 'proschet_id': proschet.id,
                 'proschet_number': proschet.number,

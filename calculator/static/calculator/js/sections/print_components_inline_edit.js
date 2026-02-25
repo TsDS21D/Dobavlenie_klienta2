@@ -1,11 +1,11 @@
 /**
  * print_components_inline_edit.js - JavaScript для inline-редактирования компонентов печати
  * 
- * ОБНОВЛЕНО (16.02.2026):
- * - Из модального окна добавления компонента удалено поле "Количество листов" (sheet_count),
- *   так как теперь количество листов всегда берётся из приложения vichisliniya_listov.
- * - В обработчике отправки формы больше не передаётся sheet_count на сервер.
- * - Все функции снабжены подробными комментариями.
+ * ИСПРАВЛЕНИЕ (24.02.2026):
+ * - Добавлен экспорт состояния редактирования (printComponentsInlineEditState) для использования в print_components.js.
+ *   Это позволит основному модулю проверять, не редактируется ли сейчас компонент, и не перезаписывать его DOM.
+ * - Удалён глобальный обработчик mousedown, который преждевременно завершал редактирование при клике на выпадающий список.
+ * - Вместо этого добавлен обработчик blur на редактируемый элемент (input/select). Теперь редактирование завершается только при потере фокуса или по клавишам Enter/Escape.
  * 
  * ОСНОВНЫЕ ВОЗМОЖНОСТИ:
  * 1. Двойной клик по ячейкам таблицы для редактирования принтера, бумаги, цены за лист.
@@ -734,9 +734,6 @@ function print_components_init_inline_edit() {
     // Настраиваем глобальный обработчик для кнопок удаления
     print_components_setup_global_delete_handler();
 
-    // Настраиваем глобальные обработчики кликов и клавиш для завершения редактирования
-    print_components_setup_global_click_handler();
-
     print_components_initialized = true;
     console.log('✅ Inline-редактирование инициализировано');
 }
@@ -933,51 +930,7 @@ function print_components_handle_delete_click_global(event) {
 }
 
 // ============================================================================
-// 8. ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ ДЛЯ ЗАВЕРШЕНИЯ РЕДАКТИРОВАНИЯ
-// ============================================================================
-
-/**
- * Настройка глобальных обработчиков кликов и клавиш для завершения редактирования.
- * Если пользователь кликает вне редактируемой ячейки или нажимает Enter/Esc.
- */
-function print_components_setup_global_click_handler() {
-    // Обработчик клика мышью (mousedown срабатывает до потери фокуса)
-    document.addEventListener('mousedown', function(event) {
-        // Если не в режиме редактирования или нет редактируемого элемента – выходим
-        if (!print_components_is_editing || !print_components_current_editing_element) {
-            return;
-        }
-
-        const clickedElement = event.target;
-        const editingCell = print_components_current_editing_element;
-
-        // Проверяем, находится ли кликнутый элемент внутри редактируемой ячейки
-        const clickedInside = editingCell.contains(clickedElement);
-
-        // Если клик вне ячейки – завершаем редактирование с сохранением
-        if (!clickedInside) {
-            print_components_finish_edit(true);
-        }
-    });
-
-    // Обработчик нажатия клавиш
-    document.addEventListener('keydown', function(event) {
-        if (!print_components_is_editing) {
-            return;
-        }
-
-        if (event.key === 'Enter') {
-            event.preventDefault();      // предотвращаем отправку формы
-            print_components_finish_edit(true); // сохраняем
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            print_components_finish_edit(false); // отменяем
-        }
-    });
-}
-
-// ============================================================================
-// 9. ФУНКЦИИ INLINE-РЕДАКТИРОВАНИЯ
+// 8. ФУНКЦИИ INLINE-РЕДАКТИРОВАНИЯ
 // ============================================================================
 
 /**
@@ -1055,13 +1008,18 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
     // Добавляем элемент в ячейку
     cell.appendChild(inputElement);
 
-    // Устанавливаем фокус на элемент ввода после небольшой задержки
-    setTimeout(() => {
-        inputElement.focus();
-        if (inputElement.tagName === 'INPUT') {
-            inputElement.select(); // выделяем текст
-        }
-    }, 10);
+    // ===== ИСПРАВЛЕНИЕ: Добавляем обработчик blur для завершения редактирования =====
+    // При потере фокуса сохраняем изменения. Это стандартный способ для inline-редактирования,
+    // который не конфликтует с выпадающими списками (при клике на опцию фокус остаётся на select).
+    inputElement.addEventListener('blur', function() {
+        // Используем setTimeout, чтобы избежать конфликта с другими обработчиками,
+        // и проверяем, что редактирование всё ещё активно (не было отменено)
+        setTimeout(() => {
+            if (print_components_is_editing && print_components_current_editing_element === cell) {
+                print_components_finish_edit(true);
+            }
+        }, 100);
+    });
 
     // Обработчик клавиш внутри поля ввода
     inputElement.addEventListener('keydown', function(event) {
@@ -1073,6 +1031,14 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
             print_components_finish_edit(false);
         }
     });
+
+    // Устанавливаем фокус на элемент ввода после небольшой задержки
+    setTimeout(() => {
+        inputElement.focus();
+        if (inputElement.tagName === 'INPUT') {
+            inputElement.select(); // выделяем текст
+        }
+    }, 10);
 }
 
 /**
@@ -1372,6 +1338,22 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
 
             print_components_show_notification('Изменения сохранены', 'success');
 
+            // Если изменяли принтер, вызываем пересчёт стоимости
+            if (fieldName === 'printer') {
+                // Получаем количество листов из ячейки этой же строки
+                const row = cell.closest('tr');
+                const sheetCountCell = row.querySelector('.component-sheet-count');
+                if (sheetCountCell) {
+                    const sheetCountText = sheetCountCell.textContent.replace(/\s/g, ''); // убираем пробелы
+                    const sheetCount = parseFloat(sheetCountText);
+                    if (!isNaN(sheetCount) && window.printComponentsSection?.recalculateComponentPrice) {
+                        window.printComponentsSection.recalculateComponentPrice(componentId, sheetCount);
+                    } else {
+                        console.warn('Не удалось получить количество листов или функцию recalculateComponentPrice');
+                    }
+                }
+            }
+
             // Обновляем таблицу компонентов, чтобы отразить возможные изменения цены
             const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
             if (currentProschetId) {
@@ -1439,7 +1421,7 @@ function print_components_reset_editing_state() {
 }
 
 // ============================================================================
-// 10. ФУНКЦИИ УДАЛЕНИЯ КОМПОНЕНТОВ
+// 9. ФУНКЦИИ УДАЛЕНИЯ КОМПОНЕНТОВ
 // ============================================================================
 
 /**
@@ -1488,7 +1470,7 @@ function print_components_delete_component(componentId, row) {
 }
 
 // ============================================================================
-// 11. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 10. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================================
 
 /**
@@ -1513,6 +1495,18 @@ function print_components_get_csrf_token() {
 
     return '';
 }
+
+// ============================================================================
+// 11. ЭКСПОРТ СОСТОЯНИЯ РЕДАКТИРОВАНИЯ ДЛЯ ДРУГИХ МОДУЛЕЙ
+// ============================================================================
+
+// ИСПРАВЛЕНИЕ: экспортируем объект с функциями доступа к состоянию редактирования.
+// Это позволит основному модулю print_components.js проверять, не редактируется ли компонент,
+// и не перезаписывать его DOM во время обновлений.
+window.printComponentsInlineEditState = {
+    isEditing: () => print_components_is_editing,
+    getEditingComponentId: () => print_components_current_editing_id
+};
 
 // ============================================================================
 // 12. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ DOM

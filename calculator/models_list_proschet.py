@@ -3,19 +3,11 @@
 Модель Proscheт (Просчёт) для калькулятора типографии и связанные модели.
 Включает Компоненты печати (с уникальным номером KP-) и Дополнительные работы (с уникальным номером DR-).
 
-ИСПРАВЛЕНИЕ ОШИБКИ (16.02.2026):
-- Удалён автоматический пересчёт sheet_count компонентов при изменении тиража просчёта.
-  Раньше при сохранении просчёта (например, после изменения тиража) выполнялся код:
-      for component in self.print_components.all():
-          component.sheet_count = self.circulation
-          component.save()
-  Это приводило к тому, что количество листов в компонентах принудительно становилось равным тиражу,
-  игнорируя вычисления из приложения vichisliniya_listov.
-  Теперь эта автоматическая синхронизация убрана – количество листов должно обновляться только
-  через вызов специального API (recalculate-components-for-circulation), который учитывает
-  параметры вычислений листов для каждого компонента.
-
-Все остальные свойства и методы сохранены без изменений.
+ИСПРАВЛЕНИЕ (24.02.2026):
+- Добавлено поле total_circulation_price в модель PrintComponent для хранения общей стоимости компонента.
+- Удалено свойство total_circulation_price (теперь это поле модели), чтобы избежать конфликта.
+- Обновлён метод save для автоматического пересчёта total_circulation_price при сохранении, если доступно количество листов.
+- Все остальные свойства и методы сохранены без изменений.
 """
 
 from django.db import models
@@ -23,6 +15,7 @@ from django.db.models import Max, Sum
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import math
+from vichisliniya_listov.models import VichisliniyaListovModel
 
 
 class Proschet(models.Model):
@@ -132,6 +125,7 @@ class Proschet(models.Model):
         """Общая стоимость просчёта (компоненты + доп. работы)."""
         components_total = Decimal('0.00')
         for component in self.print_components.all():
+            # Используем сохранённое значение total_circulation_price
             components_total += component.total_circulation_price
         works_total = self.additional_works.aggregate(
             total=Sum('price')
@@ -158,8 +152,6 @@ class Proschet(models.Model):
             self.circulation = circulation_int
             self.save()
             if old_circulation != circulation_int:
-                # Возвращаем сообщение, но без упоминания обновления компонентов,
-                # так как теперь это не происходит автоматически.
                 return True, f"Тираж успешно обновлен с {old_circulation} на {circulation_int}. Для пересчёта количества листов в компонентах используйте соответствующую функцию."
             else:
                 return True, "Тираж успешно обновлен (значение не изменилось)"
@@ -173,7 +165,6 @@ class PrintComponent(models.Model):
     """
     Компонент печати с уникальным номером KP-.
     """
-    # ... (поля без изменений) ...
     number = models.CharField(
         verbose_name='Номер компонента',
         max_length=20,
@@ -239,6 +230,19 @@ class PrintComponent(models.Model):
         help_text='Указывает, что цена за лист была рассчитана автоматически на основе справочника цен'
     )
 
+    # ===== НОВОЕ ПОЛЕ =====
+    # Хранит итоговую стоимость компонента: (цена_печати_за_лист + цена_бумаги_за_лист) * количество_листов.
+    # Значение вычисляется в представлениях при изменении данных, влияющих на стоимость,
+    # и сохраняется в базе для быстрого доступа и отображения в отчётах.
+    total_circulation_price = models.DecimalField(
+        verbose_name='Общая стоимость',
+        max_digits=12,               # Увеличим разрядность, т.к. возможны большие суммы
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Итоговая стоимость компонента = (цена печати + цена бумаги) × количество листов. Сохраняется автоматически.'
+    )
+
     class Meta:
         verbose_name = 'Компонент печати'
         verbose_name_plural = 'Компоненты печати'
@@ -267,6 +271,7 @@ class PrintComponent(models.Model):
     def recalculate_price(self):
         """
         Пересчитывает цену за лист на основе текущего принтера и количества листов.
+        Также пересчитывает общую стоимость компонента.
         """
         try:
             if self.printer and self.sheet_count:
@@ -275,15 +280,43 @@ class PrintComponent(models.Model):
                     self.sheet_count
                 )
                 self.is_price_calculated = True
-                self.save(update_fields=['price_per_sheet', 'is_price_calculated'])
+                # После изменения цены нужно обновить общую стоимость
+                self.refresh_total_price()
+                self.save(update_fields=['price_per_sheet', 'is_price_calculated', 'total_circulation_price'])
                 return True, f"Цена успешно пересчитана: {self.price_per_sheet} руб./лист"
             else:
                 return False, "Не указан принтер или количество листов"
         except Exception as e:
             return False, f"Ошибка при пересчёте цены: {str(e)}"
 
+    def refresh_total_price(self):
+        """
+        Пересчитывает общую стоимость компонента на основе текущих данных
+        и сохраняет её в поле total_circulation_price.
+        Используется при изменении цены, бумаги или количества листов.
+        """
+        try:
+            # Получаем актуальное количество листов из связанной записи вычислений
+            from vichisliniya_listov.models import VichisliniyaListovModel
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component_id=self.id
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                sheet_count = Decimal('0.00')
+
+            price_per_sheet = self.price_per_sheet if self.price_per_sheet is not None else Decimal('0.00')
+            material_price = self.material_price_per_unit
+            total = (price_per_sheet + material_price) * sheet_count
+            self.total_circulation_price = total
+        except Exception as e:
+            # В случае ошибки оставляем текущее значение или 0
+            print(f"⚠️ Ошибка при пересчёте общей стоимости компонента {self.id}: {e}")
+            self.total_circulation_price = Decimal('0.00')
+
     def save(self, *args, **kwargs):
-        """Переопределённый метод сохранения с генерацией номера и расчётом цены."""
+        """Переопределённый метод сохранения с генерацией номера, расчётом цены и общей стоимости."""
         # Генерация номера KP-...
         if not self.number or self.number.strip() == '':
             try:
@@ -338,6 +371,10 @@ class PrintComponent(models.Model):
             if self.price_per_sheet is None:
                 self.price_per_sheet = Decimal('0.00')
             self.is_price_calculated = False
+
+        # Пересчитываем общую стоимость, если есть ID (уже сохранён хотя бы раз)
+        if self.pk:
+            self.refresh_total_price()
 
         super().save(*args, **kwargs)
 
@@ -405,16 +442,8 @@ class PrintComponent(models.Model):
             return self.paper.price
         return Decimal('0.00')
 
-    @property
-    def total_circulation_price(self):
-        """Общая стоимость: (печать + бумага) × листы."""
-        try:
-            sheet_count = self.sheet_count if self.sheet_count is not None else Decimal('0.00')
-            price_per_sheet = self.price_per_sheet if self.price_per_sheet is not None else Decimal('0.00')
-            material_price = self.material_price_per_unit
-            return (price_per_sheet + material_price) * sheet_count
-        except Exception:
-            return Decimal('0.00')
+    # Свойство total_circulation_price больше не определяется как property,
+    # теперь это поле модели. Для совместимости оставляем только форматирование.
 
     @property
     def formatted_price_per_sheet(self):
@@ -425,7 +454,7 @@ class PrintComponent(models.Model):
 
     @property
     def formatted_total_circulation_price(self):
-        """Отформатированная общая стоимость."""
+        """Отформатированная общая стоимость (использует поле модели)."""
         return f"{self.total_circulation_price:.2f} ₽"
 
     @property
@@ -435,9 +464,17 @@ class PrintComponent(models.Model):
 
     @property
     def material_cost_for_circulation(self):
-        """Стоимость материала: цена × листы."""
+        """Стоимость материала: цена × листы (вычисляется динамически)."""
         try:
-            sheet_count = self.sheet_count if self.sheet_count is not None else Decimal('0.00')
+            # Используем актуальное количество листов из связанной записи
+            from vichisliniya_listov.models import VichisliniyaListovModel
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component_id=self.id
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                sheet_count = Decimal('0.00')
             return self.material_price_per_unit * sheet_count
         except:
             return Decimal('0.00')
@@ -448,9 +485,16 @@ class PrintComponent(models.Model):
 
     @property
     def printing_cost_for_circulation(self):
-        """Стоимость печати: цена × листы."""
+        """Стоимость печати: цена × листы (вычисляется динамически)."""
         try:
-            sheet_count = self.sheet_count if self.sheet_count is not None else Decimal('0.00')
+            from vichisliniya_listov.models import VichisliniyaListovModel
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component_id=self.id
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                sheet_count = Decimal('0.00')
             price_per_sheet = self.price_per_sheet if self.price_per_sheet is not None else Decimal('0.00')
             return price_per_sheet * sheet_count
         except:

@@ -2,25 +2,12 @@
  * ФАЙЛ: vichisliniya_listov.js
  * НАЗНАЧЕНИЕ: JavaScript для секции "Вычисления листов"
  * 
- * ОСНОВНАЯ ЗАДАЧА: Рассчитывать количество листов на основе параметров (вылеты, полосы, цветность)
- * и тиража из связанного просчёта.
- * 
- * ВАЖНО: При любом изменении параметров или тиража автоматически выполняется расчёт,
- * результат отображается в поле 'result-value' и отправляется событие 'vichisliniyaListovUpdated',
- * которое перехватывается секцией "Печатные компоненты" для пересчёта стоимости.
- * 
- * ИЗМЕНЕНО (для исправления проблемы с отображением количества листов):
- * - В функции loadVichisliniyaListovParameters после загрузки данных с сервера добавлен вызов
- *   this.calculateVichisliniyaListovListCount(), который пересчитывает количество листов на основе
- *   текущего тиража и загруженных параметров. Это гарантирует, что после выбора печатного компонента
- *   отображаемое количество листов всегда будет актуальным, даже если тираж изменился с момента
- *   последнего сохранения параметров.
- * 
- * КЛЮЧЕВЫЕ МОМЕНТЫ:
- * 1. При изменении любого поля (или тиража) запускается handleFieldChange().
- * 2. handleFieldChange() проверяет наличие выбранного компонента и тиража, затем вызывает calculateVichisliniyaListovListCount().
- * 3. calculateVichisliniyaListovListCount() выполняет локальный расчёт, обновляет интерфейс, отправляет событие и сохраняет данные на сервер.
- * 4. Все кнопки управления удалены – всё происходит автоматически.
+ * ОБНОВЛЕНО:
+ * - Добавлена поддержка полей ширины/высоты изделия.
+ * - Добавлен расчёт размещения на листе с учётом размеров листа (из принтера), полей и вылетов.
+ * - Реализован выбор ориентации (альбомная/портретная) с автоматическим выбором оптимальной.
+ * - Все новые параметры сохраняются на сервере.
+ * - ДОБАВЛЕНА визуализация размещения изделий на canvas.
  */
 
 "use strict";
@@ -88,16 +75,46 @@ var vichisliniyaListov = {
     /**
      * Текущие параметры вычислений листов.
      * Объект хранит значения, введённые пользователем или загруженные из базы данных.
-     * @property {number} vyleta - Вылеты (по умолчанию 1)
+     * @property {number} vyleta - Вылеты (расстояние между изделиями) (по умолчанию 1)
      * @property {number} polosa_count - Количество полос (по умолчанию 1)
      * @property {string} color - Цветность (по умолчанию '4+0')
      * @property {number} list_count - Количество листов (вычисляемое значение, по умолчанию 0.00)
+     * @property {number} item_width - Ширина изделия (мм)
+     * @property {number} item_height - Высота изделия (мм)
+     * @property {number} fit_horizontal - Количество по горизонтали (выбранный вариант)
+     * @property {number} fit_vertical - Количество по вертикали (выбранный вариант)
+     * @property {number} fit_total - Всего изделий на листе (выбранный вариант)
+     * @property {number} fit_landscape_total - Всего при альбомной ориентации
+     * @property {number} fit_portrait_total - Всего при портретной ориентации
+     * @property {string} fit_selected_orientation - Выбранная ориентация ('auto', 'landscape', 'portrait')
      */
     currentParameters: {
         vyleta: 1,
         polosa_count: 1,
         color: '4+0',
-        list_count: 0.00
+        list_count: 0.00,
+        item_width: 90.0,
+        item_height: 50.0,
+        fit_horizontal: 0,
+        fit_vertical: 0,
+        fit_total: 0,
+        fit_landscape_total: 0,
+        fit_portrait_total: 0,
+        fit_selected_orientation: 'auto'
+    },
+
+    /**
+     * Данные о печатном листе (получаются с сервера при загрузке параметров).
+     * @property {number|null} sheet_width - Ширина листа (мм)
+     * @property {number|null} sheet_height - Высота листа (мм)
+     * @property {number|null} margin - Поля принтера (мм)
+     * @property {string|null} sheet_name - Название формата
+     */
+    sheetData: {
+        sheet_width: null,
+        sheet_height: null,
+        margin: null,
+        sheet_name: null
     },
 
     /**
@@ -106,6 +123,16 @@ var vichisliniyaListov = {
      * @type {boolean}
      */
     isParametersModified: false,
+
+    // Для хранения деталей размещения (количество по рядам) для отображения
+    landscapeDetails: { x: 0, y: 0 },
+    portraitDetails: { x: 0, y: 0 },
+
+    /**
+     * Ссылка на canvas элемент для визуализации.
+     * @type {HTMLCanvasElement|null}
+     */
+    canvas: null,
 
     // ============================================================================
     // ===== РАЗДЕЛ 2: ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ =====
@@ -117,7 +144,10 @@ var vichisliniyaListov = {
      * @returns {void}
      */
     init: function() {
-        console.log('🚀 Инициализация секции "Вычисления листов" (работа с печатными компонентами)...');
+        console.log('🚀 Инициализация секции "Вычисления листов" (с поддержкой размещения и визуализации)...');
+        
+        // Получаем ссылку на canvas для визуализации
+        this.canvas = document.getElementById('vichisliniya-listov-canvas');
         
         // Устанавливаем обработчики событий для кнопок и полей ввода внутри секции
         this.setupEventListeners();
@@ -134,7 +164,7 @@ var vichisliniyaListov = {
         }, 300);
         
         this.isInitialized = true;
-        console.log('✅ Секция "Вычисления листов" успешно инициализирована для работы с печатными компонентами');
+        console.log('✅ Секция инициализирована');
     },
 
     /**
@@ -164,7 +194,7 @@ var vichisliniyaListov = {
     setupEventListeners: function() {
         console.log('🛠️ Настройка обработчиков событий для секции "Вычисления листов"...');
 
-        // ----- Поле "Вылеты" -----
+        // ----- Поле "Вылеты" (теперь расстояние между изделиями) -----
         const vyletaInput = document.getElementById('vichisliniya-listov-vyleta-input');
         if (vyletaInput) {
             vyletaInput.addEventListener('input', (event) => this.handleVyletaInputChange(event));
@@ -198,6 +228,41 @@ var vichisliniyaListov = {
                 this.handleFieldChange(); // сразу после выбора цветности запускаем расчёт
             });
             console.log('✅ Обработчики для поля "Цветность" установлены');
+        }
+
+        // ----- НОВЫЕ ПОЛЯ: ширина изделия -----
+        const itemWidthInput = document.getElementById('vichisliniya-listov-item-width-input');
+        if (itemWidthInput) {
+            itemWidthInput.addEventListener('input', (event) => this.handleItemWidthInputChange(event));
+            itemWidthInput.addEventListener('change', (event) => this.handleFieldChange());
+            itemWidthInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') event.target.blur();
+            });
+            console.log('✅ Обработчики для поля "Ширина изделия" установлены');
+        }
+
+        // ----- НОВЫЕ ПОЛЯ: высота изделия -----
+        const itemHeightInput = document.getElementById('vichisliniya-listov-item-height-input');
+        if (itemHeightInput) {
+            itemHeightInput.addEventListener('input', (event) => this.handleItemHeightInputChange(event));
+            itemHeightInput.addEventListener('change', (event) => this.handleFieldChange());
+            itemHeightInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') event.target.blur();
+            });
+            console.log('✅ Обработчики для поля "Высота изделия" установлены');
+        }
+
+        // ----- Кнопки выбора ориентации (динамически, вешаем обработчик на контейнер) -----
+        const fittingOptions = document.querySelector('.fitting-options');
+        if (fittingOptions) {
+            fittingOptions.addEventListener('click', (event) => {
+                const btn = event.target.closest('.btn-choose-orientation');
+                if (btn) {
+                    const orientation = btn.dataset.orientation; // 'landscape' или 'portrait'
+                    this.selectOrientation(orientation);
+                }
+            });
+            console.log('✅ Обработчики для кнопок выбора ориентации установлены');
         }
 
         console.log('✅ Все обработчики событий успешно настроены');
@@ -254,7 +319,6 @@ var vichisliniyaListov = {
                 // 1. Обновляем отображение тиража и сохраняем новое значение в this.currentCirculation
                 this.updateCirculationDisplay(event.detail.circulation);
                 // 2. Запускаем автоматический пересчёт количества листов (если выбран печатный компонент)
-                //    Метод handleFieldChange сам проверит наличие компонента и тиража, затем вызовет расчёт и сохранение.
                 this.handleFieldChange();
             }
         });
@@ -487,29 +551,35 @@ var vichisliniyaListov = {
         .then(data => {
             if (data.success) {
                 console.log('✅ Параметры вычислений листов успешно загружены:', data);
+
+                // Сохраняем данные о печатном листе (если пришли)
+                if (data.sheet_width) this.sheetData.sheet_width = data.sheet_width;
+                if (data.sheet_height) this.sheetData.sheet_height = data.sheet_height;
+                if (data.margin) this.sheetData.margin = data.margin;
+                if (data.sheet_name) this.sheetData.sheet_name = data.sheet_name;
+
+                // Обновляем отображение информации о листе
+                this.updateSheetInfoDisplay();
+
                 if (data.circulation) {
                     this.currentCirculation = data.circulation;
                     this.updateCirculationDisplay(data.circulation);
                 }
                 this.updateVichisliniyaListovParameters(data);
                 this.updateVichisliniyaListovUI();
+
                 if (!data.is_default) {
                     this.showSavedData(data);
                 }
-                if (data.list_count !== undefined) {
-                    this.currentParameters.list_count = data.list_count;
-                    this.updateResultValue(data.list_count);
-                }
+
+                // После загрузки параметров выполняем расчёт размещения
+                this.calculateFitting();
+
+                // Также вызываем старый расчёт количества листов (пока для совместимости)
+                this.calculateVichisliniyaListovListCount();
+
                 this.isParametersModified = false;
                 this.updateProschetInfo(data);
-                
-                // ===== ИСПРАВЛЕНИЕ: после загрузки параметров пересчитываем количество листов =====
-                // Это гарантирует, что отображаемое количество листов будет соответствовать
-                // текущему тиражу, даже если тираж изменился с момента последнего сохранения.
-                // Метод calculateVichisliniyaListovListCount выполнит расчёт, обновит интерфейс
-                // и сохранит актуальное значение на сервер.
-                this.calculateVichisliniyaListovListCount();
-                
             } else {
                 console.error('❌ Ошибка при загрузке параметров:', data.message);
                 this.showNotification(`Ошибка: ${data.message}`, 'error');
@@ -519,6 +589,35 @@ var vichisliniyaListov = {
             console.error('❌ Ошибка сети при загрузке параметров:', error);
             this.showNotification('Ошибка сети при загрузке параметров', 'error');
         });
+    },
+
+    /**
+     * Обновляет отображение информации о печатном листе в интерфейсе.
+     */
+    updateSheetInfoDisplay: function() {
+        const sheetDimEl = document.getElementById('vichisliniya-listov-sheet-dimensions');
+        const marginEl = document.getElementById('vichisliniya-listov-margin');
+        const printableEl = document.getElementById('vichisliniya-listov-printable-dimensions');
+
+        if (sheetDimEl && this.sheetData.sheet_width && this.sheetData.sheet_height) {
+            sheetDimEl.textContent = `${this.sheetData.sheet_width}×${this.sheetData.sheet_height} мм`;
+        } else {
+            sheetDimEl.textContent = '—';
+        }
+
+        if (marginEl && this.sheetData.margin !== null) {
+            marginEl.textContent = this.sheetData.margin;
+        } else {
+            marginEl.textContent = '—';
+        }
+
+        if (printableEl && this.sheetData.sheet_width && this.sheetData.sheet_height && this.sheetData.margin !== null) {
+            const printableWidth = this.sheetData.sheet_width - 2 * this.sheetData.margin;
+            const printableHeight = this.sheetData.sheet_height - 2 * this.sheetData.margin;
+            printableEl.textContent = `${printableWidth}×${printableHeight} мм`;
+        } else {
+            printableEl.textContent = '—';
+        }
     },
 
     /**
@@ -558,6 +657,15 @@ var vichisliniyaListov = {
         if (data.polosa_count !== undefined) this.currentParameters.polosa_count = data.polosa_count;
         if (data.color) this.currentParameters.color = data.color;
         if (data.list_count !== undefined) this.currentParameters.list_count = data.list_count;
+        // Новые поля
+        if (data.item_width !== undefined) this.currentParameters.item_width = data.item_width;
+        if (data.item_height !== undefined) this.currentParameters.item_height = data.item_height;
+        if (data.fit_horizontal !== undefined) this.currentParameters.fit_horizontal = data.fit_horizontal;
+        if (data.fit_vertical !== undefined) this.currentParameters.fit_vertical = data.fit_vertical;
+        if (data.fit_total !== undefined) this.currentParameters.fit_total = data.fit_total;
+        if (data.fit_landscape_total !== undefined) this.currentParameters.fit_landscape_total = data.fit_landscape_total;
+        if (data.fit_portrait_total !== undefined) this.currentParameters.fit_portrait_total = data.fit_portrait_total;
+        if (data.fit_selected_orientation) this.currentParameters.fit_selected_orientation = data.fit_selected_orientation;
     },
 
     /**
@@ -569,12 +677,23 @@ var vichisliniyaListov = {
         console.log('🎨 Обновление интерфейса формы параметров вычислений листов...');
         const vyletaInput = document.getElementById('vichisliniya-listov-vyleta-input');
         if (vyletaInput) vyletaInput.value = this.currentParameters.vyleta;
+
         const polosaCountInput = document.getElementById('vichisliniya-listov-polosa-count-input');
         if (polosaCountInput) polosaCountInput.value = this.currentParameters.polosa_count;
+
         const colorSelect = document.getElementById('vichisliniya-listov-color-select');
         if (colorSelect) colorSelect.value = this.currentParameters.color;
+
+        // Новые поля
+        const itemWidthInput = document.getElementById('vichisliniya-listov-item-width-input');
+        if (itemWidthInput) itemWidthInput.value = this.currentParameters.item_width;
+
+        const itemHeightInput = document.getElementById('vichisliniya-listov-item-height-input');
+        if (itemHeightInput) itemHeightInput.value = this.currentParameters.item_height;
+
         this.updateResultValue(this.currentParameters.list_count);
         this.updateBreakdownDisplay();
+        this.updateFittingUI();
         console.log('✅ Интерфейс формы параметров вычислений листов обновлён');
     },
 
@@ -586,10 +705,16 @@ var vichisliniyaListov = {
         console.log('📝 Обновление отображения параметров в блоке расшифровки...');
         const vyletaElement = document.getElementById('vichisliniya-listov-breakdown-vyleta');
         if (vyletaElement) vyletaElement.textContent = this.currentParameters.vyleta;
+
         const polosaCountElement = document.getElementById('vichisliniya-listov-breakdown-polosa-count');
         if (polosaCountElement) polosaCountElement.textContent = this.currentParameters.polosa_count;
+
         const colorElement = document.getElementById('vichisliniya-listov-breakdown-color');
         if (colorElement) colorElement.textContent = this.currentParameters.color;
+
+        const breakdownFitEl = document.getElementById('vichisliniya-listov-breakdown-fit-total');
+        if (breakdownFitEl) breakdownFitEl.textContent = this.currentParameters.fit_total;
+
         this.updateFormulaDisplay();
     },
 
@@ -600,9 +725,11 @@ var vichisliniyaListov = {
     updateFormulaDisplay: function() {
         console.log('🧮 Обновление отображения формулы расчёта...');
         const formulaElement = document.getElementById('vichisliniya-listov-formula-text');
-        if (formulaElement && this.currentCirculation) {
-            const formula = `(${this.currentCirculation} / ${this.currentParameters.polosa_count}) + ${this.currentParameters.vyleta}`;
+        if (formulaElement && this.currentCirculation && this.currentParameters.fit_total > 0) {
+            const formula = `${this.currentCirculation} / ${this.currentParameters.fit_total} (окр. вверх)`;
             formulaElement.textContent = formula;
+        } else if (formulaElement) {
+            formulaElement.textContent = '—';
         }
     },
 
@@ -636,7 +763,16 @@ var vichisliniyaListov = {
             list_count: this.currentParameters.list_count,
             vyleta: this.currentParameters.vyleta,
             polosa_count: this.currentParameters.polosa_count,
-            color: this.currentParameters.color
+            color: this.currentParameters.color,
+            // Новые поля
+            item_width: this.currentParameters.item_width,
+            item_height: this.currentParameters.item_height,
+            fit_horizontal: this.currentParameters.fit_horizontal,
+            fit_vertical: this.currentParameters.fit_vertical,
+            fit_total: this.currentParameters.fit_total,
+            fit_landscape_total: this.currentParameters.fit_landscape_total,
+            fit_portrait_total: this.currentParameters.fit_portrait_total,
+            fit_selected_orientation: this.currentParameters.fit_selected_orientation
         };
         const csrfToken = this.getCsrfToken();
 
@@ -711,8 +847,7 @@ var vichisliniyaListov = {
         this.isParametersModified = true;
         const vyletaElement = document.getElementById('vichisliniya-listov-breakdown-vyleta');
         if (vyletaElement) vyletaElement.textContent = newValue;
-        this.updateFormulaDisplay();
-        // Расчёт и сохранение не вызываем — они произойдут по событию change (потеря фокуса или Enter)
+        // Убрали вызов updateFormulaDisplay, так как формула теперь зависит от fit_total, который изменится при пересчёте.
     },
 
     /**
@@ -733,7 +868,7 @@ var vichisliniyaListov = {
         this.isParametersModified = true;
         const polosaCountElement = document.getElementById('vichisliniya-listov-breakdown-polosa-count');
         if (polosaCountElement) polosaCountElement.textContent = newValue;
-        this.updateFormulaDisplay();
+        // Убрали вызов updateFormulaDisplay.
     },
 
     /**
@@ -753,6 +888,39 @@ var vichisliniyaListov = {
     },
 
     /**
+     * Обработчик изменения ширины изделия.
+     * @param {Event} event - Событие ввода
+     */
+    handleItemWidthInputChange: function(event) {
+        console.log('✏️ Изменение ширины изделия:', event.target.value);
+        let newValue = parseFloat(event.target.value) || 1;
+        if (newValue < 1 || newValue > 1000) {
+            this.showNotification('Ширина должна быть от 1 до 1000 мм', 'warning');
+            event.target.value = Math.max(1, Math.min(1000, newValue));
+            return;
+        }
+        this.currentParameters.item_width = newValue;
+        this.isParametersModified = true;
+        // Расчёт произойдёт по событию change
+    },
+
+    /**
+     * Обработчик изменения высоты изделия.
+     * @param {Event} event - Событие ввода
+     */
+    handleItemHeightInputChange: function(event) {
+        console.log('✏️ Изменение высоты изделия:', event.target.value);
+        let newValue = parseFloat(event.target.value) || 1;
+        if (newValue < 1 || newValue > 1000) {
+            this.showNotification('Высота должна быть от 1 до 1000 мм', 'warning');
+            event.target.value = Math.max(1, Math.min(1000, newValue));
+            return;
+        }
+        this.currentParameters.item_height = newValue;
+        this.isParametersModified = true;
+    },
+
+    /**
      * Обработчик подтверждения изменения поля (событие change или нажатие Enter).
      * Выполняет расчёт количества листов и сохраняет параметры.
      * @returns {void}
@@ -767,8 +935,15 @@ var vichisliniyaListov = {
             this.showNotification('Для расчёта необходимо указать тираж', 'warning');
             return;
         }
-        // Если параметры не были изменены, возможно, расчёт уже актуален, но мы всё равно пересчитаем
+
+        // Пересчитываем размещение
+        this.calculateFitting();
+
+        // Пересчитываем количество листов (старая функция)
         this.calculateVichisliniyaListovListCount();
+
+        // Сохраняем все параметры на сервер
+        this.saveVichisliniyaListovParameters();
     },
 
     // ============================================================================
@@ -776,25 +951,240 @@ var vichisliniyaListov = {
     // ============================================================================
 
     /**
+     * Основная функция расчёта размещения.
+     * Вызывается при изменении любого параметра (размеры изделия, vyleta, данные листа).
+     * ТЕПЕРЬ В КОНЦЕ ВЫЗЫВАЕТ ПЕРЕРИСОВКУ СХЕМЫ.
+     */
+    calculateFitting: function() {
+        console.log('📐 Расчёт размещения изделий на листе...');
+
+        // Проверяем наличие всех необходимых данных
+        if (!this.sheetData.sheet_width || !this.sheetData.sheet_height || this.sheetData.margin === null) {
+            console.warn('⚠️ Нет данных о листе. Расчёт невозможен.');
+            // Если нет данных, всё равно пытаемся нарисовать (очистит canvas или покажет сообщение)
+            this.drawPlacement();
+            return;
+        }
+
+        if (!this.currentParameters.item_width || !this.currentParameters.item_height) {
+            console.warn('⚠️ Не заданы размеры изделия.');
+            this.drawPlacement();
+            return;
+        }
+
+        // Размер печатной области
+        const printableWidth = this.sheetData.sheet_width - 2 * this.sheetData.margin;
+        const printableHeight = this.sheetData.sheet_height - 2 * this.sheetData.margin;
+
+        if (printableWidth <= 0 || printableHeight <= 0) {
+            console.warn('⚠️ Печатная область имеет неположительные размеры.');
+            this.currentParameters.fit_landscape_total = 0;
+            this.currentParameters.fit_portrait_total = 0;
+            this.currentParameters.fit_total = 0;
+            this.currentParameters.fit_horizontal = 0;
+            this.currentParameters.fit_vertical = 0;
+            this.updateFittingUI();
+            this.drawPlacement(); // Отрисовываем пустую схему с сообщением
+            return;
+        }
+
+        // Параметры изделия и зазор
+        const itemW = this.currentParameters.item_width;
+        const itemH = this.currentParameters.item_height;
+        const gap = this.currentParameters.vyleta; // расстояние между изделиями
+
+        // Вспомогательная функция для расчёта количества по одному измерению
+        function countItems(available, itemSize, gap) {
+            // Формула: (available + gap) // (itemSize + gap)
+            // Работает, если первый элемент начинается от края и между ними gap.
+            if (itemSize <= 0) return 0;
+            const step = itemSize + gap;
+            if (step <= 0) return 0;
+            return Math.floor((available + gap) / step);
+        }
+
+        // Альбомная ориентация (изделие не повёрнуто)
+        let countXLand = countItems(printableWidth, itemW, gap);
+        let countYLand = countItems(printableHeight, itemH, gap);
+        let totalLand = countXLand * countYLand;
+
+        // Портретная ориентация (изделие повёрнуто на 90°)
+        let countXPort = countItems(printableWidth, itemH, gap);
+        let countYPort = countItems(printableHeight, itemW, gap);
+        let totalPort = countXPort * countYPort;
+
+        // Сохраняем оба варианта
+        this.currentParameters.fit_landscape_total = totalLand;
+        this.currentParameters.fit_portrait_total = totalPort;
+
+        // Детали для отображения (количество по рядам)
+        this.landscapeDetails = { x: countXLand, y: countYLand };
+        this.portraitDetails = { x: countXPort, y: countYPort };
+
+        // Определяем выбранную ориентацию
+        let selectedOrientation = this.currentParameters.fit_selected_orientation;
+        // Если 'auto', выбираем ту, где больше
+        if (selectedOrientation === 'auto') {
+            if (totalLand >= totalPort) {
+                selectedOrientation = 'landscape';
+            } else {
+                selectedOrientation = 'portrait';
+            }
+        }
+
+        // Применяем выбранную ориентацию
+        this.applySelectedOrientation(selectedOrientation);
+
+        // Обновляем интерфейс
+        this.updateFittingUI();
+
+        // === НОВОЕ: перерисовываем схему размещения ===
+        this.drawPlacement();
+    },
+
+    /**
+     * Применяет выбранную ориентацию и заполняет поля fit_horizontal, fit_vertical, fit_total.
+     */
+    applySelectedOrientation: function(orientation) {
+        if (orientation === 'landscape') {
+            this.currentParameters.fit_horizontal = this.landscapeDetails.x;
+            this.currentParameters.fit_vertical = this.landscapeDetails.y;
+            this.currentParameters.fit_total = this.currentParameters.fit_landscape_total;
+            this.currentParameters.fit_selected_orientation = 'landscape';
+        } else if (orientation === 'portrait') {
+            this.currentParameters.fit_horizontal = this.portraitDetails.x;
+            this.currentParameters.fit_vertical = this.portraitDetails.y;
+            this.currentParameters.fit_total = this.currentParameters.fit_portrait_total;
+            this.currentParameters.fit_selected_orientation = 'portrait';
+        } else {
+            // Не должно быть
+            this.currentParameters.fit_horizontal = 0;
+            this.currentParameters.fit_vertical = 0;
+            this.currentParameters.fit_total = 0;
+            this.currentParameters.fit_selected_orientation = 'auto';
+        }
+
+        // Обновляем отображение выбранной ориентации
+        const selectedNameEl = document.getElementById('vichisliniya-listov-selected-orientation-name');
+        if (selectedNameEl) {
+            if (orientation === 'landscape') selectedNameEl.textContent = 'альбомная';
+            else if (orientation === 'portrait') selectedNameEl.textContent = 'портретная';
+            else selectedNameEl.textContent = 'автоматически';
+        }
+
+        const selectedTotalEl = document.getElementById('vichisliniya-listov-selected-fit-total');
+        if (selectedTotalEl) {
+            selectedTotalEl.textContent = this.currentParameters.fit_total;
+        }
+
+        // Обновляем расшифровку в результатах
+        const breakdownFitEl = document.getElementById('vichisliniya-listov-breakdown-fit-total');
+        if (breakdownFitEl) {
+            breakdownFitEl.textContent = this.currentParameters.fit_total;
+        }
+    },
+
+    /**
+     * Обновляет интерфейс блока размещения (цифры вариантов, выделение активного).
+     */
+    updateFittingUI: function() {
+        // Альбомный вариант
+        const landscapeCountEl = document.getElementById('vichisliniya-listov-landscape-count');
+        const landscapeDetailsEl = document.getElementById('vichisliniya-listov-landscape-details');
+        if (landscapeCountEl) landscapeCountEl.textContent = this.currentParameters.fit_landscape_total;
+        if (landscapeDetailsEl && this.landscapeDetails) {
+            landscapeDetailsEl.textContent = `${this.landscapeDetails.x}×${this.landscapeDetails.y}`;
+        }
+
+        // Портретный вариант
+        const portraitCountEl = document.getElementById('vichisliniya-listov-portrait-count');
+        const portraitDetailsEl = document.getElementById('vichisliniya-listov-portrait-details');
+        if (portraitCountEl) portraitCountEl.textContent = this.currentParameters.fit_portrait_total;
+        if (portraitDetailsEl && this.portraitDetails) {
+            portraitDetailsEl.textContent = `${this.portraitDetails.x}×${this.portraitDetails.y}`;
+        }
+
+        // Подсветка выбранного варианта
+        const optionLand = document.getElementById('vichisliniya-listov-option-landscape');
+        const optionPort = document.getElementById('vichisliniya-listov-option-portrait');
+        if (optionLand && optionPort) {
+            optionLand.classList.remove('active');
+            optionPort.classList.remove('active');
+            if (this.currentParameters.fit_selected_orientation === 'landscape') {
+                optionLand.classList.add('active');
+            } else if (this.currentParameters.fit_selected_orientation === 'portrait') {
+                optionPort.classList.add('active');
+            }
+        }
+
+        // Обновляем выбранный текст
+        const selectedNameEl = document.getElementById('vichisliniya-listov-selected-orientation-name');
+        const selectedTotalEl = document.getElementById('vichisliniya-listov-selected-fit-total');
+        if (selectedNameEl) {
+            if (this.currentParameters.fit_selected_orientation === 'landscape') selectedNameEl.textContent = 'альбомная';
+            else if (this.currentParameters.fit_selected_orientation === 'portrait') selectedNameEl.textContent = 'портретная';
+            else selectedNameEl.textContent = 'автоматически';
+        }
+        if (selectedTotalEl) {
+            selectedTotalEl.textContent = this.currentParameters.fit_total;
+        }
+    },
+
+    /**
+     * Обработчик выбора ориентации пользователем.
+     */
+    selectOrientation: function(orientation) {
+        console.log(`🎯 Выбрана ориентация: ${orientation}`);
+        this.currentParameters.fit_selected_orientation = orientation;
+        this.applySelectedOrientation(orientation);
+        this.isParametersModified = true;
+        // После вызова apply уже обновлены fit_horizontal и др.
+        // Вызовем handleFieldChange для сохранения и пересчёта количества листов.
+        this.handleFieldChange();
+    },
+
+    /**
      * Вычисление количества листов на основе текущих параметров и тиража (локально).
+     * Новая формула: количество листов = ceil(тираж / количество_изделий_на_листе)
      * @returns {void}
      */
     calculateVichisliniyaListovListCount: function() {
-        console.log('🧮 Вычисление количества листов локально...');
+        console.log('🧮 Вычисление количества листов локально по новой формуле...');
 
         if (!this.currentCirculation) {
             console.warn('⚠️ Невозможно выполнить расчёт: не указан тираж');
             return;
         }
 
-        const calculated = (this.currentCirculation / this.currentParameters.polosa_count) + this.currentParameters.vyleta;
+        // Получаем количество изделий на листе при выбранной ориентации
+        const fitTotal = this.currentParameters.fit_total;
+
+        // Защита от деления на ноль
+        if (!fitTotal || fitTotal <= 0) {
+            console.warn('⚠️ Невозможно выполнить расчёт: количество изделий на листе равно 0');
+            this.currentParameters.list_count = 0.00;
+            this.updateResultValue(0.00);
+            const resultBadgeElement = document.getElementById('vichisliniya-listov-result-badge');
+            if (resultBadgeElement) {
+                resultBadgeElement.textContent = 'ошибка: fit_total=0';
+                resultBadgeElement.className = 'result-badge error';
+            }
+            return;
+        }
+
+        // Расчёт: округление вверх до целого числа
+        const rawCount = this.currentCirculation / fitTotal;
+        const calculated = Math.ceil(rawCount); // округление вверх
 
         this.currentParameters.list_count = calculated;
+
+        // Формируем формулу для отображения
+        const formula = `${this.currentCirculation} / ${fitTotal} (окр. вверх) = ${calculated}`;
 
         const resultData = {
             calculated_list_count: calculated,
             circulation: this.currentCirculation,
-            formula: `(${this.currentCirculation} / ${this.currentParameters.polosa_count}) + ${this.currentParameters.vyleta}`,
+            formula: formula,
             vyleta: this.currentParameters.vyleta,
             polosa_count: this.currentParameters.polosa_count,
             color: this.currentParameters.color
@@ -803,7 +1193,6 @@ var vichisliniyaListov = {
         this.updateCalculationResult(resultData);
 
         if (this.currentPrintComponentId) {
-            // Генерируем событие, которое будет обработано в print_components.js
             const event = new CustomEvent('vichisliniyaListovUpdated', {
                 detail: {
                     printComponentId: this.currentPrintComponentId,
@@ -814,11 +1203,6 @@ var vichisliniyaListov = {
             document.dispatchEvent(event);
             console.log(`📤 Событие vichisliniyaListovUpdated отправлено для компонента ${this.currentPrintComponentId}`);
         }
-
-        // После расчёта сразу сохраняем параметры на сервер
-        this.saveVichisliniyaListovParameters();
-
-        this.showNotification('Расчёт выполнен успешно', 'success');
     },
 
     /**
@@ -859,11 +1243,148 @@ var vichisliniyaListov = {
     },
 
     // ============================================================================
-    // ===== РАЗДЕЛ 9: СБРОС СЕКЦИИ =====
+    // ===== НОВЫЙ РАЗДЕЛ 9: ВИЗУАЛИЗАЦИЯ РАЗМЕЩЕНИЯ НА CANVAS =====
+    // ============================================================================
+
+    /**
+     * Отрисовка схемы размещения изделий на листе.
+     * Использует текущие параметры: размеры листа, поля, выбранную ориентацию, размеры изделия, зазор.
+     * @returns {void}
+     */
+    drawPlacement: function() {
+        // Если canvas не найден (например, элемент ещё не загружен), выходим
+        if (!this.canvas) {
+            console.warn('⚠️ Canvas для визуализации не найден');
+            return;
+        }
+
+        const ctx = this.canvas.getContext('2d');
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Проверяем, есть ли данные о листе
+        if (!this.sheetData.sheet_width || !this.sheetData.sheet_height || this.sheetData.margin === null) {
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Нет данных о листе', 10, 20);
+            return;
+        }
+
+        // Определяем выбранную ориентацию
+        const orientation = this.currentParameters.fit_selected_orientation;
+        // Если ориентация 'auto', значит она ещё не выбрана (обычно не должно быть)
+        if (orientation === 'auto') {
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Ориентация не выбрана', 10, 20);
+            return;
+        }
+
+        // Определяем размеры изделия и количество по рядам в зависимости от ориентации
+        let itemW, itemH, fitH, fitV;
+        if (orientation === 'landscape') {
+            itemW = this.currentParameters.item_width;
+            itemH = this.currentParameters.item_height;
+            fitH = this.currentParameters.fit_horizontal;
+            fitV = this.currentParameters.fit_vertical;
+        } else { // portrait
+            // В портретной ориентации изделие повёрнуто: ширина = исходная высота, высота = исходная ширина
+            itemW = this.currentParameters.item_height;
+            itemH = this.currentParameters.item_width;
+            fitH = this.currentParameters.fit_horizontal;
+            fitV = this.currentParameters.fit_vertical;
+        }
+
+        const gap = this.currentParameters.vyleta;
+        const margin = this.sheetData.margin;
+        const sheetW = this.sheetData.sheet_width;
+        const sheetH = this.sheetData.sheet_height;
+
+        // Если количество по рядам равно нулю, выводим сообщение и не рисуем изделия
+        if (fitH === 0 || fitV === 0) {
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Изделия не помещаются на листе', 10, 20);
+            // Всё равно рисуем контур листа и печатную область
+        }
+
+        // Вычисляем масштаб, чтобы весь лист поместился в canvas с отступами 10px
+        const padding = 10;
+        const scale = Math.min(
+            (this.canvas.width - 2 * padding) / sheetW,
+            (this.canvas.height - 2 * padding) / sheetH
+        );
+
+        // Сохраняем контекст и смещаем начало координат для отступа
+        ctx.save();
+        ctx.translate(padding, padding);
+
+        // 1. Рисуем контур листа (внешняя рамка)
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+        // 2. Рисуем печатную область (пунктирная линия)
+        ctx.strokeStyle = '#999';
+        ctx.setLineDash([4, 2]);
+        ctx.strokeRect(
+            margin * scale,
+            margin * scale,
+            (sheetW - 2 * margin) * scale,
+            (sheetH - 2 * margin) * scale
+        );
+        ctx.setLineDash([]); // возвращаем обычную линию
+
+        // 3. Если изделия помещаются, рисуем их
+        if (fitH > 0 && fitV > 0) {
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.3)'; // полупрозрачный синий
+            ctx.strokeStyle = '#2980b9';              // тёмно-синий контур
+            ctx.lineWidth = 0.5;
+
+            for (let row = 0; row < fitV; row++) {
+                for (let col = 0; col < fitH; col++) {
+                    // Координаты левого верхнего угла изделия (с учётом полей и зазоров)
+                    const x = margin + col * (itemW + gap);
+                    const y = margin + row * (itemH + gap);
+                    
+                    ctx.fillRect(x * scale, y * scale, itemW * scale, itemH * scale);
+                    ctx.strokeRect(x * scale, y * scale, itemW * scale, itemH * scale);
+                }
+            }
+        } else {
+            // Если не помещается, пишем текст внутри листа
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillText('Не помещается', 20 * scale, 50 * scale);
+        }
+
+        // Восстанавливаем контекст (отмена translate)
+        ctx.restore();
+
+        // Обновляем подпись с названием ориентации
+        const label = document.getElementById('vichisliniya-listov-viz-orientation-label');
+        if (label) {
+            label.textContent = orientation === 'landscape' ? '(альбомная)' : '(портретная)';
+        }
+    },
+
+    /**
+     * Очистка canvas (например, при сбросе секции).
+     * @returns {void}
+     */
+    clearCanvas: function() {
+        if (this.canvas) {
+            const ctx = this.canvas.getContext('2d');
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    },
+
+    // ============================================================================
+    // ===== РАЗДЕЛ 10: СБРОС СЕКЦИИ (обновлён) =====
     // ============================================================================
 
     /**
      * Полный сброс секции "Вычисления листов".
+     * ТЕПЕРЬ ТАКЖЕ ОЧИЩАЕТ CANVAS.
      * @returns {void}
      */
     resetSection: function() {
@@ -877,6 +1398,9 @@ var vichisliniyaListov = {
         this.currentPrintComponentInfo = null;
         this.isDataLoaded = false;
 
+        // Сброс данных листа
+        this.sheetData = { sheet_width: null, sheet_height: null, margin: null, sheet_name: null };
+
         this.resetToDefaults();
 
         const titleElement = document.getElementById('vichisliniya-listov-proschet-title');
@@ -886,6 +1410,12 @@ var vichisliniyaListov = {
 
         this.toggleSectionDisplay(false);
         this.resetPrintComponentInfo();
+
+        // Обновить информацию о листе
+        this.updateSheetInfoDisplay();
+
+        // === НОВОЕ: очищаем canvas ===
+        this.clearCanvas();
 
         console.log('✅ Секция сброшена – ожидание выбора печатного компонента');
     },
@@ -944,7 +1474,15 @@ var vichisliniyaListov = {
             vyleta: 1,
             polosa_count: 1,
             color: '4+0',
-            list_count: 0.00
+            list_count: 0.00,
+            item_width: 90.0,
+            item_height: 50.0,
+            fit_horizontal: 0,
+            fit_vertical: 0,
+            fit_total: 0,
+            fit_landscape_total: 0,
+            fit_portrait_total: 0,
+            fit_selected_orientation: 'auto'
         };
         this.isParametersModified = false;
         this.updateVichisliniyaListovUI();
@@ -958,7 +1496,7 @@ var vichisliniyaListov = {
     },
 
     // ============================================================================
-    // ===== РАЗДЕЛ 10: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    // ===== РАЗДЕЛ 11: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     // ============================================================================
 
     /**

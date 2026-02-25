@@ -99,4 +99,9 @@ urlpatterns = [
     # API для получения данных о стоимости просчёта (для сводки)
     # ------------------------------------------------------------
     path('get-proschet-price-data/<int:proschet_id>/', views.get_proschet_price_data, name='get_proschet_price_data'),
+
+    # Новый маршрут для массового пересчёта компонентов при изменении тиража
+    path('recalculate-components/<int:proschet_id>/', 
+         views.recalculate_components_for_circulation, 
+         name='recalculate_components'),
 ]

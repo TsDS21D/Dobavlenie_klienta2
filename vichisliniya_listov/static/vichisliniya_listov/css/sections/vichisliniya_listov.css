@@ -605,7 +605,51 @@
     animation: vichisliniyaListovFadeIn 0.15s ease-out;
 }
 
-/* ===== 13. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
+/* ===== 13. СТИЛИ ДЛЯ БЛОКА ВИЗУАЛИЗАЦИИ (НОВЫЙ РАЗДЕЛ) ===== */
+
+.vichisliniya-listov-visualization {
+    margin-top: 1rem;                          /* Отступ сверху от предыдущих элементов */
+    padding: 0.8rem;                            /* Внутренние отступы */
+    background-color: #fff;                      /* Белый фон */
+    border-radius: 4px;                          /* Скругление углов */
+    border: 1px solid #e9ecef;                    /* Светло-серая рамка */
+}
+
+.vichisliniya-listov-visualization h4 {
+    margin: 0 0 0.5rem 0;                        /* Отступы: сверху 0, снизу 0.5rem */
+    font-size: 0.85rem;                           /* Размер шрифта */
+    color: #2c3e50;                               /* Темно-синий цвет */
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;                                  /* Расстояние между текстом и меткой ориентации */
+}
+
+#vichisliniya-listov-viz-orientation-label {
+    font-weight: normal;
+    color: #7f8c8d;
+    font-size: 0.75rem;
+}
+
+.canvas-container {
+    text-align: center;                          /* Выравнивание canvas по центру */
+}
+
+#vichisliniya-listov-canvas {
+    max-width: 100%;                              /* Адаптация под ширину контейнера */
+    height: auto;                                 /* Сохраняем пропорции */
+    border: 1px solid #ddd;                       /* Тонкая серая рамка вокруг canvas */
+    background-color: #f8f9fa;                    /* Светлый фон для пустого холста */
+    cursor: default;
+}
+
+.canvas-note {
+    margin: 0.3rem 0 0 0;                         /* Отступ сверху */
+    font-size: 0.65rem;                            /* Очень мелкий шрифт для примечания */
+    color: #7f8c8d;                                /* Серый цвет */
+    font-style: italic;                            /* Курсив */
+}
+
+/* ===== 14. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ (были 13, теперь 14) ===== */
 
 #vichisliniya-listov-section.collapsed .section-body {
     display: none;
@@ -623,7 +667,7 @@
     transform-origin: center;
 }
 
-/* ===== 14. АДАПТИВНЫЕ СТИЛИ ===== */
+/* ===== 15. АДАПТИВНЫЕ СТИЛИ (были 14, теперь 15) ===== */
 
 /* Для планшетов и небольших ноутбуков (до 1137px) */
 @media (max-width: 1137px) {

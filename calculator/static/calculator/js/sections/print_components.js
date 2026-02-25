@@ -4,14 +4,11 @@
  * 
  * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист + Цена бумаги за лист) × Количество листов
  * 
- * ВАЖНО: Количество листов берётся из секции "Вычисления листов" (vichisliniya_listov).
- * При изменении количества листов (событие 'vichisliniyaListovUpdated')
- * автоматически пересчитывается стоимость соответствующего компонента.
- * 
- * ИСПРАВЛЕНИЕ (17.02.2026):
- * - Раньше пересчёт стоимости выполнялся только для выбранного компонента.
- *   Теперь при изменении количества листов для ЛЮБОГО компонента (даже невыбранного)
- *   его стоимость обновляется. Это гарантирует актуальность данных в таблице.
+ * ИЗМЕНЕНИЯ ДЛЯ МАССОВОГО ПЕРЕСЧЁТА ПРИ ИЗМЕНЕНИИ ТИРАЖА:
+ * - Добавлена функция recalculateAllComponentsForCirculation, которая отправляет
+ *   POST-запрос на сервер для пересчёта всех компонентов текущего просчёта с новым тиражом.
+ * - Добавлен обработчик события productCirculationSaved, который запускает массовый пересчёт.
+ * - После обновления таблицы восстанавливается выделение выбранного компонента.
  */
 
 "use strict";
@@ -19,120 +16,52 @@
 // ============================================================================
 // 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНСТАНТЫ
 // ============================================================================
+let currentProschetId = null;               // ID текущего выбранного просчёта
+let currentComponents = [];                  // Массив текущих компонентов печати
+let selectedComponentId = null;               // ID выбранного печатного компонента
+let currentSheetCount = null;                 // Текущее количество листов для выбранного компонента
+let sheetCountObserver = null;                 // MutationObserver для отслеживания изменений количества листов
+let updateTimeout = null;                      // Таймер для отложенного обновления (дебаунс)
+let abortController = null;                    // Контроллер для отмены запросов
 
-/**
- * ID текущего выбранного просчёта.
- * @type {string|null}
- */
-let currentProschetId = null;
-
-/**
- * Массив текущих компонентов печати.
- * @type {Array}
- */
-let currentComponents = [];
-
-/**
- * ID выбранного печатного компонента (используется для подсветки строки и других целей).
- * @type {string|null}
- */
-let selectedComponentId = null;
-
-/**
- * Текущее количество листов для выбранного компонента (из vichisliniya_listov).
- * @type {number|null}
- */
-let currentSheetCount = null;
-
-/**
- * MutationObserver для отслеживания изменений количества листов в секции "Вычисления листов".
- * @type {MutationObserver|null}
- */
-let sheetCountObserver = null;
-
-/**
- * Таймер для отложенного обновления (дебаунс).
- * @type {number|null}
- */
-let updateTimeout = null;
-
-/**
- * Контроллер для отмены запросов.
- * @type {AbortController|null}
- */
-let abortController = null;
-
-/**
- * URL для API запросов.
- * @type {Object}
- */
 const API_URLS = {
-    getComponents: '/calculator/get-print-components/',   // GET-запрос: список компонентов
-    updateComponentPrice: '/calculator/update-component-price/' // POST-запрос: пересчёт стоимости
+    getComponents: '/calculator/get-print-components/',
+    updateComponentPrice: '/calculator/update-component-price/',
+    recalculateAll: '/calculator/recalculate-components/'   // новый эндпоинт для массового пересчёта
 };
 
-/**
- * Задержка для обновления стоимости (в миллисекундах).
- * Используется для оптимизации – не отправляем запрос при каждом нажатии клавиши.
- * @type {number}
- */
 const UPDATE_DELAY = 1000; // 1 секунда
 
 // ============================================================================
 // 2. ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
 // ============================================================================
-
-/**
- * Инициализация секции при загрузке страницы.
- * Вызывается один раз, когда DOM полностью построен.
- */
 function initPrintComponents() {
     console.log('🔄 Инициализация секции "Печатные компоненты"...');
     console.log('📝 ФОРМУЛА РАСЧЁТА: (Цена печати за лист + Цена бумаги за лист) × Количество листов');
 
-    // Устанавливаем обработчики событий для кнопок внутри секции
     setupEventListeners();
-
-    // Инициализируем интерфейс – показываем сообщение «просчёт не выбран»
     initInterface();
-
     console.log('✅ Секция "Печатные компоненты" инициализирована');
-    console.log('ℹ️ Ожидание событий от других секций...');
 }
 
-/**
- * Настройка обработчиков событий внутри секции.
- */
 function setupEventListeners() {
     console.log('🛠️ Настройка обработчиков событий...');
-
-    // Кнопка "Добавить" (основная)
     const addBtn = document.getElementById('add-print-component-btn');
     if (addBtn) {
         addBtn.addEventListener('click', handleAddComponent);
-        console.log('✅ Обработчик для кнопки "Добавить компонент" установлен');
     }
-
-    // Кнопка "Добавить первый компонент" (показывается, когда компонентов нет)
     const addFirstBtn = document.getElementById('add-first-component-btn');
     if (addFirstBtn) {
         addFirstBtn.addEventListener('click', handleAddFirstComponent);
-        console.log('✅ Обработчик для кнопки "Добавить первый компонент" установлен');
     }
-
-    // Подписка на события от других секций (выбор просчёта, обновление листов и т.д.)
     setupIntersectionListeners();
 }
 
-/**
- * Настройка обработчиков событий от других секций.
- * Именно здесь мы связываем секцию "Печатные компоненты" с остальными частями системы.
- */
 function setupIntersectionListeners() {
     console.log('🔗 Настройка обработчиков событий от других секций...');
 
     // ------------------------------------------------------------
-    // 1. СОБЫТИЕ ВЫБОРА ПРОСЧЁТА (из секции "Список просчётов")
+    // 1. ВЫБОР ПРОСЧЁТА (из секции "Список просчётов")
     // ------------------------------------------------------------
     document.addEventListener('proschetSelected', function(event) {
         console.log('📥 Получено событие выбора просчёта:', event.detail);
@@ -142,25 +71,18 @@ function setupIntersectionListeners() {
     });
 
     // ------------------------------------------------------------
-    // 2. СОБЫТИЕ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЛИСТОВ (из секции "Вычисления листов")
+    // 2. ИЗМЕНЕНИЕ КОЛИЧЕСТВА ЛИСТОВ ДЛЯ ОДНОГО КОМПОНЕНТА (из секции "Вычисления листов")
     // ------------------------------------------------------------
     document.addEventListener('vichisliniyaListovUpdated', function(event) {
-        console.log('📥 Получено событие обновления количества листов:', event.detail);
-        // ВАЖНОЕ ИСПРАВЛЕНИЕ: теперь обрабатываем событие для ЛЮБОГО компонента,
-        // а не только для выбранного. Это гарантирует, что стоимость в таблице всегда актуальна.
+        console.log('📥 Получено событие обновления количества листов для одного компонента:', event.detail);
         if (event.detail && event.detail.printComponentId) {
-            // 1. Обновляем отображение количества листов в таблице (для всех компонентов)
             updateSheetCountDisplayForComponent(event.detail.printComponentId, event.detail.listCount);
-            
-            // 2. Пересчитываем стоимость компонента (вызываем API)
-            //    Раньше здесь было условие, проверяющее, что компонент выбран.
-            //    Теперь пересчёт выполняется для любого компонента, по которому пришло событие.
             recalculateComponentPrice(event.detail.printComponentId, event.detail.listCount);
         }
     });
 
     // ------------------------------------------------------------
-    // 3. СОБЫТИЕ ВЫБОРА ПЕЧАТНОГО КОМПОНЕНТА (генерируется внутри этой же секции)
+    // 3. ВЫБОР ПЕЧАТНОГО КОМПОНЕНТА (генерируется внутри этой же секции)
     // ------------------------------------------------------------
     document.addEventListener('printComponentSelected', function(event) {
         console.log('📥 Получено событие выбора печатного компонента:', event.detail);
@@ -171,18 +93,25 @@ function setupIntersectionListeners() {
     });
 
     // ------------------------------------------------------------
-    // 4. СОБЫТИЕ ОТМЕНЫ ВЫБОРА ПРОСЧЁТА
+    // 4. ОТМЕНА ВЫБОРА ПРОСЧЁТА
     // ------------------------------------------------------------
     document.addEventListener('proschetDeselected', function() {
         console.log('📥 Получено событие отмены выбора просчёта');
         resetSection();
     });
+
+    // ------------------------------------------------------------
+    // 5. МАССОВЫЙ ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ ТИРАЖА (НОВЫЙ ОБРАБОТЧИК)
+    // ------------------------------------------------------------
+    document.addEventListener('productCirculationSaved', function(event) {
+        const { proschetId, circulation } = event.detail;
+        console.log(`📥 Получено событие сохранения тиража: просчёт=${proschetId}, тираж=${circulation}`);
+        if (proschetId && circulation && proschetId === currentProschetId) {
+            recalculateAllComponentsForCirculation(proschetId, circulation);
+        }
+    });
 }
 
-/**
- * Инициализация интерфейса – сразу после загрузки показываем сообщение
- * «Выберите просчёт», скрываем всё остальное.
- */
 function initInterface() {
     console.log('🎨 Инициализация интерфейса...');
     showNoProschetSelectedMessage();
@@ -191,23 +120,12 @@ function initInterface() {
 // ============================================================================
 // 3. ФУНКЦИЯ ОТМЕНЫ ВЫБОРА ПЕЧАТНОГО КОМПОНЕНТА
 // ============================================================================
-
-/**
- * Снимает выделение с текущего печатного компонента и генерирует событие
- * 'printComponentDeselected', чтобы другие секции (например, "Вычисления листов")
- * узнали об этом и сбросили своё состояние.
- */
 function deselectCurrentComponent() {
-    // Если компонент действительно был выбран
     if (selectedComponentId) {
         console.log(`🔄 Снятие выбора с компонента ID: ${selectedComponentId}`);
-
-        // Удаляем класс 'selected' со всех строк таблицы компонентов
         document.querySelectorAll('#print-components-table-body tr').forEach(row => {
             row.classList.remove('selected');
         });
-
-        // Создаём пользовательское событие с данными о том, какой компонент был отменён
         const event = new CustomEvent('printComponentDeselected', {
             detail: {
                 printComponentId: selectedComponentId,
@@ -215,17 +133,11 @@ function deselectCurrentComponent() {
                 reason: 'component_deselected'
             }
         });
-        // Отправляем событие глобально – все секции его увидят
         document.dispatchEvent(event);
         console.log('📤 Событие printComponentDeselected отправлено');
-
-        // Сбрасываем глобальные переменные, связанные с выбором
         selectedComponentId = null;
         currentSheetCount = null;
-
-        // Останавливаем наблюдение за количеством листов
         stopSheetCountObservation();
-        // Очищаем таймер отложенного обновления
         clearUpdateTimeout();
     } else {
         console.log('ℹ️ Нет выбранного компонента для отмены');
@@ -235,47 +147,30 @@ function deselectCurrentComponent() {
 // ============================================================================
 // 4. ФУНКЦИИ ДЛЯ РАБОТЫ С СЕРВЕРОМ (API)
 // ============================================================================
-
-/**
- * Загрузка компонентов печати для указанного просчёта.
- * @param {string} proschetId - ID просчёта
- * @param {AbortSignal} signal - Сигнал для отмены запроса
- */
 function loadComponentsForProschet(proschetId, signal) {
     console.log(`📡 Загрузка компонентов для просчёта ID: ${proschetId}`);
-
-    // Показываем состояние загрузки (спиннер)
     showLoadingState();
-
-    // Формируем URL для GET-запроса
     const url = `${API_URLS.getComponents}${proschetId}/`;
-
-    // Получаем CSRF-токен для защиты от межсайтовой подделки запросов
     const csrfToken = getCsrfToken();
 
-    // Отправляем асинхронный запрос
     fetch(url, {
         method: 'GET',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest', // помечаем как AJAX-запрос
+            'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': csrfToken
         },
-        signal: signal // позволяет отменить запрос, если пользователь переключился быстрее
+        signal: signal
     })
     .then(response => {
-        if (signal.aborted) {
-            throw new Error('RequestAborted');
-        }
-        if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
+        if (signal.aborted) throw new Error('RequestAborted');
+        if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         return response.json();
     })
     .then(data => {
         if (data.success) {
             console.log('✅ Компоненты успешно загружены:', data);
             currentComponents = data.components || [];
-            updateInterface(data.components || []);
+            updateInterface(currentComponents);
             console.log(`✅ Загружено ${currentComponents.length} компонентов`);
         } else {
             console.error('❌ Ошибка при загрузке компонентов:', data.message);
@@ -292,47 +187,24 @@ function loadComponentsForProschet(proschetId, signal) {
     });
 }
 
-/**
- * Пересчёт стоимости компонента на основе нового количества листов.
- * 
- * @param {string} componentId - ID компонента
- * @param {number} sheetCount - Новое количество листов (из vichisliniya_listov)
- */
 function recalculateComponentPrice(componentId, sheetCount) {
-    console.log('🧮 НАЧИНАЮ ПЕРЕСЧЁТ СТОИМОСТИ');
-    console.log(`📊 Компонент: ${componentId}`);
-    console.log(`📊 Количество листов: ${sheetCount}`);
-    console.log('📝 ФОРМУЛА: (Цена печати за лист + Цена бумаги за лист) × Количество листов');
-
-    // [ИСПРАВЛЕНИЕ] Раньше здесь была проверка, что componentId === selectedComponentId.
-    // Теперь эта проверка УДАЛЕНА, чтобы разрешить пересчёт для любого компонента.
-    // Это необходимо, чтобы при изменении количества листов для невыбранного компонента
-    // его стоимость тоже обновлялась в таблице.
-
-    // Проверяем, что есть ID просчёта
+    console.log('🧮 НАЧИНАЮ ПЕРЕСЧЁТ СТОИМОСТИ ДЛЯ ОДНОГО КОМПОНЕНТА');
+    console.log(`📊 Компонент: ${componentId}, Количество листов: ${sheetCount}`);
     if (!currentProschetId) {
         console.warn('⚠️ Не указан ID просчёта');
         showNotification('Не выбран просчёт для пересчёта стоимости', 'warning');
         return;
     }
 
-    // Формируем URL для POST-запроса
     const url = API_URLS.updateComponentPrice;
-
-    // Подготавливаем данные для отправки на сервер
     const requestData = {
         component_id: componentId,
         sheet_count: sheetCount,
         proschet_id: currentProschetId
     };
-
     const csrfToken = getCsrfToken();
 
-    console.log('📤 Отправляю запрос на пересчёт:', {
-        url: url,
-        data: requestData,
-        formula: '(price_per_sheet + paper_price) * sheet_count'
-    });
+    console.log('📤 Отправляю запрос на пересчёт:', { url: url, data: requestData });
 
     fetch(url, {
         method: 'POST',
@@ -344,48 +216,14 @@ function recalculateComponentPrice(componentId, sheetCount) {
         body: JSON.stringify(requestData)
     })
     .then(response => {
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error(`URL не найден: ${url}. Проверьте настройки сервера.`);
-            }
-            throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         return response.json();
     })
     .then(data => {
         if (data.success) {
             console.log('✅ СЕРВЕР УСПЕШНО ПЕРЕСЧИТАЛ СТОИМОСТЬ:', data);
-            console.log('📊 РЕЗУЛЬТАТЫ ПЕРЕСЧЁТА:');
-            console.log(`   • Количество листов: ${sheetCount}`);
-            console.log(`   • Цена печати за лист: ${data.component.price_per_sheet} руб.`);
-            console.log(`   • Цена бумаги за лист: ${data.component.paper_price} руб.`);
-            console.log(`   • Общая стоимость: ${data.component.total_price} руб.`);
-            console.log(`   • Формула: (${data.component.price_per_sheet} + ${data.component.paper_price}) × ${sheetCount}`);
-
-            // Обновляем отображение стоимости в таблице
             updateComponentInTable(componentId, data.component);
-            // Обновляем общую стоимость всех компонентов
             updateTotalPrice(data.total_price);
-
-            // Показываем уведомление с формулой
-            const formulaText = `(${parseFloat(data.component.price_per_sheet).toFixed(2)} + ${parseFloat(data.component.paper_price).toFixed(2)}) × ${sheetCount}`;
-            showNotification(
-                `Стоимость пересчитана: ${formulaText} = ${parseFloat(data.component.total_price).toFixed(2)} руб.`, 
-                'success'
-            );
-
-            // Отправляем событие об успешном обновлении цены (для других секций, если нужно)
-            const event = new CustomEvent('componentPriceRecalculated', {
-                detail: {
-                    componentId: componentId,
-                    sheetCount: sheetCount,
-                    pricePerSheet: data.component.price_per_sheet,
-                    paperPrice: data.component.paper_price,
-                    totalPrice: data.component.total_price,
-                    calculationFormula: 'total = (price_per_sheet + paper_price) * sheet_count'
-                }
-            });
-            document.dispatchEvent(event);
         } else {
             console.error('❌ Ошибка при пересчёте стоимости:', data.message);
             showNotification(`Ошибка: ${data.message}`, 'error');
@@ -393,126 +231,112 @@ function recalculateComponentPrice(componentId, sheetCount) {
     })
     .catch(error => {
         console.error('❌ Ошибка сети при пересчёте стоимости:', error);
-        let errorMessage = 'Ошибка сети при пересчёте стоимости';
-        if (error.message.includes('404')) {
-            errorMessage = 'Сервер не отвечает. Проверьте настройки маршрутов.';
+        showNotification('Ошибка сети при пересчёте стоимости', 'error');
+    });
+}
+
+// ============================================================================
+// НОВАЯ ФУНКЦИЯ: МАССОВЫЙ ПЕРЕСЧЁТ ВСЕХ КОМПОНЕНТОВ ПРИ ИЗМЕНЕНИИ ТИРАЖА
+// ============================================================================
+function recalculateAllComponentsForCirculation(proschetId, circulation) {
+    console.log(`🔄 Массовый пересчёт компонентов для просчёта ID=${proschetId}, тираж=${circulation}`);
+    showLoadingState(); // показываем индикатор загрузки
+
+    const csrfToken = getCsrfToken();
+    const formData = new FormData();
+    formData.append('circulation', circulation);
+
+    fetch(`${API_URLS.recalculateAll}${proschetId}/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Ошибка HTTP: ${response.status}`);
         }
-        showNotification(errorMessage, 'error');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('✅ Массовый пересчёт выполнен успешно', data);
+            // Обновляем текущие компоненты и интерфейс
+            currentComponents = data.components || [];
+            updateInterface(currentComponents);
+            updateTotalPrice(data.total_price || calculateTotalPrice(currentComponents));
+            showNotification(data.message || 'Компоненты пересчитаны', 'success');
+        } else {
+            console.error('❌ Ошибка массового пересчёта:', data.message);
+            showNotification(`Ошибка: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ошибка сети при массовом пересчёте:', error);
+        showNotification('Ошибка сети при пересчёте компонентов', 'error');
     });
 }
 
 // ============================================================================
 // 5. ФУНКЦИИ ДЛЯ ОБНОВЛЕНИЯ ПРИ ВЫБОРЕ ПРОСЧЁТА
 // ============================================================================
-
-/**
- * Обновление секции для выбранного просчёта.
- * Вызывается при выборе просчёта в таблице.
- * 
- * @param {string} proschetId - ID просчёта
- * @param {HTMLElement} rowElement - Элемент строки таблицы
- */
 function updateForProschet(proschetId, rowElement) {
     console.log(`🔄 Обновление секции для просчёта ID: ${proschetId}`);
-
-    // Сначала снимаем выделение с текущего компонента,
-    // чтобы другие секции узнали о его отмене.
     deselectCurrentComponent();
-
-    // Отменяем предыдущие запросы (если были)
     cancelCurrentRequest();
-
-    // Останавливаем наблюдение за количеством листов (для старого компонента)
     stopSheetCountObservation();
-
-    // Очищаем таймер отложенного обновления
     clearUpdateTimeout();
 
-    // Сохраняем ID текущего просчёта
     currentProschetId = proschetId;
-
-    // Сбрасываем выбранный компонент (уже сделано в deselectCurrentComponent,
-    // но для надёжности дублируем)
     selectedComponentId = null;
     currentSheetCount = null;
 
-    // Обновляем заголовок секции – показываем название выбранного просчёта
     updateProschetTitle(rowElement);
-
-    // Загружаем компоненты для нового просчёта
     loadComponentsForProschet(proschetId, abortController ? abortController.signal : null);
 }
 
-/**
- * Обновление интерфейса с компонентами.
- * 
- * @param {Array} components - Массив компонентов
- */
 function updateInterface(components) {
     console.log('🎨 Обновление интерфейса с компонентами:', components);
-
-    // Скрываем все сообщения (загрузка, ошибка, пусто)
     hideAllMessages();
 
     if (components.length === 0) {
-        // Если компонентов нет – показываем специальное сообщение
         showNoComponentsMessage();
     } else {
-        // Иначе отображаем таблицу с компонентами
         showComponentsTable();
         populateTable(components);
         updateTotalPrice(calculateTotalPrice(components));
+        // После обновления таблицы восстанавливаем выделение выбранного компонента
+        restoreSelectedRow();
     }
-
-    // Показываем кнопку "Добавить" (она всегда должна быть видна, если просчёт выбран)
     showAddButton(true);
 }
 
-/**
- * Заполнение таблицы компонентами.
- * 
- * @param {Array} components - Массив компонентов
- */
 function populateTable(components) {
     const tableBody = document.getElementById('print-components-table-body');
     if (!tableBody) {
         console.error('❌ Элемент #print-components-table-body не найден');
         return;
     }
-
-    tableBody.innerHTML = ''; // Очищаем таблицу
-
+    tableBody.innerHTML = '';
     components.forEach((component, index) => {
         const row = createComponentRow(component, index);
         tableBody.appendChild(row);
     });
-
     console.log(`✅ Таблица обновлена: ${components.length} строк`);
 }
 
-/**
- * Создание строки таблицы для компонента.
- * 
- * @param {Object} component - Объект компонента
- * @param {number} index - Индекс компонента (для чередования цвета строк)
- * @returns {HTMLElement} - Элемент строки таблицы
- */
 function createComponentRow(component, index) {
     const row = document.createElement('tr');
-
-    // Чередование фона строк для лучшей читаемости
     if (index % 2 === 0) {
         row.classList.add('even-row');
     } else {
         row.classList.add('odd-row');
     }
-
-    // Добавляем класс, делающий строку кликабельной
     row.classList.add('selectable-row');
-    // Сохраняем ID компонента в data-атрибуте
     row.dataset.componentId = component.id;
 
-    // Определяем, как отображать количество листов
     let sheetCountDisplay = 'Не указан';
     if (component.formatted_sheet_count_display && component.formatted_sheet_count_display !== 'Не указан') {
         sheetCountDisplay = component.formatted_sheet_count_display;
@@ -522,12 +346,10 @@ function createComponentRow(component, index) {
         sheetCountDisplay = component.sheet_count;
     }
 
-    // Подсказка с формулой расчёта (будет видна при наведении на ячейку стоимости)
     const pricePerSheet = parseFloat(component.price_per_sheet) || 0;
     const paperPrice = parseFloat(component.paper_price) || 0;
     const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать + ${paperPrice.toFixed(2)} руб./бумага) × ${sheetCountDisplay} листов`;
 
-    // Формируем HTML-содержимое строки
     row.innerHTML = `
         <td class="component-number" title="Уникальный номер компонента">${component.number || '—'}</td>
         <td class="component-printer" title="Выбранное печатное оборудование">${component.printer_name || 'Принтер не выбран'}</td>
@@ -537,7 +359,7 @@ function createComponentRow(component, index) {
         </td>
         <td class="component-sheet-count" title="Количество листов из секции 'Вычисления листов'">${sheetCountDisplay}</td>
         <td class="component-price" title="Цена печати одного листа (рассчитана интерполяцией)">${pricePerSheet.toFixed(2)} ₽</td>
-        <td class="component-total" title="${formulaTooltip}">${parseFloat(component.total_circulation_price || component.total_price).toFixed(2)} ₽</td>
+        <td class="component-total" title="${formulaTooltip}">${parseFloat(component.total_circulation_price).toFixed(2)} ₽</td>
         <td class="component-actions">
             <button type="button" class="delete-component-btn" 
                     title="Удалить компонент" 
@@ -547,25 +369,16 @@ function createComponentRow(component, index) {
         </td>
     `;
 
-    // ------------------------------------------------------------
-    // ОБРАБОТЧИК КЛИКА ПО СТРОКЕ – выбор компонента
-    // ------------------------------------------------------------
+    // Обработчик клика по строке – выбор компонента
     row.addEventListener('click', function(event) {
-        // Если кликнули не по кнопке удаления – обрабатываем как выбор
         if (!event.target.closest('.delete-component-btn')) {
-            // Снимаем выделение со всех строк
             document.querySelectorAll('#print-components-table-body tr').forEach(r => {
                 r.classList.remove('selected');
             });
-
-            // Добавляем выделение текущей строке
             this.classList.add('selected');
-
-            // Сохраняем ID выбранного компонента
             selectedComponentId = component.id;
             currentSheetCount = component.sheet_count || 0;
 
-            // Генерируем событие выбора компонента
             const eventDetail = {
                 printComponentId: component.id,
                 printComponentNumber: component.number,
@@ -577,25 +390,16 @@ function createComponentRow(component, index) {
                 pricePerSheet: pricePerSheet,
                 formula: '(price_per_sheet + paper_price) * sheet_count'
             };
-
             document.dispatchEvent(new CustomEvent('printComponentSelected', { detail: eventDetail }));
-
             console.log(`📤 Событие printComponentSelected отправлено для компонента: ${component.id}`);
-            console.log(`📝 Формула для компонента: (${pricePerSheet.toFixed(2)} + ${paperPrice.toFixed(2)}) × ${eventDetail.sheetCount}`);
-
-            // Начинаем наблюдение за количеством листов (чтобы реагировать на изменения)
             initSheetCountObservation(component.id);
         }
     });
 
-    // ------------------------------------------------------------
-    // ОБРАБОТЧИК КЛИКА ПО КНОПКЕ УДАЛЕНИЯ
-    // ------------------------------------------------------------
     const deleteBtn = row.querySelector('.delete-component-btn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function(event) {
-            event.stopPropagation(); // Не даём событию всплыть до обработчика строки
-
+            event.stopPropagation();
             const componentId = this.dataset.componentId;
             if (confirm(`Удалить компонент ${component.number || componentId}?`)) {
                 deleteComponent(componentId);
@@ -607,51 +411,55 @@ function createComponentRow(component, index) {
 }
 
 /**
- * Обновление отображения количества листов в таблице для указанного компонента.
- * 
- * @param {string} componentId - ID компонента
- * @param {number} sheetCount - Новое количество листов
+ * Восстанавливает выделение строки выбранного компонента после перестройки таблицы.
  */
+function restoreSelectedRow() {
+    if (selectedComponentId) {
+        const row = document.querySelector(`#print-components-table-body tr[data-component-id="${selectedComponentId}"]`);
+        if (row) {
+            row.classList.add('selected');
+        } else {
+            // Если компонент больше не существует, сбрасываем выделение
+            selectedComponentId = null;
+            currentSheetCount = null;
+        }
+    }
+}
+
 function updateSheetCountDisplayForComponent(componentId, sheetCount) {
     console.log(`📊 Обновление отображения количества листов для компонента ${componentId}: ${sheetCount}`);
-
     const componentRow = document.querySelector(`tr[data-component-id="${componentId}"]`);
     if (!componentRow) {
         console.log(`ℹ️ Строка для компонента ${componentId} не найдена, обновление количества листов пропущено`);
         return;
     }
-
     const sheetCountCell = componentRow.querySelector('.component-sheet-count');
     if (sheetCountCell) {
-        // Форматируем число: добавляем пробелы как разделители тысяч, два знака после запятой
         const formattedSheetCount = parseFloat(sheetCount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         sheetCountCell.textContent = formattedSheetCount;
         sheetCountCell.title = `Количество листов из секции 'Вычисления листов': ${formattedSheetCount}`;
     }
 }
 
-/**
- * Обновление данных компонента в таблице после пересчёта.
- * 
- * @param {string} componentId - ID компонента
- * @param {Object} componentData - Данные компонента (с сервера)
- */
 function updateComponentInTable(componentId, componentData) {
-    console.log(`📊 Обновление отображения для компонента ${componentId}`);
+    if (window.printComponentsInlineEditState?.isEditing() && 
+        window.printComponentsInlineEditState.getEditingComponentId() === componentId) {
+        console.log(`🛑 Пропускаем обновление таблицы для компонента ${componentId}, так как идёт редактирование`);
+        return;
+    }
 
+    console.log(`📊 Обновление отображения для компонента ${componentId}`);
     const componentRow = document.querySelector(`tr[data-component-id="${componentId}"]`);
     if (!componentRow) {
         console.log(`ℹ️ Строка для компонента ${componentId} не найдена, возможно компонент уже не отображается`);
         return;
     }
 
-    // Преобразуем строковые значения в числа для безопасного форматирования
     const pricePerSheet = parseFloat(componentData.price_per_sheet) || 0;
     const paperPrice = parseFloat(componentData.paper_price) || 0;
     const sheetCount = parseFloat(componentData.sheet_count) || 0;
     const totalPrice = parseFloat(componentData.total_price) || 0;
 
-    // Обновляем ячейку с бумагой (добавляем цену за лист)
     const paperCell = componentRow.querySelector('.component-paper');
     if (paperCell && componentData.paper_name) {
         paperCell.innerHTML = `
@@ -660,7 +468,6 @@ function updateComponentInTable(componentId, componentData) {
         `;
     }
 
-    // Обновляем ячейку с количеством листов
     const sheetCountCell = componentRow.querySelector('.component-sheet-count');
     if (sheetCountCell) {
         const formattedSheetCount = sheetCount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -668,7 +475,6 @@ function updateComponentInTable(componentId, componentData) {
         sheetCountCell.title = `Количество листов из секции 'Вычисления листов': ${formattedSheetCount}`;
     }
 
-    // Обновляем ячейку с ценой печати за лист
     const priceCell = componentRow.querySelector('.component-price');
     if (priceCell) {
         const formattedPrice = pricePerSheet.toFixed(2) + ' ₽';
@@ -676,68 +482,34 @@ function updateComponentInTable(componentId, componentData) {
         priceCell.title = `Цена печати одного листа: ${formattedPrice}`;
     }
 
-    // Обновляем ячейку с общей стоимостью
     const totalCell = componentRow.querySelector('.component-total');
     if (totalCell) {
         const formattedTotal = totalPrice.toFixed(2) + ' ₽';
         totalCell.textContent = formattedTotal;
-
-        // Обновляем подсказку с формулой
         const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать + ${paperPrice.toFixed(2)} руб./бумага) × ${sheetCount} листов`;
         totalCell.title = formulaTooltip;
     }
 
     console.log(`✅ Отображение для компонента ${componentId} обновлено`);
-    console.log(`📝 Формула в подсказке: (${pricePerSheet.toFixed(2)} + ${paperPrice.toFixed(2)}) × ${sheetCount}`);
 }
 
-/**
- * ===== НОВАЯ ФУНКЦИЯ: массовое обновление данных компонентов =====
- * Вызывается из product.js после пересчёта всех компонентов на сервере.
- * @param {Array} components - Массив обновлённых компонентов
- */
-function updateComponentsData(components) {
-    console.log(`📦 Обновление данных для ${components.length} компонентов`);
-    components.forEach(component => {
-        updateComponentInTable(component.id, component);
-    });
-    // Пересчитываем общую стоимость
-    const total = calculateTotalPrice(components);
-    updateTotalPrice(total);
-    console.log('✅ Данные компонентов обновлены');
-}
-
-/**
- * Обновление общей стоимости всех компонентов.
- * 
- * @param {number} totalPrice - Общая стоимость
- */
 function updateTotalPrice(totalPrice) {
     console.log(`💰 Обновление общей стоимости: ${totalPrice} руб.`);
-
     const totalPriceElement = document.getElementById('print-components-total-price');
     const totalContainer = document.getElementById('print-components-total');
-
     if (totalPriceElement) {
         totalPriceElement.textContent = `${parseFloat(totalPrice).toFixed(2)} ₽`;
     }
-
     if (totalContainer) {
-        totalContainer.style.display = 'block'; // Показываем блок итога
+        totalContainer.style.display = 'block';
     }
 }
 
-/**
- * Расчёт общей стоимости всех компонентов.
- * 
- * @param {Array} components - Массив компонентов
- * @returns {number} - Общая стоимость
- */
 function calculateTotalPrice(components) {
     let total = 0;
     components.forEach(component => {
-        if (component.total_price) {
-            total += parseFloat(component.total_price);
+        if (component.total_circulation_price) {
+            total += parseFloat(component.total_circulation_price);
         }
     });
     return total;
@@ -746,19 +518,12 @@ function calculateTotalPrice(components) {
 // ============================================================================
 // 6. ОБРАБОТЧИКИ СОБЫТИЙ И КНОПОК
 // ============================================================================
-
-/**
- * Обработчик добавления компонента.
- */
 function handleAddComponent() {
     console.log('🖨️ Добавление нового компонента');
-
     if (!currentProschetId) {
         showNotification('Сначала выберите просчёт', 'warning');
         return;
     }
-
-    // Вызываем функцию из другого файла (модальное окно выбора принтера/бумаги)
     if (typeof window.print_components_handle_add_component === 'function') {
         window.print_components_handle_add_component();
     } else {
@@ -766,9 +531,6 @@ function handleAddComponent() {
     }
 }
 
-/**
- * Обработчик добавления первого компонента.
- */
 function handleAddFirstComponent() {
     console.log('🖨️ Добавление первого компонента');
     handleAddComponent();
@@ -777,34 +539,19 @@ function handleAddFirstComponent() {
 // ============================================================================
 // 7. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================================
-
-/**
- * Инициализация наблюдения за количеством листов.
- * Использует MutationObserver для отслеживания изменений в элементе с результатом.
- * 
- * @param {string} componentId - ID компонента
- */
 function initSheetCountObservation(componentId) {
     console.log(`👁️ Инициализация наблюдения для компонента ${componentId}`);
-
-    // [ИСПРАВЛЕНИЕ] При смене компонента отменяем предыдущие запланированные обновления
     clearUpdateTimeout();
-
-    // Останавливаем предыдущее наблюдение (если было)
     stopSheetCountObservation();
 
-    // Находим элемент, в котором отображается количество листов (из секции "Вычисления листов")
     const sheetCountElement = document.getElementById('vichisliniya-listov-result-value');
-
     if (!sheetCountElement) {
         console.warn('⚠️ Элемент с количеством листов не найден');
         return;
     }
 
-    // Извлекаем начальное значение
     const sheetCountText = sheetCountElement.textContent.trim();
     const initialSheetCount = parseFloat(sheetCountText);
-
     if (isNaN(initialSheetCount)) {
         console.warn('⚠️ Не удалось извлечь количество листов:', sheetCountText);
         return;
@@ -813,28 +560,16 @@ function initSheetCountObservation(componentId) {
     console.log(`📊 Начальное количество листов: ${initialSheetCount}`);
     currentSheetCount = initialSheetCount;
 
-    // Создаём функцию обратного вызова для MutationObserver
     const observerCallback = function(mutations) {
         mutations.forEach(function(mutation) {
-            // Нас интересуют изменения текстового содержимого
             if (mutation.type === 'characterData' || mutation.type === 'childList') {
                 const newText = sheetCountElement.textContent.trim();
                 const newSheetCount = parseFloat(newText);
-
-                if (isNaN(newSheetCount)) {
-                    console.warn('⚠️ Новое значение не является числом:', newText);
-                    return;
-                }
-
-                // Если значение изменилось
+                if (isNaN(newSheetCount)) return;
                 if (newSheetCount !== currentSheetCount) {
                     console.log(`🔄 Обнаружено изменение: ${currentSheetCount} → ${newSheetCount}`);
                     currentSheetCount = newSheetCount;
-
-                    // Обновляем отображение количества листов в таблице для текущего компонента
                     updateSheetCountDisplayForComponent(componentId, newSheetCount);
-
-                    // Если это наш текущий компонент – планируем обновление стоимости
                     if (selectedComponentId === componentId) {
                         schedulePriceUpdate(componentId, newSheetCount);
                     }
@@ -843,44 +578,27 @@ function initSheetCountObservation(componentId) {
         });
     };
 
-    // Создаём наблюдатель
     sheetCountObserver = new MutationObserver(observerCallback);
-
-    // Начинаем наблюдение – следим за изменением текста и дочерних узлов
     sheetCountObserver.observe(sheetCountElement, {
         childList: true,
         characterData: true,
         subtree: true
     });
-
     console.log(`✅ Наблюдение установлено для компонента ${componentId}`);
 }
 
-/**
- * Запуск отложенного обновления стоимости (дебаунс).
- * 
- * @param {string} componentId - ID компонента
- * @param {number} sheetCount - Количество листов
- */
 function schedulePriceUpdate(componentId, sheetCount) {
     console.log(`⏰ Запуск отложенного обновления для компонента ${componentId}`);
-
-    // [ИСПРАВЛЕНИЕ] Если компонент уже не выбран, не планируем обновление
     if (componentId !== selectedComponentId) {
         console.log(`ℹ️ Компонент ${componentId} уже не выбран, пропускаем отложенное обновление`);
         return;
     }
-
-    clearUpdateTimeout(); // Очищаем предыдущий таймер
-
+    clearUpdateTimeout();
     updateTimeout = setTimeout(() => {
         recalculateComponentPrice(componentId, sheetCount);
     }, UPDATE_DELAY);
 }
 
-/**
- * Остановка наблюдения за количеством листов.
- */
 function stopSheetCountObservation() {
     if (sheetCountObserver) {
         sheetCountObserver.disconnect();
@@ -890,9 +608,6 @@ function stopSheetCountObservation() {
     clearUpdateTimeout();
 }
 
-/**
- * Очистка таймера обновления.
- */
 function clearUpdateTimeout() {
     if (updateTimeout) {
         clearTimeout(updateTimeout);
@@ -900,71 +615,38 @@ function clearUpdateTimeout() {
     }
 }
 
-/**
- * Отмена текущего запроса (используется при быстром переключении просчётов).
- */
 function cancelCurrentRequest() {
     if (abortController) {
-        abortController.abort(); // Отменяем запрос
+        abortController.abort();
         console.log('🛑 Текущий запрос отменён');
     }
-    // Создаём новый контроллер для следующих запросов
     abortController = new AbortController();
 }
 
-/**
- * Получение CSRF-токена для AJAX-запросов.
- * 
- * @returns {string} - CSRF токен
- */
 function getCsrfToken() {
-    // Пробуем взять из meta-тега
     const metaToken = document.querySelector('meta[name="csrf-token"]');
     if (metaToken && metaToken.getAttribute('content')) {
-        console.log('✅ CSRF-токен получен из meta-тега');
         return metaToken.getAttribute('content');
     }
-
-    // Если нет – ищем в cookies
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
         const cookie = cookies[i].trim();
         if (cookie.startsWith('csrftoken=')) {
-            const token = decodeURIComponent(cookie.substring('csrftoken='.length));
-            console.log('✅ CSRF-токен получен из cookies');
-            return token;
+            return decodeURIComponent(cookie.substring('csrftoken='.length));
         }
     }
-
     console.warn('⚠️ CSRF токен не найден');
     return '';
 }
 
-/**
- * Показ уведомления на странице.
- * 
- * @param {string} message - Текст сообщения
- * @param {string} type - Тип сообщения (success, error, warning, info)
- */
 function showNotification(message, type = 'info') {
     console.log(`💬 Уведомление [${type}]: ${message}`);
-
     const notification = document.createElement('div');
-
-    let backgroundColor = '#2196F3'; // info – синий
+    let backgroundColor = '#2196F3';
     let icon = 'ℹ️';
-
-    if (type === 'success') {
-        backgroundColor = '#4CAF50'; // зелёный
-        icon = '✅';
-    } else if (type === 'error') {
-        backgroundColor = '#F44336'; // красный
-        icon = '❌';
-    } else if (type === 'warning') {
-        backgroundColor = '#FF9800'; // оранжевый
-        icon = '⚠️';
-    }
-
+    if (type === 'success') { backgroundColor = '#4CAF50'; icon = '✅'; }
+    else if (type === 'error') { backgroundColor = '#F44336'; icon = '❌'; }
+    else if (type === 'warning') { backgroundColor = '#FF9800'; icon = '⚠️'; }
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -981,36 +663,20 @@ function showNotification(message, type = 'info') {
         transition: opacity 0.3s;
         opacity: 0;
     `;
-
     notification.textContent = `${icon} ${message}`;
     document.body.appendChild(notification);
-
-    // Плавное появление
-    setTimeout(() => {
-        notification.style.opacity = '1';
-    }, 10);
-
-    // Автоматическое скрытие через 5 секунд
+    setTimeout(() => { notification.style.opacity = '1'; }, 10);
     setTimeout(() => {
         notification.style.opacity = '0';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
+        setTimeout(() => { if (notification.parentNode) notification.parentNode.removeChild(notification); }, 300);
     }, 5000);
 }
 
 // ============================================================================
 // 8. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА
 // ============================================================================
-
-/**
- * Показать сообщение "Выберите просчёт".
- */
 function showNoProschetSelectedMessage() {
     console.log('ℹ️ Показ сообщения "Выберите просчёт"');
-
     const elements = {
         noProschet: document.getElementById('no-proschet-selected-print'),
         noComponents: document.getElementById('no-components-message'),
@@ -1018,80 +684,59 @@ function showNoProschetSelectedMessage() {
         addButton: document.getElementById('add-print-component-btn'),
         title: document.getElementById('print-components-proschet-title')
     };
-
     if (elements.noProschet) elements.noProschet.style.display = 'block';
     if (elements.noComponents) elements.noComponents.style.display = 'none';
     if (elements.container) elements.container.style.display = 'none';
     if (elements.addButton) elements.addButton.style.display = 'none';
-
     if (elements.title) {
         elements.title.innerHTML = `<span class="placeholder-text">(просчёт не выбран)</span>`;
     }
-
-    // Сбрасываем данные
     currentProschetId = null;
     currentComponents = [];
     selectedComponentId = null;
     currentSheetCount = null;
-
     cancelCurrentRequest();
     stopSheetCountObservation();
     clearUpdateTimeout();
 }
 
-/**
- * Показать сообщение "Нет компонентов".
- */
 function showNoComponentsMessage() {
     console.log('ℹ️ Показ сообщения "Нет компонентов"');
-
     const elements = {
         noProschet: document.getElementById('no-proschet-selected-print'),
         noComponents: document.getElementById('no-components-message'),
         container: document.getElementById('print-components-container')
     };
-
     if (elements.noProschet) elements.noProschet.style.display = 'none';
     if (elements.noComponents) elements.noComponents.style.display = 'block';
     if (elements.container) elements.container.style.display = 'none';
 }
 
-/**
- * Показать таблицу компонентов.
- */
 function showComponentsTable() {
     console.log('ℹ️ Показ таблицы компонентов');
-
     const elements = {
         noProschet: document.getElementById('no-proschet-selected-print'),
         noComponents: document.getElementById('no-components-message'),
         container: document.getElementById('print-components-container')
     };
-
     if (elements.noProschet) elements.noProschet.style.display = 'none';
     if (elements.noComponents) elements.noComponents.style.display = 'none';
     if (elements.container) elements.container.style.display = 'block';
 }
 
-/**
- * Показать состояние загрузки.
- */
 function showLoadingState() {
     console.log('⏳ Показ состояния загрузки');
-
     const elements = {
         noProschet: document.getElementById('no-proschet-selected-print'),
         noComponents: document.getElementById('no-components-message'),
         container: document.getElementById('print-components-container'),
         tableBody: document.getElementById('print-components-table-body')
     };
-
     if (elements.noProschet) elements.noProschet.style.display = 'none';
     if (elements.noComponents) elements.noComponents.style.display = 'none';
     if (elements.container) {
         elements.container.style.display = 'block';
     }
-
     if (elements.tableBody) {
         elements.tableBody.innerHTML = `
             <tr>
@@ -1105,14 +750,8 @@ function showLoadingState() {
     }
 }
 
-/**
- * Показать сообщение об ошибке.
- * 
- * @param {string} message - Текст ошибки
- */
 function showErrorMessage(message) {
     console.log(`❌ Показ ошибки: ${message}`);
-
     const tableBody = document.getElementById('print-components-table-body');
     if (tableBody) {
         tableBody.innerHTML = `
@@ -1126,28 +765,18 @@ function showErrorMessage(message) {
     }
 }
 
-/**
- * Скрыть все сообщения (используется перед показом таблицы).
- */
 function hideAllMessages() {
     console.log('🔧 Скрытие всех сообщений');
-
     const elements = {
         noProschet: document.getElementById('no-proschet-selected-print'),
         noComponents: document.getElementById('no-components-message'),
         container: document.getElementById('print-components-container')
     };
-
     if (elements.noProschet) elements.noProschet.style.display = 'none';
     if (elements.noComponents) elements.noComponents.style.display = 'none';
     if (elements.container) elements.container.style.display = 'none';
 }
 
-/**
- * Показать/скрыть кнопку добавления.
- * 
- * @param {boolean} show - Показать кнопку
- */
 function showAddButton(show) {
     const addButton = document.getElementById('add-print-component-btn');
     if (addButton) {
@@ -1155,68 +784,41 @@ function showAddButton(show) {
     }
 }
 
-/**
- * Обновление заголовка с названием просчёта.
- * 
- * @param {HTMLElement} rowElement - Элемент строки таблицы просчётов
- */
 function updateProschetTitle(rowElement) {
     const proschetTitleElement = document.getElementById('print-components-proschet-title');
-
     if (!proschetTitleElement) {
         console.warn('❌ Элемент заголовка не найден');
         return;
     }
-
     const titleCell = rowElement.querySelector('.proschet-title');
     if (!titleCell) {
         console.warn('❌ Ячейка с названием не найдена');
         return;
     }
-
     const proschetTitle = titleCell.textContent.trim();
     proschetTitleElement.innerHTML = `
         <span class="proschet-title-active">
             ${proschetTitle}
         </span>
     `;
-
     console.log(`✅ Заголовок обновлён: "${proschetTitle}"`);
 }
 
-/**
- * [ИСПРАВЛЕНО] Сброс секции.
- * Вызывается при отмене выбора просчёта или принудительном сбросе.
- */
 function resetSection() {
     console.log('🔄 Сброс секции "Печатные компоненты"');
-
-    // Снимаем выбор с текущего компонента и оповещаем другие секции
     deselectCurrentComponent();
-
-    // Сбрасываем все глобальные данные
     currentProschetId = null;
     currentComponents = [];
-
-    // Переводим интерфейс в состояние "просчёт не выбран"
     showNoProschetSelectedMessage();
-
-    // Отменяем все запросы и таймеры
     cancelCurrentRequest();
     stopSheetCountObservation();
     clearUpdateTimeout();
-
     console.log('✅ Секция сброшена');
 }
 
 // ============================================================================
 // 9. ФУНКЦИИ ДЛЯ УДАЛЕНИЯ КОМПОНЕНТОВ
 // ============================================================================
-
-/**
- * Удаление компонента.
- * @param {string} componentId - ID компонента
- */
 function deleteComponent(componentId) {
     console.log(`🗑️ Удаление компонента ${componentId}`);
     // TODO: Реализовать удаление через API
@@ -1226,10 +828,6 @@ function deleteComponent(componentId) {
 // ============================================================================
 // 10. ЭКСПОРТ ФУНКЦИЙ И ИНИЦИАЛИЗАЦИЯ
 // ============================================================================
-
-/**
- * Глобальный объект для взаимодействия с другими секциями.
- */
 window.printComponentsSection = {
     updateForProschet: updateForProschet,
     reset: resetSection,
@@ -1238,10 +836,19 @@ window.printComponentsSection = {
     stopObservation: stopSheetCountObservation,
     cancelCurrentRequest: cancelCurrentRequest,
     deselectCurrentComponent: deselectCurrentComponent,
-    updateComponentsData: updateComponentsData
+    updateComponentsData: function(components) {
+        console.log(`📦 Обновление данных для ${components.length} компонентов`);
+        components.forEach(component => {
+            updateComponentInTable(component.id, component);
+        });
+        const total = calculateTotalPrice(components);
+        updateTotalPrice(total);
+    },
+    recalculateComponentPrice: recalculateComponentPrice,
+    // НОВАЯ ФУНКЦИЯ ДЛЯ МАССОВОГО ПЕРЕСЧЁТА
+    recalculateAllComponentsForCirculation: recalculateAllComponentsForCirculation
 };
 
-// Инициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📦 DOM загружен, инициализация секции "Печатные компоненты"...');
     initPrintComponents();
