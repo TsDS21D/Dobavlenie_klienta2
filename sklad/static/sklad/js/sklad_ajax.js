@@ -1,6 +1,7 @@
 /*
 sklad_ajax.js
 JavaScript для AJAX-работы приложения sklad
+ИЗМЕНЕНО: функция getCsrfToken теперь читает токен из cookie, а не только из DOM
 */
 
 // ================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==================
@@ -298,12 +299,16 @@ function createMaterialForm() {
     const rightColumn = document.querySelector('.right-column');
     if (!rightColumn) return;
     
+    // Получаем CSRF-токен из cookie (теперь функция работает надёжно)
+    const csrfToken = getCsrfToken();
+    
     // Создаем HTML для формы
     const formHTML = `
     <div class="form-section" id="material-form-section" style="display: block;">
         <h3>Добавить новый материал</h3>
         <form method="post" action="/sklad/material/create/" id="material-form">
-            <input type="hidden" name="csrfmiddlewaretoken" value="${getCsrfToken()}">
+            <!-- ИЗМЕНЕНО: используем токен, полученный из cookie -->
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
             <div class="form-group">
                 <label for="material-name">Название материала*</label>
                 <input type="text" 
@@ -430,15 +435,30 @@ function escapeHtml(text) {
 
 /**
  * Получает CSRF токен
+ * ИЗМЕНЕНО: теперь сначала пытаемся получить из cookie, если нет — ищем в DOM
  */
 function getCsrfToken() {
+    // 1. Пытаемся получить из cookie (самый надёжный способ)
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            console.log('[SKLAD-AJAX] CSRF токен получен из cookie');
+            return value;
+        }
+    }
+    
+    // 2. Если нет в cookie, ищем в DOM (на случай, если cookie отключены)
     const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
     if (csrfInput) {
+        console.log('[SKLAD-AJAX] CSRF токен получен из input');
         return csrfInput.value;
     }
     
+    // 3. Ищем в meta-теге
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     if (csrfMeta) {
+        console.log('[SKLAD-AJAX] CSRF токен получен из meta');
         return csrfMeta.content;
     }
     

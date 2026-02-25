@@ -4,11 +4,15 @@
  * 
  * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист + Цена бумаги за лист) × Количество листов
  * 
- * ИЗМЕНЕНИЯ ДЛЯ МАССОВОГО ПЕРЕСЧЁТА ПРИ ИЗМЕНЕНИИ ТИРАЖА:
- * - Добавлена функция recalculateAllComponentsForCirculation, которая отправляет
- *   POST-запрос на сервер для пересчёта всех компонентов текущего просчёта с новым тиражом.
- * - Добавлен обработчик события productCirculationSaved, который запускает массовый пересчёт.
- * - После обновления таблицы восстанавливается выделение выбранного компонента.
+ * ИЗМЕНЕНИЯ ДЛЯ ОБНОВЛЕНИЯ СЕКЦИИ "ЦЕНА":
+ * - Добавлена функция dispatchPrintComponentsUpdated(), которая отправляет событие
+ *   'printComponentsUpdated' с актуальным списком компонентов.
+ * - Это событие теперь генерируется во всех местах, где изменяются данные компонентов:
+ *   * после загрузки компонентов для выбранного просчёта (loadComponentsForProschet)
+ *   * после успешного пересчёта одного компонента (recalculateComponentPrice)
+ *   * после массового пересчёта при изменении тиража (recalculateAllComponentsForCirculation)
+ * - Добавлена функция updateCurrentComponent() для обновления одного компонента в массиве currentComponents.
+ * - В updateComponentInTable исправлено использование поля total_circulation_price вместо total_price.
  */
 
 "use strict";
@@ -27,7 +31,7 @@ let abortController = null;                    // Контроллер для о
 const API_URLS = {
     getComponents: '/calculator/get-print-components/',
     updateComponentPrice: '/calculator/update-component-price/',
-    recalculateAll: '/calculator/recalculate-components/'   // новый эндпоинт для массового пересчёта
+    recalculateAll: '/calculator/recalculate-components/'
 };
 
 const UPDATE_DELAY = 1000; // 1 секунда
@@ -101,7 +105,7 @@ function setupIntersectionListeners() {
     });
 
     // ------------------------------------------------------------
-    // 5. МАССОВЫЙ ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ ТИРАЖА (НОВЫЙ ОБРАБОТЧИК)
+    // 5. МАССОВЫЙ ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ ТИРАЖА
     // ------------------------------------------------------------
     document.addEventListener('productCirculationSaved', function(event) {
         const { proschetId, circulation } = event.detail;
@@ -172,6 +176,9 @@ function loadComponentsForProschet(proschetId, signal) {
             currentComponents = data.components || [];
             updateInterface(currentComponents);
             console.log(`✅ Загружено ${currentComponents.length} компонентов`);
+            
+            // ===== ВАЖНО: Отправляем событие об обновлении компонентов для секции "Цена" =====
+            dispatchPrintComponentsUpdated();
         } else {
             console.error('❌ Ошибка при загрузке компонентов:', data.message);
             showErrorMessage('Не удалось загрузить компоненты печати');
@@ -185,6 +192,45 @@ function loadComponentsForProschet(proschetId, signal) {
         console.error('❌ Ошибка сети при загрузке компонентов:', error);
         showErrorMessage('Ошибка сети при загрузке компонентов');
     });
+}
+
+/**
+ * Обновляет один компонент в массиве currentComponents новыми данными с сервера.
+ * @param {Object} updatedComponentData - объект с обновлёнными данными компонента (должен содержать id)
+ */
+function updateCurrentComponent(updatedComponentData) {
+    if (!updatedComponentData || !updatedComponentData.id) {
+        console.warn('⚠️ Не удалось обновить компонент: нет ID');
+        return;
+    }
+    const index = currentComponents.findIndex(c => c.id == updatedComponentData.id);
+    if (index !== -1) {
+        // Заменяем старые данные новыми
+        currentComponents[index] = { ...currentComponents[index], ...updatedComponentData };
+        console.log(`✅ Компонент ID=${updatedComponentData.id} обновлён в массиве currentComponents`);
+    } else {
+        console.warn(`⚠️ Компонент с ID=${updatedComponentData.id} не найден в currentComponents`);
+    }
+}
+
+/**
+ * Отправляет событие 'printComponentsUpdated' с текущим списком компонентов.
+ * Это событие используется секцией "Цена" для обновления итоговой стоимости.
+ */
+function dispatchPrintComponentsUpdated() {
+    if (!currentProschetId) {
+        console.warn('⚠️ Не выбран просчёт, событие printComponentsUpdated не отправлено');
+        return;
+    }
+    const event = new CustomEvent('printComponentsUpdated', {
+        detail: {
+            proschetId: currentProschetId,
+            components: currentComponents,   // отправляем полный массив компонентов
+            timestamp: new Date().toISOString()
+        }
+    });
+    document.dispatchEvent(event);
+    console.log(`📤 Событие printComponentsUpdated отправлено (компонентов: ${currentComponents.length})`);
 }
 
 function recalculateComponentPrice(componentId, sheetCount) {
@@ -222,8 +268,18 @@ function recalculateComponentPrice(componentId, sheetCount) {
     .then(data => {
         if (data.success) {
             console.log('✅ СЕРВЕР УСПЕШНО ПЕРЕСЧИТАЛ СТОИМОСТЬ:', data);
+            
+            // ===== ОБНОВЛЯЕМ ДАННЫЕ В ТЕКУЩЕМ МАССИВЕ =====
+            if (data.component) {
+                updateCurrentComponent(data.component);
+            }
+            
+            // Обновляем отображение в таблице
             updateComponentInTable(componentId, data.component);
             updateTotalPrice(data.total_price);
+            
+            // ===== ВАЖНО: Отправляем событие об обновлении компонентов =====
+            dispatchPrintComponentsUpdated();
         } else {
             console.error('❌ Ошибка при пересчёте стоимости:', data.message);
             showNotification(`Ошибка: ${data.message}`, 'error');
@@ -236,11 +292,11 @@ function recalculateComponentPrice(componentId, sheetCount) {
 }
 
 // ============================================================================
-// НОВАЯ ФУНКЦИЯ: МАССОВЫЙ ПЕРЕСЧЁТ ВСЕХ КОМПОНЕНТОВ ПРИ ИЗМЕНЕНИИ ТИРАЖА
+// МАССОВЫЙ ПЕРЕСЧЁТ ВСЕХ КОМПОНЕНТОВ ПРИ ИЗМЕНЕНИИ ТИРАЖА
 // ============================================================================
 function recalculateAllComponentsForCirculation(proschetId, circulation) {
     console.log(`🔄 Массовый пересчёт компонентов для просчёта ID=${proschetId}, тираж=${circulation}`);
-    showLoadingState(); // показываем индикатор загрузки
+    showLoadingState();
 
     const csrfToken = getCsrfToken();
     const formData = new FormData();
@@ -263,10 +319,12 @@ function recalculateAllComponentsForCirculation(proschetId, circulation) {
     .then(data => {
         if (data.success) {
             console.log('✅ Массовый пересчёт выполнен успешно', data);
-            // Обновляем текущие компоненты и интерфейс
             currentComponents = data.components || [];
             updateInterface(currentComponents);
             updateTotalPrice(data.total_price || calculateTotalPrice(currentComponents));
+            
+            dispatchPrintComponentsUpdated();
+            
             showNotification(data.message || 'Компоненты пересчитаны', 'success');
         } else {
             console.error('❌ Ошибка массового пересчёта:', data.message);
@@ -307,7 +365,6 @@ function updateInterface(components) {
         showComponentsTable();
         populateTable(components);
         updateTotalPrice(calculateTotalPrice(components));
-        // После обновления таблицы восстанавливаем выделение выбранного компонента
         restoreSelectedRow();
     }
     showAddButton(true);
@@ -419,7 +476,6 @@ function restoreSelectedRow() {
         if (row) {
             row.classList.add('selected');
         } else {
-            // Если компонент больше не существует, сбрасываем выделение
             selectedComponentId = null;
             currentSheetCount = null;
         }
@@ -455,10 +511,11 @@ function updateComponentInTable(componentId, componentData) {
         return;
     }
 
+    // ИСПРАВЛЕНО: используем total_circulation_price вместо total_price
     const pricePerSheet = parseFloat(componentData.price_per_sheet) || 0;
     const paperPrice = parseFloat(componentData.paper_price) || 0;
     const sheetCount = parseFloat(componentData.sheet_count) || 0;
-    const totalPrice = parseFloat(componentData.total_price) || 0;
+    const totalPrice = parseFloat(componentData.total_circulation_price) || 0;
 
     const paperCell = componentRow.querySelector('.component-paper');
     if (paperCell && componentData.paper_name) {
@@ -840,13 +897,15 @@ window.printComponentsSection = {
         console.log(`📦 Обновление данных для ${components.length} компонентов`);
         components.forEach(component => {
             updateComponentInTable(component.id, component);
+            updateCurrentComponent(component);
         });
         const total = calculateTotalPrice(components);
         updateTotalPrice(total);
+        dispatchPrintComponentsUpdated();
     },
     recalculateComponentPrice: recalculateComponentPrice,
-    // НОВАЯ ФУНКЦИЯ ДЛЯ МАССОВОГО ПЕРЕСЧЁТА
-    recalculateAllComponentsForCirculation: recalculateAllComponentsForCirculation
+    recalculateAllComponentsForCirculation: recalculateAllComponentsForCirculation,
+    dispatchUpdateEvent: dispatchPrintComponentsUpdated
 };
 
 document.addEventListener('DOMContentLoaded', function() {

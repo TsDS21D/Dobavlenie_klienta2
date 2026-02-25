@@ -263,3 +263,77 @@ class VichisliniyaListovModel(models.Model):
                 'circulation': proschet.circulation,
             }
         return None
+    
+    # ===== НОВЫЙ МЕТОД: расчёт размещения =====
+    def calculate_fitting(self, sheet_width, sheet_height, margin):
+        """
+        Рассчитывает оптимальное размещение изделий на листе на основе
+        текущих параметров (item_width, item_height, vyleta) и данных о листе.
+        Обновляет поля fit_landscape_total, fit_portrait_total,
+        fit_horizontal, fit_vertical, fit_total и fit_selected_orientation
+        (если выбрано 'auto', устанавливается лучший вариант).
+        """
+        from decimal import Decimal
+
+        # Печатная область (с учётом полей)
+        printable_width = sheet_width - 2 * margin
+        printable_height = sheet_height - 2 * margin
+
+        # Если печатная область неположительна – размещение невозможно
+        if printable_width <= 0 or printable_height <= 0:
+            self.vichisliniya_listov_fit_landscape_total = 0
+            self.vichisliniya_listov_fit_portrait_total = 0
+            self.vichisliniya_listov_fit_horizontal = 0
+            self.vichisliniya_listov_fit_vertical = 0
+            self.vichisliniya_listov_fit_total = 0
+            return
+
+        # Текущие параметры изделия и зазор
+        item_w = self.vichisliniya_listov_item_width
+        item_h = self.vichisliniya_listov_item_height
+        gap = self.vichisliniya_listov_vyleta
+
+        # Вспомогательная функция для расчёта количества по одному измерению
+        def count_items(available, item_size, gap):
+            if item_size <= 0:
+                return 0
+            step = item_size + gap
+            if step <= 0:
+                return 0
+            # Формула: (available + gap) // (item_size + gap)
+            return int((available + gap) // step)
+
+        # Альбомная ориентация (изделие не повёрнуто)
+        count_x_land = count_items(printable_width, item_w, gap)
+        count_y_land = count_items(printable_height, item_h, gap)
+        total_land = count_x_land * count_y_land
+
+        # Портретная ориентация (изделие повёрнуто на 90°)
+        count_x_port = count_items(printable_width, item_h, gap)
+        count_y_port = count_items(printable_height, item_w, gap)
+        total_port = count_x_port * count_y_port
+
+        # Сохраняем оба варианта
+        self.vichisliniya_listov_fit_landscape_total = total_land
+        self.vichisliniya_listov_fit_portrait_total = total_port
+
+        # Определяем выбранную ориентацию
+        selected = self.vichisliniya_listov_fit_selected_orientation
+        if selected == 'auto':
+            # Если авто, выбираем ту, где больше изделий; при равенстве — альбомную
+            if total_land >= total_port:
+                selected = 'landscape'
+            else:
+                selected = 'portrait'
+
+        # Применяем выбранную ориентацию
+        if selected == 'landscape':
+            self.vichisliniya_listov_fit_horizontal = count_x_land
+            self.vichisliniya_listov_fit_vertical = count_y_land
+            self.vichisliniya_listov_fit_total = total_land
+        else:  # portrait
+            self.vichisliniya_listov_fit_horizontal = count_x_port
+            self.vichisliniya_listov_fit_vertical = count_y_port
+            self.vichisliniya_listov_fit_total = total_port
+
+        self.vichisliniya_listov_fit_selected_orientation = selected

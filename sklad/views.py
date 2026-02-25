@@ -1,8 +1,12 @@
 """
 views.py для приложения sklad
 ДОБАВЛЕНА: Полная AJAX-поддержка для обновления контента без перезагрузки
+ИСПРАВЛЕНО: CSRF-токен теперь корректно вставляется в форму добавления материала,
+            что устраняет ошибку 403 при отправке формы.
+            Добавлены подробные комментарии для понимания работы CSRF.
 """
 
+# Стандартные импорты Django и Python
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
@@ -14,7 +18,16 @@ from django.db.models import Q, F
 import json
 from decimal import Decimal, InvalidOperation
 
+# Импортируем наши модели
 from .models import Category, Material
+
+# ИЗМЕНЕНО: Импортируем функцию get_token для получения CSRF-токена.
+# CSRF (Cross-Site Request Forgery) — это атака, при которой злоумышленник
+# заставляет браузер пользователя отправить запрос на сайт, где пользователь
+# аутентифицирован. Django защищается от таких атак, требуя уникальный токен
+# в каждом POST-запросе. Функция get_token генерирует или возвращает текущий
+# токен для конкретного запроса.
+from django.middleware.csrf import get_token
 
 # ================== AJAX API ДЛЯ БЕСПЕРЕЗАГРУЗОЧНОЙ РАБОТЫ ==================
 
@@ -96,8 +109,16 @@ def get_category_data(request, category_id=None):
             }
         else:
             category_dict = None
-            
-        html_content = generate_materials_html(materials_data, category_dict, descendants_count, stats)
+        
+        # ИЗМЕНЕНО: Получаем CSRF-токен из текущего запроса.
+        # get_token(request) создаёт или возвращает существующий токен,
+        # который затем будет передан в шаблон через функцию generate_materials_html.
+        # Это гарантирует, что каждая динамически сгенерированная форма
+        # будет содержать правильный токен.
+        csrf_token = get_token(request)
+        
+        # ИЗМЕНЕНО: Передаём полученный токен в функцию генерации HTML.
+        html_content = generate_materials_html(materials_data, category_dict, descendants_count, stats, csrf_token)
         
         return JsonResponse({
             'success': True,
@@ -169,9 +190,19 @@ def get_category_children(request, category_id):
             'error': f'Ошибка при получении подкатегорий: {str(e)}'
         }, status=500)
 
-def generate_materials_html(materials_data, selected_category, descendants_count, stats):
+def generate_materials_html(materials_data, selected_category, descendants_count, stats, csrf_token):
     """
-    УНИВЕРСАЛЬНАЯ функция для генерации HTML таблицы материалов
+    УНИВЕРСАЛЬНАЯ функция для генерации HTML таблицы материалов.
+    
+    Аргументы:
+        materials_data (list): список словарей с данными материалов
+        selected_category (dict or None): информация о выбранной категории
+        descendants_count (int): количество подкатегорий у выбранной категории
+        stats (dict): статистика по складу
+        csrf_token (str): CSRF-токен для вставки в форму
+    
+    Возвращает:
+        str: готовый HTML-код для правой колонки
     """
     
     if not materials_data:
@@ -259,6 +290,10 @@ def generate_materials_html(materials_data, selected_category, descendants_count
             </span>
         '''
     
+    # ИЗМЕНЕНО: В форму добавлено скрытое поле с CSRF-токеном.
+    # Django требует, чтобы каждая POST-форма содержала токен {% csrf_token %}.
+    # При генерации HTML на сервере мы вставляем его как обычное скрытое поле.
+    # Это поле будет отправлено вместе с формой, и Django проверит его соответствие.
     html = f'''
     <!-- Заголовок секции материалов -->
     <div class="section-header">
@@ -276,6 +311,10 @@ def generate_materials_html(materials_data, selected_category, descendants_count
     <div class="form-section" id="material-form-section" style="display: none;">
         <h3>Добавить новый материал</h3>
         <form method="post" action="/sklad/material/create/" id="material-form">
+            <!-- ИЗМЕНЕНО: Скрытое поле с CSRF-токеном.
+                 Значение подставляется из переменной csrf_token, переданной в функцию.
+                 Без этого поля Django вернёт ошибку 403 при отправке формы. -->
+            <input type="hidden" name="csrfmiddlewaretoken" value="{csrf_token}">
             <div class="form-group">
                 <label for="material-name">Название материала*</label>
                 <input type="text" 
@@ -404,7 +443,11 @@ def get_all_materials(request):
             'current_materials_count': materials.count(),
         }
         
-        html_content = generate_materials_html(materials_data, None, 0, stats)
+        # ИЗМЕНЕНО: Получаем CSRF-токен и передаём его в функцию генерации HTML.
+        # Даже если мы показываем все материалы (без фильтра), форма добавления
+        # всё равно должна содержать токен, поэтому мы его получаем здесь.
+        csrf_token = get_token(request)
+        html_content = generate_materials_html(materials_data, None, 0, stats, csrf_token)
         
         return JsonResponse({
             'success': True,
@@ -427,7 +470,10 @@ def get_all_materials(request):
 @never_cache
 def index(request):
     """
-    Главная страница приложения sklad
+    Главная страница приложения sklad.
+    Здесь происходит первоначальная загрузка страницы.
+    Форма в шаблоне index.html уже содержит {% csrf_token %},
+    поэтому дополнительных действий не требуется.
     """
     
     categories = Category.objects.all().order_by('name')
@@ -494,7 +540,9 @@ def get_category_tree(request):
 @require_POST
 def create_category(request):
     """
-    Создание новой категории
+    Создание новой категории.
+    Эта view получает POST-запрос от формы. Django автоматически проверяет
+    CSRF-токен, если форма была отправлена корректно (токен есть в данных POST).
     """
     try:
         name = request.POST.get('name', '').strip()
@@ -537,7 +585,9 @@ def create_category(request):
 @require_POST
 def create_material(request):
     """
-    Создание нового материала
+    Создание нового материала.
+    Django автоматически проверяет CSRF-токен, если он присутствует в POST-данных.
+    Если токена нет или он неверный, Django вернёт ошибку 403.
     """
     try:
         name = request.POST.get('name', '').strip()
@@ -596,7 +646,7 @@ def create_material(request):
 @login_required(login_url='/counter/login/')
 def delete_category(request, category_id):
     """
-    Удаление категории
+    Удаление категории.
     """
     try:
         category = Category.objects.get(id=category_id)
@@ -654,6 +704,9 @@ def delete_material(request, material_id):
 def update_material(request, material_id):
     """
     Обновление материала через AJAX (inline-редактирование)
+    Эта view ожидает JSON с полями field и value.
+    CSRF-защита для AJAX-запросов также работает: Django проверяет
+    заголовок X-CSRFToken, который мы отправляем из JavaScript.
     """
     
     try:
