@@ -3,13 +3,16 @@ calculator/static/calculator/js/sections/list_proschet.js
 ОБНОВЛЕНО: Исправлены гонки запросов и управление состоянием при переключении просчётов
 ДОБАВЛЕНО: Правильное управление обработчиком изменения тиража
 ДОБАВЛЕНО: Синхронизация состояний между секциями
+ДОБАВЛЕНО: Сброс секции "Дополнительные работы" при выборе нового просчёта (т.к. теперь работы привязаны к компонентам, а не к просчёту)
+УДАЛЕНО: Обновление секции "Дополнительные работы" при выборе просчёта (теперь она обновляется только при выборе компонента)
 
 ИСПРАВЛЕНИЯ:
 1. Исправлена гонка запросов при быстром переключении просчётов
 2. Добавлена правильная последовательность сброса состояний
 3. Исправлено управление обработчиком изменения тиража
 4. Добавлена проверка актуальности запросов на каждом этапе
-5. Улучшена синхронизация между секциями "Список просчётов", "Изделие" и "Печатные компоненты"
+5. Улучшена синхронизация между секциями "Список просчётов", "Изделие", "Печатные компоненты" и "Дополнительные работы"
+6. При выборе просчёта секция "Дополнительные работы" теперь сбрасывается в состояние "компонент не выбран"
 */
 
 "use strict";
@@ -137,7 +140,7 @@ function setupListProschetRowClickListeners() {
     });
 }
 
-// ===== 4. НОВЫЕ ФУНКЦИИ ДЛЯ ПОИСКА =====
+// ===== 4. ФУНКЦИИ ДЛЯ ПОИСКА =====
 
 function handleListProschetSearchInput(event) {
     // Получаем значение из поля поиска и очищаем от лишних пробелов
@@ -304,6 +307,16 @@ function selectListProschetRow(rowElement, proschetId) {
     // ВАЖНО: Первым делом сбрасываем обработчик изменения тиража для предыдущего просчёта
     resetCirculationHandlerForPreviousProschet();
     
+    // ===== НОВОЕ: Сбрасываем секцию "Дополнительные работы" =====
+    // Поскольку дополнительные работы теперь привязаны к печатным компонентам,
+    // при смене просчёта мы должны вернуть секцию в состояние "компонент не выбран"
+    if (window.additionalWorksSection && typeof window.additionalWorksSection.reset === 'function') {
+        window.additionalWorksSection.reset();
+        console.log('🔄 Секция "Дополнительные работы" сброшена (компонент не выбран)');
+    } else {
+        console.warn('⚠️ Секция "Дополнительные работы" не найдена или не инициализирована');
+    }
+    
     // Отменяем предыдущие запросы, если они есть
     if (listProschetCurrentRequestController) {
         listProschetCurrentRequestController.abort();
@@ -339,8 +352,8 @@ function selectListProschetRow(rowElement, proschetId) {
         // 5. Обновляем секцию "Печатные компоненты" для выбранного просчёта
         updatePrintComponentsSectionForProschet(proschetId, rowElement, signal);
         
-        // 6. Обновляем секцию "Дополнительные работы" для выбранного просчёта
-        updateAdditionalWorksSectionForProschet(proschetId, rowElement, signal);
+        // 6. Секцию "Дополнительные работы" НЕ обновляем здесь, т.к. она теперь зависит от выбора компонента,
+        //    и мы уже сбросили её выше.
         
         // 7. Обновляем секцию "Цена"
         if (window.priceSection && typeof window.priceSection.updateForProschet === 'function') {
@@ -425,33 +438,6 @@ function updatePrintComponentsSectionForProschet(proschetId, rowElement, signal)
         window.printComponentsSection.updateForProschet(proschetId, rowElement, signal);
     } else {
         console.warn('❌ Секция "Печатные компоненты" не найдена или не инициализирована');
-    }
-}
-
-/**
- * Обновление секции "Дополнительные работы" с проверкой актуальности
- */
-function updateAdditionalWorksSectionForProschet(proschetId, rowElement, signal) {
-    console.log(`🔄 Обновление секции "Дополнительные работы" для просчёта ID: ${proschetId}`);
-    
-    // Проверяем, актуален ли запрос
-    if (signal.aborted) {
-        console.log(`ℹ️ Запрос для просчёта ${proschetId} был отменён, пропускаем обновление дополнительных работ`);
-        return;
-    }
-    
-    // Проверяем, что это всё ещё тот же просчёт, который мы хотим обновить
-    if (proschetId !== listProschetSelectedProschetId) {
-        console.warn(`⚠️ Пропускаем обновление дополнительных работ: запрос для просчёта ${proschetId}, но выбран просчёт ${listProschetSelectedProschetId}`);
-        return;
-    }
-    
-    // Проверяем, существует ли объект секции "Дополнительные работы"
-    if (window.additionalWorksSection && typeof window.additionalWorksSection.updateForProschet === 'function') {
-        // Передаём signal в секцию для возможности отмены
-        window.additionalWorksSection.updateForProschet(proschetId, rowElement, signal);
-    } else {
-        console.warn('❌ Секция "Дополнительные работы" не найдена или не инициализирована');
     }
 }
 

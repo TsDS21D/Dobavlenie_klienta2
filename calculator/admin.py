@@ -1,11 +1,9 @@
 # calculator/admin.py
 """
 Настройка административного интерфейса Django для приложения Calculator.
-
-ИСПРАВЛЕНИЯ (24.02.2026):
-- Добавлено поле total_circulation_price в отображение модели PrintComponent.
-- В list_display и соответствующие методы теперь используется сохранённое значение общей стоимости.
-- Все остальные методы оставлены без изменений.
+ИЗМЕНЕНИЯ: 
+- В AdditionalWorkInline и AdditionalWorkAdmin убрано поле proschet, добавлено print_component.
+- Обновлены list_display и методы.
 """
 
 from django.contrib import admin
@@ -14,88 +12,72 @@ from .models_list_proschet import Proschet, PrintComponent, AdditionalWork
 
 
 class PrintComponentInline(admin.TabularInline):
-    """
-    Inline-форма для редактирования Компонентов печати внутри просчёта.
-    """
+    """Inline-форма для редактирования Компонентов печати внутри просчёта."""
     model = PrintComponent
     extra = 1
     min_num = 0
     max_num = None
 
     fields = [
-        'circulation_display',      # Отображение тиража (только чтение)
+        'circulation_display',
         'printer',
-        'price_per_sheet',          # Только для чтения – авторасчёт
+        'price_per_sheet',
         'printing_cost_display',
         'paper',
         'material_price_display',
-        'sheet_count',              # Количество листов (только чтение в админке)
+        'sheet_count',
         'material_cost_display',
-        'total_circulation_price_display',   # Общая стоимость (из поля модели)
+        'total_circulation_price_display',
     ]
-
     exclude = ['number', 'created_at', 'is_deleted']
-
     readonly_fields = [
         'circulation_display',
         'material_price_display',
         'printing_cost_display',
         'material_cost_display',
-        'total_circulation_price_display',   # Добавлено
+        'total_circulation_price_display',
         'is_price_calculated_display',
-        'price_per_sheet',          # Запрещаем ручное редактирование
-        'sheet_count'                # Количество листов тоже только для чтения
+        'price_per_sheet',
+        'sheet_count'
     ]
-
     verbose_name = 'Компонент печати'
     verbose_name_plural = 'Компоненты печати'
     autocomplete_fields = ['printer', 'paper']
 
     def circulation_display(self, obj):
-        """Отображает тираж из связанного просчёта."""
         if obj and obj.proschet:
             return obj.formatted_circulation
         return "---"
     circulation_display.short_description = 'Тираж из просчёта:'
 
     def is_price_calculated_display(self, obj):
-        """Отображает информацию о том, была ли цена рассчитана автоматически."""
         if obj and obj.pk:
             if obj.is_price_calculated:
-                return format_html(
-                    '<span style="color: #0B8661; font-weight: bold;">✓ Рассчитана автоматически</span>'
-                )
+                return format_html('<span style="color: #0B8661; font-weight: bold;">✓ Рассчитана автоматически</span>')
             else:
-                return format_html(
-                    '<span style="color: #d35400; font-weight: bold;">✗ Установлена вручную</span>'
-                )
+                return format_html('<span style="color: #d35400; font-weight: bold;">✗ Установлена вручную</span>')
         return "---"
     is_price_calculated_display.short_description = 'Расчет цены:'
 
     def material_price_display(self, obj):
-        """Цена за единицу выбранного материала."""
         if obj and obj.paper:
             return obj.formatted_material_price
         return "— Выберите материал —"
     material_price_display.short_description = 'Цена материала за единицу:'
 
     def printing_cost_display(self, obj):
-        """Стоимость печати для тиража."""
         if obj.pk and obj.price_per_sheet is not None:
             return obj.formatted_printing_cost_for_circulation
         return "0.00 ₽"
     printing_cost_display.short_description = 'Стоимость печати для тиража:'
 
     def material_cost_display(self, obj):
-        """Стоимость материала для тиража."""
         if obj.pk and obj.paper:
             return obj.formatted_material_cost_for_circulation
         return "0.00 ₽"
     material_cost_display.short_description = 'Стоимость материала для тиража:'
 
-    # ===== НОВЫЙ МЕТОД для отображения общей стоимости =====
     def total_circulation_price_display(self, obj):
-        """Общая цена за тираж (использует сохранённое поле)."""
         if obj.pk:
             return obj.formatted_total_circulation_price
         return "0.00 ₽"
@@ -103,7 +85,7 @@ class PrintComponentInline(admin.TabularInline):
 
 
 class AdditionalWorkInline(admin.TabularInline):
-    """Inline-форма для дополнительных работ."""
+    """Inline-форма для дополнительных работ (теперь внутри печатного компонента)."""
     model = AdditionalWork
     extra = 1
     min_num = 0
@@ -129,7 +111,7 @@ class ProschetAdmin(admin.ModelAdmin):
     ]
     list_filter = ['is_deleted', 'created_at', 'client', 'circulation']
     search_fields = ['number', 'title', 'client__name', 'client__client_number']
-    inlines = [PrintComponentInline, AdditionalWorkInline]
+    inlines = [PrintComponentInline]   # убрали AdditionalWorkInline из просчёта
     fields = [
         'number',
         'title',
@@ -144,7 +126,7 @@ class ProschetAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        form.base_fields['circulation'].initial = 1   # значение по умолчанию
+        form.base_fields['circulation'].initial = 1
         return form
 
     def formatted_total_price(self, obj):
@@ -163,19 +145,20 @@ class ProschetAdmin(admin.ModelAdmin):
 class PrintComponentAdmin(admin.ModelAdmin):
     """
     Административный класс для модели PrintComponent.
+    Теперь включает inline для дополнительных работ.
     """
     list_display = [
         'number',
-        'circulation_display',          # Тираж из просчёта
+        'circulation_display',
         'printer',
         'paper',
         'material_price_display',
         'sheet_count',
         'price_per_sheet_display',
-        'is_price_calculated_display',  # Способ расчёта
+        'is_price_calculated_display',
         'printing_cost_display',
         'material_cost_display',
-        'total_circulation_price_display',   # Общая стоимость (из поля)
+        'total_circulation_price_display',
         'proschet',
         'created_at',
     ]
@@ -202,13 +185,16 @@ class PrintComponentAdmin(admin.ModelAdmin):
         'material_price_display',
         'printing_cost_display',
         'material_cost_display',
-        'total_circulation_price_display',   # Добавлено
+        'total_circulation_price_display',
         'is_price_calculated_display',
-        'price_per_sheet',              # Только для чтения
-        'total_circulation_price',      # Поле модели тоже только для чтения
+        'price_per_sheet',
+        'total_circulation_price',
     ]
 
     autocomplete_fields = ['proschet', 'printer', 'paper']
+
+    # Добавляем inline для дополнительных работ прямо внутри компонента
+    inlines = [AdditionalWorkInline]
 
     fieldsets = [
         ('Основная информация', {
@@ -228,8 +214,8 @@ class PrintComponentAdmin(admin.ModelAdmin):
                 'sheet_count',
                 'printing_cost_display',
                 'material_cost_display',
-                'total_circulation_price_display',   # Показываем итог
-                'total_circulation_price',           # Само поле (скрыто или видно)
+                'total_circulation_price_display',
+                'total_circulation_price',
             ]
         }),
     ]
@@ -258,7 +244,6 @@ class PrintComponentAdmin(admin.ModelAdmin):
     actions = ['recalculate_prices']
 
     def recalculate_prices(self, request, queryset):
-        """Пересчитывает цены для выбранных компонентов печати."""
         updated_count = 0
         failed_count = 0
         for component in queryset:
@@ -267,7 +252,6 @@ class PrintComponentAdmin(admin.ModelAdmin):
                 updated_count += 1
             else:
                 failed_count += 1
-
         if updated_count > 0:
             self.message_user(request, f"Успешно пересчитано {updated_count} цен")
         if failed_count > 0:
@@ -297,22 +281,24 @@ class PrintComponentAdmin(admin.ModelAdmin):
 
 @admin.register(AdditionalWork)
 class AdditionalWorkAdmin(admin.ModelAdmin):
-    """Административный класс для AdditionalWork."""
+    """
+    Административный класс для AdditionalWork.
+    Теперь отображает привязку к печатному компоненту.
+    """
     list_display = [
         'number',
         'title',
         'price',
-        'proschet',
+        'print_component',          # вместо proschet
         'created_at',
         'is_deleted',
     ]
-    list_filter = ['title', 'proschet', 'created_at', 'is_deleted']
-    search_fields = ['number', 'title', 'proschet__number']
+    list_filter = ['title', 'print_component', 'created_at', 'is_deleted']
+    search_fields = ['number', 'title', 'print_component__number']
     readonly_fields = ['number', 'created_at']
-    autocomplete_fields = ['proschet']
+    autocomplete_fields = ['print_component']   # теперь автодополнение по компонентам
 
     def is_deleted_display(self, obj):
-        """Цветовое отображение статуса удаления."""
         if obj.is_deleted:
             return format_html(
                 '<span style="color: #e74c3c; font-weight: bold;">'

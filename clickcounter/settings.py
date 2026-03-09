@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'print_price',
     'baza_klientov',
     'vichisliniya_listov',
+    'spravochnik_dopolnitelnyh_rabot',
 
 ]
 

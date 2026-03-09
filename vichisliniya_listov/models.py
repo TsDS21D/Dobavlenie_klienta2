@@ -1,8 +1,13 @@
 """
 Файл models.py для приложения vichisliniya_listov.
 ОБНОВЛЕНО:
-- Добавлены поля для хранения размеров изделия и результатов расчёта размещения на листе.
-- Исправлен метод расчёта количества листов: теперь используется fit_total и округление вверх.
+- Добавлено поле vichisliniya_listov_cuts_count для хранения количества резов.
+- Добавлен метод update_cuts_count() для автоматического пересчёта резов.
+- В метод vichisliniya_listov_to_dict() добавлено поле cuts_count.
+- Переопределён метод save() – теперь при сохранении (в том числе через админку) автоматически:
+    * пересчитывается размещение изделий на листе на основе данных принтера (если доступны);
+    * обновляется количество резов;
+    * пересчитывается количество листов на основе тиража из связанного просчёта.
 """
 
 from django.db import models
@@ -146,6 +151,13 @@ class VichisliniyaListovModel(models.Model):
         help_text='Какая ориентация размещения выбрана в данный момент'
     )
 
+    # ===== НОВОЕ ПОЛЕ: КОЛИЧЕСТВО РЕЗОВ =====
+    vichisliniya_listov_cuts_count = models.PositiveIntegerField(
+        verbose_name='Количество резов',
+        default=0,
+        help_text='Количество резов для разделения листа на изделия: (количество по горизонтали + 1) + (количество по вертикали + 1)'
+    )
+
     # ===== МЕТАДАННЫЕ И СЛУЖЕБНЫЕ ПОЛЯ =====
 
     vichisliniya_listov_created_at = models.DateTimeField(
@@ -174,7 +186,8 @@ class VichisliniyaListovModel(models.Model):
         return (f"Вычисления для компонента {component_number} (ID: {component_id}): "
                 f"{self.vichisliniya_listov_list_count} листов, "
                 f"изделие {self.vichisliniya_listov_item_width}×{self.vichisliniya_listov_item_height} мм, "
-                f"на листе {self.vichisliniya_listov_fit_total} шт.")
+                f"на листе {self.vichisliniya_listov_fit_total} шт., "
+                f"резов {self.vichisliniya_listov_cuts_count}")  # добавили отображение резов
 
     # ===== ПОЛЬЗОВАТЕЛЬСКИЕ МЕТОДЫ =====
 
@@ -225,7 +238,7 @@ class VichisliniyaListovModel(models.Model):
     def vichisliniya_listov_to_dict(self):
         """
         Преобразование объекта в словарь для JSON.
-        Теперь включает новые поля.
+        Теперь включает новые поля, в том числе cuts_count.
         """
         return {
             'print_component_id': self.vichisliniya_listov_print_component_id,
@@ -243,6 +256,7 @@ class VichisliniyaListovModel(models.Model):
             'fit_landscape_total': self.vichisliniya_listov_fit_landscape_total,
             'fit_portrait_total': self.vichisliniya_listov_fit_portrait_total,
             'fit_selected_orientation': self.vichisliniya_listov_fit_selected_orientation,
+            'cuts_count': self.vichisliniya_listov_cuts_count,  # добавлено
             'created_at': self.vichisliniya_listov_created_at.isoformat(),
             'updated_at': self.vichisliniya_listov_updated_at.isoformat(),
         }
@@ -264,7 +278,7 @@ class VichisliniyaListovModel(models.Model):
             }
         return None
     
-    # ===== НОВЫЙ МЕТОД: расчёт размещения =====
+    # ===== МЕТОД ДЛЯ РАСЧЁТА РАЗМЕЩЕНИЯ =====
     def calculate_fitting(self, sheet_width, sheet_height, margin):
         """
         Рассчитывает оптимальное размещение изделий на листе на основе
@@ -272,6 +286,7 @@ class VichisliniyaListovModel(models.Model):
         Обновляет поля fit_landscape_total, fit_portrait_total,
         fit_horizontal, fit_vertical, fit_total и fit_selected_orientation
         (если выбрано 'auto', устанавливается лучший вариант).
+        В конце вызывает update_cuts_count() для пересчёта количества резов.
         """
         from decimal import Decimal
 
@@ -286,6 +301,8 @@ class VichisliniyaListovModel(models.Model):
             self.vichisliniya_listov_fit_horizontal = 0
             self.vichisliniya_listov_fit_vertical = 0
             self.vichisliniya_listov_fit_total = 0
+            # Обновляем количество резов (будет 0)
+            self.update_cuts_count()
             return
 
         # Текущие параметры изделия и зазор
@@ -337,3 +354,52 @@ class VichisliniyaListovModel(models.Model):
             self.vichisliniya_listov_fit_total = total_port
 
         self.vichisliniya_listov_fit_selected_orientation = selected
+
+        # Обновляем количество резов после изменения fit_horizontal и fit_vertical
+        self.update_cuts_count()
+
+    # ===== НОВЫЙ МЕТОД: обновление количества резов =====
+    def update_cuts_count(self):
+        """
+        Обновляет поле vichisliniya_listov_cuts_count на основе текущих значений
+        fit_horizontal и fit_vertical по формуле: (fit_horizontal + 1) + (fit_vertical + 1)
+        """
+        self.vichisliniya_listov_cuts_count = (self.vichisliniya_listov_fit_horizontal + 1) + (self.vichisliniya_listov_fit_vertical + 1)
+
+    # ===== ПЕРЕОПРЕДЕЛЁННЫЙ МЕТОД save() =====
+    def save(self, *args, **kwargs):
+        """
+        Переопределяем метод save() для автоматического пересчёта:
+        - Если есть связанный печатный компонент и у него есть принтер с форматом,
+          пересчитываем размещение на листе (calculate_fitting).
+        - В любом случае обновляем количество резов (на всякий случай, хотя calculate_fitting уже вызывает update_cuts_count).
+        - Если доступен тираж из связанного просчёта, пересчитываем количество листов.
+        """
+        # 1. Получаем данные о листе из связанного принтера (если есть)
+        if (self.vichisliniya_listov_print_component and
+            self.vichisliniya_listov_print_component.printer and
+            self.vichisliniya_listov_print_component.printer.sheet_format):
+            
+            printer = self.vichisliniya_listov_print_component.printer
+            sheet_width = printer.sheet_format.width_mm
+            sheet_height = printer.sheet_format.height_mm
+            margin = printer.margin_mm
+            
+            # Пересчитываем размещение (внутри вызовет update_cuts_count)
+            self.calculate_fitting(sheet_width, sheet_height, margin)
+        else:
+            # Если данных о листе нет, хотя бы обновим резы по текущим значениям fit_*
+            self.update_cuts_count()
+
+        # 2. Пытаемся получить тираж из связанного просчёта
+        circulation = None
+        if (self.vichisliniya_listov_print_component and
+            self.vichisliniya_listov_print_component.proschet):
+            circulation = self.vichisliniya_listov_print_component.proschet.circulation
+
+        # 3. Если тираж получен, пересчитываем количество листов
+        if circulation is not None:
+            self.vichisliniya_listov_calculate_list_count(circulation)
+
+        # 4. Вызываем оригинальный метод save() для сохранения объекта в БД
+        super().save(*args, **kwargs)

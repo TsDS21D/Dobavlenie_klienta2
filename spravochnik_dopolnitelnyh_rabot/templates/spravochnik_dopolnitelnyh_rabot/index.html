@@ -1,0 +1,504 @@
+<!--
+index.html для приложения spravochnik_dopolnitelnyh_rabot.
+Двухколоночный макет: слева список работ, справа детали выбранной работы.
+Добавлены поля для формулы и параметров с поддержкой inline-редактирования.
+-->
+
+{% extends "spravochnik_dopolnitelnyh_rabot/base.html" %}
+{% load static %}  <!-- ЯВНО ЗАГРУЖАЕМ ТЕГ static, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК -->
+
+{% block title %}Справочник дополнительных работ{% endblock %}
+
+{% block content %}
+    <!-- Заголовок страницы -->
+    <h1>
+        <i class="fas fa-tools"></i>
+        Справочник дополнительных работ
+    </h1>
+
+    <!-- Скрытый контейнер для сообщений Django (используется для уведомлений) -->
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Двухколоночный layout -->
+    <div class="two-column-layout spravochnik-layout">
+
+        <!-- ЛЕВАЯ КОЛОНКА: список работ -->
+        <div class="left-column">
+            <div class="section-header">
+                <h2><i class="fas fa-list"></i> Дополнительные работы</h2>
+                <div class="header-buttons">
+                    <button type="button" class="btn-action btn-add-work" id="spravochnik-add-btn">
+                        + Добавить работу
+                    </button>
+                </div>
+            </div>
+
+            <!-- Форма поиска -->
+            <div class="search-section">
+                <form method="get" action="{% url 'spravochnik_dopolnitelnyh_rabot:index' %}" class="search-form">
+                    <div class="input-group">
+                        <input type="text"
+                               name="search"
+                               class="form-control search-input"
+                               placeholder="Поиск по названию..."
+                               value="{{ search_query }}">
+                        <button type="submit" class="btn-search"><i class="fas fa-search"></i></button>
+                        {% if search_query %}
+                            <a href="{% url 'spravochnik_dopolnitelnyh_rabot:index' %}"
+                               class="btn-clear-search"
+                               title="Очистить поиск">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+
+            <!-- Контейнер со списком работ -->
+            <div class="works-container" id="spravochnik-works-container">
+                <div class="works-list">
+                    {% for work in works %}
+                        <a href="?work_id={{ work.id }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}"
+                        class="work-item {% if selected_work and selected_work.id == work.id %}selected{% endif %}"
+                        data-work-id="{{ work.id }}">
+                            <div class="work-info">
+                                <div class="work-name">
+                                    <i class="fas fa-cog"></i>
+                                    {{ work.name|truncatechars:40 }}
+                                </div>
+                                <div class="work-price">
+                                    <i class="fas fa-ruble-sign"></i>
+                                    {{ work.price }}
+                                </div>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <div class="empty-message">
+                            <i class="fas fa-box-open"></i>
+                            {% if search_query %}
+                                Работы не найдены по запросу "{{ search_query }}"
+                            {% else %}
+                                Справочник пуст. Добавьте первую работу.
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ========== ИСПРАВЛЕННАЯ ФОРМА ДОБАВЛЕНИЯ РАБОТЫ ========== -->
+            <!-- Добавлено поле выбора метода интерполяции (interpolation_method) -->
+            <div class="form-section" id="spravochnik-form-section" style="display: none;">
+                <h3>Добавить новую работу</h3>
+                <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create' %}" id="spravochnik-add-form">
+                    {% csrf_token %}
+                    
+                    <!-- Поле "Название" -->
+                    <div class="form-group">
+                        <label for="{{ work_form.name.id_for_label }}">Название работы:</label>
+                        {{ work_form.name }}
+                        {% if work_form.name.errors %}
+                            <div class="error-message">{{ work_form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Поле "Цена" -->
+                    <div class="form-group">
+                        <label for="{{ work_form.price.id_for_label }}">Цена (руб):</label>
+                        {{ work_form.price }}
+                        {% if work_form.price.errors %}
+                            <div class="error-message">{{ work_form.price.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Поле "Формула расчёта" -->
+                    <div class="form-group">
+                        <label for="{{ work_form.formula_type.id_for_label }}">Формула расчёта:</label>
+                        {{ work_form.formula_type }}
+                        {% if work_form.formula_type.errors %}
+                            <div class="error-message">{{ work_form.formula_type.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- ===== НОВОЕ ПОЛЕ: Метод интерполяции ===== -->
+                    <!-- Это поле необходимо для выбора способа расчёта цены при произвольном количестве листов.
+                         Оно соответствует полю interpolation_method модели Work.
+                         Идентификатор spravochnik-interpolation-method используется в JavaScript для добавления значения в FormData. -->
+                    <div class="form-group">
+                        <label for="{{ work_form.interpolation_method.id_for_label }}">Метод интерполяции:</label>
+                        <!-- Рендерим поле через Django-форму, которая уже содержит нужные атрибуты (в том числе id="spravochnik-interpolation-method") -->
+                        {{ work_form.interpolation_method }}
+                        {% if work_form.interpolation_method.errors %}
+                            <div class="error-message">{{ work_form.interpolation_method.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Поле "Линий реза" -->
+                    <div class="form-group">
+                        <label for="{{ work_form.default_lines_count.id_for_label }}">Линий реза (по умолч.):</label>
+                        {{ work_form.default_lines_count }}
+                        {% if work_form.default_lines_count.errors %}
+                            <div class="error-message">{{ work_form.default_lines_count.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Поле "Изделий на листе" -->
+                    <div class="form-group">
+                        <label for="{{ work_form.default_items_per_sheet.id_for_label }}">Изделий на листе (по умолч.):</label>
+                        {{ work_form.default_items_per_sheet }}
+                        {% if work_form.default_items_per_sheet.errors %}
+                            <div class="error-message">{{ work_form.default_items_per_sheet.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn-submit">Сохранить</button>
+                        <button type="button" class="btn-clear" onclick="SpravochnikDopRabot.clearForm()">Очистить</button>
+                    </div>
+                </form>
+            </div>
+        </div> <!-- Закрываем левую колонку -->
+
+        <!-- ПРАВАЯ КОЛОНКА: детали работы -->
+        <div class="right-column">
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-info-circle"></i> Детали работы
+                    {% if selected_work %}
+                        <span class="selected-work">«{{ selected_work.name|truncatechars:30 }}»</span>
+                    {% endif %}
+                </h2>
+                <div class="header-buttons">
+                    {% if selected_work %}
+                        <a href="{% url 'spravochnik_dopolnitelnyh_rabot:index' %}{% if search_query %}?search={{ search_query|urlencode }}{% endif %}"
+                           class="btn-action btn-reset-filter"
+                           title="Сбросить выбор">
+                            <i class="fas fa-times-circle"></i> Сбросить
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not selected_work %}
+                <div class="empty-message">
+                    <i class="fas fa-hand-pointer"></i>
+                    Выберите работу слева для просмотра и редактирования.
+                </div>
+            {% else %}
+                <div class="work-details-section">
+                    <div class="work-card">
+                        <div class="work-header">
+                            <span class="work-id">#{{ selected_work.id }}</span>
+                            <div class="work-actions">
+                                <button type="button"
+                                        class="btn-action btn-delete-work"
+                                        data-work-id="{{ selected_work.id }}"
+                                        data-work-name="{{ selected_work.name }}">
+                                    <i class="fas fa-trash"></i> Удалить
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="work-body">
+                            <!-- Поле "Название" (редактируемое по двойному клику) -->
+                            <div class="work-field">
+                                <label>Название:</label>
+                                <span class="editable-field spravochnik-name-field"
+                                      data-field="name"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.name }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.name }}
+                                </span>
+                                <input type="text"
+                                       class="inline-edit-input spravochnik-name-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="name"
+                                       value="{{ selected_work.name }}"
+                                       style="display: none;"
+                                       placeholder="Введите название">
+                            </div>
+
+                            <!-- Поле "Цена" (редактируемое по двойному клику) -->
+                            <div class="work-field">
+                                <label>Цена (руб):</label>
+                                <span class="editable-field spravochnik-price-field"
+                                      data-field="price"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.price }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.price }}
+                                </span>
+                                <input type="number"
+                                       class="inline-edit-input spravochnik-price-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="price"
+                                       value="{{ selected_work.price }}"
+                                       step="0.01"
+                                       min="0"
+                                       style="display: none;"
+                                       placeholder="0.00">
+                            </div>
+
+                            <!-- Поле "Формула расчёта" (редактируемое по двойному клику) -->
+                            <div class="work-field">
+                                <label>Формула расчёта:</label>
+                                <span class="editable-field spravochnik-formula-field"
+                                      data-field="formula_type"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.formula_type }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.get_formula_type_display }}
+                                </span>
+                                <!-- Скрытый выпадающий список для редактирования -->
+                                <select class="inline-edit-input spravochnik-formula-select"
+                                        data-work-id="{{ selected_work.id }}"
+                                        data-field="formula_type"
+                                        style="display: none;">
+                                    <!-- Перебираем варианты формул из модели -->
+                                    {% for value, label in selected_work.FORMULA_CHOICES %}
+                                        <option value="{{ value }}" {% if selected_work.formula_type == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Поле "Линий реза" (редактируемое по двойному клику) -->
+                            <div class="work-field">
+                                <label>Линий реза (по умолч.):</label>
+                                <span class="editable-field spravochnik-lines-field"
+                                      data-field="default_lines_count"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.default_lines_count }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.default_lines_count }}
+                                </span>
+                                <input type="number"
+                                       class="inline-edit-input spravochnik-lines-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="default_lines_count"
+                                       value="{{ selected_work.default_lines_count }}"
+                                       min="1"
+                                       step="1"
+                                       style="display: none;"
+                                       placeholder="1">
+                            </div>
+
+                            <!-- Поле "Изделий на листе" (редактируемое по двойному клику) -->
+                            <div class="work-field">
+                                <label>Изделий на листе (по умолч.):</label>
+                                <span class="editable-field spravochnik-items-field"
+                                      data-field="default_items_per_sheet"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.default_items_per_sheet }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.default_items_per_sheet }}
+                                </span>
+                                <input type="number"
+                                       class="inline-edit-input spravochnik-items-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="default_items_per_sheet"
+                                       value="{{ selected_work.default_items_per_sheet }}"
+                                       min="1"
+                                       step="1"
+                                       style="display: none;"
+                                       placeholder="1">
+                            </div>
+
+                            <!-- ===== НОВОЕ ПОЛЕ: Коэффициент резов ===== -->
+                            <div class="work-field">
+                                <label>Коэффициент резов:</label>
+                                <span class="editable-field spravochnik-k-lines-field"
+                                      data-field="k_lines"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.k_lines }}"
+                                      title="Двойной клик для редактирования">
+                                    {{ selected_work.k_lines }}
+                                </span>
+                                <input type="number"
+                                       class="inline-edit-input spravochnik-k-lines-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="k_lines"
+                                       value="{{ selected_work.k_lines }}"
+                                       step="0.1"
+                                       min="0.1"
+                                       style="display: none;"
+                                       placeholder="2.0">
+                            </div>
+
+
+                            <!-- Даты создания/обновления (только для просмотра) -->
+                            <div class="work-field">
+                                <label>Дата создания:</label>
+                                <span class="readonly-field">{{ selected_work.created_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                            <div class="work-field">
+                                <label>Последнее изменение:</label>
+                                <span class="readonly-field">{{ selected_work.updated_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== НОВЫЙ БЛОК: Опорные точки цены (как в print_price) ===== -->
+                    {% if selected_work %}
+                        <div class="price-points-section">
+                            <div class="section-header" style="margin-top: 1.5rem;">
+                                <h3>
+                                    <i class="fas fa-chart-line"></i> Цены в зависимости от количества листов
+                                </h3>
+                                <div class="header-buttons">
+                                    <button type="button" class="btn-action btn-add-price-point" id="add-price-point-btn">
+                                        + Добавить цену
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Форма добавления цены (скрыта) -->
+                            <div class="form-section" id="price-point-form-section" style="display: none;">
+                                <h4>Добавить новую цену</h4>
+                                <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_work_price' %}" id="price-point-form">
+                                    {% csrf_token %}
+                                    <!-- Скрытое поле work (принудительно выставляем текущую работу) -->
+                                    <input type="hidden" name="work" value="{{ selected_work.id }}" id="price-point-work">
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="price-point-sheets">Количество листов*</label>
+                                            <input type="number" id="price-point-sheets" name="sheets" class="form-control"
+                                                min="1" placeholder="100" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="price-point-price">Цена (руб.)*</label>
+                                            <input type="number" id="price-point-price" name="price" class="form-control"
+                                                step="0.01" min="0.01" placeholder="50.00" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="button-group">
+                                        <button type="submit" class="btn-submit">Сохранить</button>
+                                        <button type="button" class="btn-clear" onclick="WorkPrice.clearForm()">Очистить</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Таблица опорных точек -->
+                            <div class="price-points-container">
+                                {% if work_prices %}
+                                    <div class="price-points-table">
+                                        <div class="table-header">
+                                            <div class="col-sheets">Количество листов</div>
+                                            <div class="col-price">Цена</div>
+                                            <div class="col-actions">Действия</div>
+                                        </div>
+                                        <div class="table-body">
+                                            {% for price in work_prices %}
+                                                <div class="table-row" data-price-id="{{ price.id }}">
+                                                    <div class="col-sheets">
+                                                        <span class="sheets-badge editable-field-price"
+                                                            data-field="sheets"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-original-value="{{ price.sheets|stringformat:'d' }}"
+                                                            title="Двойной клик для редактирования">
+                                                            {{ price.get_sheets_display }}
+                                                        </span>
+                                                        <input type="number"
+                                                            class="inline-edit-input sheets-input"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-field="sheets"
+                                                            value="{{ price.sheets }}"
+                                                            min="1"
+                                                            step="1"
+                                                            style="display: none;">
+                                                    </div>
+                                                    <div class="col-price">
+                                                        <span class="price-badge editable-field-price"
+                                                            data-field="price"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-original-value="{{ price.price|stringformat:'f' }}"
+                                                            title="Двойной клик для редактирования">
+                                                            {{ price.get_price_display }}
+                                                        </span>
+                                                        <input type="number"
+                                                            class="inline-edit-input price-input"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-field="price"
+                                                            value="{{ price.price|stringformat:'f' }}"
+                                                            min="0.01"
+                                                            step="0.01"
+                                                            style="display: none;">
+                                                    </div>
+                                                    <div class="col-actions">
+                                                        <button type="button"
+                                                                class="btn-action btn-delete-price"
+                                                                data-price-id="{{ price.id }}"
+                                                                data-price-sheets="{{ price.sheets }}">
+                                                            Удалить
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                                    <!-- Блок расчёта для произвольного количества листов -->
+                                    <div class="arbitrary-calc-section">
+                                        <div class="section-header">
+                                            <h4><i class="fas fa-calculator"></i> Расчёт для произвольного количества листов</h4>
+                                        </div>
+                                        <div class="arbitrary-form-row">
+                                            <div class="form-group">
+                                                <label for="interpolation-method-work">Метод интерполяции:</label>
+                                                <select id="interpolation-method-work"
+                                                        class="form-control"
+                                                        data-work-id="{{ selected_work.id }}">
+                                                    <option value="linear" {% if selected_work.interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                                    <option value="logarithmic" {% if selected_work.interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="arbitrary-sheets">Количество листов:</label>
+                                                <input type="number" id="arbitrary-sheets" class="form-control" min="1" step="1" placeholder="Введите количество">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
+                                                    <i class="fas fa-calculator"></i> Рассчитать
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
+                                            <div class="result-content">
+                                                <div class="result-item"><span class="result-label">Метод:</span> <span id="result-method"></span></div>
+                                                <div class="result-item"><span class="result-label">Листов:</span> <span id="result-sheets"></span></div>
+                                                <div class="result-item"><span class="result-label">Цена:</span> <span id="result-price" class="price-value"></span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="empty-message">
+                                        <i class="fas fa-chart-line"></i>
+                                        Нет сохранённых цен. Добавьте первую цену, используя кнопку выше.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            {% endif %}
+        </div> <!-- Закрываем правую колонку -->
+    </div> <!-- Закрываем two-column-layout -->
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    {% if selected_work %}
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price.js' %}"></script>
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_inline_edit.js' %}"></script>
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_arbitrary.js' %}"></script>
+    {% endif %}
+{% endblock %}

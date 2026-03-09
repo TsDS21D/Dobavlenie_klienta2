@@ -2,10 +2,11 @@
 Файл: vichisliniya_listov/templates/vichisliniya_listov/sections/vichisliniya_listov.html
 Шаблон секции "Вычисления листов" для вставки в калькулятор.
 ОБНОВЛЕНО:
-- Добавлены поля ввода ширины и высоты изделия.
-- Добавлен блок расчёта размещения на листе с двумя вариантами ориентации.
-- Используется поле vyleta как межвизиточное расстояние.
-- ДОБАВЛЕН блок визуализации размещения изделий на листе (canvas).
+- Удалён блок с заголовком "Информация о печатном компоненте" для экономии места.
+- Поля "Ширина изделия", "Высота изделия" и "Расстояние между изделиями" объединены в одну строку.
+- Добавлен data-атрибут data-orientation на блоки .fitting-option для обработки клика по всей области.
+- Уменьшены отступы и размеры элементов.
+- Добавлено отображение количества резов в расшифровке результатов.
 -->
 
 <section class="calculator-section vichisliniya-listov-section" id="vichisliniya-listov-section">
@@ -18,7 +19,7 @@
                 <span class="placeholder-text">(печатный компонент не выбран)</span>
             </span>
         </h2>
-        
+
         <div class="header-buttons">
             <button type="button" 
                     class="btn-action btn-collapse-section" 
@@ -28,7 +29,7 @@
             </button>
         </div>
     </div>
-    
+
     <div class="section-body">
         <!-- Сообщение, когда не выбран печатный компонент -->
         <div id="vichisliniya-listov-no-print-component-selected" class="empty-state-message" style="display: block;">
@@ -36,37 +37,32 @@
             <h3>Выберите печатный компонент</h3>
             <p>Выберите печатный компонент в секции "Печатные компоненты" для выполнения вычислений листов</p>
         </div>
-        
+
         <!-- Контейнер для контента вычислений -->
         <div id="vichisliniya-listov-container" class="vichisliniya-listov-container" style="display: none;">
-            <!-- Заголовок блока -->
-            <div class="vichisliniya-listov-header">
-                <h3>Информация о печатном компоненте</h3>
-                <p class="vichisliniya-listov-subtitle">Данные для выполнения вычислений листов</p>
-            </div>
-            
-            <!-- Информация о печатном компоненте -->
+            <!-- Информация о печатном компоненте (компактный блок) -->
             <div class="vichisliniya-listov-info">
-                <!-- ... (без изменений, как в исходном файле) ... -->
-                <!-- Для краткости оставляем как есть, но в реальном файле этот блок не меняется -->
+                <!-- Здесь отображаются данные о компоненте (принтер, бумага и т.д.) – оставляем как есть, только уменьшены отступы в CSS -->
+                <!-- Для краткости содержимое не меняется, но в реальном файле этот блок остаётся без изменений -->
             </div>
 
-            <!-- ========== НОВЫЙ БЛОК: ПАРАМЕТРЫ ИЗДЕЛИЯ ========== -->
+            <!-- ========== ОБЪЕДИНЁННЫЙ БЛОК: ПАРАМЕТРЫ ИЗДЕЛИЯ И РАЗМЕЩЕНИЯ ========== -->
             <div class="vichisliniya-listov-parameters">
                 <h3>
                     <i class="fas fa-ruler"></i>
-                    Параметры изделия
+                    Параметры изделия и размещения
                 </h3>
                 <p class="parameters-description">
-                    Укажите размеры одного изделия (например, визитки) в миллиметрах:
+                    Укажите размеры изделия и расстояние между ними на листе (мм):
                 </p>
-                
-                <div class="vichisliniya-listov-form">
+
+                <!-- Контейнер для полей в одну строку -->
+                <div class="vichisliniya-listov-form-row">
                     <!-- Поле: Ширина изделия -->
                     <div class="vichisliniya-listov-form-group">
                         <label for="vichisliniya-listov-item-width-input">
                             <i class="fas fa-arrows-alt-h"></i>
-                            Ширина изделия (мм):
+                            Ширина (мм):
                         </label>
                         <div class="input-with-help">
                             <input 
@@ -84,14 +80,13 @@
                                 <i class="fas fa-question-circle"></i>
                             </span>
                         </div>
-                        <span class="input-note">Значение по умолчанию: 90 мм</span>
                     </div>
-                    
+
                     <!-- Поле: Высота изделия -->
                     <div class="vichisliniya-listov-form-group">
                         <label for="vichisliniya-listov-item-height-input">
                             <i class="fas fa-arrows-alt-v"></i>
-                            Высота изделия (мм):
+                            Высота (мм):
                         </label>
                         <div class="input-with-help">
                             <input 
@@ -109,27 +104,13 @@
                                 <i class="fas fa-question-circle"></i>
                             </span>
                         </div>
-                        <span class="input-note">Значение по умолчанию: 50 мм</span>
                     </div>
-                </div>
-            </div>
 
-            <!-- Параметры вычислений (vyleta уже было, оставляем как есть, но подпись меняем) -->
-            <div class="vichisliniya-listov-parameters">
-                <h3>
-                    <i class="fas fa-sliders-h"></i>
-                    Параметры размещения на листе
-                </h3>
-                <p class="parameters-description">
-                    Расстояние между изделиями (вылеты) и другие настройки:
-                </p>
-                
-                <div class="vichisliniya-listov-form">
-                    <!-- Поле: Вылеты (теперь это межвизиточное расстояние) -->
+                    <!-- Поле: Расстояние между изделиями (вылеты) -->
                     <div class="vichisliniya-listov-form-group">
                         <label for="vichisliniya-listov-vyleta-input">
                             <i class="fas fa-paper-plane"></i>
-                            Расстояние между изделиями (мм):
+                            Зазор (мм):
                         </label>
                         <div class="input-with-help">
                             <input 
@@ -143,50 +124,47 @@
                                 class="vichisliniya-listov-input"
                                 data-parameter="vyleta"
                             >
-                            <span class="help-icon" title="Расстояние между изделиями на листе в миллиметрах (бывшее поле 'вылеты')">
+                            <span class="help-icon" title="Расстояние между изделиями на листе в миллиметрах">
                                 <i class="fas fa-question-circle"></i>
                             </span>
                         </div>
-                        <span class="input-note">Значение по умолчанию: 1 мм</span>
                     </div>
-                    
-                    <!-- Поле "Количество полос" пока оставляем (скрыто или оставлено для совместимости) -->
-                    <!-- Можно скрыть через CSS, но для простоты оставим как есть -->
                 </div>
             </div>
 
-            <!-- ========== НОВЫЙ БЛОК: РАЗМЕЩЕНИЕ НА ЛИСТЕ ========== -->
+            <!-- ========== БЛОК: РАЗМЕЩЕНИЕ НА ЛИСТЕ ========== -->
             <div class="vichisliniya-listov-fitting">
                 <h3>
                     <i class="fas fa-object-group"></i>
                     Размещение изделий на листе
                 </h3>
-                
-                <!-- Информация о печатной области (будет заполняться динамически) -->
+
+                <!-- Информация о печатной области (динамическая) -->
                 <div class="fitting-info" id="vichisliniya-listov-printable-info">
                     <p>Размер листа: <span id="vichisliniya-listov-sheet-dimensions">—</span>, 
                        поля: <span id="vichisliniya-listov-margin">—</span> мм, 
                        печатная область: <span id="vichisliniya-listov-printable-dimensions">—</span></p>
                 </div>
-                
-                <!-- Два варианта размещения -->
+
+                <!-- Два варианта размещения (теперь кликабельна вся область) -->
                 <div class="fitting-options">
                     <!-- Альбомная ориентация (изделие не повёрнуто) -->
-                    <div class="fitting-option" id="vichisliniya-listov-option-landscape">
+                    <div class="fitting-option" id="vichisliniya-listov-option-landscape" data-orientation="landscape">
                         <div class="option-header">
-                            <span class="option-title">Альбомная ориентация</span>
+                            <span class="option-title">Альбомная</span>
                             <span class="option-count" id="vichisliniya-listov-landscape-count">0</span> шт.
                         </div>
                         <div class="option-details">
                             <span id="vichisliniya-listov-landscape-details">0×0</span>
                         </div>
+                        <!-- Кнопка оставлена для визуальной подсказки, но клик срабатывает по всему блоку -->
                         <button type="button" class="btn-choose-orientation" data-orientation="landscape">Выбрать</button>
                     </div>
-                    
+
                     <!-- Портретная ориентация (изделие повёрнуто на 90°) -->
-                    <div class="fitting-option" id="vichisliniya-listov-option-portrait">
+                    <div class="fitting-option" id="vichisliniya-listov-option-portrait" data-orientation="portrait">
                         <div class="option-header">
-                            <span class="option-title">Портретная ориентация</span>
+                            <span class="option-title">Портретная</span>
                             <span class="option-count" id="vichisliniya-listov-portrait-count">0</span> шт.
                         </div>
                         <div class="option-details">
@@ -195,7 +173,7 @@
                         <button type="button" class="btn-choose-orientation" data-orientation="portrait">Выбрать</button>
                     </div>
                 </div>
-                
+
                 <!-- Выбранный вариант -->
                 <div class="selected-orientation" id="vichisliniya-listov-selected-orientation-block">
                     <strong>Выбрано:</strong> 
@@ -203,89 +181,86 @@
                     ( <span id="vichisliniya-listov-selected-fit-total">0</span> изделий на листе )
                 </div>
 
-                <!-- ========== НОВЫЙ БЛОК: ВИЗУАЛИЗАЦИЯ РАЗМЕЩЕНИЯ ========== -->
+                <!-- Визуализация размещения -->
                 <div class="vichisliniya-listov-visualization">
                     <h4>
                         Схема размещения 
                         <span id="vichisliniya-listov-viz-orientation-label">(альбомная)</span>
                     </h4>
                     <div class="canvas-container">
-                        <!-- Холст для рисования схемы. Размеры заданы фиксированными, но через CSS он будет адаптироваться -->
                         <canvas id="vichisliniya-listov-canvas" width="400" height="300"></canvas>
                     </div>
                     <p class="canvas-note">
-                        * Схематичное отображение. Прямоугольники показывают расположение изделий 
-                        относительно печатной области (пунктирная рамка). Масштаб может не соблюдаться.
+                        * Схематичное отображение. Масштаб может не соблюдаться.
                     </p>
                 </div>
-                
-                <!-- Итоговое количество листов (будет пересчитываться, но пока оставляем старую формулу) -->
-                <!-- Здесь можно будет позже вставить новую формулу -->
-            </div>
-            
-            <!-- Результаты вычислений (количество листов) – оставляем как есть, но можно будет адаптировать -->
-            <div class="vichisliniya-listov-results">
-                <h3>
-                    <i class="fas fa-chart-bar"></i>
-                    Результаты вычислений
-                </h3>
-                
-                <div class="vichisliniya-listov-result-card">
-                    <div class="result-header">
-                        <h4>Количество листов</h4>
-                        <span class="result-badge" id="vichisliniya-listov-result-badge">ожидает расчёта</span>
-                    </div>
-                    
-                    <div class="result-content">
-                        <div class="result-value-container">
-                            <span class="result-value" id="vichisliniya-listov-result-value">0.00</span>
-                            <span class="result-unit">листов</span>
+
+                <!-- Результаты вычислений (количество листов) -->
+                <div class="vichisliniya-listov-results">
+                    <h3>
+                        <i class="fas fa-chart-bar"></i>
+                        Результаты вычислений
+                    </h3>
+
+                    <div class="vichisliniya-listov-result-card">
+                        <div class="result-header">
+                            <h4>Количество листов</h4>
+                            <span class="result-badge" id="vichisliniya-listov-result-badge">ожидает расчёта</span>
                         </div>
-                        
-                        <div class="result-details">
-                            <div class="result-formula">
-                                <span class="formula-label">Формула расчёта:</span>
-                                <span class="formula-text" id="vichisliniya-listov-formula-text">
-                                    (тираж / количество полос) + вылеты
-                                </span>
+
+                        <div class="result-content">
+                            <div class="result-value-container">
+                                <span class="result-value" id="vichisliniya-listov-result-value">0.00</span>
+                                <span class="result-unit">листов</span>
                             </div>
-                            
-                            <div class="result-breakdown">
-                                <span class="breakdown-label">Расшифровка:</span>
-                                <ul class="breakdown-list" id="vichisliniya-listov-breakdown-list">
-                                    <li>Тираж: <span id="vichisliniya-listov-breakdown-circulation">0</span> шт.</li>
-                                    <li>Вылеты (расстояние): <span id="vichisliniya-listov-breakdown-vyleta">1</span> мм</li>
-                                    <li>Количество полос: <span id="vichisliniya-listov-breakdown-polosa-count">1</span></li>
-                                    <li>Цветность: <span id="vichisliniya-listov-breakdown-color">4+0</span></li>
-                                    <li>Изделий на листе: <span id="vichisliniya-listov-breakdown-fit-total">0</span></li>
-                                </ul>
+
+                            <div class="result-details">
+                                <div class="result-formula">
+                                    <span class="formula-label">Формула расчёта:</span>
+                                    <span class="formula-text" id="vichisliniya-listov-formula-text">
+                                        (тираж / количество полос) + вылеты
+                                    </span>
+                                </div>
+
+                                <div class="result-breakdown">
+                                    <span class="breakdown-label">Расшифровка:</span>
+                                    <ul class="breakdown-list" id="vichisliniya-listov-breakdown-list">
+                                        <li>Тираж: <span id="vichisliniya-listov-breakdown-circulation">0</span> шт.</li>
+                                        <li>Зазор: <span id="vichisliniya-listov-breakdown-vyleta">1</span> мм</li>
+                                        <li>Количество полос: <span id="vichisliniya-listov-breakdown-polosa-count">1</span></li>
+                                        <li>Цветность: <span id="vichisliniya-listov-breakdown-color">4+0</span></li>
+                                        <li>Изделий на листе: <span id="vichisliniya-listov-breakdown-fit-total">0</span></li>
+                                        <!-- НОВОЕ: отображение количества резов -->
+                                        <li>Количество резов: <span id="vichisliniya-listov-breakdown-cuts-count">0</span></li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="result-footer">
+                            <span class="result-timestamp" id="vichisliniya-listov-result-timestamp">
+                                <i class="fas fa-clock"></i>
+                                Последний расчёт: не выполнялся
+                            </span>
+                        </div>
                     </div>
-                    
-                    <div class="result-footer">
-                        <span class="result-timestamp" id="vichisliniya-listov-result-timestamp">
-                            <i class="fas fa-clock"></i>
-                            Последний расчёт: не выполнялся
-                        </span>
+
+                    <!-- Блок с сохранёнными данными (без изменений) -->
+                    <div class="vichisliniya-listov-saved-data" id="vichisliniya-listov-saved-data-container" style="display: none;">
+                        <!-- ... -->
                     </div>
                 </div>
-                
-                <!-- Блок с сохранёнными данными (без изменений) -->
-                <div class="vichisliniya-listov-saved-data" id="vichisliniya-listov-saved-data-container" style="display: none;">
-                    <!-- ... -->
+
+                <!-- Примечание (обновлено) -->
+                <div class="vichisliniya-listov-note">
+                    <i class="fas fa-info-circle"></i>
+                    <p>
+                        <strong>Важно:</strong> Поле "Зазор" – расстояние между изделиями на листе.
+                        При изменении размеров или зазора автоматически пересчитывается оптимальное размещение.
+                        Кликните по любому месту блока ориентации, чтобы выбрать её.
+                        Количество резов рассчитывается автоматически.
+                    </p>
                 </div>
-            </div>
-            
-            <!-- Блок с примечанием (обновлено) -->
-            <div class="vichisliniya-listov-note">
-                <i class="fas fa-info-circle"></i>
-                <p>
-                    <strong>Важно:</strong> Поле "Вылеты" теперь используется как расстояние между изделиями на листе.
-                    При изменении размеров изделия или расстояния автоматически пересчитывается оптимальное размещение.
-                    Вы можете вручную выбрать предпочтительную ориентацию (альбомную или портретную).
-                    Схема ниже показывает, как изделия располагаются на листе.
-                </p>
             </div>
         </div>
     </div>

@@ -3,10 +3,10 @@
 Стили для секции "Вычисления листов".
 
 ОБНОВЛЕНО:
-- Уменьшены отступы и размеры шрифтов для более компактного отображения.
-- Удалены стили, связанные с кнопками (они больше не используются).
-- Все размеры приведены к более экономичному виду.
-- ДОБАВЛЕНЫ СТИЛИ для блока размещения (fitting-options) и активной опции (зелёное выделение).
+- Удалены избыточные стили для заголовка информации (так как он удалён из HTML).
+- Добавлены стили для .vichisliniya-listov-form-row (поля в одну строку).
+- Уменьшены размеры и отступы в блоках выбора ориентации (.fitting-option) для компактности.
+- Кнопка выбора ориентации оставлена, но уменьшена.
 */
 
 /* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ВЫЧИСЛЕНИЙ ЛИСТОВ ===== */
@@ -15,16 +15,16 @@
 #vichisliniya-listov-section {
     border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
     background: white;                      /* Белый фон для контраста */
-    padding: 0.5rem;                        /* Внутренние отступы (было 0.6rem) – уменьшено */
-    margin-bottom: 0.5rem;                  /* Отступ снизу (было 0.6rem) – уменьшено */
-    border-radius: 4px;                     /* Скругление углов (было 6px) – уменьшено */
+    padding: 0.5rem;                        /* Внутренние отступы */
+    margin-bottom: 0.5rem;                  /* Отступ снизу */
+    border-radius: 4px;                     /* Скругление углов */
     transition: all 0.15s ease;             /* Плавные переходы для всех свойств */
 }
 
 /* Эффект при наведении на секцию вычислений листов */
 #vichisliniya-listov-section:hover {
     border-color: #3498db;                  /* Тонкая синяя рамка при наведении */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Тень уменьшена */
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Тень */
     transform: translateY(-1px);            /* Легкий подъём секции на 1px */
     transition: all 0.2s ease;              /* Плавный переход всех свойств */
 }
@@ -36,25 +36,25 @@
     display: flex;                          /* Flexbox для расположения элементов */
     justify-content: space-between;         /* Распределяем пространство */
     align-items: center;                    /* Выравнивание по вертикали */
-    margin-bottom: 0.4rem;                  /* Отступ снизу (было 0.6rem) – уменьшено */
-    padding-bottom: 0.3rem;                 /* Внутренний отступ снизу (было 0.4rem) – уменьшено */
+    margin-bottom: 0.4rem;                  /* Отступ снизу */
+    padding-bottom: 0.3rem;                 /* Внутренний отступ снизу */
     border-bottom: 1px solid #3498db;       /* Синяя линия-разделитель */
 }
 
 /* Заголовок секции (h2) */
 #vichisliniya-listov-section .section-header h2 {
     margin: 0;                              /* Убираем стандартные отступы */
-    font-size: 0.85rem;                     /* Размер шрифта (было 0.9rem) – уменьшено */
+    font-size: 0.85rem;                     /* Размер шрифта */
     color: #333;                            /* Темно-серый цвет текста */
     display: flex;                          /* Flexbox для выравнивания */
     align-items: center;                    /* Выравнивание по вертикали */
-    gap: 0.2rem;                            /* Расстояние между элементами (было 0.3rem) – уменьшено */
+    gap: 0.2rem;                            /* Расстояние между элементами */
 }
 
 /* Стили для отображения названия просчёта в заголовке */
 #vichisliniya-listov-proschet-title {
-    margin-left: 0.2rem;                    /* Отступ от основного заголовка (было 0.3rem) – уменьшено */
-    font-size: 0.75rem;                     /* Размер шрифта (было 0.8rem) – уменьшено */
+    margin-left: 0.2rem;                    /* Отступ от основного заголовка */
+    font-size: 0.75rem;                     /* Размер шрифта */
     font-weight: normal;                    /* Обычное начертание */
     color: #555;                            /* Серый цвет */
 }
@@ -62,14 +62,14 @@
 /* Текст-заполнитель (когда просчёт не выбран) */
 #vichisliniya-listov-proschet-title .placeholder-text {
     color: #888;                            /* Светло-серый цвет */
-    font-size: 0.7rem;                      /* Размер шрифта (было 0.75rem) – уменьшено */
+    font-size: 0.7rem;                      /* Размер шрифта */
 }
 
 /* Активное название просчёта (когда просчёт выбран) */
 #vichisliniya-listov-proschet-title .proschet-title-active {
     color: #333;                            /* Тёмно-серый цвет */
     background-color: #f5f5f5;              /* Светлый фон для выделения */
-    padding: 0.1rem 0.25rem;                 /* Небольшие отступы вокруг текста (уменьшены) */
+    padding: 0.1rem 0.25rem;                 /* Небольшие отступы вокруг текста */
     border-radius: 2px;                     /* Закруглённые углы */
 }
 
@@ -78,14 +78,14 @@
 /* Контейнер для кнопок в заголовке */
 #vichisliniya-listov-section .header-buttons {
     display: flex;                          /* Flexbox для расположения кнопок */
-    gap: 0.2rem;                             /* Расстояние между кнопками (было 0.3rem) – уменьшено */
+    gap: 0.2rem;                             /* Расстояние между кнопками */
 }
 
 /* Кнопка сворачивания секции */
 #vichisliniya-listov-section .btn-collapse-section {
-    min-width: 16px;                        /* Минимальная ширина (было 18px) – уменьшено */
-    min-height: 16px;                       /* Минимальная высота (было 18px) – уменьшено */
-    padding: 0.1rem;                         /* Внутренние отступы (было 0.15rem) – уменьшено */
+    min-width: 16px;                        /* Минимальная ширина */
+    min-height: 16px;                       /* Минимальная высота */
+    padding: 0.1rem;                         /* Внутренние отступы */
     background: #f5f5f5;                    /* Светло-серый фон */
     border: 1px solid #ddd;                 /* Светло-серая рамка */
     border-radius: 3px;                     /* Скругление углов */
@@ -101,7 +101,7 @@
 
 /* Иконка в кнопке сворачивания */
 #vichisliniya-listov-section .btn-collapse-section i {
-    font-size: 0.7rem;                      /* Размер иконки (было 0.75rem) – уменьшено */
+    font-size: 0.7rem;                      /* Размер иконки */
     color: #555;                            /* Темно-серый цвет */
     transition: transform 0.15s ease;       /* Плавное вращение */
 }
@@ -110,9 +110,9 @@
 
 /* Основное тело секции */
 #vichisliniya-listov-section .section-body {
-    padding: 0.2rem;                         /* Внутренние отступы (было 0.3rem) – уменьшено */
+    padding: 0.2rem;                         /* Внутренние отступы */
     background-color: #ffffff;               /* Белый фон */
-    min-height: 100px;                       /* Минимальная высота (было 120px) – уменьшено */
+    min-height: 100px;                       /* Минимальная высота */
     transition: all 0.15s ease;              /* Плавные переходы */
 }
 
@@ -120,46 +120,26 @@
 
 /* Контейнер для контента вычислений */
 .vichisliniya-listov-container {
-    padding: 0.8rem;                         /* Внутренние отступы (было 1rem) – уменьшено */
+    padding: 0.8rem;                         /* Внутренние отступы */
     background-color: #f8f9fa;               /* Светло-серый фон */
-    border-radius: 4px;                      /* Скругление углов (было 6px) – уменьшено */
+    border-radius: 4px;                      /* Скругление углов */
     border: 1px solid #e9ecef;                /* Светло-серая рамка */
 }
 
-/* Заголовок внутри контейнера */
-.vichisliniya-listov-header {
-    margin-bottom: 0.8rem;                   /* Отступ снизу (было 1.2rem) – уменьшено */
-    padding-bottom: 0.4rem;                  /* Внутренний отступ снизу (было 0.6rem) – уменьшено */
-    border-bottom: 1px solid #dee2e6;        /* Серая линия-разделитель */
-}
+/* ===== 6. ИНФОРМАЦИЯ О ПЕЧАТНОМ КОМПОНЕНТЕ (КОМПАКТНАЯ) ===== */
 
-.vichisliniya-listov-header h3 {
-    margin: 0 0 0.2rem 0;                    /* Отступы (было 0.3rem) – уменьшено */
-    color: #2c3e50;                           /* Темно-синий цвет */
-    font-size: 0.9rem;                        /* Размер шрифта (было 1rem) – уменьшено */
-}
-
-.vichisliniya-listov-subtitle {
-    margin: 0;                                /* Убираем отступы */
-    color: #7f8c8d;                           /* Серый цвет */
-    font-size: 0.75rem;                       /* Размер шрифта (было 0.85rem) – уменьшено */
-}
-
-/* ===== 6. ИНФОРМАЦИЯ О ПРОСЧЁТЕ ===== */
-
-/* Контейнер для информации о просчёте */
 .vichisliniya-listov-info {
-    margin-bottom: 1rem;                      /* Отступ снизу (было 1.5rem) – уменьшено */
+    margin-bottom: 0.5rem;                   /* Уменьшен отступ снизу */
 }
 
 /* Отдельный элемент информации */
 .vichisliniya-listov-info-item {
     display: flex;                            /* Flexbox */
     align-items: center;                      /* Выравнивание по вертикали */
-    margin-bottom: 0.4rem;                    /* Отступ между элементами (было 0.6rem) – уменьшено */
-    padding: 0.3rem 0.5rem;                   /* Внутренние отступы (было 0.4rem 0.6rem) – уменьшено */
+    margin-bottom: 0.3rem;                    /* Уменьшен отступ между элементами */
+    padding: 0.2rem 0.4rem;                   /* Уменьшены внутренние отступы */
     background-color: white;                  /* Белый фон */
-    border-radius: 3px;                       /* Скругление углов (было 4px) – уменьшено */
+    border-radius: 3px;                       /* Скругление углов */
     border-left: 3px solid #3498db;           /* Синяя левая граница */
     transition: all 0.15s ease;
 }
@@ -184,9 +164,9 @@
 
 /* Иконка в элементе информации */
 .vichisliniya-listov-info-item i {
-    margin-right: 0.5rem;                      /* Отступ справа (было 0.6rem) – уменьшено */
+    margin-right: 0.4rem;                      /* Уменьшен отступ справа */
     color: #3498db;                             /* Синий цвет */
-    width: 14px;                                /* Фиксированная ширина (было 16px) – уменьшено */
+    width: 14px;                                /* Фиксированная ширина */
     text-align: center;
 }
 
@@ -199,23 +179,23 @@
 .vichisliniya-listov-info-item .info-label {
     font-weight: 500;                           /* Полужирный шрифт */
     color: #2c3e50;                             /* Темно-синий цвет */
-    margin-right: 0.4rem;                       /* Отступ справа (было 0.5rem) – уменьшено */
-    min-width: 100px;                            /* Минимальная ширина метки (было 120px) – уменьшено */
-    font-size: 0.8rem;                           /* Размер шрифта метки (добавлено для компактности) */
+    margin-right: 0.3rem;                       /* Уменьшен отступ справа */
+    min-width: 80px;                             /* Уменьшена минимальная ширина метки */
+    font-size: 0.75rem;                           /* Уменьшен размер шрифта метки */
 }
 
 /* Значение информации */
 .vichisliniya-listov-info-item .info-value {
     color: #34495e;                             /* Темно-серый цвет */
     flex-grow: 1;                                /* Занимает всё доступное пространство */
-    font-size: 0.85rem;                          /* Размер шрифта значения (добавлено) */
+    font-size: 0.8rem;                          /* Уменьшен размер шрифта значения */
 }
 
 /* Значение тиража с данными */
 .vichisliniya-listov-info-item .circulation-value.has-value {
     color: #e74c3c;                             /* Красный цвет */
     font-weight: 600;                            /* Жирный шрифт */
-    font-size: 1rem;                              /* Размер шрифта (было 1.1rem) – уменьшено */
+    font-size: 0.9rem;                              /* Уменьшен размер шрифта */
 }
 
 /* Значение тиража без данных */
@@ -227,141 +207,132 @@
 /* Дополнительная нотация для тиража */
 .vichisliniya-listov-info-item .info-note {
     color: #7f8c8d;                             /* Серый цвет */
-    font-size: 0.7rem;                           /* Размер шрифта (было 0.85rem) – уменьшено */
-    margin-left: 0.4rem;                         /* Отступ слева (было 0.5rem) – уменьшено */
+    font-size: 0.65rem;                           /* Уменьшен размер шрифта */
+    margin-left: 0.3rem;                         /* Уменьшен отступ слева */
 }
 
-/* ===== 7. ФОРМА ПАРАМЕТРОВ ВЫЧИСЛЕНИЙ ЛИСТОВ ===== */
+/* ===== 7. ФОРМА ПАРАМЕТРОВ ВЫЧИСЛЕНИЙ ЛИСТОВ (НОВЫЙ РЯД) ===== */
 
 /* Контейнер для параметров вычислений */
 .vichisliniya-listov-parameters {
-    margin-top: 1rem;                           /* Отступ сверху (было 1.5rem) – уменьшено */
-    padding: 0.8rem;                            /* Внутренние отступы (было 1rem) – уменьшено */
+    margin-top: 0.8rem;                           /* Уменьшен отступ сверху */
+    padding: 0.6rem;                            /* Уменьшены внутренние отступы */
     background-color: #f8f9fa;
-    border-radius: 4px;                         /* Скругление углов (было 6px) – уменьшено */
+    border-radius: 4px;                         /* Скругление углов */
     border: 1px solid #e9ecef;
 }
 
 .vichisliniya-listov-parameters h3 {
-    margin: 0 0 0.4rem 0;                       /* Отступы (было 0.6rem) – уменьшено */
+    margin: 0 0 0.3rem 0;                       /* Уменьшены отступы */
     color: #2c3e50;
-    font-size: 0.9rem;                           /* Размер шрифта (было 0.95rem) – уменьшено */
+    font-size: 0.85rem;                           /* Размер шрифта */
     display: flex;
     align-items: center;
-    gap: 0.4rem;                                 /* Расстояние между элементами (было 0.5rem) – уменьшено */
+    gap: 0.3rem;                                 /* Расстояние между элементами */
 }
 
 .vichisliniya-listov-parameters .parameters-description {
-    margin: 0 0 0.8rem 0;                       /* Отступы (было 1rem) – уменьшено */
+    margin: 0 0 0.5rem 0;                       /* Уменьшены отступы */
     color: #7f8c8d;
-    font-size: 0.75rem;                          /* Размер шрифта (было 0.85rem) – уменьшено */
-    line-height: 1.3;                            /* Межстрочный интервал уменьшен */
+    font-size: 0.7rem;                          /* Уменьшен размер шрифта */
+    line-height: 1.3;                            /* Межстрочный интервал */
 }
 
-/* Контейнер формы */
-.vichisliniya-listov-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Минимальная ширина колонки уменьшена */
-    gap: 0.8rem;                                 /* Расстояние между элементами (было 1rem) – уменьшено */
-    margin-bottom: 0;                            /* Убираем лишний отступ снизу (ранее был 1rem) */
+/* Ряд для полей в одну строку */
+.vichisliniya-listov-form-row {
+    display: flex;                               /* Располагаем поля в ряд */
+    gap: 0.8rem;                                 /* Расстояние между полями */
+    flex-wrap: wrap;                             /* Если не хватает места, переносим */
 }
 
-/* Группа полей формы */
+/* Группа полей формы (внутри ряда) */
 .vichisliniya-listov-form-group {
+    flex: 1 1 0;                                 /* Каждая группа занимает равную ширину */
+    min-width: 120px;                            /* Минимальная ширина для избежания слишком узких полей */
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;                                 /* Расстояние между элементами внутри группы (было 0.3rem) – уменьшено */
+    gap: 0.15rem;                                 /* Уменьшено расстояние между элементами внутри группы */
 }
 
 .vichisliniya-listov-form-group label {
     font-weight: 500;
     color: #34495e;
-    font-size: 0.8rem;                           /* Размер шрифта (было 0.85rem) – уменьшено */
+    font-size: 0.75rem;                           /* Уменьшен размер шрифта */
     display: flex;
     align-items: center;
-    gap: 0.3rem;                                 /* Расстояние между иконкой и текстом (было 0.4rem) – уменьшено */
+    gap: 0.2rem;                                 /* Расстояние между иконкой и текстом */
 }
 
 /* Контейнер для input с иконкой помощи */
 .input-with-help {
     display: flex;
     align-items: center;
-    gap: 0.3rem;                                 /* Расстояние между полем и иконкой (было 0.4rem) – уменьшено */
+    gap: 0.2rem;                                 /* Уменьшено расстояние между полем и иконкой */
 }
 
 /* Поля ввода */
 .vichisliniya-listov-input,
 .vichisliniya-listov-select {
-    padding: 0.3rem 0.5rem;                      /* Внутренние отступы (было 0.5rem 0.75rem) – уменьшено */
+    padding: 0.2rem 0.4rem;                      /* Уменьшены внутренние отступы */
     border: 1px solid #ced4da;
-    border-radius: 3px;                          /* Скругление углов (было 4px) – уменьшено */
-    font-size: 0.8rem;                            /* Размер шрифта (было 0.85rem) – уменьшено */
+    border-radius: 3px;                          /* Скругление углов */
+    font-size: 0.75rem;                            /* Уменьшен размер шрифта */
     color: #495057;
     background-color: white;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     flex-grow: 1;
+    width: 100%;                                  /* Занимает всю доступную ширину */
 }
 
 .vichisliniya-listov-input:focus,
 .vichisliniya-listov-select:focus {
     border-color: #3498db;
     outline: 0;
-    box-shadow: 0 0 0 0.15rem rgba(52, 152, 219, 0.25); /* Тень уменьшена */
-}
-
-.vichisliniya-listov-input[type="number"] {
-    width: 100%;
+    box-shadow: 0 0 0 0.15rem rgba(52, 152, 219, 0.25); /* Тень */
 }
 
 /* Иконка помощи */
 .help-icon {
     color: #6c757d;
     cursor: help;
-    font-size: 0.8rem;                           /* Размер иконки (было 0.9rem) – уменьшено */
+    font-size: 0.75rem;                           /* Размер иконки */
 }
 
 .help-icon:hover {
     color: #3498db;
 }
 
-/* Примечание к полю */
-.input-note {
-    font-size: 0.65rem;                           /* Размер шрифта (было 0.75rem) – уменьшено */
-    color: #6c757d;
-    font-style: italic;
-}
-
 /* ===== 8. БЛОК РЕЗУЛЬТАТОВ ВЫЧИСЛЕНИЙ ===== */
 
 .vichisliniya-listov-results {
-    margin-top: 1rem;                            /* Отступ сверху (было 1.5rem) – уменьшено */
-    padding-top: 0.8rem;                          /* Внутренний отступ сверху (было 1rem) – уменьшено */
+    margin-top: 0.8rem;                            /* Уменьшен отступ сверху */
+    padding-top: 0.6rem;                          /* Уменьшен внутренний отступ сверху */
     border-top: 1px solid #dee2e6;
 }
 
 .vichisliniya-listov-results h3 {
-    margin: 0 0 0.5rem 0;                         /* Отступы (было 0.8rem) – уменьшено */
+    margin: 0 0 0.4rem 0;                         /* Уменьшены отступы */
     color: #2c3e50;
-    font-size: 0.9rem;                            /* Размер шрифта (было 0.95rem) – уменьшено */
+    font-size: 0.85rem;                            /* Размер шрифта */
     display: flex;
     align-items: center;
-    gap: 0.4rem;                                  /* Расстояние между элементами (было 0.5rem) – уменьшено */
+    gap: 0.3rem;                                  /* Расстояние между элементами */
 }
 
 /* Карточка с результатом */
 .vichisliniya-listov-result-card {
     background: white;
-    border-radius: 4px;                           /* Скругление углов (было 6px) – уменьшено */
+    border-radius: 4px;                           /* Скругление углов */
     border: 1px solid #e9ecef;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);     /* Тень уменьшена */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);     /* Тень */
 }
 
 .result-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0.8rem;                       /* Внутренние отступы (было 0.8rem 1rem) – уменьшено */
+    padding: 0.4rem 0.6rem;                       /* Уменьшены внутренние отступы */
     background-color: #f8f9fa;
     border-bottom: 1px solid #e9ecef;
 }
@@ -369,15 +340,15 @@
 .result-header h4 {
     margin: 0;
     color: #2c3e50;
-    font-size: 0.85rem;                            /* Размер шрифта (было 0.9rem) – уменьшено */
+    font-size: 0.8rem;                            /* Уменьшен размер шрифта */
     font-weight: 600;
 }
 
 /* Бейдж статуса */
 .result-badge {
-    padding: 0.15rem 0.4rem;                       /* Внутренние отступы (было 0.2rem 0.5rem) – уменьшено */
-    border-radius: 10px;                           /* Скругление углов (было 12px) – уменьшено */
-    font-size: 0.65rem;                             /* Размер шрифта (было 0.7rem) – уменьшено */
+    padding: 0.1rem 0.3rem;                       /* Уменьшены внутренние отступы */
+    border-radius: 8px;                           /* Скругление углов */
+    font-size: 0.6rem;                             /* Уменьшен размер шрифта */
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -395,26 +366,26 @@
 
 /* Контейнер значения результата */
 .result-content {
-    padding: 1rem 0.8rem;                          /* Внутренние отступы (было 1.5rem 1rem) – уменьшено */
+    padding: 0.6rem 0.6rem;                          /* Уменьшены внутренние отступы */
 }
 
 .result-value-container {
     display: flex;
     align-items: baseline;
     justify-content: center;
-    gap: 0.3rem;                                   /* Расстояние между элементами (было 0.5rem) – уменьшено */
-    margin-bottom: 1rem;                           /* Отступ снизу (было 1.5rem) – уменьшено */
+    gap: 0.2rem;                                   /* Уменьшено расстояние */
+    margin-bottom: 0.6rem;                           /* Уменьшен отступ снизу */
 }
 
 .result-value {
-    font-size: 2rem;                               /* Размер шрифта (было 2.5rem) – уменьшено */
+    font-size: 1.8rem;                               /* Уменьшен размер шрифта */
     font-weight: 700;
     color: #2c3e50;
     line-height: 1;
 }
 
 .result-unit {
-    font-size: 0.85rem;                             /* Размер шрифта (было 1rem) – уменьшено */
+    font-size: 0.75rem;                             /* Уменьшен размер шрифта */
     color: #7f8c8d;
     font-weight: 500;
 }
@@ -422,12 +393,12 @@
 /* Детали результата */
 .result-details {
     border-top: 1px solid #f1f1f1;
-    padding-top: 0.8rem;                            /* Внутренний отступ сверху (было 1rem) – уменьшено */
+    padding-top: 0.6rem;                            /* Уменьшен внутренний отступ сверху */
 }
 
 .result-formula,
 .result-breakdown {
-    margin-bottom: 0.6rem;                          /* Отступ снизу (было 0.8rem) – уменьшено */
+    margin-bottom: 0.4rem;                          /* Уменьшен отступ снизу */
 }
 
 .formula-label,
@@ -435,17 +406,17 @@
     display: block;
     font-weight: 600;
     color: #34495e;
-    font-size: 0.75rem;                             /* Размер шрифта (было 0.8rem) – уменьшено */
-    margin-bottom: 0.2rem;                           /* Отступ снизу (было 0.3rem) – уменьшено */
+    font-size: 0.7rem;                             /* Уменьшен размер шрифта */
+    margin-bottom: 0.15rem;                           /* Уменьшен отступ снизу */
 }
 
 .formula-text {
     display: block;
     font-family: 'Courier New', monospace;
     background-color: #f8f9fa;
-    padding: 0.4rem;                                 /* Внутренние отступы (было 0.5rem) – уменьшено */
-    border-radius: 3px;                              /* Скругление углов (было 4px) – уменьшено */
-    font-size: 0.8rem;                               /* Размер шрифта (было 0.85rem) – уменьшено */
+    padding: 0.3rem;                                 /* Уменьшены внутренние отступы */
+    border-radius: 3px;                              /* Скругление углов */
+    font-size: 0.75rem;                               /* Уменьшен размер шрифта */
     color: #2c3e50;
     border-left: 3px solid #3498db;
 }
@@ -455,15 +426,15 @@
     padding: 0;
     margin: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Минимальная ширина колонки уменьшена */
-    gap: 0.4rem;                                   /* Расстояние между элементами (было 0.5rem) – уменьшено */
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* Уменьшена минимальная ширина */
+    gap: 0.3rem;                                   /* Уменьшено расстояние */
 }
 
 .breakdown-list li {
-    padding: 0.3rem 0.5rem;                         /* Внутренние отступы (было 0.4rem 0.6rem) – уменьшено */
+    padding: 0.2rem 0.4rem;                         /* Уменьшены внутренние отступы */
     background-color: #f8f9fa;
-    border-radius: 3px;                             /* Скругление углов (было 4px) – уменьшено */
-    font-size: 0.75rem;                              /* Размер шрифта (было 0.85rem) – уменьшено */
+    border-radius: 3px;                             /* Скругление углов */
+    font-size: 0.7rem;                              /* Уменьшен размер шрифта */
     color: #495057;
 }
 
@@ -474,52 +445,52 @@
 
 /* Футер результата */
 .result-footer {
-    padding: 0.4rem 0.8rem;                         /* Внутренние отступы (было 0.6rem 1rem) – уменьшено */
+    padding: 0.3rem 0.6rem;                         /* Уменьшены внутренние отступы */
     background-color: #f8f9fa;
     border-top: 1px solid #e9ecef;
     text-align: center;
 }
 
 .result-timestamp {
-    font-size: 0.65rem;                              /* Размер шрифта (было 0.75rem) – уменьшено */
+    font-size: 0.6rem;                              /* Уменьшен размер шрифта */
     color: #7f8c8d;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;                                     /* Расстояние между иконкой и текстом (было 0.3rem) – уменьшено */
+    gap: 0.15rem;                                     /* Уменьшено расстояние */
 }
 
 /* ===== 9. БЛОК СОХРАНЁННЫХ ДАННЫХ ===== */
 
 .vichisliniya-listov-saved-data {
-    margin-top: 0.8rem;                             /* Отступ сверху (было 1rem) – уменьшено */
-    padding: 0.6rem;                                 /* Внутренние отступы (было 0.8rem) – уменьшено */
+    margin-top: 0.6rem;                             /* Уменьшен отступ сверху */
+    padding: 0.5rem;                                 /* Уменьшены внутренние отступы */
     background-color: #e8f4fc;
-    border-radius: 3px;                              /* Скругление углов (было 4px) – уменьшено */
+    border-radius: 3px;                              /* Скругление углов */
     border-left: 4px solid #3498db;
 }
 
 .vichisliniya-listov-saved-data h4 {
-    margin: 0 0 0.3rem 0;                            /* Отступы (было 0.5rem) – уменьшено */
+    margin: 0 0 0.2rem 0;                            /* Уменьшены отступы */
     color: #2c3e50;
-    font-size: 0.85rem;                              /* Размер шрифта (было 0.9rem) – уменьшено */
+    font-size: 0.8rem;                              /* Размер шрифта */
     display: flex;
     align-items: center;
-    gap: 0.3rem;                                      /* Расстояние между элементами (было 0.4rem) – уменьшено */
+    gap: 0.2rem;                                      /* Расстояние между элементами */
 }
 
 .saved-data-content p {
-    margin: 0 0 0.3rem 0;                            /* Отступы (было 0.5rem) – уменьшено */
+    margin: 0 0 0.2rem 0;                            /* Уменьшены отступы */
     color: #2c3e50;
-    font-size: 0.75rem;                              /* Размер шрифта (было 0.85rem) – уменьшено */
-    line-height: 1.3;                                 /* Межстрочный интервал уменьшен */
+    font-size: 0.7rem;                              /* Уменьшен размер шрифта */
+    line-height: 1.3;                                 /* Межстрочный интервал */
 }
 
 .saved-data-info {
     display: flex;
     align-items: center;
-    gap: 0.4rem;                                      /* Расстояние между элементами (было 0.5rem) – уменьшено */
-    font-size: 0.7rem;                                /* Размер шрифта (было 0.8rem) – уменьшено */
+    gap: 0.3rem;                                      /* Уменьшено расстояние */
+    font-size: 0.65rem;                                /* Уменьшен размер шрифта */
 }
 
 .saved-data-label {
@@ -532,29 +503,29 @@
     font-weight: 600;
 }
 
-/* ===== 10. ПРИМЕЧАНИЕ О ТИРАЖЕ ===== */
+/* ===== 10. ПРИМЕЧАНИЕ ===== */
 
 .vichisliniya-listov-note {
-    margin-top: 0.8rem;                              /* Отступ сверху (было 1rem) – уменьшено */
-    padding: 0.6rem;                                 /* Внутренние отступы (было 0.8rem) – уменьшено */
+    margin-top: 0.6rem;                              /* Уменьшен отступ сверху */
+    padding: 0.5rem;                                 /* Уменьшены внутренние отступы */
     background-color: #e8f4fc;
-    border-radius: 3px;                              /* Скругление углов (было 4px) – уменьшено */
+    border-radius: 3px;                              /* Скругление углов */
     border-left: 4px solid #3498db;
 }
 
 .vichisliniya-listov-note i {
     color: #3498db;
-    margin-right: 0.4rem;                            /* Отступ справа (было 0.5rem) – уменьшено */
+    margin-right: 0.3rem;                            /* Уменьшен отступ справа */
     float: left;
-    margin-top: 0.15rem;                              /* Отступ сверху (было 0.2rem) – уменьшено */
-    font-size: 0.9rem;                                /* Размер иконки (добавлен) */
+    margin-top: 0.1rem;                              /* Уменьшен отступ сверху */
+    font-size: 0.8rem;                                /* Размер иконки */
 }
 
 .vichisliniya-listov-note p {
     margin: 0;
     color: #2c3e50;
-    font-size: 0.75rem;                              /* Размер шрифта (было 0.85rem) – уменьшено */
-    line-height: 1.3;                                 /* Межстрочный интервал уменьшен */
+    font-size: 0.7rem;                              /* Уменьшен размер шрифта */
+    line-height: 1.3;                                 /* Межстрочный интервал */
     overflow: hidden;
 }
 
@@ -566,27 +537,27 @@
 
 #vichisliniya-listov-section .empty-state-message {
     text-align: center;
-    padding: 1.5rem 0.5rem;                         /* Внутренние отступы (было 2rem 0.8rem) – уменьшено */
+    padding: 1rem 0.5rem;                         /* Уменьшены внутренние отступы */
     color: #7f8c8d;
 }
 
 #vichisliniya-listov-section .empty-state-message i {
-    margin-bottom: 0.8rem;                           /* Отступ снизу (было 1rem) – уменьшено */
+    margin-bottom: 0.6rem;                           /* Уменьшен отступ снизу */
     color: #bdc3c7;
-    font-size: 2.5rem;                               /* Размер иконки (было 3rem) – уменьшено */
+    font-size: 2rem;                               /* Уменьшен размер иконки */
 }
 
 #vichisliniya-listov-section .empty-state-message h3 {
-    margin-bottom: 0.3rem;                           /* Отступ снизу (было 0.5rem) – уменьшено */
+    margin-bottom: 0.2rem;                           /* Уменьшен отступ снизу */
     font-weight: 500;
-    font-size: 0.9rem;                               /* Размер шрифта (было 1rem) – уменьшено */
+    font-size: 0.85rem;                               /* Уменьшен размер шрифта */
 }
 
 #vichisliniya-listov-section .empty-state-message p {
-    font-size: 0.75rem;                              /* Размер шрифта (было 0.85rem) – уменьшено */
-    max-width: 250px;                                 /* Максимальная ширина уменьшена */
+    font-size: 0.7rem;                              /* Уменьшен размер шрифта */
+    max-width: 220px;                                 /* Уменьшена максимальная ширина */
     margin: 0 auto;
-    line-height: 1.3;                                 /* Межстрочный интервал уменьшен */
+    line-height: 1.3;                                 /* Межстрочный интервал */
 }
 
 /* ===== 12. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
@@ -594,7 +565,7 @@
 @keyframes vichisliniyaListovFadeIn {
     from {
         opacity: 0;
-        transform: translateY(8px);                  /* Сдвиг уменьшен (было 10px) */
+        transform: translateY(8px);                  /* Сдвиг */
     }
     to {
         opacity: 1;
@@ -609,26 +580,26 @@
 /* ===== 13. СТИЛИ ДЛЯ БЛОКА ВИЗУАЛИЗАЦИИ ===== */
 
 .vichisliniya-listov-visualization {
-    margin-top: 1rem;                          /* Отступ сверху от предыдущих элементов */
-    padding: 0.8rem;                            /* Внутренние отступы */
+    margin-top: 0.8rem;                          /* Отступ сверху от предыдущих элементов */
+    padding: 0.6rem;                            /* Внутренние отступы */
     background-color: #fff;                      /* Белый фон */
     border-radius: 4px;                          /* Скругление углов */
     border: 1px solid #e9ecef;                    /* Светло-серая рамка */
 }
 
 .vichisliniya-listov-visualization h4 {
-    margin: 0 0 0.5rem 0;                        /* Отступы: сверху 0, снизу 0.5rem */
-    font-size: 0.85rem;                           /* Размер шрифта */
+    margin: 0 0 0.4rem 0;                        /* Отступы: сверху 0, снизу 0.4rem */
+    font-size: 0.8rem;                           /* Размер шрифта */
     color: #2c3e50;                               /* Темно-синий цвет */
     display: flex;
     align-items: center;
-    gap: 0.4rem;                                  /* Расстояние между текстом и меткой ориентации */
+    gap: 0.3rem;                                  /* Расстояние между текстом и меткой ориентации */
 }
 
 #vichisliniya-listov-viz-orientation-label {
     font-weight: normal;
     color: #7f8c8d;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .canvas-container {
@@ -644,33 +615,32 @@
 }
 
 .canvas-note {
-    margin: 0.3rem 0 0 0;                         /* Отступ сверху */
-    font-size: 0.65rem;                            /* Очень мелкий шрифт для примечания */
+    margin: 0.2rem 0 0 0;                         /* Отступ сверху */
+    font-size: 0.6rem;                            /* Очень мелкий шрифт для примечания */
     color: #7f8c8d;                                /* Серый цвет */
     font-style: italic;                            /* Курсив */
 }
 
-/* ===== 14. СТИЛИ ДЛЯ БЛОКА РАЗМЕЩЕНИЯ (FITTING OPTIONS) ===== */
-/* Этот раздел добавляет визуальное оформление для выбора ориентации, включая зелёное выделение активной опции */
+/* ===== 14. СТИЛИ ДЛЯ БЛОКА РАЗМЕЩЕНИЯ (FITTING OPTIONS) – УМЕНЬШЕНЫ ===== */
 
 /* Контейнер для двух вариантов размещения */
 .fitting-options {
     display: flex;                                /* Располагаем варианты в ряд */
-    gap: 1rem;                                     /* Расстояние между альбомным и портретным вариантами */
-    margin: 1rem 0;                                /* Отступы сверху и снизу */
+    gap: 0.8rem;                                     /* Уменьшено расстояние между вариантами */
+    margin: 0.6rem 0;                                /* Уменьшены отступы сверху и снизу */
     justify-content: center;                       /* Центрируем по горизонтали */
-    flex-wrap: wrap;                               /* Если не хватает места, переносим на новую строку */
+    flex-wrap: wrap;                               /* Если не хватает места, переносим */
 }
 
 /* Отдельный вариант (альбомный или портретный) */
 .fitting-option {
-    flex: 1 1 200px;                               /* Каждый вариант занимает равную ширину, но не менее 200px */
-    padding: 1rem;                                  /* Внутренние отступы */
+    flex: 1 1 180px;                               /* Каждый вариант занимает равную ширину, но не менее 180px (было 200px) */
+    padding: 0.6rem;                                  /* Уменьшены внутренние отступы (было 1rem) */
     border: 2px solid #e0e0e0;                     /* Светло-серая рамка (по умолчанию) */
     border-radius: 6px;                             /* Скругление углов */
     background-color: #f9f9f9;                      /* Очень светлый серый фон */
     text-align: center;                             /* Текст по центру */
-    cursor: pointer;                                /* Указатель при наведении */
+    cursor: pointer;                                /* Указатель при наведении – теперь кликабелен весь блок */
     transition: all 0.2s ease;                      /* Плавные переходы */
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);         /* Лёгкая тень */
 }
@@ -679,49 +649,49 @@
 .fitting-option:hover:not(.active) {
     border-color: #3498db;                          /* Синяя рамка при наведении */
     background-color: #f0f0f0;                      /* Чуть более тёмный фон */
-    transform: translateY(-2px);                     /* Лёгкий подъём */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);           /* Увеличенная тень */
+    transform: translateY(-1px);                     /* Лёгкий подъём (уменьшен) */
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);           /* Увеличенная тень */
 }
 
 /* Активный вариант (выбранная ориентация) – зелёное выделение */
 .fitting-option.active {
     border-color: #27ae60;                           /* Зелёная рамка */
     background-color: #e8f8f5;                       /* Светло-зелёный фон */
-    box-shadow: 0 4px 8px rgba(39, 174, 96, 0.2);    /* Зелёная тень */
+    box-shadow: 0 3px 6px rgba(39, 174, 96, 0.2);    /* Зелёная тень */
 }
 
-/* Заголовок варианта (например, "Альбомная ориентация") */
+/* Заголовок варианта (например, "Альбомная") */
 .fitting-option .option-title {
     display: block;                                  /* Занимает всю ширину */
     font-weight: 600;                                /* Полужирный */
-    font-size: 0.9rem;                               /* Размер шрифта */
+    font-size: 0.8rem;                               /* Уменьшен размер шрифта (было 0.9rem) */
     color: #2c3e50;                                  /* Тёмно-синий */
-    margin-bottom: 0.3rem;                            /* Отступ снизу */
+    margin-bottom: 0.2rem;                            /* Уменьшен отступ снизу */
 }
 
 /* Количество изделий (большая цифра) */
 .fitting-option .option-count {
-    font-size: 2rem;                                 /* Крупный шрифт */
+    font-size: 1.5rem;                                 /* Уменьшен размер (было 2rem) */
     font-weight: 700;                                /* Очень жирный */
     color: #34495e;                                  /* Тёмно-серый */
 }
 
 /* Детали размещения (например, "2×3") */
 .fitting-option .option-details {
-    font-size: 0.8rem;                               /* Мелкий шрифт */
+    font-size: 0.7rem;                               /* Уменьшен размер (было 0.8rem) */
     color: #7f8c8d;                                  /* Серый цвет */
-    margin: 0.3rem 0;                                 /* Отступы сверху и снизу */
+    margin: 0.2rem 0;                                 /* Уменьшены отступы сверху и снизу */
 }
 
-/* Кнопка "Выбрать" внутри варианта */
+/* Кнопка "Выбрать" внутри варианта – уменьшена */
 .fitting-option .btn-choose-orientation {
-    margin-top: 0.5rem;                              /* Отступ сверху */
-    padding: 0.3rem 0.8rem;                          /* Внутренние отступы */
+    margin-top: 0.3rem;                              /* Уменьшен отступ сверху */
+    padding: 0.2rem 0.5rem;                          /* Уменьшены внутренние отступы */
     background-color: #3498db;                        /* Синий фон */
     color: white;                                     /* Белый текст */
     border: none;                                     /* Без рамки */
-    border-radius: 4px;                               /* Скругление */
-    font-size: 0.75rem;                               /* Размер шрифта */
+    border-radius: 3px;                               /* Скругление */
+    font-size: 0.7rem;                               /* Уменьшен размер шрифта */
     cursor: pointer;                                  /* Указатель */
     transition: background-color 0.2s;                /* Плавное изменение фона */
 }
@@ -730,7 +700,7 @@
     background-color: #2980b9;                        /* Более тёмный синий при наведении */
 }
 
-/* Для активного варианта можно сделать кнопку зелёной или оставить синей – по желанию */
+/* Для активного варианта можно сделать кнопку зелёной или оставить синей – оставим зелёной */
 .fitting-option.active .btn-choose-orientation {
     background-color: #27ae60;                        /* Зелёная кнопка для активного варианта */
 }
@@ -742,12 +712,12 @@
 /* Блок с информацией о выбранной ориентации (текст под вариантами) */
 .selected-orientation {
     text-align: center;                               /* Центрируем текст */
-    font-size: 0.85rem;                               /* Размер шрифта */
+    font-size: 0.8rem;                               /* Размер шрифта (уменьшен) */
     color: #2c3e50;                                   /* Тёмно-синий */
     background-color: #f0f0f0;                         /* Светло-серый фон */
-    padding: 0.5rem;                                   /* Внутренние отступы */
+    padding: 0.4rem;                                   /* Уменьшены внутренние отступы */
     border-radius: 4px;                                /* Скругление */
-    margin-top: 0.5rem;                                /* Отступ сверху */
+    margin-top: 0.4rem;                                /* Уменьшен отступ сверху */
 }
 
 .selected-orientation strong {
@@ -777,49 +747,49 @@
 /* Для планшетов и небольших ноутбуков (до 1137px) */
 @media (max-width: 1137px) {
     #vichisliniya-listov-section {
-        padding: 0.4rem;                              /* Уменьшено */
-        margin-bottom: 0.3rem;                        /* Уменьшено */
+        padding: 0.4rem;
+        margin-bottom: 0.3rem;
     }
     
     .vichisliniya-listov-container {
-        padding: 0.6rem;                               /* Уменьшено */
+        padding: 0.6rem;
     }
     
     .vichisliniya-listov-info-item .info-label {
-        min-width: 90px;                               /* Уменьшено */
+        min-width: 70px;                               /* Уменьшено */
     }
 }
 
 /* Для мобильных устройств (до 768px) */
 @media (max-width: 768px) {
     #vichisliniya-listov-section {
-        padding: 0.3rem;                               /* Ещё меньше */
-        border-radius: 3px;                            /* Меньше скругление */
+        padding: 0.3rem;
+        border-radius: 3px;
     }
     
     #vichisliniya-listov-section .section-header h2 {
-        font-size: 0.8rem;                             /* Уменьшено */
+        font-size: 0.8rem;
         flex-wrap: wrap;
-        gap: 0.15rem;                                   /* Уменьшено */
+        gap: 0.15rem;
     }
     
     .vichisliniya-listov-info-item {
         flex-wrap: wrap;
-        padding: 0.25rem;                               /* Уменьшено */
+        padding: 0.2rem;
     }
     
     .vichisliniya-listov-info-item .info-label {
         min-width: 100%;
-        margin-bottom: 0.15rem;                         /* Уменьшено */
+        margin-bottom: 0.1rem;
     }
     
-    .vichisliniya-listov-form {
-        grid-template-columns: 1fr;
-        gap: 0.6rem;                                    /* Уменьшено */
+    .vichisliniya-listov-form-row {
+        flex-direction: column;                        /* На мобильных поля друг под другом */
+        gap: 0.5rem;
     }
     
     .result-value {
-        font-size: 1.8rem;                              /* Уменьшено */
+        font-size: 1.5rem;
     }
     
     .breakdown-list {

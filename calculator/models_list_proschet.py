@@ -1,27 +1,34 @@
 # calculator/models_list_proschet.py
 """
-Модель Proscheт (Просчёт) для калькулятора типографии и связанные модели.
-Включает Компоненты печати (с уникальным номером KP-) и Дополнительные работы (с уникальным номером DR-).
+Модели для калькулятора типографии.
+Включает:
+- Просчёт (Proschet)
+- Печатный компонент (PrintComponent)
+- Дополнительная работа (AdditionalWork)
 
-ИСПРАВЛЕНИЕ (24.02.2026):
-- Добавлено поле total_circulation_price в модель PrintComponent для хранения общей стоимости компонента.
-- Удалено свойство total_circulation_price (теперь это поле модели), чтобы избежать конфликта.
-- Обновлён метод save для автоматического пересчёта total_circulation_price при сохранении, если доступно количество листов.
-- Все остальные свойства и методы сохранены без изменений.
+ИЗМЕНЕНИЯ:
+- В модель AdditionalWork добавлен метод _get_effective_price(), который вычисляет
+  цену за единицу работы с учётом количества листов и опорных точек из справочника.
+- В методе save() модели AdditionalWork при расчёте общей стоимости (total_price)
+  используется effective_price вместо self.price.
+- ИСПРАВЛЕНИЕ: для формул, использующих логарифмический коэффициент, результат
+  преобразуется в Decimal, чтобы избежать ошибки умножения Decimal на float.
 """
 
 from django.db import models
-from django.db.models import Max, Sum
+from django.db.models import Sum
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import math
-from vichisliniya_listov.models import VichisliniyaListovModel
+
+# Импортируем модель Work из справочника дополнительных работ
+from spravochnik_dopolnitelnyh_rabot.models import Work
+# Импортируем функцию интерполяции из утилит справочника
+from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
 
 
 class Proschet(models.Model):
-    """
-    Основная модель для хранения информации о просчётах.
-    """
+    """Просчёт (без изменений, приведён для полноты)"""
     number = models.CharField(
         verbose_name='Номер просчёта',
         max_length=20,
@@ -70,20 +77,12 @@ class Proschet(models.Model):
         return f"{self.number}: {self.title} ({circulation_text})"
 
     def save(self, *args, **kwargs):
-        """
-        Сохранение просчёта.
-        - Генерирует номер просчёта в формате PR-..., если он не задан.
-        - Устанавливает тираж по умолчанию = 1 для новых записей.
-        - ВАЖНО: Больше НЕ обновляет sheet_count в связанных компонентах печати!
-          Это было удалено, чтобы количество листов не сбрасывалось на тираж.
-        """
+        """Генерация номера и прочее (без изменений)."""
         is_new = self.pk is None
 
-        # Установка тиража по умолчанию
         if is_new and self.circulation is None:
             self.circulation = 1
 
-        # Генерация номера PR-...
         if not self.number or self.number.strip() == '':
             try:
                 existing_numbers = Proschet.objects.filter(
@@ -104,13 +103,6 @@ class Proschet(models.Model):
 
         super().save(*args, **kwargs)
 
-        # ===== УДАЛЕНО АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ КОМПОНЕНТОВ =====
-        # Ранее здесь был код, который при изменении тиража перезаписывал
-        # sheet_count во всех компонентах, делая его равным тиражу.
-        # Это нарушало логику вычислений листов. Теперь компоненты
-        # обновляются только через отдельный API-вызов, который учитывает
-        # параметры из vichisliniya_listov.
-
     @property
     def formatted_created_at(self):
         """Отформатированная дата создания."""
@@ -122,24 +114,23 @@ class Proschet(models.Model):
 
     @property
     def total_price(self):
-        """Общая стоимость просчёта (компоненты + доп. работы)."""
+        """Общая стоимость просчёта = сумма стоимостей всех компонентов + сумма всех доп. работ всех компонентов."""
         components_total = Decimal('0.00')
         for component in self.print_components.all():
-            # Используем сохранённое значение total_circulation_price
             components_total += component.total_circulation_price
-        works_total = self.additional_works.aggregate(
-            total=Sum('price')
-        )['total'] or Decimal('0.00')
-        return components_total + works_total
+            # Суммируем доп. работы этого компонента
+            works_total = component.additional_works.aggregate(
+                total=Sum('total_price')
+            )['total'] or Decimal('0.00')
+            components_total += works_total
+        return components_total
 
     @property
     def formatted_total_price(self):
-        """Отформатированная общая стоимость."""
         return f"{self.total_price:.2f} ₽"
 
     @property
     def formatted_circulation(self):
-        """Отформатированный тираж (с разделителями тысяч)."""
         return f"{self.circulation:,}".replace(",", " ")
 
     def update_circulation(self, new_circulation):
@@ -162,9 +153,7 @@ class Proschet(models.Model):
 
 
 class PrintComponent(models.Model):
-    """
-    Компонент печати с уникальным номером KP-.
-    """
+    """Компонент печати (без изменений, приведён для полноты)"""
     number = models.CharField(
         verbose_name='Номер компонента',
         max_length=20,
@@ -229,14 +218,9 @@ class PrintComponent(models.Model):
         default=False,
         help_text='Указывает, что цена за лист была рассчитана автоматически на основе справочника цен'
     )
-
-    # ===== НОВОЕ ПОЛЕ =====
-    # Хранит итоговую стоимость компонента: (цена_печати_за_лист + цена_бумаги_за_лист) * количество_листов.
-    # Значение вычисляется в представлениях при изменении данных, влияющих на стоимость,
-    # и сохраняется в базе для быстрого доступа и отображения в отчётах.
     total_circulation_price = models.DecimalField(
         verbose_name='Общая стоимость',
-        max_digits=12,               # Увеличим разрядность, т.к. возможны большие суммы
+        max_digits=12,
         decimal_places=2,
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
@@ -257,22 +241,16 @@ class PrintComponent(models.Model):
     # ---------- Свойства для работы с тиражом просчёта ----------
     @property
     def formatted_circulation(self):
-        """Возвращает отформатированный тираж из связанного просчёта."""
         if self.proschet:
             return self.proschet.formatted_circulation
         return "—"
 
     @property
     def circulation_display(self):
-        """Свойство для обратной совместимости с админкой."""
         return self.formatted_circulation
 
-    # ---------- Метод для пересчёта цены (действие в админке) ----------
+    # ---------- Метод для пересчёта цены ----------
     def recalculate_price(self):
-        """
-        Пересчитывает цену за лист на основе текущего принтера и количества листов.
-        Также пересчитывает общую стоимость компонента.
-        """
         try:
             if self.printer and self.sheet_count:
                 self.price_per_sheet = self.calculate_price_for_printer_and_copies(
@@ -280,7 +258,6 @@ class PrintComponent(models.Model):
                     self.sheet_count
                 )
                 self.is_price_calculated = True
-                # После изменения цены нужно обновить общую стоимость
                 self.refresh_total_price()
                 self.save(update_fields=['price_per_sheet', 'is_price_calculated', 'total_circulation_price'])
                 return True, f"Цена успешно пересчитана: {self.price_per_sheet} руб./лист"
@@ -296,7 +273,6 @@ class PrintComponent(models.Model):
         Используется при изменении цены, бумаги или количества листов.
         """
         try:
-            # Получаем актуальное количество листов из связанной записи вычислений
             from vichisliniya_listov.models import VichisliniyaListovModel
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
@@ -311,7 +287,6 @@ class PrintComponent(models.Model):
             total = (price_per_sheet + material_price) * sheet_count
             self.total_circulation_price = total
         except Exception as e:
-            # В случае ошибки оставляем текущее значение или 0
             print(f"⚠️ Ошибка при пересчёте общей стоимости компонента {self.id}: {e}")
             self.total_circulation_price = Decimal('0.00')
 
@@ -336,11 +311,9 @@ class PrintComponent(models.Model):
             except Exception:
                 self.number = f"KP-{PrintComponent.objects.count() + 1}"
 
-        # Установка sheet_count по умолчанию, если не указано
         if self.sheet_count is None:
             self.sheet_count = Decimal('1.00')
 
-        # Автоматический расчёт цены, если нужно
         should_calculate_price = False
         if self.printer and self.sheet_count:
             if not self.pk:
@@ -372,7 +345,6 @@ class PrintComponent(models.Model):
                 self.price_per_sheet = Decimal('0.00')
             self.is_price_calculated = False
 
-        # Пересчитываем общую стоимость, если есть ID (уже сохранён хотя бы раз)
         if self.pk:
             self.refresh_total_price()
 
@@ -423,7 +395,6 @@ class PrintComponent(models.Model):
                     result = math.exp(result_log) - epsilon
                     return Decimal(str(round(result, 2)))
                 else:
-                    # линейная по умолчанию
                     x1, y1 = float(prev_price.copies), float(prev_price.price_per_sheet)
                     x2, y2 = float(next_price.copies), float(next_price.price_per_sheet)
                     x = float(sheet_count_int)
@@ -437,36 +408,27 @@ class PrintComponent(models.Model):
 
     @property
     def material_price_per_unit(self):
-        """Цена за единицу материала."""
         if self.paper:
             return self.paper.price
         return Decimal('0.00')
 
-    # Свойство total_circulation_price больше не определяется как property,
-    # теперь это поле модели. Для совместимости оставляем только форматирование.
-
     @property
     def formatted_price_per_sheet(self):
-        """Отформатированная цена печати за лист."""
         if self.price_per_sheet is not None:
             return f"{self.price_per_sheet:.2f} ₽"
         return "0.00 ₽"
 
     @property
     def formatted_total_circulation_price(self):
-        """Отформатированная общая стоимость (использует поле модели)."""
         return f"{self.total_circulation_price:.2f} ₽"
 
     @property
     def formatted_material_price(self):
-        """Отформатированная цена материала."""
         return f"{self.material_price_per_unit:.2f} ₽" if self.paper else "Не выбрано"
 
     @property
     def material_cost_for_circulation(self):
-        """Стоимость материала: цена × листы (вычисляется динамически)."""
         try:
-            # Используем актуальное количество листов из связанной записи
             from vichisliniya_listov.models import VichisliniyaListovModel
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
@@ -485,7 +447,6 @@ class PrintComponent(models.Model):
 
     @property
     def printing_cost_for_circulation(self):
-        """Стоимость печати: цена × листы (вычисляется динамически)."""
         try:
             from vichisliniya_listov.models import VichisliniyaListovModel
             try:
@@ -506,7 +467,17 @@ class PrintComponent(models.Model):
 
 
 class AdditionalWork(models.Model):
-    """Дополнительная работа (без изменений)."""
+    """
+    Дополнительная работа, привязанная к конкретному печатному компоненту.
+    ИЗМЕНЕНИЯ:
+    - Добавлен метод _get_effective_price(), который вычисляет цену за единицу
+      с учётом количества листов компонента и опорных точек из справочника.
+    - В методе save() при расчёте total_price используется effective_price.
+    - Для формул 3 и 4 теперь используется актуальное количество резов (cuts_count)
+      из данных вычислений листов, а не фиксированное lines_count.
+    - В формуле 4 используется коэффициент k_lines из связанной работы Work.
+    """
+
     number = models.CharField(
         verbose_name='Номер работы',
         max_length=20,
@@ -514,12 +485,12 @@ class AdditionalWork(models.Model):
         blank=True,
         help_text='Автоматически генерируется в формате DR-1, DR-2 и т.д.'
     )
-    proschet = models.ForeignKey(
-        Proschet,
-        verbose_name='Просчёт',
+    print_component = models.ForeignKey(
+        PrintComponent,
+        verbose_name='Печатный компонент',
         on_delete=models.CASCADE,
         related_name='additional_works',
-        help_text='Просчёт, к которому относится эта работа'
+        help_text='Печатный компонент, к которому относится эта дополнительная работа'
     )
     title = models.CharField(
         verbose_name='Название работы',
@@ -531,17 +502,56 @@ class AdditionalWork(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
-        help_text='Стоимость работы в рублях'
+        help_text='Базовая стоимость работы в рублях (из справочника или введённая вручную)'
+    )
+    quantity = models.PositiveIntegerField(
+        verbose_name='Количество',
+        default=1,
+        help_text='Количество единиц данной работы (по умолчанию 1)'
+    )
+    total_price = models.DecimalField(
+        verbose_name='Общая стоимость',
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Общая стоимость работы = результат применения формулы, где используется effective_price (интерполированная цена)'
     )
     created_at = models.DateTimeField(
         verbose_name='Дата создания',
-        auto_now_add=True,
-        help_text='Дата и время добавления работы'
+        auto_now_add=True
     )
     is_deleted = models.BooleanField(
         verbose_name='Удален',
-        default=False,
-        help_text='Помечает работу как удаленную'
+        default=False
+    )
+    work = models.ForeignKey(
+        Work,
+        verbose_name='Работа из справочника',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='Ссылка на запись в справочнике дополнительных работ (если работа была добавлена из справочника)'
+    )
+
+    # === ПОЛЯ ДЛЯ ФОРМУЛ ===
+    formula_type = models.PositiveSmallIntegerField(
+        choices=Work.FORMULA_CHOICES,  # Используем те же варианты, что и в справочнике
+        default=1,
+        verbose_name='Формула расчёта',
+        help_text='Тип формулы, используемой для расчёта общей стоимости.'
+    )
+
+    lines_count = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Количество линий реза',
+        help_text='Количество линий реза (используется в формулах 3 и 4).'
+    )
+
+    items_per_sheet = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Количество изделий на листе',
+        help_text='Количество изделий на листе (используется в формулах 5 и 6).'
     )
 
     class Meta:
@@ -550,10 +560,54 @@ class AdditionalWork(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f"{self.number}: {self.title}"
+        return f"{self.number}: {self.title} (для компонента {self.print_component.number})"
+
+    # ----- НОВЫЙ МЕТОД: вычисление эффективной цены за единицу -----
+    def _get_effective_price(self, sheet_count=None):
+        """
+        Возвращает цену за единицу работы с учётом количества листов и опорных точек справочника.
+        Если работа связана со справочником (self.work не None), то вызывается функция
+        calculate_price_for_work(self.work, sheet_count). Если sheet_count не передан,
+        пытается получить его из связанного компонента через VichisliniyaListovModel.
+        Если работа не связана со справочником, возвращает self.price.
+        """
+        # Если sheet_count не передан, пытаемся получить его из модели VichisliniyaListovModel
+        if sheet_count is None:
+            from vichisliniya_listov.models import VichisliniyaListovModel
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component=self.print_component
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                # Если записи нет, считаем листы равными 0
+                sheet_count = Decimal('0')
+
+        # Если есть связанная работа из справочника, используем интерполяцию
+        if self.work:
+            try:
+                effective_price = calculate_price_for_work(self.work, sheet_count)
+                return effective_price
+            except Exception as e:
+                # В случае ошибки интерполяции (например, нет опорных точек) возвращаем базовую цену
+                print(f"⚠️ Ошибка при вычислении effective_price для работы {self.id}: {e}")
+                return self.price
+        else:
+            # Если работа не связана со справочником, возвращаем базовую цену
+            return self.price
 
     def save(self, *args, **kwargs):
-        """Генерация номера DR-..."""
+        """
+        Переопределённый метод сохранения.
+        - Генерирует номер работы, если он не задан.
+        - Получает актуальное количество листов и резов из модели VichisliniyaListovModel.
+        - Получает тираж из связанного просчёта.
+        - Вычисляет effective_price (интерполированную цену за единицу) для данной работы.
+        - Для формул 3 и 4 подставляет актуальное количество резов вместо lines_count.
+        - Для формулы 4 использует коэффициент k_lines из связанной работы Work.
+        - Рассчитывает общую стоимость по выбранной формуле, используя effective_price.
+        """
+        # 1. Генерация номера в формате DR-...
         if not self.number or self.number.strip() == '':
             try:
                 existing_numbers = AdditionalWork.objects.filter(
@@ -571,4 +625,113 @@ class AdditionalWork(models.Model):
                 self.number = f"DR-{max_num + 1}"
             except Exception:
                 self.number = f"DR-{AdditionalWork.objects.count() + 1}"
+
+        # 2. Получение данных из связанного печатного компонента и просчёта
+        if self.print_component_id:
+            component = self.print_component
+            proschet = component.proschet
+
+            # ===== ПОЛУЧАЕМ АКТУАЛЬНОЕ КОЛИЧЕСТВО ЛИСТОВ И РЕЗОВ ИЗ VichisliniyaListovModel =====
+            from vichisliniya_listov.models import VichisliniyaListovModel
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component=component
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+                cuts_count = vich_data.vichisliniya_listov_cuts_count  # получаем количество резов
+            except VichisliniyaListovModel.DoesNotExist:
+                # Если записи нет – количество листов равно 0, резы = 0
+                sheet_count = Decimal('0')
+                cuts_count = 0
+
+            # Тираж берём из просчёта
+            circulation = proschet.circulation if proschet.circulation else 0
+        else:
+            # Если компонент не указан (такого быть не должно, но на всякий случай)
+            sheet_count = Decimal('0')
+            circulation = 0
+            cuts_count = 0
+
+        # 3. Подготовка значений для формулы
+        effective_price = self._get_effective_price(sheet_count)
+        qty = self.quantity if self.quantity else 1
+        lines = self.lines_count if self.lines_count else 1
+        items = self.items_per_sheet if self.items_per_sheet else 1
+
+        # ===== ИСПРАВЛЕНИЕ: для формул, использующих линии реза, подставляем актуальное количество резов =====
+        if self.formula_type in [3, 4]:
+            lines = cuts_count  # используем реальное количество резов
+
+        # 4. Вычисление общей стоимости в зависимости от типа формулы
+        if self.formula_type == 1:
+            # Фиксированная цена: effective_price × количество
+            total = effective_price * qty
+        elif self.formula_type == 2:
+            # Тираж × effective_price: effective_price × тираж × количество
+            total = effective_price * circulation * qty
+        elif self.formula_type == 3:
+            # Тираж × effective_price × количество линий реза
+            total = effective_price * circulation * lines * qty
+        elif self.formula_type == 4:
+            # количество листов × effective_price × количество линий реза
+            # Берём коэффициент k_lines из связанной работы Work (если есть)
+            if self.work:
+                k_lines = float(self.work.k_lines)
+            else:
+                k_lines = 2.0  # значение по умолчанию, если работа не связана со справочником
+            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count, 1)))
+            complexity_factor = Decimal(str(factor_float))
+            total = effective_price * complexity_factor * qty
+        elif self.formula_type == 5:
+            # Количество изделий на листе × effective_price × количество листов
+            total = effective_price * items * sheet_count * qty
+        elif self.formula_type == 6:
+            # Количество изделий на листе × effective_price × тираж
+            total = effective_price * items * circulation * qty
+        else:
+            # По умолчанию – фиксированная цена (на случай неизвестного типа)
+            total = effective_price * qty
+
+        # 5. Сохраняем результат в поле total_price (с округлением до двух знаков)
+        self.total_price = total.quantize(Decimal('0.01'))
+
+        # 6. Вызов родительского метода сохранения
         super().save(*args, **kwargs)
+
+    def to_dict(self):
+        """
+        Преобразует объект в словарь для передачи в JSON (AJAX).
+        Включает все необходимые поля для клиентской части.
+        ДОБАВЛЕНО: поле effective_price и formatted_effective_price,
+        которые вычисляются на основе текущего количества листов компонента.
+        """
+        # Получаем количество листов для вычисления effective_price
+        from vichisliniya_listov.models import VichisliniyaListovModel
+        try:
+            vich_data = VichisliniyaListovModel.objects.get(
+                vichisliniya_listov_print_component=self.print_component
+            )
+            sheet_count = vich_data.vichisliniya_listov_list_count
+        except VichisliniyaListovModel.DoesNotExist:
+            sheet_count = Decimal('0')
+
+        effective_price = self._get_effective_price(sheet_count)
+
+        return {
+            'id': self.id,
+            'number': self.number,
+            'title': self.title,
+            'price': str(self.price),
+            'formatted_price': f"{self.price} ₽",
+            'effective_price': str(effective_price),
+            'formatted_effective_price': f"{effective_price} ₽",
+            'quantity': self.quantity,
+            'total_price': str(self.total_price),
+            'formatted_total_price': f"{self.total_price} ₽",
+            'formula_type': self.formula_type,
+            'formula_display': self.get_formula_type_display(),
+            'lines_count': self.lines_count,
+            'items_per_sheet': self.items_per_sheet,
+            'work_id': self.work_id if self.work_id else None,
+            'created_at': self.created_at.strftime('%d.%m.%Y %H:%M'),
+        }

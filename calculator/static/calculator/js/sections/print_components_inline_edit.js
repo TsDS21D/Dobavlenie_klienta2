@@ -6,6 +6,8 @@
  *   Это позволит основному модулю проверять, не редактируется ли сейчас компонент, и не перезаписывать его DOM.
  * - Удалён глобальный обработчик mousedown, который преждевременно завершал редактирование при клике на выпадающий список.
  * - Вместо этого добавлен обработчик blur на редактируемый элемент (input/select). Теперь редактирование завершается только при потере фокуса или по клавишам Enter/Escape.
+ * - Исправлено предзаполнение выпадающего списка бумаги (paper) при двойном клике: теперь корректно извлекается название бумаги из ячейки без примеси цены.
+ * - Добавлены подробные комментарии для понимания кода новичками.
  * 
  * ОСНОВНЫЕ ВОЗМОЖНОСТИ:
  * 1. Двойной клик по ячейкам таблицы для редактирования принтера, бумаги, цены за лист.
@@ -844,7 +846,7 @@ function print_components_setup_table_event_listeners() {
         // 1 – Принтер
         // 2 – Бумага
         // 3 – Количество листов (не редактируется, т.к. берётся из вычислений)
-        // 4 – Цена за лист
+        // 4 – Цена за лист (НЕ РЕДАКТИРУЕТСЯ, т.к. рассчитывается автоматически)
         // 5 – Стоимость (не редактируется, вычисляемое поле)
         // 6 – Действия (кнопки)
         switch (cellIndex) {
@@ -852,13 +854,13 @@ function print_components_setup_table_event_listeners() {
             case 1: fieldName = 'printer'; fieldType = 'printer'; break;
             case 2: fieldName = 'paper'; fieldType = 'paper'; break;
             case 3: return; // количество листов – не редактируем
-            case 4: fieldName = 'price_per_sheet'; fieldType = 'price'; break;
+            case 4: return; // ЦЕНА ЗА ЛИСТ – НЕ РЕДАКТИРУЕМ (автоматический расчёт)
             case 5: return; // стоимость – не редактируем
             case 6: return; // действия – не редактируем
             default: return;
         }
 
-        // Запускаем режим редактирования
+        // Запускаем режим редактирования только для разрешённых полей
         print_components_start_edit(cell, componentId, fieldName, fieldType, row);
     });
 
@@ -967,7 +969,16 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
     // Сохраняем текущее состояние редактирования
     print_components_current_editing_id = componentId;
     print_components_current_editing_element = cell;
-    print_components_original_value = cell.textContent.trim(); // исходное значение для отмены
+    
+    // ВАЖНО: для поля бумаги нам нужно сохранить только название, без цены, чтобы правильно выбрать опцию в выпадающем списке.
+    // Ячейка бумаги может содержать HTML вида "Бумага офсетная<br><small>25.00 ₽/лист</small>".
+    // Используем специальную функцию для извлечения чистого названия.
+    if (fieldType === 'paper') {
+        print_components_original_value = print_components_extract_paper_name(cell.innerHTML);
+    } else {
+        print_components_original_value = cell.textContent.trim(); // исходное значение для отмены
+    }
+    
     print_components_current_field_type = fieldType;
     print_components_is_editing = true;
 
@@ -1039,6 +1050,24 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
             inputElement.select(); // выделяем текст
         }
     }, 10);
+}
+
+/**
+ * Извлекает чистое название бумаги из HTML-содержимого ячейки.
+ * Предполагается, что ячейка имеет формат: "Название бумаги<br><small>цена</small>"
+ * @param {string} html - innerHTML ячейки
+ * @returns {string} - название бумаги (без цены)
+ */
+function print_components_extract_paper_name(html) {
+    // Пытаемся найти текст до тега <br>
+    const brIndex = html.indexOf('<br');
+    if (brIndex !== -1) {
+        return html.substring(0, brIndex).trim();
+    }
+    // Если нет <br>, просто возвращаем текст без HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent.trim();
 }
 
 /**
@@ -1119,6 +1148,7 @@ function print_components_create_paper_dropdown(cell) {
         noDataOption.disabled = true;
         select.appendChild(noDataOption);
     } else {
+        // currentValue содержит название бумаги (без цены), извлечённое ранее
         const currentValue = print_components_original_value;
         let found = false;
 
@@ -1127,7 +1157,8 @@ function print_components_create_paper_dropdown(cell) {
             option.value = paper.id;
             option.textContent = paper.name;
 
-            if (currentValue && paper.name === currentValue) {
+            // Сравниваем название (регистронезависимо, с обрезанием пробелов)
+            if (currentValue && paper.name.trim().toLowerCase() === currentValue.trim().toLowerCase()) {
                 option.selected = true;
                 found = true;
             }
@@ -1135,6 +1166,7 @@ function print_components_create_paper_dropdown(cell) {
             select.appendChild(option);
         });
 
+        // Если текущее значение не соответствует ни одной бумаге, добавляем его как недоступный вариант
         if (currentValue && !found && currentValue !== 'Бумага не выбрана') {
             const disabledOption = document.createElement('option');
             disabledOption.value = '';
@@ -1329,7 +1361,15 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Если ответ не OK, парсим JSON с ошибкой
+        if (!response.ok) {
+            return response.json().then(errData => {
+                throw new Error(errData.message || `HTTP ошибка: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Успех – отображаем новое значение
@@ -1379,6 +1419,7 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
     })
     .catch(error => {
         // Ошибка сети – показываем сообщение
+        console.error('❌ Ошибка при сохранении:', error);
         cell.innerHTML = `<span style="color: #e74c3c;">Ошибка сети</span>`;
         print_components_show_notification('Ошибка сети при сохранении', 'error');
 

@@ -1,498 +1,276 @@
 /*
-calculator/static/calculator/css/sections/client.css
-ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - Тонкие рамки по всему периметру
-ДОБАВЛЕН ЭФФЕКТ ПРИ НАВЕДЕНИИ НА СЕКЦИЮ КЛИЕНТА
-
-Основные изменения:
-1. Добавлен эффект при наведении на секцию клиента
-2. При наведении появляется тонкая зеленая рамка и легкая тень
-3. Улучшена плавность переходов
+client.css – стили для компактной секции "Клиент"
+Особенности:
+- Все элементы клиента в одной строке (.client-compact-row)
+- Статус ЭДО имеет два класса: .edo-on (зелёный) и .edo-off (серый)
+- Сохранены эффекты наведения и адаптивность
 */
 
-/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ КЛИЕНТ ===== */
-
-/* Контейнер всей секции клиента */
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ===== */
 #client-section {
-    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру (было border-left: 4px solid #3498db) */
-    background: white;                      /* Белый фон для контраста */
-    padding: 0.6rem;                        /* Внутренние отступы (уменьшено с 15px → 0.6rem) */
-    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 20px → 0.6rem) */
-    border-radius: 6px;                     /* Скругление углов (уменьшено с 12px → 6px) */
-    transition: all 0.15s ease;             /* Плавные переходы (быстрее: 0.3s → 0.15s) */
+    border: 1px solid #e0e0e0;      /* Тонкая серая рамка */
+    background: white;
+    padding: 0.6rem;
+    margin-bottom: 0.6rem;
+    border-radius: 6px;
+    transition: all 0.15s ease;
 }
-
-/* НОВЫЙ ЭФФЕКТ: При наведении на секцию клиента */
 #client-section:hover {
-    border-color: #3498db;            /* Тонкая рамка при наведении */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая зеленая тень для эффекта глубины */
-    transform: translateY(-1px);            /* Легкий подъем секции на 1px для интерактивного ощущения */
-    transition: all 0.2s ease;              /* Плавный переход всех свойств за 0.2 секунды */
+    border-color: #3498db;           /* Синяя рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
 }
 
-/* ===== 2. ЗАГОЛОВОК СЕКЦИИ ===== */
-
-/* Контейнер заголовка секции */
+/* ===== 2. ЗАГОЛОВОК ===== */
 #client-section .section-header {
-    display: flex;                          /* Flexbox для расположения элементов */
-    justify-content: space-between;         /* Пространство между элементами */
-    align-items: center;                    /* Выравнивание по вертикали */
-    margin-bottom: 0.6rem;                  /* Отступ снизу (уменьшено с 15px → 0.6rem) */
-    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (уменьшено с 10px → 0.4rem) */
-    border-bottom: 1px solid #3498db;       /* Синяя линия-разделитель (тонкая) */
-    background: #f8f9fa;                    /* Светло-серый фон (убраны градиенты) */
-    min-height: 32px;                       /* Минимальная высота (уменьшено с 40px → 32px) */
-    padding: 0.5rem 0.8rem;                 /* Внутренние отступы (уменьшено с 10px 15px → 0.5rem 0.8rem) */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #3498db;
+    background: #f8f9fa;
+    min-height: 32px;
+    padding: 0.5rem 0.8rem;
 }
-
-/* Заголовок секции (h2) */
 #client-section .section-header h2 {
-    color: #2c3e50;                         /* Темно-синий цвет текста */
-    font-weight: 600;                       /* Полужирное начертание для акцента */
-    display: flex;                          /* Flexbox для выравнивания элементов внутри h2 */
-    align-items: center;                    /* Выравнивание по вертикали */
-    gap: 0.3rem;                            /* Расстояние между элементами (уменьшено с 8px → 0.3rem) */
-    margin: 0;                              /* Убираем стандартные отступы браузера */
-    flex-grow: 1;                           /* Занимает всё доступное пространство */
-    font-size: 0.9rem;                      /* Размер шрифта (уменьшено с 1.2rem → 0.9rem) */
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    flex-grow: 1;
+    font-size: 0.9rem;
 }
-
-/* Иконка в заголовке */
 #client-section .section-header i {
-    color: #3498db;                         /* Синий цвет иконки в заголовке */
-    font-size: 0.85rem;                     /* Размер иконки (уменьшено с 1.1rem → 0.85rem) */
+    color: #3498db;
+    font-size: 0.85rem;
 }
 
-/* ===== 3. БЕЙДЖ С НОМЕРОМ ПРОСЧЁТА ===== */
-
-/* Бейдж с номером текущего просчёта */
+/* ===== 3. БЕЙДЖ ПРОСЧЁТА ===== */
 #selected-proschet-badge {
-    background-color: #3498db;              /* Синий фон бейджа */
-    color: white;                           /* Белый текст для контраста */
-    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.8em → 0.7rem) */
-    padding: 0.1rem 0.5rem;                 /* Внутренние отступы (уменьшено с 3px 10px → 0.1rem 0.5rem) */
-    border-radius: 10px;                    /* Скругление углов (уменьшено с 12px → 10px) */
-    margin-left: 0.5rem;                    /* Отступ слева от текста заголовка (уменьшено с 10px → 0.5rem) */
-    vertical-align: middle;                 /* Вертикальное выравнивание по центру */
-    font-weight: 500;                       /* Средняя толщина шрифта */
-    transition: opacity 0.15s ease;         /* Плавное появление/исчезновение (быстрее: 0.3s → 0.15s) */
+    background-color: #3498db;
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
 }
 
-/* ===== 4. КОНТЕЙНЕР ДЛЯ КНОПОК В ЗАГОЛОВКЕ ===== */
-
-/* Контейнер для кнопок в заголовке */
+/* ===== 4. КНОПКИ УПРАВЛЕНИЯ ===== */
 #client-section .header-buttons {
-    display: flex;                          /* Flexbox для горизонтального расположения кнопок */
-    align-items: center;                    /* Вертикальное центрирование кнопок */
-    gap: 0.3rem;                            /* Расстояние между кнопками (уменьшено с 6px → 0.3rem) */
-    flex-shrink: 0;                         /* Запрещаем сжатие контейнера */
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
 }
-
-/* ===== 5. КНОПКА СВОРАЧИВАНИЯ СЕКЦИИ ===== */
-
-/* Кнопка сворачивания/разворачивания секции */
 #client-section .btn-collapse-section {
-    min-width: 18px;                        /* Минимальная ширина (уменьшено с 24px → 18px) */
-    min-height: 18px;                       /* Минимальная высота (уменьшено с 24px → 18px) */
-    display: flex;                          /* Flexbox для центрирования иконки */
-    align-items: center;                    /* Вертикальное центрирование иконки */
-    justify-content: center;                /* Горизонтальное центрирование иконки */
-    margin: 0;                              /* Убираем внешние отступы */
-    padding: 0.3rem;                        /* Внутренние отступы вокруг иконки (уменьшено с 6px → 0.3rem) */
-    background: #f5f5f5;                    /* Светло-серый фон кнопки */
-    border: 1px solid #ddd;                 /* Светло-серая рамка для визуального выделения */
-    border-radius: 3px;                     /* Скругление углов (уменьшено с 6px → 3px) */
-    cursor: pointer;                        /* Курсор "указатель" при наведении */
-    transition: all 0.12s ease;             /* Плавные переходы для всех свойств (быстрее: 0.2s → 0.12s) */
+    min-width: 18px;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.12s ease;
 }
-
-/* Эффект при наведении на кнопку сворачивания */
 #client-section .btn-collapse-section:hover {
-    background: #e0e0e0;                    /* Более темный серый фон при наведении */
-    border-color: #3498db;                  /* Синяя рамка при наведении */
+    background: #e0e0e0;
+    border-color: #3498db;
 }
-
-/* Эффект при нажатии на кнопку сворачивания */
 #client-section .btn-collapse-section:active {
-    background: #d0d0d0;                    /* Еще более темный серый фон при активном состоянии */
+    background: #d0d0d0;
 }
-
-/* Иконка внутри кнопки сворачивания */
 #client-section .btn-collapse-section i {
-    font-size: 0.75rem;                     /* Размер иконки (уменьшено с 14px → 0.75rem) */
-    color: #555;                            /* Темно-серый цвет иконки */
-    line-height: 1;                         /* Нормализуем межстрочный интервал */
-    transition: transform 0.15s ease;       /* Плавная анимация поворота иконки (быстрее: 0.3s → 0.15s) */
+    font-size: 0.75rem;
+    color: #555;
+    transition: transform 0.15s ease;
 }
-
-/* Анимация иконки при сворачивании секции */
 #client-section.collapsed .btn-collapse-section i {
-    transform: rotate(-90deg);              /* Поворот иконки на -90 градусов при свернутой секции */
-    transform-origin: center;               /* Вращение вокруг центра иконки */
+    transform: rotate(-90deg);
 }
 
-/* ===== 6. ОСНОВНОЕ ТЕЛО СЕКЦИИ ===== */
-
-/* Основное тело секции */
+/* ===== 5. ТЕЛО СЕКЦИИ ===== */
 #client-section .section-body {
-    padding: 0.8rem 0.6rem;                 /* Внутренние отступы для контента (уменьшено с 20px 15px → 0.8rem 0.6rem) */
-    background-color: #ffffff;              /* Белый фон для контента */
-    min-height: 120px;                      /* Минимальная высота (уменьшено с 200px → 120px) */
-    transition: all 0.15s ease;             /* Плавная анимация при сворачивании (быстрее: 0.3s → 0.15s) */
+    padding: 0.8rem 0.6rem;
+    background-color: #ffffff;
+    min-height: 60px;                /* Уменьшено для компактности */
+    transition: all 0.15s ease;
 }
 
-/* ===== 7. СООБЩЕНИЕ "ВЫБЕРИТЕ ПРОСЧЁТ" ===== */
-
-/* Сообщение "Выберите просчёт" (когда нет выбранного просчёта) */
+/* ===== 6. СООБЩЕНИЕ "ВЫБЕРИТЕ ПРОСЧЁТ" ===== */
 #no-proschet-selected {
-    text-align: center;                     /* Центрирование текста и иконки */
-    padding: 1.5rem 0.8rem;                 /* Внутренние отступы для пространства (уменьшено с 30px 20px → 1.5rem 0.8rem) */
-    color: #7f8c8d;                         /* Серый цвет для неактивного состояния */
+    text-align: center;
+    padding: 1.5rem 0.8rem;
+    color: #7f8c8d;
 }
-
-/* Иконка в сообщении */
 #no-proschet-selected i {
-    margin-bottom: 0.8rem;                  /* Отступ снизу от иконки (уменьшено с 15px → 0.8rem) */
-    color: #bdc3c7;                         /* Светло-серый цвет иконки */
-    font-size: 1.5rem;                      /* Размер иконки (уменьшено) */
+    margin-bottom: 0.8rem;
+    color: #bdc3c7;
+    font-size: 1.5rem;
 }
-
-/* Заголовок сообщения */
 #no-proschet-selected h3 {
-    margin-bottom: 0.5rem;                  /* Отступ снизу от заголовка (уменьшено с 10px → 0.5rem) */
-    font-weight: 500;                       /* Средняя толщина шрифта */
-    font-size: 0.85rem;                     /* Размер шрифта (уменьшено) */
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.85rem;
 }
-
-/* Текст сообщения */
 #no-proschet-selected p {
-    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 0.95em → 0.75rem) */
-    max-width: 250px;                       /* Ограничение ширины для лучшей читаемости (уменьшено с 300px → 250px) */
-    margin: 0 auto;                         /* Центрирование по горизонтали */
-    line-height: 1.4;                       /* Межстрочный интервал */
+    font-size: 0.75rem;
+    max-width: 250px;
+    margin: 0 auto;
+    line-height: 1.4;
 }
 
-/* ===== 8. КАРТОЧКА ТЕКУЩЕГО КЛИЕНТА (обновлённая) ===== */
-
-/* Карточка текущего клиента */
+/* ===== 7. КОМПАКТНАЯ КАРТОЧКА КЛИЕНТА ===== */
 .current-client-card {
-    background-color: #f8f9fa;              /* Светло-серый фон карточки */
-    border: 1px solid #dee2e6;              /* Тонкая светло-серая рамка по всему периметру */
-    border-radius: 4px;                     /* Скругление углов (уменьшено с 8px → 4px) */
-    padding: 0.8rem;                        /* Внутренние отступы (уменьшено с 20px → 0.8rem) */
-    margin-bottom: 0;                       /* Убираем нижний отступ, так как это единственный элемент */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03); /* Очень легкая тень для глубины (уменьшена) */
-    display: block;                         /* Гарантируем отображение как блочного элемента */
-    visibility: visible;                    /* Гарантируем видимость */
-    opacity: 1;                             /* Гарантируем полную непрозрачность */
-    transition: all 0.15s ease;             /* Плавные переходы для анимаций (быстрее: 0.3s → 0.15s) */
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 0.15s ease;
+}
+/* Контейнер одной строки */
+.client-compact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
 }
 
-/* ===== 9. ЗАГОЛОВОК КАРТОЧКИ КЛИЕНТА ===== */
-
-/* Заголовок карточки клиента */
-.client-card-header {
-    display: flex;                          /* Flexbox для выравнивания элементов */
-    justify-content: space-between;         /* Распределение пространства между элементами */
-    align-items: center;                    /* Вертикальное центрирование элементов */
-    margin-bottom: 0.8rem;                  /* Отступ снизу от заголовка (уменьшено с 15px → 0.8rem) */
-    border-bottom: 1px solid #e9ecef;       /* Нижняя граница для разделения */
-    padding-bottom: 0.5rem;                 /* Отступ внутри границы (уменьшено с 10px → 0.5rem) */
+/* Название клиента (редактируемое) */
+.client-name {
+    font-weight: 600;
+    color: #2c3e50;
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border-radius: 2px;
+    transition: background-color 0.12s;
+    border: 1px solid transparent;
+}
+.client-name:hover {
+    background-color: #e3f2fd;
+    border-color: #bbdefb;
+}
+.client-name.editing {
+    background-color: #fff;
+    border: 1px solid #3498db;
+    box-shadow: 0 0 3px rgba(52,152,219,0.3);
 }
 
-/* Текст заголовка карточки */
-.client-card-header h4 {
-    color: #2c3e50;                         /* Темно-синий цвет текста */
-    margin: 0;                              /* Убираем стандартные отступы */
-    font-weight: 600;                       /* Полужирное начертание для акцента */
-    font-size: 0.85rem;                     /* Размер шрифта (уменьшено с 1.1rem → 0.85rem) */
+/* Скидка (в скобках) */
+.client-discount {
+    color: #7f8c8d;
+    font-weight: 500;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
-/* Иконка в заголовке карточки */
-.client-card-header i {
-    color: #27ae60;                         /* Зеленый цвет иконки для позитивного акцента */
-    margin-right: 0.4rem;                   /* Отступ справа от иконки (уменьшено с 8px → 0.4rem) */
-    font-size: 0.8rem;                      /* Размер иконки (уменьшено) */
+/* Статус ЭДО – всегда текст "ЭДО", цвет зависит от класса */
+.client-edo {
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;        /* Заглавные буквы для акцента */
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    background-color: rgba(0,0,0,0.03);
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+/* ЭДО есть – зелёный */
+.client-edo.edo-on {
+    color: #27ae60;
+    background-color: rgba(39, 174, 96, 0.1);
+    border: 1px solid rgba(39, 174, 96, 0.2);
+}
+/* ЭДО нет – бледно-серый */
+.client-edo.edo-off {
+    color: #95a5a6;
+    background-color: rgba(149, 165, 166, 0.1);
+    border: 1px solid rgba(149, 165, 166, 0.2);
 }
 
-/* ===== 10. ТЕЛО КАРТОЧКИ КЛИЕНТА ===== */
-
-/* Тело карточки клиента */
-.client-card-body {
-    display: grid;                          /* CSS Grid для точного контроля расположения */
-    grid-template-columns: 1fr;             /* Одна колонка для мобильной адаптивности */
-    gap: 0.6rem;                            /* Расстояние между строками информации (уменьшено с 12px → 0.6rem) */
+/* ===== 8. СТИЛИ ДЛЯ РЕДАКТИРОВАНИЯ ИМЕНИ ===== */
+.client-name-input {
+    padding: 0.1rem 0.3rem;
+    border: 1px solid #3498db;
+    border-radius: 2px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    width: 200px;
+    max-width: 100%;
 }
-
-/* ===== 11. СТРОКИ С ИНФОРМАЦИЕЙ О КЛИЕНТЕ ===== */
-
-/* Строка с информацией о клиенте */
-.client-info-row {
-    display: flex;                          /* Flexbox для горизонтального расположения */
-    justify-content: space-between;         /* Метка слева, значение справа */
-    align-items: center;                    /* Вертикальное центрирование по центру */
-    padding: 0.4rem 0;                      /* Вертикальные отступы для каждой строки (уменьшено с 8px → 0.4rem) */
-    border-bottom: 1px dashed #e9ecef;      /* Пунктирная нижняя граница для разделения */
-    min-height: 26px;                       /* Минимальная высота для стабильности (уменьшено с 32px → 26px) */
+.client-name-input:focus {
+    outline: none;
+    border-color: #2980b9;
+    box-shadow: 0 0 2px rgba(52,152,219,0.5);
 }
-
-/* Последняя строка без границы */
-.client-info-row:last-child {
-    border-bottom: none;                    /* Убираем границу у последней строки */
+.client-loading {
+    color: #3498db;
+    font-style: normal;
+    font-size: 0.8rem;
 }
-
-/* ===== 12. МЕТКА (НАЗВАНИЕ ПОЛЯ) ===== */
-
-/* Метка (название поля) в строке информации */
-.client-label {
-    color: #7f8c8d;                         /* Серый цвет текста для вторичной информации */
-    font-weight: 500;                       /* Средняя толщина шрифта */
-    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.95em → 0.7rem) */
-    flex-shrink: 0;                         /* Запрещаем сжатие метки */
-    margin-right: 0.8rem;                   /* Отступ справа от метки (уменьшено с 15px → 0.8rem) */
+.client-loading i {
+    margin-right: 0.3rem;
+    animation: spin 0.8s linear infinite;
 }
-
-/* ===== 13. ЗНАЧЕНИЕ ПОЛЯ ===== */
-
-/* Значение поля в строке информации */
-.client-value {
-    color: #2c3e50;                         /* Темно-синий цвет текста для основной информации */
-    font-weight: 600;                       /* Полужирное начертание для акцента */
-    text-align: right;                      /* Выравнивание по правому краю */
-    max-width: 70%;                         /* Ограничение ширины для длинных значений */
-    word-break: break-word;                 /* Перенос длинных слов по слогам */
-    overflow-wrap: break-word;              /* Перенос длинных слов при необходимости */
-    flex-grow: 1;                           /* Занимает всё доступное пространство */
-    font-style: normal;                     /* КРИТИЧЕСКО ВАЖНО: всегда прямой шрифт, нет курсива! */
-    font-size: 0.75rem;                     /* Размер шрифта (уменьшено) */
-}
-
-/* ===== 14. КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: СТИЛИ ДЛЯ ПРОЧЕРКА ===== */
-
-/* Стиль для прочерка (значение "—") - КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ */
-#current-client-name.proschet-no-client {
-    color: #95a5a6;                         /* Серый цвет для обозначения отсутствия клиента */
-    font-style: normal;                     /* Прямой шрифт, не скачет при переключении */
-}
-
-/* Стиль для имени клиента (когда клиент есть) */
-#current-client-name.proschet-has-client {
-    color: #2c3e50;                         /* Темно-синий цвет для имени клиента */
-    font-style: normal;                     /* Прямой шрифт, постоянный */
-}
-
-/* Убираем устаревшие и проблемные селекторы */
-/* УДАЛЕНО: #current-client-name:empty - может вызывать скачки */
-/* УДАЛЕНО: .client-value[data-default="true"] - избыточно и вызывает скачки */
-
-/* ===== 15. СТИЛИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ===== */
-
-/* Редактируемое имя клиента */
-.client-value.editable-client-name {
-    cursor: pointer;                        /* Курсор "указатель" при наведении */
-    transition: all 0.12s ease;             /* Плавные переходы для всех свойств (быстрее: 0.2s → 0.12s) */
-    padding: 0.2rem 0.4rem;                 /* Внутренние отступы для области клика (уменьшено с 4px 8px → 0.2rem 0.4rem) */
-    border-radius: 2px;                     /* Скругление углов (уменьшено с 4px → 2px) */
-    border: 1px solid transparent;          /* Прозрачная рамка для резервирования пространства */
-    font-style: normal;                     /* КРИТИЧЕСКО ВАЖНО: всегда прямой шрифт */
-}
-
-/* Эффект при наведении на редактируемое имя клиента */
-.client-value.editable-client-name:hover {
-    background-color: #e3f2fd;              /* Светло-синий фон при наведении */
-    color: #2980b9;                         /* Синий цвет текста при наведении */
-    border-color: #bbdefb;                  /* Светло-синяя рамка при наведении */
-}
-
-/* ===== 16. ВЫПАДАЮЩИЙ СПИСОК ДЛЯ ВЫБОРА КЛИЕНТА ===== */
-
-/* Выпадающий список для выбора клиента */
-.client-inline-select {
-    width: 100%;                            /* Полная ширина родительского контейнера */
-    padding: 0.3rem 0.5rem;                 /* Внутренние отступы для удобства (уменьшено с 6px 10px → 0.3rem 0.5rem) */
-    border: 1px solid #3498db;              /* Синяя рамка для визуального выделения (тоньше: было 2px → 1px) */
-    border-radius: 2px;                     /* Скругление углов (уменьшено с 4px → 2px) */
-    background-color: white;                /* Белый фон */
-    font-size: 0.75rem;                     /* Размер шрифта (уменьшено с 14px → 0.75rem) */
-    color: #2c3e50;                         /* Темно-синий текст */
-    outline: none;                          /* Убираем стандартный outline браузера */
-    cursor: pointer;                        /* Курсор "указатель" */
-    transition: border-color 0.12s;         /* Плавный переход цвета рамки (быстрее: 0.2s → 0.12s) */
-    font-style: normal;                     /* КРИТИЧЕСКО ВАЖНО: прямой шрифт */
-    box-sizing: border-box;                 /* Padding включается в ширину */
-}
-
-/* Эффект при фокусе на выпадающем списке */
-.client-inline-select:focus {
-    border-color: #2980b9;                  /* Темно-синяя рамка при фокусе */
-}
-
-/* ===== 17. СОСТОЯНИЕ ЗАГРУЗКИ ===== */
-
-/* Состояние загрузки при inline-редактировании */
-.client-inline-loading {
-    color: #3498db;                         /* Синий цвет текста при загрузке */
-    font-style: normal;                     /* КРИТИЧЕСКО ВАЖНО: прямой шрифт даже при загрузке */
-    font-size: 0.7rem;                      /* Размер шрифта (уменьшено с 0.95em → 0.7rem) */
-}
-
-/* Иконка спиннера в состоянии загрузки */
-.client-inline-loading .fa-spinner {
-    margin-right: 0.4rem;                   /* Отступ справа от иконки (уменьшено с 8px → 0.4rem) */
-    animation: spin 0.8s linear infinite;    /* Анимация вращения (быстрее: 1s → 0.8s) */
-    font-size: 0.7rem;                      /* Размер иконки (уменьшено) */
-}
-
-/* Ключевые кадры анимации вращения */
 @keyframes spin {
-    0% { transform: rotate(0deg); }         /* Начальное положение */
-    100% { transform: rotate(360deg); }     /* Полный оборот */
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
-/* ===== 18. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
-
-/* Для планшетов и небольших ноутбуков (до 1137px) */
-@media (max-width: 1137px) {
-    #client-section {
-        padding: 0.5rem;                    /* Уменьшаем внутренние отступы */
-        margin-bottom: 0.4rem;              /* Уменьшаем внешний отступ снизу */
-    }
-    
-    .current-client-card {
-        padding: 0.6rem;                    /* Уменьшаем внутренние отступы карточки */
-    }
-    
-    .client-info-row {
-        flex-direction: column;             /* Вертикальное расположение на планшетах */
-        align-items: flex-start;            /* Выравнивание по левому краю */
-        gap: 0.2rem;                        /* Расстояние между меткой и значением */
-    }
-    
-    .client-label {
-        margin-right: 0;                    /* Убираем отступ справа на планшетах */
-        font-size: 0.65rem;                 /* Уменьшаем размер шрифта метки */
-    }
-    
-    .client-value {
-        text-align: left;                   /* Выравнивание по левому краю на планшетах */
-        max-width: 100%;                    /* Полная ширина на планшетах */
-        font-size: 0.7rem;                  /* Уменьшаем размер шрифта значения */
-    }
-}
-
-/* Для мобильных устройств (до 768px) */
-@media (max-width: 768px) {
-    #client-section .section-header {
-        flex-wrap: wrap;                    /* Перенос элементов на мобильных */
-        padding: 0.4rem 0.6rem;             /* Уменьшенные отступы на мобильных (уменьшено с 8px 12px → 0.4rem 0.6rem) */
-        gap: 0.4rem;                        /* Расстояние между элементами */
-    }
-    
-    #client-section .section-header h2 {
-        font-size: 0.8rem;                  /* Уменьшенный размер шрифта на мобильных */
-    }
-    
-    #client-section .section-body {
-        padding: 0.6rem 0.4rem;             /* Уменьшенные отступы тела секции */
-    }
-    
-    .current-client-card {
-        padding: 0.6rem;                    /* Уменьшенные отступы карточки на мобильных */
-        border-radius: 3px;                 /* Меньшее скругление углов */
-    }
-    
-    .client-card-header h4 {
-        font-size: 0.8rem;                  /* Уменьшенный размер шрифта заголовка карточки */
-    }
-    
-    .client-info-row {
-        padding: 0.3rem 0;                  /* Уменьшенные вертикальные отступы строк */
-        min-height: 24px;                   /* Меньшая минимальная высота */
-    }
-    
-    .client-label {
-        font-size: 0.65rem;                 /* Уменьшенный размер шрифта метки */
-    }
-    
-    .client-value {
-        font-size: 0.7rem;                  /* Уменьшенный размер шрифта значения */
-    }
-    
-    .client-inline-select {
-        padding: 0.25rem 0.4rem;            /* Уменьшенные внутренние отступы выпадающего списка */
-        font-size: 0.7rem;                  /* Уменьшенный размер шрифта */
-    }
-}
-
-/* ===== 19. АНИМАЦИЯ ПОЯВЛЕНИЯ КАРТОЧКИ КЛИЕНТА ===== */
-
-/* Анимация появления карточки клиента */
+/* ===== 9. АНИМАЦИИ ===== */
 @keyframes fadeInUpClient {
-    from {
-        opacity: 0;                         /* Начало: полностью прозрачно */
-        transform: translateY(8px);         /* Сдвиг вниз на 8px (уменьшено с 10px) */
-    }
-    to {
-        opacity: 1;                         /* Конец: полностью непрозрачно */
-        transform: translateY(0);           /* Возврат в исходное положение */
-    }
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Применение анимации при появлении карточки */
 .current-client-card {
-    animation: fadeInUpClient 0.15s ease-out;  /* Анимация появления снизу (быстрее: 0.3s → 0.15s) */
+    animation: fadeInUpClient 0.15s ease-out;
 }
-
-/* ===== 20. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
-
-/* Свёрнутая секция клиента */
-#client-section.collapsed .section-body {
-    display: none;                          /* Скрываем тело секции при сворачивании */
-    padding: 0;                             /* Убираем отступы при скрытии */
-    height: 0;                              /* Обнуляем высоту */
-    overflow: hidden;                       /* Скрываем переполнение */
-}
-
-#client-section.collapsed {
-    border-bottom: none;                    /* Убираем нижнюю границу при сворачивании */
-}
-
-/* ===== 21. ГАРАНТИРОВАННЫЕ СТИЛИ ДЛЯ КОРРЕКТНОГО ОТОБРАЖЕНИЯ ===== */
-
-/* Гарантируем, что карточка клиента всегда видна при выборе просчёта */
-#client-section #client-selection-interface,
-#client-section #current-client-display {
-    display: block !important;              /* Принудительно показываем элементы */
-    visibility: visible !important;         /* Гарантируем видимость */
-}
-
-/* Гарантируем, что сообщение "Выберите просчёт" скрыто при активном просчёте */
-#client-section.has-proschet #no-proschet-selected {
-    display: none !important;               /* Принудительно скрываем */
-}
-
-/* Гарантируем, что прочерк всегда серый и прямым шрифтом */
-#current-client-name:empty::after {
-    content: "—";                           /* Гарантируем прочерк для пустого элемента */
-    color: #95a5a6;                         /* Серый цвет для прочерка */
-    font-style: normal;                     /* Прямой шрифт, не курсив */
-    font-weight: 600;                       /* Полужирное начертание, как у обычных значений */
-}
-
-/* ===== 22. АНИМАЦИЯ ПОЯВЛЕНИЯ ВСЕЙ СЕКЦИИ ===== */
-
-/* Анимация плавного появления всей секции */
 @keyframes fadeInClient {
-    from {
-        opacity: 0;                         /* Начало: полностью прозрачно */
-        transform: translateY(10px);        /* Сдвиг вниз на 10px */
-    }
-    to {
-        opacity: 1;                         /* Конец: полностью непрозрачно */
-        transform: translateY(0);           /* Возврат в исходное положение */
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+#client-section {
+    animation: fadeInClient 0.15s ease-out;
 }
 
-/* Применение анимации */
-#client-section {
-    animation: fadeInClient 0.15s ease-out;  /* Анимация появления снизу (быстрее: 0.3s → 0.15s) */
+/* ===== 10. СВЁРНУТАЯ СЕКЦИЯ ===== */
+#client-section.collapsed .section-body {
+    display: none;
+    padding: 0;
+    height: 0;
+    overflow: hidden;
+}
+#client-section.collapsed {
+    border-bottom: none;
+}
+
+/* ===== 11. АДАПТИВНОСТЬ ===== */
+@media (max-width: 1137px) {
+    #client-section { padding: 0.5rem; margin-bottom: 0.4rem; }
+    .current-client-card { padding: 0.5rem 0.6rem; }
+    .client-compact-row { gap: 0.5rem; font-size: 0.8rem; }
+    .client-name { font-size: 0.8rem; }
+    .client-discount { font-size: 0.75rem; }
+    .client-edo { font-size: 0.75rem; }
+}
+@media (max-width: 768px) {
+    #client-section .section-header { flex-wrap: wrap; padding: 0.4rem 0.6rem; gap: 0.4rem; }
+    #client-section .section-header h2 { font-size: 0.8rem; }
+    #client-section .section-body { padding: 0.6rem 0.4rem; }
+    .current-client-card { padding: 0.4rem 0.5rem; border-radius: 3px; }
+    .client-compact-row { gap: 0.4rem; font-size: 0.75rem; flex-wrap: wrap; }
+    .client-name { font-size: 0.75rem; }
+    .client-discount { font-size: 0.7rem; }
+    .client-edo { font-size: 0.7rem; padding: 0.05rem 0.2rem; }
 }

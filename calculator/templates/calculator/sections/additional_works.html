@@ -1,78 +1,252 @@
 <!--
-sections/additional_works.html - Секция "Дополнительные работы"
-ИСПРАВЛЕНИЕ: Уникальные названия классов для устранения конфликтов стилей
-ДОБАВЛЕНО: Корректная структура блока общей стоимости
+  ============================================================================
+  Файл: additional_works.html
+  Описание: Полный код секции "Дополнительные работы" для калькулятора типографии.
+           Содержит разметку самой секции, таблицы для отображения работ,
+           и модальное окно для добавления новой работы из справочника.
+           Каждая строка подробно прокомментирована для понимания новичками.
+  ============================================================================
 -->
 
+<!--
+  Основная секция калькулятора для дополнительных работ.
+  Класс "calculator-section" – общий для всех секций калькулятора (единый стиль).
+  "additional-works-section" – уникальный класс для стилизации именно этой секции.
+  ID "additional-works-section" – используется в JavaScript для сворачивания/разворачивания.
+  Важно: в CSS для этого класса задано position: relative, чтобы модальное окно
+  позиционировалось относительно этой секции.
+-->
 <section class="calculator-section additional-works-section" id="additional-works-section">
+
+    <!--
+      Заголовок секции. Отдельный блок с классом для стилизации заголовка.
+      Содержит: иконку, номер секции, текст, динамическое имя компонента и кнопки.
+    -->
     <div class="additional-works-section-header">
+        <!-- Заголовок второго уровня (h2) – семантически правильный уровень для секции -->
         <h2>
+            <!-- Иконка инструментов из библиотеки Font Awesome (бесплатные иконки) -->
             <i class="fas fa-tools"></i>
+            <!-- Номер секции (6) – статичный текст, можно изменить при необходимости -->
             <span class="additional-works-section-number">6.</span>
             Дополнительные работы
-            <!-- Элемент для отображения названия выбранного просчёта -->
-            <span id="additional-works-proschet-title" class="additional-works-proschet-title-placeholder">
-                <span class="additional-works-placeholder-text">(просчёт не выбран)</span>
+            <!--
+              Сюда через JavaScript будет динамически подставляться название выбранного печатного компонента.
+              Например: "Блок 1 (Принтер X)". Изначально – текст-заполнитель.
+              ID используется для обновления содержимого.
+            -->
+            <span id="additional-works-component-title" class="additional-works-component-title-placeholder">
+                <span class="additional-works-placeholder-text">(компонент не выбран)</span>
             </span>
         </h2>
+        <!-- Блок кнопок в правой части заголовка (выравнивается флексом) -->
         <div class="additional-works-header-buttons">
-            <!-- Кнопка добавления новой работы -->
-            <button type="button" 
-                    id="add-additional-work-btn" 
+            <!--
+              Кнопка "Добавить" – появляется только когда выбран печатный компонент.
+              По умолчанию скрыта (style="display: none;"). Управляется через JS.
+              ID используется для добавления обработчика клика.
+            -->
+            <button type="button"
+                    id="add-additional-work-btn"
                     class="additional-works-btn-action additional-works-btn-add"
-                    title="Добавить дополнительную работу"
+                    title="Добавить дополнительную работу из справочника"
                     style="display: none;">
                 <i class="fas fa-plus"></i> Добавить
             </button>
-            <button type="button" 
-                    class="additional-works-btn-action additional-works-btn-collapse-section" 
+            <!--
+              Кнопка сворачивания/разворачивания секции.
+              data-section="additional-works-section" указывает, какую секцию сворачивать.
+              Используется в общем механизме сворачивания секций (коллапс).
+            -->
+            <button type="button"
+                    class="additional-works-btn-action additional-works-btn-collapse-section"
                     data-section="additional-works-section"
                     title="Свернуть/развернуть секцию">
                 <i class="fas fa-chevron-down"></i>
             </button>
         </div>
     </div>
-    
+
+    <!--
+      Тело секции. Содержит весь контент, который может сворачиваться.
+      Класс для стилизации, отдельный от заголовка.
+    -->
     <div class="additional-works-section-body">
-        <!-- Сообщение при отсутствии выбранного просчёта -->
-        <div id="no-proschet-selected-additional" class="additional-works-empty-state-message" style="display: none;">
+
+        <!--
+          Сообщение, показываемое когда ни один печатный компонент не выбран.
+          Скрыто по умолчанию (display: none), будет показано через JS при необходимости.
+          ID используется для управления видимостью.
+        -->
+        <div id="no-component-selected-additional" class="additional-works-empty-state-message" style="display: none;">
+            <!-- Иконка указывающей руки – привлекает внимание -->
             <i class="fas fa-hand-pointer fa-3x"></i>
-            <h3>Выберите просчёт</h3>
-            <p>Выберите просчёт в секции "Список просчётов" для отображения дополнительных работ</p>
+            <h3>Выберите печатный компонент</h3>
+            <p>Выберите компонент в секции "Печатные компоненты" для отображения дополнительных работ</p>
         </div>
-        
-        <!-- Сообщение при отсутствии дополнительных работ в выбранном просчёте -->
+
+        <!--
+          Сообщение, показываемое когда компонент выбран, но у него ещё нет дополнительных работ.
+          Скрыто по умолчанию, будет показано через JS при загрузке пустого списка.
+        -->
         <div id="no-works-message" class="additional-works-empty-state-message" style="display: none;">
             <i class="fas fa-tools fa-3x"></i>
             <h3>Нет дополнительных работ</h3>
-            <p>В выбранном просчёте пока нет дополнительных работ</p>
+            <p>У выбранного печатного компонента пока нет дополнительных работ</p>
+            <!-- Кнопка для быстрого добавления первой работы (ведёт к открытию того же модального окна) -->
             <button type="button" id="add-first-work-btn" class="additional-works-btn-action">
                 <i class="fas fa-plus"></i> Добавить первую работу
             </button>
         </div>
-        
-        <!-- Контейнер для таблицы дополнительных работ -->
+
+        <!--
+          Контейнер, содержащий таблицу дополнительных работ и блок с общей стоимостью.
+          Скрыт по умолчанию, будет показан, когда есть работы для отображения.
+          ID используется в JS для управления видимостью.
+        -->
         <div id="additional-works-container" class="additional-works-table-container" style="display: none;">
+
             <!-- Таблица дополнительных работ -->
             <table id="additional-works-table" class="additional-works-simple-table">
+                <!-- Заголовок таблицы (thead) -->
                 <thead>
                     <tr>
-                        <th width="15%">№ работы</th>
-                        <th width="55%">Название работы</th>
-                        <th width="20%">Цена</th>
-                        <th width="10%">Действия</th>
+                        <!--
+                          Ширина колонок задана атрибутом width (в процентах) для простоты,
+                          но в реальном проекте лучше использовать CSS.
+                        -->
+                        <th width="5%">№ работы</th>         <!-- Номер работы (генерируется автоматически) -->
+                        <th width="18%">Название работы</th> <!-- Название, копируется из справочника -->
+                        <th width="8%">Цена</th>             <!-- Цена за единицу, копируется из справочника -->
+                        <th width="6%">Кол-во</th>            <!-- Количество (можно редактировать) -->
+                        <!-- Новые колонки для параметров печатного компонента (из приложения vichisliniya_listov) -->
+                        <th width="6%">Ширина (мм)</th>      <!-- Ширина изделия -->
+                        <th width="6%">Высота (мм)</th>      <!-- Высота изделия -->
+                        <th width="7%">Листов</th>           <!-- Количество листов -->
+                        <th width="7%">Изд./лист</th>        <!-- Количество изделий на листе (fit_total) -->
+                        <th width="7%">Резы</th>             <!-- Количество резов (cuts_count) -->
+                        <!--
+                          Ранее были колонки "Линии реза" и "Изд./лист" – заменены на новые.
+                          Оставлены комментарии для истории.
+                        -->
+                        <th width="10%">Общая стоимость</th> <!-- Итоговая стоимость работы (с учётом формулы) -->
+                        <th width="5%">Действия</th>         <!-- Кнопка удаления -->
                     </tr>
                 </thead>
+                <!-- Тело таблицы – сюда динамически через JS будут добавляться строки -->
                 <tbody id="additional-works-table-body">
-                    <!-- Строки таблицы будут добавляться динамически через JavaScript -->
+                    <!-- Пример строки, которая будет сгенерирована JS:
+                         <tr data-work-id="123">...</tr> -->
                 </tbody>
             </table>
-            
-            <!-- Общая стоимость дополнительных работ (ИСПРАВЛЕНО: уникальные названия классов) -->
+
+            <!--
+              Блок с общей стоимостью дополнительных работ для текущего компонента.
+              Скрыт по умолчанию, показывается только если есть работы.
+            -->
             <div id="additional-works-total-container" class="additional-works-total-summary" style="display: none;">
-                <div class="additional-works-total-label">Общая стоимость дополнительных работ:</div>
+                <div class="additional-works-total-label">Общая стоимость дополнительных работ (компонент):</div>
                 <div id="additional-works-total-price" class="additional-works-total-price">0.00 ₽</div>
             </div>
         </div>
     </div>
 </section>
+
+<!-- =========================================================================
+     МОДАЛЬНОЕ ОКНО ДЛЯ ДОБАВЛЕНИЯ РАБОТЫ
+     ========================================================================= -->
+
+<!--
+  Оверлей (затемнение фона) – полупрозрачный слой, который перекрывает всю секцию.
+  Позиционируется абсолютно внутри родительской секции (благодаря position: relative у секции).
+  Изначально скрыт (display: none). При открытии получает класс "additional-works-active".
+  ID используется для открытия/закрытия через JS.
+-->
+<div id="additional-work-modal" class="additional-works-modal-overlay" style="display: none;">
+    <!-- Само модальное окно (белая карточка) – центрируется с помощью flex на оверлее -->
+    <div class="additional-works-modal">
+        <!-- Заголовок модального окна -->
+        <div class="additional-works-modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Добавить дополнительную работу</h3>
+            <!-- Кнопка закрытия (крестик) – будет обрабатываться в JS -->
+            <button type="button" class="additional-works-modal-close-btn" id="modal-close-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <!-- Тело модального окна – содержит форму -->
+        <div class="additional-works-modal-body">
+            <!--
+              Форма добавления работы. Отправляется через AJAX (JS перехватывает submit).
+              ID используется для обработки.
+            -->
+            <form id="additional-work-add-form">
+                <!--
+                  Скрытое поле для передачи ID текущего печатного компонента.
+                  Заполняется JS перед открытием модального окна.
+                -->
+                <input type="hidden" id="modal-print-component-id" name="print_component_id" value="">
+
+                <!-- Группа: выпадающий список работ из справочника -->
+                <div class="additional-works-form-group">
+                    <label for="spravochnik-work-select">
+                        <i class="fas fa-list"></i> Выберите работу из справочника:
+                    </label>
+                    <!--
+                      Выпадающий список. Опции будут подгружены через AJAX при открытии модального окна.
+                      required – обязательное поле.
+                    -->
+                    <select id="spravochnik-work-select" class="additional-works-modal-select" required>
+                        <option value="" disabled selected>— Загрузка списка работ... —</option>
+                        <!-- Сюда JS добавит option для каждой работы из справочника -->
+                    </select>
+                    <small class="additional-works-form-hint">Выберите работу, после чего поля заполнятся автоматически</small>
+                </div>
+
+                <!-- Группа: название работы (только для чтения, заполняется автоматически) -->
+                <div class="additional-works-form-group">
+                    <label for="work-title-display">
+                        <i class="fas fa-heading"></i> Название работы
+                    </label>
+                    <!-- ВАЖНО: атрибут readonly не позволяет редактировать поле, оно будет заполняться из JS.
+                         Атрибут placeholder должен быть именно внутри тега, как показано, без лишних кавычек.
+                         Мы используем двойные кавычки вокруг значения, это корректно. -->
+                    <input type="text"
+                           id="work-title-display"
+                           class="additional-works-modal-input"
+                           readonly
+                           placeholder="Будет заполнено после выбора">
+                </div>
+
+                <!-- Группа: цена работы (редактируемая) -->
+                <div class="additional-works-form-group">
+                    <label for="work-price-input">
+                        <i class="fas fa-ruble-sign"></i> Цена (₽) *
+                    </label>
+                    <!-- ВАЖНО: атрибут step="0.01" позволяет вводить копейки, max ограничивает сумму.
+                         Все атрибуты должны быть внутри тега, без лишних пробелов и кавычек. -->
+                    <input type="number"
+                           id="work-price-input"
+                           name="price"
+                           class="additional-works-modal-input"
+                           placeholder="0.00"
+                           min="0"
+                           step="0.01"
+                           max="9999999.99"
+                           required>
+                    <small class="additional-works-form-hint">Вы можете изменить цену перед добавлением</small>
+                </div>
+
+                <!-- Подвал формы с кнопками "Отмена" и "Добавить работу" -->
+                <div class="additional-works-form-footer">
+                    <button type="button" class="additional-works-modal-cancel-btn" id="modal-cancel-btn">
+                        <i class="fas fa-times"></i> Отмена
+                    </button>
+                    <button type="submit" class="additional-works-modal-submit-btn" id="modal-submit-btn">
+                        <i class="fas fa-plus"></i> Добавить работу
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- ===== КОНЕЦ МОДАЛЬНОГО ОКНА ===== -->

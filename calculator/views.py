@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 import json
+import math
 
 # ИСПРАВЛЕНИЕ: Добавляем недостающие импорты
 from decimal import Decimal, InvalidOperation
@@ -18,6 +19,10 @@ from devices.models import Printer
 from print_price.models import PrintPrice
 # Импортируем модель вычислений листов (из приложения vichisliniya_listov)
 from vichisliniya_listov.models import VichisliniyaListovModel
+from spravochnik_dopolnitelnyh_rabot.models import Work
+# Импортируем функцию интерполяции для использования в представлении (если понадобится)
+from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
+
 
 @login_required(login_url='/login/')
 @never_cache
@@ -1311,294 +1316,374 @@ def recalculate_components_for_circulation(request, proschet_id):
     })
 
 
+# ============================================================================
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ: get_additional_works
+# Теперь при каждом запросе пересчитывает total_price для каждой работы
+# на основе актуальных значений тиража и количества листов.
+# Для формул 3 и 4 использует количество резов (cuts_count) вместо lines_count.
+# ============================================================================
 @login_required
 @require_GET
-def get_additional_works(request, proschet_id):
+def get_additional_works(request, component_id):
     """
-    API для получения дополнительных работ для указанного просчёта.
-    Возвращает JSON с массивом работ.
+    Возвращает список дополнительных работ для указанного компонента,
+    а также информацию о самом компоненте, просчёте и параметрах из VichisliniyaListovModel.
+    
+    ИЗМЕНЕНИЯ:
+    - Для каждой работы вычисляется effective_price (интерполированная цена за единицу)
+      на основе количества листов компонента (из vich_data).
+    - ВАЖНО: total_price пересчитывается на лету с использованием текущих значений
+      тиража и количества листов, чтобы всегда возвращать актуальную общую стоимость.
+      Это не сохраняется в БД, но гарантирует правильность отображаемых данных.
+    - Для формул 3 и 4 вместо сохранённого lines_count подставляется актуальное
+      количество резов (cuts_count) из vich_data.
+    - Для формулы 4 используется коэффициент k_lines из связанной работы Work.
     """
+    # Получаем печатный компонент или 404
+    component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
+    
+    # Все не удалённые доп. работы для этого компонента
+    works = AdditionalWork.objects.filter(print_component=component, is_deleted=False).order_by('created_at')
+
+    # Получаем данные вычислений листов для этого компонента
     try:
-        # Проверяем существование просчёта
-        proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
-        
-        # Получаем все дополнительные работы для указанного просчёта
-        works = AdditionalWork.objects.filter(
-            proschet_id=proschet_id,
-            is_deleted=False
-        ).order_by('created_at')
-        
-        # Формируем данные для ответа
-        works_data = []
-        for work in works:
-            work_data = {
-                'id': work.id,
-                'number': work.number,
-                'title': work.title,
-                'price': str(work.price),
-                'formatted_price': f"{work.price:.2f} ₽",
-                'created_at': work.created_at.strftime("%d.%m.%Y %H:%M") if work.created_at else "",
-            }
-            works_data.append(work_data)
-        
-        return JsonResponse({
-            'success': True,
-            'works': works_data,
-            'count': len(works_data)
-        })
-        
-    except Proschet.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': 'Просчёт не найден или удален'
-        }, status=404)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Ошибка при получении работ: {str(e)}'
-        }, status=500)
+        vich_obj = VichisliniyaListovModel.objects.get(
+            vichisliniya_listov_print_component=component
+        )
+        vich_data = {
+            'item_width': float(vich_obj.vichisliniya_listov_item_width),
+            'item_height': float(vich_obj.vichisliniya_listov_item_height),
+            'list_count': float(vich_obj.vichisliniya_listov_list_count),
+            'fit_total': vich_obj.vichisliniya_listov_fit_total,
+            'cuts_count': vich_obj.vichisliniya_listov_cuts_count,
+        }
+        sheet_count_decimal = vich_obj.vichisliniya_listov_list_count
+    except VichisliniyaListovModel.DoesNotExist:
+        vich_data = {
+            'item_width': 0.0,
+            'item_height': 0.0,
+            'list_count': 0.0,
+            'fit_total': 0,
+            'cuts_count': 0,
+        }
+        sheet_count_decimal = Decimal('0')
+
+    # Получаем тираж из просчёта
+    circulation = component.proschet.circulation if component.proschet and component.proschet.circulation else 1
+
+    # Формируем список работ с добавленными полями effective_price и пересчитанным total_price
+    works_data = []
+    for work in works:
+        # ===== ПЕРЕСЧИТЫВАЕМ total_price НА ЛЕТУ (без сохранения в БД) =====
+        # Используем ту же логику, что и в методе save() модели AdditionalWork
+        # Получаем параметры из самой работы
+        qty = work.quantity if work.quantity else 1
+        lines = work.lines_count if work.lines_count else 1
+        items = work.items_per_sheet if work.items_per_sheet else 1
+
+        # ===== ИСПРАВЛЕНИЕ: для формул, использующих линии реза, подставляем актуальное количество резов =====
+        if work.formula_type in [3, 4]:
+            lines = vich_data['cuts_count']  # используем количество резов из вычислений листов
+
+        # Вычисляем effective_price (интерполированная цена за единицу)
+        if work.work:
+            try:
+                effective_price = calculate_price_for_work(work.work, sheet_count_decimal)
+            except Exception:
+                effective_price = work.price
+        else:
+            effective_price = work.price
+
+        # Вычисляем total_price по формуле (копия логики из save())
+        formula_type = work.formula_type
+        if formula_type == 1:
+            total = effective_price * qty
+        elif formula_type == 2:
+            total = effective_price * circulation * qty
+        elif formula_type == 3:
+            total = effective_price * circulation * lines * qty
+        elif formula_type == 4:
+            # количество листов × effective_price × количество линий реза
+            # Берём коэффициент k_lines из связанной работы Work (если есть)
+            if work.work:
+                k_lines = float(work.work.k_lines)
+            else:
+                k_lines = 2.0  # значение по умолчанию
+            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count_decimal, 1)))
+            complexity_factor = Decimal(str(factor_float))
+            total = effective_price * complexity_factor * qty
+        elif formula_type == 5:
+            total = effective_price * items * sheet_count_decimal * qty
+        elif formula_type == 6:
+            total = effective_price * items * circulation * qty
+        else:
+            total = effective_price * qty
+
+        # Округляем до двух знаков
+        total = total.quantize(Decimal('0.01'))
+
+        # ===== СОЗДАЁМ ВРЕМЕННЫЙ СЛОВАРЬ С АКТУАЛЬНЫМИ ДАННЫМИ =====
+        # Используем метод to_dict() для базовых полей, но заменяем total_price на пересчитанное
+        work_dict = work.to_dict()
+        work_dict['effective_price'] = str(effective_price)
+        work_dict['formatted_effective_price'] = f"{effective_price} ₽"
+        work_dict['total_price'] = str(total)
+        work_dict['formatted_total_price'] = f"{total} ₽"
+
+        works_data.append(work_dict)
+
+    # Информация о самом компоненте (для JS)
+    component_info = {
+        'id': component.id,
+        'number': component.number,
+        'sheet_count': str(component.sheet_count) if component.sheet_count else '0',
+        'printer_name': component.printer.name if component.printer else None,
+    }
+
+    # Информация о просчёте (тираж и номер)
+    proschet = component.proschet
+    proschet_info = {
+        'id': proschet.id,
+        'number': proschet.number,
+        'circulation': proschet.circulation,
+    }
+
+    return JsonResponse({
+        'success': True,
+        'works': works_data,
+        'component_info': component_info,
+        'proschet_info': proschet_info,
+        'vich_data': vich_data,
+    })
 
 @login_required
 @require_POST
 def add_additional_work(request):
     """
-    API для добавления новой дополнительной работы.
-    Принимает POST запрос с данными новой работы.
+    Добавляет новую дополнительную работу из справочника.
+    Ожидает параметры: print_component_id, work_id (опционально), title, price, quantity.
+    Если передан work_id, то копирует formula_type, lines_count, items_per_sheet из Work.
+    ИЗМЕНЕНИЯ:
+    - При создании сохраняется базовая цена (price), но в методе save() модели будет использована effective_price.
+    - В ответе возвращается словарь работы, включающий effective_price (из to_dict).
     """
     try:
-        # Получаем данные из запроса
-        proschet_id = request.POST.get('proschet_id')
-        title = request.POST.get('title')
+        print_component_id = request.POST.get('print_component_id')
+        work_id = request.POST.get('work_id')
+        title = request.POST.get('title', '').strip()
         price = request.POST.get('price')
-        
-        # Проверяем обязательные поля
-        if not all([proschet_id, title, price]):
-            return JsonResponse({
-                'success': False,
-                'message': 'Не все обязательные поля заполнены'
-            }, status=400)
-        
-        # Проверяем существование просчёта
+        quantity = request.POST.get('quantity', 1)
+
+        if not print_component_id:
+            return JsonResponse({'success': False, 'message': 'Не указан компонент'})
+
+        component = get_object_or_404(PrintComponent, id=print_component_id)
+
+        # Валидация цены
         try:
-            proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
-        except Proschet.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Просчёт не найден или удален'
-            }, status=404)
-        
-        # Проверяем валидность цены
+            price = Decimal(price)
+            if price < 0:
+                raise ValueError
+        except:
+            return JsonResponse({'success': False, 'message': 'Некорректная цена'})
+
         try:
-            price_decimal = Decimal(price)
-            if price_decimal < 0:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Цена не может быть отрицательной'
-                }, status=400)
-        except (ValueError, InvalidOperation):
-            return JsonResponse({
-                'success': False,
-                'message': 'Некорректный формат цены'
-            }, status=400)
-        
-        # Проверяем длину названия
-        if len(title) > 200:
-            return JsonResponse({
-                'success': False,
-                'message': 'Название не должно превышать 200 символов'
-            }, status=400)
-        
-        # Создаем новую дополнительную работу
+            quantity = int(quantity)
+            if quantity < 1:
+                quantity = 1
+        except:
+            quantity = 1
+
+        # Создаём объект AdditionalWork
         work = AdditionalWork(
-            proschet=proschet,
+            print_component=component,
             title=title,
-            price=price_decimal
+            price=price,
+            quantity=quantity,
         )
-        
-        # Сохраняем работу (номер сгенерируется автоматически в методе save())
-        work.save()
-        
-        # Формируем данные для ответа
-        work_data = {
-            'id': work.id,
-            'number': work.number,
-            'title': work.title,
-            'price': str(work.price),
-            'formatted_price': f"{work.price:.2f} ₽",
-            'created_at': work.created_at.strftime("%d.%m.%Y %H:%M") if work.created_at else "",
-        }
-        
+
+        # Если выбран справочный элемент, копируем из него формулу и параметры
+        if work_id:
+            try:
+                source_work = Work.objects.get(id=work_id)
+                work.work = source_work
+                work.formula_type = source_work.formula_type
+                work.lines_count = source_work.default_lines_count
+                work.items_per_sheet = source_work.default_items_per_sheet
+            except Work.DoesNotExist:
+                pass  # оставляем значения по умолчанию
+
+        work.save()  # при сохранении пересчитается total_price с использованием effective_price
+
+        # Возвращаем полный словарь работы (to_dict уже включает effective_price)
         return JsonResponse({
             'success': True,
-            'message': 'Дополнительная работа успешно добавлена',
-            'work': work_data
+            'work': work.to_dict(),
+            'message': 'Работа успешно добавлена'
         })
-        
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Ошибка при добавлении работы: {str(e)}'
-        }, status=500)
+        return JsonResponse({'success': False, 'message': str(e)})
 
 @login_required
 @require_POST
 def update_additional_work(request):
     """
-    API для обновления дополнительной работы.
-    Поддерживает редактирование названия (title) и цены (price).
+    Обновляет поля дополнительной работы.
+    Ожидает параметры: work_id, field_name, field_value.
+    Возвращает обновлённый объект работы (с effective_price).
+    ИЗМЕНЕНИЯ:
+    - При обновлении цены (price) она сохраняется как базовая, но при последующем сохранении
+      effective_price будет вычислена заново.
+    - Ответ содержит словарь с effective_price.
     """
     try:
-        # Получаем данные из запроса
         work_id = request.POST.get('work_id')
         field_name = request.POST.get('field_name')
         field_value = request.POST.get('field_value')
-        
-        # Проверяем обязательные поля
+
         if not work_id or not field_name:
-            return JsonResponse({
-                'success': False,
-                'message': 'Не указаны обязательные поля'
-            }, status=400)
-        
-        # Получаем работу
-        try:
-            work = AdditionalWork.objects.get(id=work_id, is_deleted=False)
-        except AdditionalWork.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Дополнительная работа не найдена'
-            }, status=404)
-        
-        # Обновляем поле в зависимости от field_name
-        if field_name == 'title':
-            # Валидация названия
-            title = field_value.strip()
-            if not title:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Название не может быть пустым'
-                }, status=400)
-            
-            if len(title) > 200:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Название не должно превышать 200 символов'
-                }, status=400)
-            
-            work.title = title
-            
-        elif field_name == 'price':
-            # Валидация цены
+            return JsonResponse({'success': False, 'message': 'Недостаточно данных'})
+
+        work = get_object_or_404(AdditionalWork, id=work_id)
+
+        # Разрешённые для обновления поля
+        allowed_fields = ['title', 'price', 'quantity', 'formula_type', 'lines_count', 'items_per_sheet']
+
+        if field_name not in allowed_fields:
+            return JsonResponse({'success': False, 'message': f'Поле "{field_name}" нельзя редактировать'})
+
+        # Преобразование значения в зависимости от типа поля
+        if field_name in ['price']:
             try:
-                price = Decimal(field_value)
-                if price < 0:
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Цена не может быть отрицательной'
-                    }, status=400)
-                
-                if price > Decimal('9999999.99'):
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Цена слишком большая'
-                    }, status=400)
-                
-                work.price = price
-                
-            except (ValueError, InvalidOperation):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Некорректный формат цены'
-                }, status=400)
-                
-        else:
-            return JsonResponse({
-                'success': False,
-                'message': f'Поле "{field_name}" не поддерживается для редактирования'
-            }, status=400)
-        
-        # Сохраняем изменения
-        work.save()
-        
-        # Формируем обновленные данные для ответа
-        updated_data = {
-            'id': work.id,
-            'number': work.number,
-            'title': work.title,
-            'price': str(work.price),
-            'formatted_price': f"{work.price:.2f} ₽",
-        }
-        
+                field_value = Decimal(field_value)
+                if field_value < 0:
+                    raise ValueError
+            except:
+                return JsonResponse({'success': False, 'message': 'Некорректное значение цены'})
+        elif field_name in ['quantity', 'formula_type', 'lines_count', 'items_per_sheet']:
+            try:
+                field_value = int(field_value)
+                if field_name != 'formula_type' and field_value < 1:
+                    field_value = 1
+                # Для formula_type проверяем, что значение в допустимых пределах
+                if field_name == 'formula_type' and field_value not in [1,2,3,4,5,6]:
+                    return JsonResponse({'success': False, 'message': 'Некорректный тип формулы'})
+            except:
+                return JsonResponse({'success': False, 'message': 'Некорректное целое число'})
+        elif field_name == 'title':
+            field_value = field_value.strip()
+            if not field_value:
+                return JsonResponse({'success': False, 'message': 'Название не может быть пустым'})
+
+        # Устанавливаем новое значение
+        setattr(work, field_name, field_value)
+        work.save()  # пересчёт total_price произойдёт в методе save с использованием effective_price
+
+        # Возвращаем обновлённый словарь
         return JsonResponse({
             'success': True,
-            'message': 'Дополнительная работа успешно обновлена',
-            'updated_data': updated_data
+            'work': work.to_dict(),
+            'message': 'Данные обновлены'
         })
-        
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Внутренняя ошибка сервера: {str(e)}'
-        }, status=500)
+        return JsonResponse({'success': False, 'message': str(e)})
+
 
 @login_required
 @require_POST
 def delete_additional_work(request):
     """
-    API для удаления дополнительной работы (мягкое удаление).
-    Принимает POST запрос с ID работы.
+    Удаляет дополнительную работу (мягкое удаление).
     """
     try:
-        # Получаем ID работы из запроса
         work_id = request.POST.get('work_id')
-        
-        if not work_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Не указан ID работы'
-            }, status=400)
-        
-        # Получаем работу
-        try:
-            work = AdditionalWork.objects.get(id=work_id, is_deleted=False)
-        except AdditionalWork.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Дополнительная работа не найдена или уже удалена'
-            }, status=404)
-        
-        # Выполняем мягкое удаление
+        work = get_object_or_404(AdditionalWork, id=work_id)
         work.is_deleted = True
         work.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Дополнительная работа успешно удалена',
-            'work_id': work_id
-        })
-        
+        return JsonResponse({'success': True, 'message': 'Работа удалена'})
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Ошибка при удалении работы: {str(e)}'
-        }, status=500)
+        return JsonResponse({'success': False, 'message': str(e)})
     
-@require_GET
 def get_proschet_price_data(request, proschet_id):
     """
     Получение данных о просчёте для расчета цены.
+    ВОЗВРАЩАЕТ:
+    - success: bool
+    - proschet: объект просчёта (id, number, title, circulation)
+    - print_components: список печатных компонентов с деталями
+    - additional_works: список всех дополнительных работ из всех компонентов
+    - summary: итоговые суммы (печать, работы, общая)
+    
+    ДОБАВЛЕНО: для дополнительных работ возвращаются поля total_price и formatted_total_price.
+    ИСПРАВЛЕНО: в summary.additional_works_total используется сумма total_price, а не price.
     """
     try:
+        # Получаем просчёт, проверяем, что он не удалён
         proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
 
+        # Получаем все печатные компоненты для этого просчёта
         print_components = PrintComponent.objects.filter(
-            proschet=proschet, is_deleted=False
-        ).select_related('printer', 'paper')
+            proschet=proschet, 
+            is_deleted=False
+        ).select_related('printer', 'paper').prefetch_related('additional_works')
 
-        additional_works = AdditionalWork.objects.filter(
-            proschet=proschet, is_deleted=False
-        )
+        # Список для хранения всех дополнительных работ из всех компонентов
+        all_works = []
+        
+        # Переменная для суммирования общей стоимости всех дополнительных работ (total_price)
+        total_works_sum = Decimal('0.00')
 
+        # Обходим каждый компонент и собираем его дополнительные работы
+        for comp in print_components:
+            # Получаем все не удалённые дополнительные работы для этого компонента
+            works_qs = comp.additional_works.filter(is_deleted=False)
+            
+            for work in works_qs:
+                # Добавляем работу в общий список
+                all_works.append({
+                    'id': work.id,
+                    'number': work.number,
+                    'title': work.title,
+                    'price': str(work.price),                      # цена за единицу
+                    'formatted_price': f"{work.price:.2f} ₽",
+                    'quantity': work.quantity,                     # количество
+                    'total_price': str(work.total_price),          # общая стоимость
+                    'formatted_total_price': f"{work.total_price:.2f} ₽",  # отформатированная общая стоимость
+                    'component_id': comp.id,                        # ID компонента, к которому относится работа
+                })
+                # Накапливаем общую сумму работ
+                total_works_sum += work.total_price
+
+        # Формируем данные о печатных компонентах
+        components_data = []
+        for component in print_components:
+            # Форматируем цену компонента (total_circulation_price)
+            comp_price = component.total_circulation_price
+            components_data.append({
+                'id': component.id,
+                'number': component.number,
+                'printer': {
+                    'id': component.printer.id if component.printer else None,
+                    'name': component.printer.name if component.printer else None,
+                } if component.printer else None,
+                'paper': {
+                    'id': component.paper.id if component.paper else None,
+                    'name': component.paper.name if component.paper else None,
+                } if component.paper else None,
+                'price_per_sheet': str(component.price_per_sheet) if component.price_per_sheet else '0.00',
+                'total_circulation_price': str(comp_price),
+                'formatted_total_circulation_price': f"{comp_price:.2f} ₽",
+            })
+
+        # Вычисляем общую стоимость печатных компонентов
+        total_print_price = sum(comp.total_circulation_price for comp in print_components)
+
+        # Общая стоимость просчёта (можно взять из proschet.total_price, но пересчитаем для надёжности)
+        total_price = total_print_price + total_works_sum
+
+        # Формируем итоговый ответ
         data = {
             'success': True,
             'proschet': {
@@ -1607,46 +1692,33 @@ def get_proschet_price_data(request, proschet_id):
                 'title': proschet.title,
                 'circulation': proschet.circulation,
             },
-            'print_components': [
-                {
-                    'id': component.id,
-                    'number': component.number,
-                    'printer': {
-                        'id': component.printer.id if component.printer else None,
-                        'name': component.printer.name if component.printer else None,
-                    } if component.printer else None,
-                    'paper': {
-                        'id': component.paper.id if component.paper else None,
-                        'name': component.paper.name if component.paper else None,
-                    } if component.paper else None,
-                    'price_per_sheet': str(component.price_per_sheet) if component.price_per_sheet else '0.00',
-                    'total_circulation_price': str(component.total_circulation_price),  # используем поле
-                    'formatted_total_circulation_price': component.formatted_total_circulation_price,
-                }
-                for component in print_components
-            ],
-            'additional_works': [
-                {
-                    'id': work.id,
-                    'number': work.number,
-                    'title': work.title,
-                    'price': str(work.price),
-                    'formatted_price': f"{work.price:.2f} ₽",
-                }
-                for work in additional_works
-            ],
+            'print_components': components_data,
+            'additional_works': all_works,
             'summary': {
-                'print_components_total': str(sum(component.total_circulation_price for component in print_components)),
-                'additional_works_total': str(sum(work.price for work in additional_works)),
-                'total_price': str(proschet.total_price),
+                'print_components_total': str(total_print_price),
+                'formatted_print_components_total': f"{total_print_price:.2f} ₽",
+                'additional_works_total': str(total_works_sum),
+                'formatted_additional_works_total': f"{total_works_sum:.2f} ₽",
+                'total_price': str(total_price),
+                'formatted_total_price': f"{total_price:.2f} ₽",
             }
         }
         return JsonResponse(data)
 
     except Proschet.DoesNotExist:
-        return JsonResponse({'success': False, 'message': 'Просчёт не найден'}, status=404)
+        return JsonResponse({
+            'success': False, 
+            'message': 'Просчёт не найден'
+        }, status=404)
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Ошибка сервера: {str(e)}'}, status=500)
+        # Логируем ошибку для отладки
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False, 
+            'message': f'Ошибка сервера: {str(e)}'
+        }, status=500)
+
 
 # ============================================================================
 # ИСПРАВЛЕННАЯ ФУНКЦИЯ: update_component_price
@@ -1771,3 +1843,21 @@ def update_component_price(request):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Внутренняя ошибка: {str(e)}'}, status=500)
+    
+@login_required
+@require_GET
+def get_spravochnik_works(request):
+    """
+    Возвращает список всех активных работ из справочника для выпадающего списка.
+    """
+    works = Work.objects.all().order_by('name')
+    works_data = [{
+        'id': w.id,
+        'name': w.name,
+        'price': str(w.price),
+        'formula_type': w.formula_type,
+        'formula_display': w.get_formula_type_display(),
+        'default_lines_count': w.default_lines_count,
+        'default_items_per_sheet': w.default_items_per_sheet,
+    } for w in works]
+    return JsonResponse({'success': True, 'works': works_data})

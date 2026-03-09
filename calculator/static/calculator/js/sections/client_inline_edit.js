@@ -1,221 +1,181 @@
 /*
 calculator/static/calculator/js/sections/client_inline_edit.js
-ИСПРАВЛЕННАЯ ВЕРСИЯ с предзаполнением текущим значением:
-1. ВСЕГДА обновляет значения при выборе любого просчёта
-2. Если клиента нет - принудительно устанавливает прочерки
-3. Полностью удалено кэширование старых значений
-4. Добавлена интеграция с list_proschet.js
-5. ДОБАВЛЕНО: Предзаполнение текущим значением при редактировании по двойному клику
+КОМПАКТНАЯ ВЕРСИЯ ДЛЯ СЕКЦИИ КЛИЕНТА:
+- Все данные в одной строке: название, скидка в скобках, статус ЭДО (всегда текст "ЭДО").
+- Статус ЭДО отображается зелёным (edo-on) или серым (edo-off).
+- Сохранены: двойной клик для выбора клиента, предзаполнение текущим значением, синхронизация с сервером.
 */
 
-"use strict"; // Строгий режим JavaScript для предотвращения ошибок
+"use strict";
 
 // ===== 1. ОСНОВНАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ СЕКЦИИ КЛИЕНТА =====
-// Эта функция вызывается при выборе просчёта в списке просчётов
+// Вызывается при выборе просчёта в списке просчётов
 function updateClientSection(proschetId, clientData) {
     console.log('📋 Обновление секции клиента:', { proschetId, clientData });
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: теперь при любом выборе просчёта показываем карточку клиента
-    // и ОБЯЗАТЕЛЬНО обновляем значения, даже если клиент не определен
-    
-    // 1. ВСЕГДА скрываем сообщение "Выберите просчёт" при выборе просчёта
+
+    // 1. Скрываем сообщение "Выберите просчёт"
     const noProschetMessage = document.getElementById('no-proschet-selected');
-    if (noProschetMessage) {
-        noProschetMessage.style.display = 'none';
-    }
-    
-    // 2. ВАЖНОЕ ИСПРАВЛЕНИЕ: ПОКАЗЫВАЕМ КАРТОЧКУ КЛИЕНТА ВСЕГДА при выборе просчёта
+    if (noProschetMessage) noProschetMessage.style.display = 'none';
+
+    // 2. Показываем интерфейс клиента
     const clientInterface = document.getElementById('client-selection-interface');
     if (clientInterface) {
-        // Принудительно показываем интерфейс клиента
         clientInterface.style.display = 'block';
         clientInterface.style.visibility = 'visible';
         clientInterface.style.opacity = '1';
     }
-    
+
     // 3. Устанавливаем ID просчёта в карточку клиента
     const clientDisplay = document.getElementById('current-client-display');
     if (clientDisplay) {
         clientDisplay.dataset.proschetId = proschetId;
-        // Делаем карточку видимой
         clientDisplay.style.display = 'block';
         clientDisplay.style.visibility = 'visible';
         clientDisplay.style.opacity = '1';
     }
-    
-    // 4. ВСЕГДА обновляем бейдж с номером просчёта
+
+    // 4. Обновляем бейдж с номером просчёта
     const badge = document.getElementById('selected-proschet-badge');
     if (badge) {
         badge.dataset.proschetId = proschetId;
         badge.style.display = 'inline-block';
     }
-    
+
     // 5. Получаем элементы для отображения данных клиента
     const clientNameElement = document.getElementById('current-client-name');
     const clientDiscountElement = document.getElementById('current-client-discount');
     const clientEdoElement = document.getElementById('current-client-edo');
-    
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: проверяем наличие данных клиента
-    // Условие: clientData должен быть объектом, иметь имя, имя не должно быть пустым и не должно быть прочерком
+
+    // 6. Проверяем, есть ли данные клиента
     if (clientData && typeof clientData === 'object' && 
         clientData.name && clientData.name.trim() !== '' && 
         clientData.name !== '—') {
-        // СЛУЧАЙ 1: Клиент ЕСТЬ - отображаем его данные
+        // Случай 1: Клиент есть
         console.log('Показываем данные существующего клиента:', clientData.name);
-        
-        // Обновляем имя клиента
+
+        // Имя клиента
         if (clientNameElement) {
             clientNameElement.textContent = clientData.name;
-            clientNameElement.style.color = ''; // Сбрасываем серый цвет
-            clientNameElement.style.fontStyle = ''; // Сбрасываем курсив
-            
-            // ВАЖНОЕ ДОБАВЛЕНИЕ: Сохраняем ID клиента в data-атрибут
-            // Это критически важно для предзаполнения при редактировании по двойному клику
+            clientNameElement.style.color = '';          // убираем серый цвет
+            clientNameElement.style.fontStyle = '';      // убираем курсив
+            // Сохраняем ID клиента для предзаполнения при редактировании
             if (clientData.id) {
-                clientNameElement.dataset.clientId = clientData.id; // Сохраняем ID клиента
+                clientNameElement.dataset.clientId = clientData.id;
             } else {
-                clientNameElement.removeAttribute('data-client-id'); // Удаляем атрибут, если ID нет
+                clientNameElement.removeAttribute('data-client-id');
             }
         }
-        
-        // Обновляем скидку клиента
+
+        // Скидка (в скобках)
         if (clientDiscountElement) {
-            clientDiscountElement.textContent = clientData.discount ? `${clientData.discount}%` : '0%';
+            const discount = clientData.discount ? clientData.discount : 0;
+            clientDiscountElement.textContent = `(${discount}%)`;
         }
-        
-        // Обновляем информацию об ЭДО
+
+        // Статус ЭДО – всегда текст "ЭДО", цвет через классы
         if (clientEdoElement) {
-            clientEdoElement.textContent = clientData.has_edo ? 'Да' : 'Нет';
+            clientEdoElement.textContent = 'ЭДО';                 // всегда одинаковый текст
+            if (clientData.has_edo) {
+                // ЭДО есть – зелёный
+                clientEdoElement.classList.remove('edo-off');
+                clientEdoElement.classList.add('edo-on');
+            } else {
+                // ЭДО нет – серый
+                clientEdoElement.classList.remove('edo-on');
+                clientEdoElement.classList.add('edo-off');
+            }
         }
     } else {
-        // СЛУЧАЙ 2: Клиента НЕТ - устанавливаем значения по умолчанию (прочерки)
+        // Случай 2: Клиента нет – устанавливаем значения по умолчанию (прочерки)
         console.log('Клиент не найден, устанавливаем прочерки');
-        
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: принудительно устанавливаем значения
-        // независимо от того, что было до этого
-        
-        // Устанавливаем прочерк вместо имени
+
         if (clientNameElement) {
-            clientNameElement.textContent = '—'; // Прочерк
-            clientNameElement.style.color = '#777'; // Серый цвет
-            clientNameElement.style.fontStyle = 'italic'; // Курсив
-            // Очищаем все возможные вложенные элементы
-            clientNameElement.innerHTML = '—';
-            // Важно: удаляем data-client-id, так как клиента нет
-            clientNameElement.removeAttribute('data-client-id');
+            clientNameElement.textContent = '—';                   // прочерк
+            clientNameElement.style.color = '#777';                // серый цвет
+            clientNameElement.style.fontStyle = 'italic';          // курсив
+            clientNameElement.removeAttribute('data-client-id');   // удаляем ID
         }
-        
-        // Устанавливаем скидку по умолчанию
+
         if (clientDiscountElement) {
-            clientDiscountElement.textContent = '0%';
-            clientDiscountElement.innerHTML = '0%';
+            clientDiscountElement.textContent = '(0%)';            // скидка 0% в скобках
         }
-        
-        // Устанавливаем ЭДО по умолчанию
+
         if (clientEdoElement) {
-            clientEdoElement.textContent = 'Нет';
-            clientEdoElement.innerHTML = 'Нет';
+            clientEdoElement.textContent = 'ЭДО';                  // всегда текст "ЭДО"
+            clientEdoElement.classList.remove('edo-on');
+            clientEdoElement.classList.add('edo-off');             // серый по умолчанию
         }
     }
-    
-    // 6. Дополнительная проверка: если после обновления карточка все еще не видна, принудительно показываем
-    setTimeout(() => {
-        if (clientInterface && clientInterface.style.display !== 'block') {
-            console.warn('Карточка клиента не отобразилась, принудительно показываем...');
-            clientInterface.style.display = 'block';
-            clientInterface.style.visibility = 'visible';
-            clientInterface.style.opacity = '1';
-        }
-        
-        // Гарантируем, что значения установлены
-        if (clientNameElement && !clientNameElement.textContent) {
-            clientNameElement.textContent = '—';
-        }
-    }, 50); // Небольшая задержка для гарантии выполнения
 }
 
 // ===== 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
-// Выполняется после полной загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Секция клиента загружена');
-    
+    console.log('✅ Секция клиента загружена (компактная версия)');
+
     // Настраиваем обработчик двойного клика для изменения клиента
     setupDoubleClickHandler();
-    
+
     // Инициализируем начальное состояние секции
     initializeClientSection();
-    
-    // ВАЖНОЕ ДОПОЛНЕНИЕ: Подписываемся на события выбора просчёта
+
+    // Подписываемся на события выбора просчёта
     setupProschetSelectionListener();
 });
 
 // ===== 3. ИНИЦИАЛИЗАЦИЯ НАЧАЛЬНОГО СОСТОЯНИЯ =====
 function initializeClientSection() {
-    // При загрузке страницы устанавливаем начальное состояние
-    // Убеждаемся, что сообщение "Выберите просчёт" видно
+    // При загрузке страницы показываем сообщение "Выберите просчёт"
     const noProschetMessage = document.getElementById('no-proschet-selected');
     const clientInterface = document.getElementById('client-selection-interface');
-    
-    if (noProschetMessage) {
-        noProschetMessage.style.display = 'block';
-    }
-    if (clientInterface) {
-        clientInterface.style.display = 'none';
-    }
+
+    if (noProschetMessage) noProschetMessage.style.display = 'block';
+    if (clientInterface) clientInterface.style.display = 'none';
 }
 
 // ===== 4. НАСТРОЙКА ОБРАБОТЧИКА ДВОЙНОГО КЛИКА =====
 function setupDoubleClickHandler() {
-    // Вешаем обработчик на всю секцию клиента
     const clientSection = document.getElementById('client-section');
     if (!clientSection) return;
-    
+
     clientSection.addEventListener('dblclick', function(event) {
         const target = event.target;
-        
-        // Проверяем, кликнули ли по имени клиента
-        if (target.id === 'current-client-name' || 
-            (target.classList.contains('client-value') && 
-             target.previousElementSibling && 
-             target.previousElementSibling.textContent.includes('Название/ФИО'))) {
-            
+
+        // Проверяем, кликнули ли по имени клиента (элемент с id="current-client-name")
+        if (target.id === 'current-client-name') {
             console.log('Двойной клик по имени клиента');
-            
+
             // Получаем ID текущего просчёта
             const proschetId = getCurrentProschetId();
             if (!proschetId) {
                 alert('Сначала выберите просчёт в списке просчётов');
                 return;
             }
-            
+
             // Запускаем процесс выбора клиента
             startClientSelection(proschetId);
         }
     });
 }
 
-// ===== 5. ВАЖНОЕ ДОПОЛНЕНИЕ: ПОДПИСКА НА СОБЫТИЯ ВЫБОРА ПРОСЧЁТА =====
+// ===== 5. ПОДПИСКА НА СОБЫТИЯ ВЫБОРА ПРОСЧЁТА =====
 function setupProschetSelectionListener() {
-    // Находим таблицу просчётов
     const proschetTable = document.getElementById('proschet-table-body');
     if (!proschetTable) {
         console.warn('Таблица просчётов не найдена');
         return;
     }
-    
+
     // Добавляем обработчик клика на строки таблицы просчётов
     proschetTable.addEventListener('click', function(event) {
-        // Находим ближайшую строку просчёта
         const row = event.target.closest('.proschet-row');
-        if (!row) return; // Если кликнули не по строке - выходим
-        
-        // Получаем ID просчёта из атрибута data
+        if (!row) return;
+
         const proschetId = row.dataset.proschetId;
-        if (!proschetId) return; // Если нет ID - выходим
-        
+        if (!proschetId) return;
+
         console.log(`Пользователь выбрал просчёт ID: ${proschetId}`);
-        
-        // ВАЖНО: Делаем запрос на сервер для получения данных просчёта
+
+        // Запрашиваем данные просчёта с сервера
         fetch(`/calculator/get-proschet/${proschetId}/`, {
             method: 'GET',
             headers: {
@@ -224,42 +184,37 @@ function setupProschetSelectionListener() {
             }
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`Ошибка HTTP: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
             return response.json();
         })
         .then(data => {
             if (data.success) {
-                // ВАЖНОЕ ИСПРАВЛЕНИЕ: передаем данные клиента (даже если их нет)
-                // data.proschet.client может быть null или undefined
+                // Обновляем секцию клиента (передаём данные клиента или null)
                 updateClientSection(proschetId, data.proschet.client || null);
             } else {
                 console.error('Ошибка при получении данных просчёта:', data.message);
-                // Даже при ошибке обновляем секцию (с прочерками)
                 updateClientSection(proschetId, null);
             }
         })
         .catch(error => {
             console.error('Ошибка сети при получении данных просчёта:', error);
-            // Даже при ошибке сети обновляем секцию (с прочерками)
             updateClientSection(proschetId, null);
         });
     });
-    
+
     console.log('✅ Обработчик выбора просчёта настроен');
 }
 
 // ===== 6. ФУНКЦИЯ ВЫБОРА КЛИЕНТА (инлайн-редактирование) =====
 function startClientSelection(proschetId) {
     console.log('Начало выбора клиента для просчёта:', proschetId);
-    
+
     // Показываем индикатор загрузки
     const clientNameElement = document.getElementById('current-client-name');
     if (clientNameElement) {
         clientNameElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
     }
-    
+
     // Загружаем список клиентов с сервера
     fetch('/calculator/get-clients/', {
         method: 'GET',
@@ -271,7 +226,7 @@ function startClientSelection(proschetId) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.clients) {
-            // КРИТИЧЕСКО ВАЖНО: передаем данные текущего клиента для предзаполнения
+            // Показываем выпадающий список, передавая ID текущего клиента для предзаполнения
             showClientDropdown(data.clients, proschetId);
         } else {
             throw new Error(data.message || 'Ошибка загрузки клиентов');
@@ -283,6 +238,8 @@ function startClientSelection(proschetId) {
         // Восстанавливаем текст
         if (clientNameElement) {
             clientNameElement.textContent = '—';
+            clientNameElement.style.color = '#777';
+            clientNameElement.style.fontStyle = 'italic';
         }
     });
 }
@@ -290,120 +247,115 @@ function startClientSelection(proschetId) {
 function showClientDropdown(clients, proschetId) {
     const clientNameElement = document.getElementById('current-client-name');
     if (!clientNameElement) return;
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: получаем ID текущего клиента из data-атрибута
-    // Это ключевой момент для предзаполнения текущим значением
+
+    // Получаем ID текущего клиента из data-атрибута (если есть)
     const currentClientId = clientNameElement.dataset.clientId;
     console.log('Текущий ID клиента для предзаполнения:', currentClientId);
-    
-    // Получаем текущее текстовое значение (может быть прочерком или именем клиента)
-    const currentText = clientNameElement.textContent || '—';
-    
-    // Создаём выпадающий список для выбора клиента
+
+    // Создаём выпадающий список
     const select = document.createElement('select');
     select.className = 'client-inline-select';
-    
-    // Добавляем опцию "Не выбран" (для случая когда клиент не назначен)
+
+    // Опция "Не выбран"
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
     emptyOption.textContent = '-- Не выбран --';
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: по умолчанию выбираем "Не выбран"
-    // Но дальше мы переопределим выбор, если нашли текущего клиента
+    // По умолчанию выбираем "Не выбран", но позже переопределим, если есть текущий клиент
     emptyOption.selected = true;
-    
     select.appendChild(emptyOption);
-    
+
     // Добавляем клиентов из списка
     clients.forEach(client => {
         const option = document.createElement('option');
         option.value = client.id;
         option.textContent = `${client.client_number}: ${client.name}`;
-        
-        // ВАЖНОЕ ИСПРАВЛЕНИЕ: проверяем, является ли этот клиент текущим
-        // Сравниваем по ID клиента, который сохранен в data-client-id
+
+        // Если этот клиент совпадает с текущим – выбираем его
         if (currentClientId && client.id == currentClientId) {
             console.log('Найден текущий клиент для предзаполнения:', client.name);
-            option.selected = true; // Выбираем текущего клиента
-            emptyOption.selected = false; // Снимаем выбор с "Не выбран"
+            option.selected = true;
+            emptyOption.selected = false; // снимаем выбор с "Не выбран"
         }
-        
-        // Сохраняем данные клиента в dataset для быстрого доступа
+
+        // Сохраняем полные данные клиента в dataset для быстрого доступа
         option.dataset.clientData = JSON.stringify({
             name: client.name,
             discount: client.discount || 0,
             has_edo: client.has_edo || false
         });
-        
+
         select.appendChild(option);
     });
-    
-    // Заменяем текст на select для редактирования
+
+    // Заменяем имя на выпадающий список
     clientNameElement.innerHTML = '';
     clientNameElement.appendChild(select);
-    
-    // Фокусируемся на select для удобства пользователя
     select.focus();
-    
+
     // Настраиваем обработчики событий для select
     setupSelectListeners(select, proschetId);
 }
 
 function setupSelectListeners(select, proschetId) {
-    // При изменении выбора в выпадающем списке
+    // При изменении выбора
     select.addEventListener('change', function() {
         const selectedValue = this.value;
         const selectedOption = this.options[this.selectedIndex];
-        
+
         if (!selectedValue) {
-            // Если выбрано "Не выбран" - удаляем клиента из просчёта
+            // Выбрано "Не выбран" – удаляем клиента из просчёта
             updateClientOnServer(proschetId, null);
         } else {
-            // Если выбран клиент - обновляем просчёт
+            // Выбран конкретный клиент
             const clientData = JSON.parse(selectedOption.dataset.clientData);
             updateClientOnServer(proschetId, {
                 id: selectedValue,
                 ...clientData
             });
         }
-        
-        // Возвращаем текстовое представление после выбора
+
+        // Завершаем редактирование
         finishSelection(select, proschetId);
     });
-    
-    // При потере фокуса (пользователь кликнул вне поля)
+
+    // При потере фокуса (клик вне поля)
     select.addEventListener('blur', function() {
         setTimeout(() => {
             finishSelection(this, proschetId);
         }, 200);
     });
-    
+
     // Обработка клавиш Enter/Escape
     select.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             finishSelection(this, proschetId);
         } else if (e.key === 'Escape') {
+            // Отмена – возвращаем исходное имя
             const clientNameElement = document.getElementById('current-client-name');
             if (clientNameElement) {
-                const currentText = select.options[select.selectedIndex].textContent;
-                if (currentText === '-- Не выбран --') {
+                // Восстанавливаем текст из текущего выбранного элемента
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.value === '') {
                     clientNameElement.textContent = '—';
                     clientNameElement.style.color = '#777';
                     clientNameElement.style.fontStyle = 'italic';
                 } else {
-                    clientNameElement.textContent = currentText;
+                    const clientData = JSON.parse(selectedOption.dataset.clientData);
+                    clientNameElement.textContent = clientData.name;
                     clientNameElement.style.color = '';
                     clientNameElement.style.fontStyle = '';
                 }
             }
+            // Удаляем select
+            finishSelection(this, proschetId);
         }
     });
 }
 
 function updateClientOnServer(proschetId, clientData) {
     console.log('Обновление клиента на сервере:', { proschetId, clientData });
-    
-    // Отправляем запрос на сервер для обновления клиента в просчёте
+
+    // Отправляем запрос на сервер
     fetch(`/calculator/update-proschet-client/${proschetId}/`, {
         method: 'POST',
         headers: {
@@ -416,6 +368,7 @@ function updateClientOnServer(proschetId, clientData) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // После успешного сохранения обновляем секцию клиента
             updateClientSection(proschetId, clientData);
         } else {
             alert('Ошибка сохранения: ' + (data.message || 'Неизвестная ошибка'));
@@ -430,79 +383,58 @@ function updateClientOnServer(proschetId, clientData) {
 function finishSelection(select, proschetId) {
     const clientNameElement = document.getElementById('current-client-name');
     if (!clientNameElement) return;
-    
-    // Получаем выбранное значение из select
-    const selectedOption = select.options[select.selectedIndex];
-    let displayText = '—';
-    
-    if (selectedOption.value) {
-        const clientData = JSON.parse(selectedOption.dataset.clientData);
-        displayText = clientData.name;
-    } else {
-        displayText = '—';
-    }
-    
-    // Возвращаем текстовое представление
-    clientNameElement.textContent = displayText;
-    
-    // Если прочерк, добавляем стили
-    if (displayText === '—') {
-        clientNameElement.style.color = '#777';
-        clientNameElement.style.fontStyle = 'italic';
-    } else {
-        clientNameElement.style.color = '';
-        clientNameElement.style.fontStyle = '';
+
+    // Если select всё ещё в DOM, удаляем его и восстанавливаем текстовое представление
+    // (обычно это уже сделано, но на всякий случай)
+    if (clientNameElement.contains(select)) {
+        // Определяем, что отображать после завершения
+        const selectedOption = select.options[select.selectedIndex];
+        if (selectedOption.value === '') {
+            clientNameElement.textContent = '—';
+            clientNameElement.style.color = '#777';
+            clientNameElement.style.fontStyle = 'italic';
+            clientNameElement.removeAttribute('data-client-id');
+        } else {
+            const clientData = JSON.parse(selectedOption.dataset.clientData);
+            clientNameElement.textContent = clientData.name;
+            clientNameElement.style.color = '';
+            clientNameElement.style.fontStyle = '';
+            clientNameElement.dataset.clientId = selectedOption.value;
+        }
     }
 }
 
 // ===== 7. ФУНКЦИЯ СБРОСА СЕКЦИИ =====
 function resetClientSection() {
     console.log('Сброс секции клиента');
-    
-    // 1. Скрываем основной интерфейс клиента
+
     const clientInterface = document.getElementById('client-selection-interface');
-    if (clientInterface) {
-        clientInterface.style.display = 'none';
-    }
-    
-    // 2. Скрываем бейдж с номером просчёта
+    if (clientInterface) clientInterface.style.display = 'none';
+
     const badge = document.getElementById('selected-proschet-badge');
-    if (badge) {
-        badge.style.display = 'none';
-    }
-    
-    // 3. Показываем сообщение "Выберите просчёт"
+    if (badge) badge.style.display = 'none';
+
     const noProschetMessage = document.getElementById('no-proschet-selected');
-    if (noProschetMessage) {
-        noProschetMessage.style.display = 'block';
-    }
+    if (noProschetMessage) noProschetMessage.style.display = 'block';
 }
 
 // ===== 8. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 function getCurrentProschetId() {
-    // Пытаемся получить ID из бейджа
     const badge = document.getElementById('selected-proschet-badge');
     if (badge && badge.style.display !== 'none') {
         return badge.dataset.proschetId || null;
     }
-    
-    // Или из карточки клиента
     const clientDisplay = document.getElementById('current-client-display');
     if (clientDisplay) {
         return clientDisplay.dataset.proschetId || null;
     }
-    
     return null;
 }
 
 function getCsrfToken() {
-    // Пытаемся получить CSRF токен из скрытого поля формы
     const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrfTokenElement) {
-        return csrfTokenElement.value;
-    }
-    
-    // Или из cookies
+    if (csrfTokenElement) return csrfTokenElement.value;
+
     const name = 'csrftoken';
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
@@ -511,14 +443,13 @@ function getCsrfToken() {
             return decodeURIComponent(cookie.substring(name.length + 1));
         }
     }
-    
     return '';
 }
 
 // ===== 9. ЭКСПОРТ ФУНКЦИЙ =====
 window.clientSectionManager = {
-    update: updateClientSection,  // Функция обновления при выборе просчёта
-    reset: resetClientSection     // Функция сброса при отмене выбора
+    update: updateClientSection,
+    reset: resetClientSection
 };
 
-console.log('✅ Модуль управления секцией клиента загружен (исправленная версия с предзаполнением)');
+console.log('✅ Модуль управления секцией клиента (компактная версия) загружен');

@@ -1,62 +1,75 @@
 /*
 sections/price.js - JavaScript для секции "Цена"
-ОБНОВЛЕНО: Полная реализация расчета стоимости печатных компонентов и дополнительных работ
-ИСПРАВЛЕНО: Правильная обработка событий от других секций
-ДОБАВЛЕНО: Подробная отладка для всех элементов DOM
+ОБНОВЛЕНО: Используем total_price для дополнительных работ вместо price.
+ИСПРАВЛЕНО: Синтаксические ошибки, удалены дублирующие проверки.
 */
 
 (function() {
     "use strict";
 
-    // ===== 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СЕКЦИИ (с уникальными именами) =====
+    // ============================================================================
+    // 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СЕКЦИИ (хранят текущее состояние)
+    // ============================================================================
 
-    // ID текущего выбранного просчёта
+    // ID текущего выбранного просчёта (устанавливается при выборе просчёта)
     let priceCurrentProschetId = null;
 
-    // Данные печатных компонентов и дополнительных работ
+    // Массив данных печатных компонентов для текущего просчёта
+    // Каждый элемент содержит id, number, printer, total_circulation_price и т.д.
     let priceCurrentPrintComponents = [];
+
+    // Массив данных дополнительных работ для текущего просчёта (собирается из всех компонентов)
+    // Каждый элемент содержит id, number, title, price, total_price и т.д.
     let priceCurrentAdditionalWorks = [];
 
-    // ===== 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
+    // ============================================================================
+    // 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+    // ============================================================================
 
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Секция "Цена" загружена');
         
-        // Проверяем наличие всех критических элементов DOM
+        // 1. Проверяем наличие всех критических элементов DOM
         checkDomElements();
         
-        // Настраиваем обработчики событий
+        // 2. Настраиваем обработчики событий на кнопки внутри секции
         setupPriceEventListeners();
         
-        // Инициализируем интерфейс
+        // 3. Устанавливаем начальное состояние интерфейса (показываем сообщение "просчёт не выбран")
         initPriceInterface();
         
-        // Подписываемся на события от других секций
+        // 4. Подписываемся на события от других секций
         setupPriceSubscriptions();
     });
 
-    // ===== 2.1. ФУНКЦИЯ ПРОВЕРКИ ЭЛЕМЕНТОВ DOM =====
+    // ============================================================================
+    // 2.1. ФУНКЦИЯ ПРОВЕРКИ ЭЛЕМЕНТОВ DOM (для отладки)
+    // ============================================================================
 
+    /**
+     * Проверяет наличие всех критических DOM-элементов, необходимых для работы секции.
+     * Выводит в консоль информацию об отсутствующих элементах.
+     */
     function checkDomElements() {
         console.log('🔍 Проверка элементов DOM для секции "Цена"...');
         
-        // Критические элементы из price.html
+        // Список ID элементов, которые обязательно должны существовать в HTML
         const criticalElements = [
-            'price-proschet-title',
-            'no-proschet-selected-price',
-            'price-summary-container',
-            'calculate-price-btn',
-            'print-components-count',
-            'print-components-items',
-            'additional-works-count',
-            'additional-works-items',
-            'price-print-components-total',     // ВАЖНО: цена печатных компонентов
-            'additional-works-total',           // ВАЖНО: цена дополнительных работ
-            'total-order-price',
-            'calculation-date',
-            'export-price-btn',
-            'print-price-btn',
-            'create-invoice-btn'
+            'price-proschet-title',          // заголовок с названием просчёта
+            'no-proschet-selected-price',    // сообщение "просчёт не выбран"
+            'price-summary-container',        // контейнер с итоговой информацией
+            'calculate-price-btn',            // кнопка "Рассчитать"
+            'print-components-count',         // счётчик печатных компонентов
+            'print-components-items',          // контейнер для списка компонентов
+            'additional-works-count',          // счётчик дополнительных работ
+            'additional-works-items',           // контейнер для списка работ
+            'price-print-components-total',     // итог по печатным компонентам
+            'additional-works-total',           // итог по дополнительным работам
+            'total-order-price',                // общая сумма заказа
+            'calculation-date',                  // дата расчёта
+            'export-price-btn',                   // кнопка экспорта в PDF
+            'print-price-btn',                     // кнопка печати
+            'create-invoice-btn'                    // кнопка создания счёта
         ];
         
         let missingElements = [];
@@ -78,12 +91,17 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
-    // ===== 3. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ =====
+    // ============================================================================
+    // 3. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ НА КНОПКИ ВНУТРИ СЕКЦИИ
+    // ============================================================================
 
+    /**
+     * Навешивает обработчики кликов на кнопки внутри секции "Цена".
+     */
     function setupPriceEventListeners() {
         console.log('Настраиваем обработчики событий для секции "Цена"...');
         
-        // Кнопка расчета
+        // Кнопка "Рассчитать" (пересчёт стоимости)
         const calculateBtn = document.getElementById('calculate-price-btn');
         if (calculateBtn) {
             calculateBtn.addEventListener('click', handleCalculatePrice);
@@ -106,7 +124,7 @@ sections/price.js - JavaScript для секции "Цена"
             console.log('✅ Кнопка "Распечатать" настроена');
         }
         
-        // Кнопка создания счета
+        // Кнопка создания счёта
         const invoiceBtn = document.getElementById('create-invoice-btn');
         if (invoiceBtn) {
             invoiceBtn.addEventListener('click', handleCreateInvoice);
@@ -114,95 +132,95 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
-    // ===== 4. ПОДПИСКА НА СОБЫТИЯ ОТ ДРУГИХ СЕКЦИЙ =====
+    // ============================================================================
+    // 4. ПОДПИСКА НА СОБЫТИЯ ОТ ДРУГИХ СЕКЦИЙ
+    // ============================================================================
 
+    /**
+     * Подписывается на глобальные события, которые генерируют другие секции:
+     * - additionalWorksUpdated (секция "Дополнительные работы")
+     * - printComponentsUpdated (секция "Печатные компоненты")
+     * - proschetSelected (секция "Список просчётов")
+     */
     function setupPriceSubscriptions() {
         console.log('📡 Настройка подписок на события от других секций...');
-        
-        // Подписка на события от секции "Дополнительные работы"
+
         document.addEventListener('additionalWorksUpdated', function(event) {
             console.log('📥 Получено событие additionalWorksUpdated:', event.detail);
-            
             if (event.detail && event.detail.proschetId) {
-                // ВАЖНО: Исправлено - сохраняем работы независимо от ID просчёта
-                // потому что данные могут приходить до того как секция "Цена" обновится
                 priceCurrentAdditionalWorks = event.detail.works || [];
                 console.log(`✅ Обновлены данные дополнительных работ: ${priceCurrentAdditionalWorks.length} работ`);
-                
-                // ВАЖНО: Исправлено - обновляем отображение ВСЕГДА, если у нас есть текущий просчёт
-                // Это гарантирует, что сумма дополнительных работ будет обновлена
                 if (priceCurrentProschetId) {
-                    console.log(`✅ Текущий просчёт: ${priceCurrentProschetId}, обновляю отображение`);
                     updatePriceDisplay();
-                } else {
-                    console.log(`ℹ️ Секция "Цена" еще не инициализирована, сохраняем данные для будущего использования`);
                 }
-            } else {
-                console.warn('⚠️ Событие additionalWorksUpdated без деталей или без proschetId');
             }
         });
-        
-        // Подписка на события от секции "Печатные компоненты"
+
         document.addEventListener('printComponentsUpdated', function(event) {
             console.log('📥 Получено событие printComponentsUpdated:', event.detail);
-            
             if (event.detail && event.detail.proschetId) {
                 priceCurrentPrintComponents = event.detail.components || [];
                 console.log(`✅ Обновлены данные печатных компонентов: ${priceCurrentPrintComponents.length} компонентов`);
-                
-                // ВАЖНО: Исправлено - обновляем отображение ВСЕГДА, если у нас есть текущий просчёт
                 if (priceCurrentProschetId) {
-                    console.log(`✅ Текущий просчёт: ${priceCurrentProschetId}, обновляю отображение`);
                     updatePriceDisplay();
-                } else {
-                    console.log(`ℹ️ Секция "Цена" еще не инициализирована, сохраняем данные для будущего использования`);
                 }
             }
         });
-        
-        // Подписка на событие выбора просчёта
+
         document.addEventListener('proschetSelected', function(event) {
             if (event.detail && event.detail.proschetId) {
                 console.log(`📥 Получено событие proschetSelected: ${event.detail.proschetId}`);
-                
-                // Если переключились на другой просчёт, обновляем отображение
                 if (priceCurrentProschetId !== event.detail.proschetId) {
-                    console.log(`🔄 Переключение с просчёта ${priceCurrentProschetId} на ${event.detail.proschetId}`);
                     priceCurrentProschetId = event.detail.proschetId;
-                    updatePriceDisplay();
+                    loadPriceData(priceCurrentProschetId);
                 }
             }
         });
-        
+
         console.log('✅ Подписки на события настроены');
     }
 
-    // ===== 5. ОСНОВНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С СЕКЦИЕЙ =====
+    // ============================================================================
+    // 5. ОСНОВНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С СЕКЦИЕЙ
+    // ============================================================================
 
+    /**
+     * Инициализация интерфейса при загрузке страницы.
+     * Показывает сообщение о том, что просчёт не выбран.
+     */
     function initPriceInterface() {
         console.log('Инициализация интерфейса секции "Цена"');
         showNoProschetSelectedMessage();
     }
 
+    /**
+     * Обновление секции при выборе просчёта (вызывается из глобального объекта window.priceSection).
+     * @param {number} proschetId - ID выбранного просчёта
+     * @param {HTMLElement} rowElement - DOM-элемент строки таблицы с просчётом (для получения названия)
+     */
     function updatePriceForProschet(proschetId, rowElement) {
         console.log(`🔄 Обновление секции "Цена" для просчёта ID: ${proschetId}`);
         
         // Сохраняем ID текущего просчёта
         priceCurrentProschetId = proschetId;
         
-        // Обновляем заголовок секции
+        // Обновляем заголовок секции (отображаем название просчёта)
         updatePriceProschetTitle(rowElement);
         
-        // Показываем контейнер с расчетом
+        // Показываем контейнер с итоговой информацией (скрываем сообщение "просчёт не выбран")
         showPriceSummaryContainer();
         
-        // Устанавливаем текущую дату
+        // Устанавливаем текущую дату в блоке "Дата расчета"
         updateCalculationDate();
         
-        // Загружаем данные для расчета
+        // Загружаем данные для расчета с сервера (компоненты и работы)
         loadPriceData(proschetId);
     }
 
+    /**
+     * Обновляет заголовок секции, отображая название выбранного просчёта.
+     * @param {HTMLElement} rowElement - строка таблицы просчётов, содержащая ячейку с названием
+     */
     function updatePriceProschetTitle(rowElement) {
         const proschetTitleElement = document.getElementById('price-proschet-title');
         if (!proschetTitleElement) {
@@ -210,6 +228,7 @@ sections/price.js - JavaScript для секции "Цена"
             return;
         }
         
+        // Ищем ячейку с классом 'proschet-title' внутри переданной строки
         const titleCell = rowElement.querySelector('.proschet-title');
         if (!titleCell) {
             console.warn('❌ Ячейка с названием просчёта не найдена');
@@ -218,6 +237,7 @@ sections/price.js - JavaScript для секции "Цена"
         
         const proschetTitle = titleCell.textContent.trim();
         
+        // Заменяем содержимое заголовка на активное название
         proschetTitleElement.innerHTML = `
             <span class="proschet-title-active">
                 ${proschetTitle}
@@ -227,18 +247,26 @@ sections/price.js - JavaScript для секции "Цена"
         console.log(`✅ Название просчёта обновлено в секции "Цена": "${proschetTitle}"`);
     }
 
+    /**
+     * Загружает данные для расчёта цены с сервера.
+     * @param {number} proschetId - ID просчёта
+     */
     function loadPriceData(proschetId) {
         console.log(`Загрузка данных для расчета цены, просчёт ID: ${proschetId}`);
         
-        // Показываем состояние загрузки
+        // Показываем состояние загрузки (спиннеры, обнуление сумм)
         showPriceLoadingState();
         
-        // Всегда загружаем данные с сервера для надежности
+        // Всегда загружаем данные с сервера для надежности (чтобы получить актуальные компоненты и работы)
         fetchPriceDataFromServer(proschetId);
     }
 
+    /**
+     * Выполняет AJAX-запрос к серверу для получения данных о просчёте.
+     * @param {number} proschetId - ID просчёта
+     */
     function fetchPriceDataFromServer(proschetId) {
-        // URL для получения данных о просчёте
+        // URL для получения данных о просчёте (определён в urls.py)
         const url = `/calculator/get-proschet-price-data/${proschetId}/`;
         
         console.log(`🌐 Отправка запроса к серверу: ${url}`);
@@ -246,8 +274,8 @@ sections/price.js - JavaScript для секции "Цена"
         fetch(url, {
             method: 'GET',
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': getPriceCsrfToken()
+                'X-Requested-With': 'XMLHttpRequest', // указываем, что это AJAX
+                'X-CSRFToken': getPriceCsrfToken()     // CSRF-токен для безопасности
             }
         })
         .then(response => {
@@ -258,11 +286,14 @@ sections/price.js - JavaScript для секции "Цена"
         })
         .then(data => {
             if (data.success) {
+                // Сохраняем полученные данные в глобальные переменные
                 priceCurrentPrintComponents = data.print_components || [];
                 priceCurrentAdditionalWorks = data.additional_works || [];
                 console.log(`✅ Данные загружены с сервера: ${priceCurrentPrintComponents.length} компонентов, ${priceCurrentAdditionalWorks.length} работ`);
                 console.log('📊 Данные печатных компонентов:', priceCurrentPrintComponents);
                 console.log('📊 Данные дополнительных работ:', priceCurrentAdditionalWorks);
+                
+                // Обновляем отображение (заполняем списки, суммы)
                 updatePriceDisplay();
             } else {
                 console.error('Ошибка при загрузке данных для расчета:', data.message);
@@ -275,34 +306,36 @@ sections/price.js - JavaScript для секции "Цена"
         });
     }
 
-    // ===== 5.5. ФУНКЦИЯ ОБНОВЛЕНИЯ ОТОБРАЖЕНИЯ ЦЕНЫ =====
+    // ============================================================================
+    // 5.5. ФУНКЦИЯ ОБНОВЛЕНИЯ ОТОБРАЖЕНИЯ ЦЕНЫ
+    // ============================================================================
 
+    /**
+     * Обновляет весь интерфейс секции на основе текущих данных (priceCurrentPrintComponents и priceCurrentAdditionalWorks).
+     * Вызывается после загрузки данных с сервера или после получения событий от других секций.
+     */
     function updatePriceDisplay() {
-        console.log('🔄 Обновление отображения цены', {
-            proschetId: priceCurrentProschetId,
-            componentsCount: priceCurrentPrintComponents.length,
-            worksCount: priceCurrentAdditionalWorks.length
-        });
+        console.log('🔄 Обновление отображения цены');
         
-        // Проверяем, есть ли выбранный просчёт
+        // Проверяем, есть ли выбранный просчёт (если нет, просто не обновляем)
         if (!priceCurrentProschetId) {
             console.warn('⚠️ Нет выбранного просчёта, отображение не обновляется');
             return;
         }
         
-        // Обновляем детали печатных компонентов
+        // Обновляем детали печатных компонентов (список и счётчик)
         updatePrintComponentsDetails();
         
-        // Обновляем детали дополнительных работ
+        // Обновляем детали дополнительных работ (список и счётчик)
         updateAdditionalWorksDetails();
         
-        // Рассчитываем и обновляем итоговые суммы
+        // Рассчитываем и обновляем итоговые суммы (печать, работы, общая)
         calculateAndDisplayTotals();
         
-        // Показываем кнопку расчета
+        // Показываем кнопку "Рассчитать" (она может быть скрыта, если просчёта нет)
         showCalculateButton(true);
         
-        // Генерируем событие об обновлении цены
+        // Генерируем событие об обновлении цены (может использоваться другими модулями, например для автосохранения)
         const event = new CustomEvent('priceUpdated', {
             detail: {
                 proschetId: priceCurrentProschetId,
@@ -316,6 +349,12 @@ sections/price.js - JavaScript для секции "Цена"
         console.log('📤 Событие priceUpdated отправлено');
     }
 
+    /**
+     * Обновляет отображение списка печатных компонентов:
+     * - очищает контейнер
+     * - выводит количество компонентов
+     * - для каждого компонента создаёт элемент с названием и ценой
+     */
     function updatePrintComponentsDetails() {
         const itemsContainer = document.getElementById('print-components-items');
         const countElement = document.getElementById('print-components-count');
@@ -328,11 +367,12 @@ sections/price.js - JavaScript для секции "Цена"
         // Очищаем контейнер
         itemsContainer.innerHTML = '';
         
-        // Обновляем количество
+        // Обновляем количество (с правильным склонением слова "компонент")
         const componentCount = priceCurrentPrintComponents.length;
         countElement.textContent = `${componentCount} ${getNoun(componentCount, 'компонент', 'компонента', 'компонентов')}`;
         console.log(`📊 Количество печатных компонентов: ${componentCount}`);
         
+        // Если компонентов нет, показываем специальное сообщение
         if (componentCount === 0) {
             itemsContainer.innerHTML = `
                 <div class="category-empty">
@@ -349,12 +389,12 @@ sections/price.js - JavaScript для секции "Цена"
             const itemElement = document.createElement('div');
             itemElement.className = 'category-item';
             
-            // Форматируем цену компонента
+            // Форматируем цену компонента (используем поле total_circulation_price из модели)
             const componentPrice = parseFloat(component.total_circulation_price) || 0;
             totalPrice += componentPrice;
             const formattedPrice = componentPrice.toFixed(2);
             
-            // Безопасное получение имени принтера
+            // Безопасное получение имени принтера (может отсутствовать)
             const printerName = component.printer && component.printer.name ? component.printer.name : 'Без принтера';
             
             itemElement.innerHTML = `
@@ -371,23 +411,26 @@ sections/price.js - JavaScript для секции "Цена"
         console.log(`💰 Общая стоимость печатных компонентов: ${totalPrice.toFixed(2)} ₽`);
     }
 
+    /**
+     * Обновляет отображение списка дополнительных работ:
+     * - очищает контейнер
+     * - выводит количество работ
+     * - для каждой работы создаёт элемент с названием и ценой (используя total_price)
+     */
     function updateAdditionalWorksDetails() {
         const itemsContainer = document.getElementById('additional-works-items');
         const countElement = document.getElementById('additional-works-count');
-        
+
         if (!itemsContainer || !countElement) {
             console.warn('❌ Элементы для отображения дополнительных работ не найдены');
             return;
         }
-        
-        // Очищаем контейнер
+
         itemsContainer.innerHTML = '';
-        
-        // Обновляем количество
         const worksCount = priceCurrentAdditionalWorks.length;
         countElement.textContent = `${worksCount} ${getNoun(worksCount, 'работа', 'работы', 'работ')}`;
         console.log(`📊 Количество дополнительных работ: ${worksCount}`);
-        
+
         if (worksCount === 0) {
             itemsContainer.innerHTML = `
                 <div class="category-empty">
@@ -397,119 +440,110 @@ sections/price.js - JavaScript для секции "Цена"
             `;
             return;
         }
-        
-        // Добавляем детали по каждой работе
-        let totalPrice = 0;
+
+        // Переменная для накопления суммы total_price (не price!)
+        let totalPriceSum = 0;
+
         priceCurrentAdditionalWorks.forEach(work => {
             const itemElement = document.createElement('div');
             itemElement.className = 'category-item';
-            
-            // Форматируем цену работы
-            const workPrice = parseFloat(work.price) || 0;
-            totalPrice += workPrice;
-            const formattedPrice = workPrice.toFixed(2);
-            
+
+            // ИСПРАВЛЕНО: используем total_price (общая стоимость работы)
+            const workTotal = parseFloat(work.total_price) || 0;
+            totalPriceSum += workTotal;
+            const formattedTotal = workTotal.toFixed(2);
+
+            // Для информативности также можем показать количество и цену за единицу (опционально)
+            const quantity = work.quantity || 1;
+            const unitPrice = parseFloat(work.price) || 0;
+
             itemElement.innerHTML = `
                 <div class="item-name">
                     <i class="fas fa-toolbox"></i>
-                    <span>${work.number || 'Без номера'}: ${work.title || 'Без названия'}</span>
+                    <span>
+                        ${work.number || 'Без номера'}: ${work.title || 'Без названия'}
+                        ${quantity > 1 ? ` (${quantity} шт. по ${unitPrice.toFixed(2)} ₽)` : ''}
+                    </span>
                 </div>
-                <div class="item-price">${formattedPrice} ₽</div>
+                <div class="item-price">${formattedTotal} ₽</div>
             `;
-            
+
             itemsContainer.appendChild(itemElement);
         });
-        
-        console.log(`💰 Общая стоимость дополнительных работ: ${totalPrice.toFixed(2)} ₽`);
+
+        // Общая сумма работ (total_price) будет использована в calculateAndDisplayTotals
+        console.log(`💰 Общая стоимость дополнительных работ (на основе total_price): ${totalPriceSum.toFixed(2)} ₽`);
     }
 
+    /**
+     * Вычисляет сумму всех печатных компонентов.
+     * @returns {number} общая стоимость печатных компонентов
+     */
     function calculatePrintComponentsTotal() {
         let total = 0;
         priceCurrentPrintComponents.forEach(component => {
             const price = parseFloat(component.total_circulation_price) || 0;
             total += price;
         });
-        console.log(`🧮 Расчет суммы печатных компонентов: ${total.toFixed(2)} ₽`);
         return total;
     }
 
+    /**
+     * Вычисляет сумму всех дополнительных работ.
+     * @returns {number} общая стоимость дополнительных работ
+     */
     function calculateAdditionalWorksTotal() {
         let total = 0;
         priceCurrentAdditionalWorks.forEach(work => {
-            const price = parseFloat(work.price) || 0;
-            total += price;
+            // ИСПРАВЛЕНО: используем total_price
+            const workTotal = parseFloat(work.total_price) || 0;
+            total += workTotal;
         });
-        console.log(`🧮 Расчет суммы дополнительных работ: ${total.toFixed(2)} ₽`);
+        console.log(`🧮 Расчет суммы дополнительных работ (total_price): ${total.toFixed(2)} ₽`);
         return total;
     }
 
+    /**
+     * Вычисляет общую стоимость заказа (печать + работы).
+     * @returns {number} общая сумма
+     */
     function calculateTotalPrice() {
-        const total = calculatePrintComponentsTotal() + calculateAdditionalWorksTotal();
-        console.log(`🧮 Общая сумма: ${total.toFixed(2)} ₽`);
-        return total;
+        return calculatePrintComponentsTotal() + calculateAdditionalWorksTotal();
     }
 
-    // ===== 5.9. ФУНКЦИЯ РАСЧЕТА И ОТОБРАЖЕНИЯ ИТОГОВЫХ СУММ =====
+    // ============================================================================
+    // 5.9. ФУНКЦИЯ РАСЧЕТА И ОТОБРАЖЕНИЯ ИТОГОВЫХ СУММ
+    // ============================================================================
 
+    /**
+     * Рассчитывает итоговые суммы и обновляет соответствующие DOM-элементы.
+     */
     function calculateAndDisplayTotals() {
         console.log('🧮 Начало расчета и отображения итоговых сумм...');
-        
-        // Рассчитываем суммы
+
         const printComponentsTotal = calculatePrintComponentsTotal();
-        const additionalWorksTotal = calculateAdditionalWorksTotal();
+        const additionalWorksTotal = calculateAdditionalWorksTotal();  // теперь сумма total_price
         const totalPrice = calculateTotalPrice();
-        
+
         console.log(`📊 Результаты расчета: 
             Печатные компоненты: ${printComponentsTotal.toFixed(2)} ₽
             Дополнительные работы: ${additionalWorksTotal.toFixed(2)} ₽
             Общая сумма: ${totalPrice.toFixed(2)} ₽`);
-        
-        // ВАЖНО: Поиск элементов в DOM с повторными попытками
+
         const printTotalElement = document.getElementById('price-print-components-total');
         const worksTotalElement = document.getElementById('additional-works-total');
         const totalPriceElement = document.getElementById('total-order-price');
-        
-        // Обновляем элемент суммы печатных компонентов
-        if (printTotalElement) {
-            printTotalElement.textContent = `${printComponentsTotal.toFixed(2)} ₽`;
-            console.log(`✅ Обновлен price-print-components-total: ${printComponentsTotal.toFixed(2)} ₽`);
-        } else {
-            console.error('❌ Элемент price-print-components-total не найден!');
-            // Пробуем найти через 100мс (на случай если DOM еще не полностью загружен)
-            setTimeout(() => {
-                const retryElement = document.getElementById('price-print-components-total');
-                if (retryElement) {
-                    retryElement.textContent = `${printComponentsTotal.toFixed(2)} ₽`;
-                    console.log(`✅ Элемент price-print-components-total найден при повторной попытке`);
-                }
-            }, 100);
-        }
-        
-        // ВАЖНО: Обновляем элемент суммы дополнительных работ
-        if (worksTotalElement) {
-            worksTotalElement.textContent = `${additionalWorksTotal.toFixed(2)} ₽`;
-            console.log(`✅ Обновлен additional-works-total: ${additionalWorksTotal.toFixed(2)} ₽`);
-        } else {
-            console.error('❌ Элемент additional-works-total не найден!');
-            // Пробуем найти через 100мс
-            setTimeout(() => {
-                const retryElement = document.getElementById('additional-works-total');
-                if (retryElement) {
-                    retryElement.textContent = `${additionalWorksTotal.toFixed(2)} ₽`;
-                    console.log(`✅ Элемент additional-works-total найден при повторной попытке`);
-                }
-            }, 100);
-        }
-        
-        // Обновляем элемент общей суммы
-        if (totalPriceElement) {
-            totalPriceElement.textContent = `${totalPrice.toFixed(2)} ₽`;
-            console.log(`✅ Обновлен total-order-price: ${totalPrice.toFixed(2)} ₽`);
-        }
-        
+
+        if (printTotalElement) printTotalElement.textContent = `${printComponentsTotal.toFixed(2)} ₽`;
+        if (worksTotalElement) worksTotalElement.textContent = `${additionalWorksTotal.toFixed(2)} ₽`;
+        if (totalPriceElement) totalPriceElement.textContent = `${totalPrice.toFixed(2)} ₽`;
+
         console.log(`✅ Расчет стоимости завершен`);
     }
 
+    /**
+     * Устанавливает текущую дату в элемент #calculation-date.
+     */
     function updateCalculationDate() {
         const dateElement = document.getElementById('calculation-date');
         if (dateElement) {
@@ -520,8 +554,15 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
-    // ===== 6. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА =====
+    // ============================================================================
+    // 6. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА
+    // ============================================================================
 
+    /**
+     * Показывает сообщение о том, что просчёт не выбран.
+     * Скрывает контейнер с итоговой информацией и кнопку "Рассчитать".
+     * Очищает заголовок и сбрасывает данные.
+     */
     function showNoProschetSelectedMessage() {
         console.log('📄 Показ сообщения "Выберите просчёт"...');
         
@@ -559,6 +600,9 @@ sections/price.js - JavaScript для секции "Цена"
         console.log('✅ Состояние секции "Цена" сброшено');
     }
 
+    /**
+     * Показывает контейнер с итоговой информацией и скрывает сообщение "просчёт не выбран".
+     */
     function showPriceSummaryContainer() {
         console.log('📄 Показ контейнера с расчетом...');
         
@@ -576,6 +620,11 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
+    /**
+     * Показывает состояние загрузки:
+     * - заменяет списки на индикаторы загрузки
+     * - обнуляет суммы
+     */
     function showPriceLoadingState() {
         console.log('⏳ Показ состояния загрузки...');
         
@@ -608,7 +657,6 @@ sections/price.js - JavaScript для секции "Цена"
         }
         
         // Устанавливаем нулевые суммы
-        // ВАЖНО: Используем правильные ID из СЕКЦИИ "ЦЕНА"
         const printTotalElement = document.getElementById('price-print-components-total');
         const worksTotalElement = document.getElementById('additional-works-total');
         const totalPriceElement = document.getElementById('total-order-price');
@@ -633,6 +681,10 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
+    /**
+     * Показывает сообщение об ошибке при загрузке данных.
+     * @param {string} message - текст ошибки
+     */
     function showPriceErrorMessage(message) {
         console.error(`❌ Показ сообщения об ошибке: ${message}`);
         
@@ -649,6 +701,7 @@ sections/price.js - JavaScript для секции "Цена"
                 </div>
             `;
             
+            // Обработчик кнопки "Повторить"
             const retryBtn = document.getElementById('retry-price-load-btn');
             if (retryBtn && priceCurrentProschetId) {
                 retryBtn.addEventListener('click', function() {
@@ -659,6 +712,10 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
+    /**
+     * Показывает или скрывает кнопку "Рассчитать".
+     * @param {boolean} show - true, чтобы показать, false – скрыть
+     */
     function showCalculateButton(show) {
         const calculateBtn = document.getElementById('calculate-price-btn');
         if (calculateBtn) {
@@ -668,7 +725,9 @@ sections/price.js - JavaScript для секции "Цена"
         }
     }
 
-    // ===== 7. ОБРАБОТЧИКИ КНОПОК =====
+    // ============================================================================
+    // 7. ОБРАБОТЧИКИ КНОПОК (заглушки для будущих функций)
+    // ============================================================================
 
     function handleCalculatePrice() {
         console.log('🧮 Перерасчет стоимости');
@@ -693,8 +752,15 @@ sections/price.js - JavaScript для секции "Цена"
         showPriceNotification('Создание счета будет реализовано позже', 'info');
     }
 
-    // ===== 8. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    // ============================================================================
+    // 8. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ============================================================================
 
+    /**
+     * Получает CSRF-токен из cookies.
+     * Токен необходим для отправки POST-запросов в Django (защита от CSRF-атак).
+     * @returns {string} CSRF-токен или пустая строка, если не найден
+     */
     function getPriceCsrfToken() {
         const name = 'csrftoken';
         const cookies = document.cookie.split(';');
@@ -710,6 +776,11 @@ sections/price.js - JavaScript для секции "Цена"
         return '';
     }
 
+    /**
+     * Показывает всплывающее уведомление.
+     * @param {string} message - текст сообщения
+     * @param {string} type - тип ('success', 'error', 'warning', 'info')
+     */
     function showPriceNotification(message, type = 'info') {
         console.log(`Показ уведомления [${type}]: ${message}`);
         
@@ -761,7 +832,15 @@ sections/price.js - JavaScript для секции "Цена"
         }, 5000);
     }
 
-    // Функция для правильного склонения существительных
+    /**
+     * Функция для правильного склонения существительных после числительных.
+     * Например: 1 компонент, 2 компонента, 5 компонентов.
+     * @param {number} number - количество
+     * @param {string} one - форма для 1 (компонент)
+     * @param {string} two - форма для 2-4 (компонента)
+     * @param {string} five - форма для 5-20 (компонентов)
+     * @returns {string} правильная форма
+     */
     function getNoun(number, one, two, five) {
         let n = Math.abs(number);
         n %= 100;
@@ -778,57 +857,35 @@ sections/price.js - JavaScript для секции "Цена"
         return five;
     }
 
-    // ===== 9. ЭКСПОРТ ФУНКЦИЙ ДЛЯ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ =====
+    // ============================================================================
+    // 9. ЭКСПОРТ ФУНКЦИЙ ДЛЯ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ
+    // ============================================================================
 
+    /**
+     * Глобальный объект, через который другие секции могут взаимодействовать с данной.
+     * Например, секция "Список просчётов" вызывает updateForProschet при выборе просчёта.
+     */
     window.priceSection = {
-        /**
-         * Основная функция для обновления секции при выборе просчёта
-         * @param {number} proschetId - ID выбранного просчёта
-         * @param {HTMLElement} rowElement - DOM-элемент строки таблицы с просчётом
-         */
         updateForProschet: function(proschetId, rowElement) {
             updatePriceForProschet(proschetId, rowElement);
         },
-        
-        /**
-         * Функция сброса секции (когда просчёт не выбран)
-         */
         reset: function() {
             showNoProschetSelectedMessage();
         },
-        
-        /**
-         * Функция для получения текущего просчёта
-         * @returns {number|null} ID текущего просчёта или null
-         */
         getCurrentProschetId: function() {
             return priceCurrentProschetId;
         },
-        
-        /**
-         * Функция для получения текущих данных
-         * @returns {Object} Данные для расчета цены
-         */
         getCurrentData: function() {
             return {
                 printComponents: priceCurrentPrintComponents,
                 additionalWorks: priceCurrentAdditionalWorks
             };
         },
-        
-        /**
-         * Функция для ручного обновления отображения
-         */
         refresh: function() {
             if (priceCurrentProschetId) {
                 updatePriceDisplay();
             }
         },
-        
-        /**
-         * Функция для получения общей стоимости
-         * @returns {Object} Общие суммы
-         */
         getTotals: function() {
             return {
                 printComponentsTotal: calculatePrintComponentsTotal(),
@@ -841,11 +898,13 @@ sections/price.js - JavaScript для секции "Цена"
     console.log('✅ Секция "Цена" полностью реализована и готова к использованию');
 })();
 
-
-// ===== 10. ОТЛАДОЧНЫЕ ФУНКЦИИ =====
+// ============================================================================
+// 10. ОТЛАДОЧНЫЕ ФУНКЦИИ (доступны в консоли браузера)
+// ============================================================================
 
 /**
  * Функция для отладки - проверяет состояние секции "Цена"
+ * Можно вызвать в консоли: debugPriceSection()
  */
 window.debugPriceSection = function() {
     console.log('=== ДЕБАГ СЕКЦИИ "ЦЕНА" ===');

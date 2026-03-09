@@ -70,6 +70,12 @@ urlpatterns = [
     
     # Выход из системы - используем кастомную view из приложения counter
     path('logout/', counter_views.logout_view, name='logout'),
+
+
+    path('spravochnik_dopolnitelnyh_rabot/',
+     include(('spravochnik_dopolnitelnyh_rabot.urls',
+              'spravochnik_dopolnitelnyh_rabot'),
+     namespace='spravochnik_dopolnitelnyh_rabot')),
 ]
 
 # В режиме отладки добавляем обслуживание статических и медиа файлов

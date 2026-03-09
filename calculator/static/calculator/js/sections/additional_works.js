@@ -1,185 +1,243 @@
-/*
-sections/additional_works.js - JavaScript для секции "Дополнительные работы"
-ИСПРАВЛЕНИЕ: Уникальные названия переменных и функций для устранения конфликтов
-ДОБАВЛЕНО: Подробные комментарии для каждой функции и блока кода
-*/
-
 "use strict";
 
-// ===== 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СЕКЦИИ ДОПОЛНИТЕЛЬНЫХ РАБОТ =====
-// Все переменные имеют префикс "additionalWorks_" для уникальности
+// ============================================================================
+// Файл: additional_works.js
+// Описание: JavaScript для секции "Дополнительные работы".
+//           Управление загрузкой, отображением, добавлением, редактированием
+//           (только количества) и удалением дополнительных работ.
+//           Интеграция со справочником, с приложением "Вычисления листов",
+//           с изменением тиража.
+//           Детальные комментарии для каждой строки.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (состояние секции)
+// ----------------------------------------------------------------------------
 
 /**
- * Текущий ID просчёта, для которого отображаются дополнительные работы
+ * Текущий ID печатного компонента, для которого отображаются дополнительные работы
+ * @type {number|null}
+ */
+let additionalWorks_currentComponentId = null;
+
+/**
+ * Текущий ID просчёта, которому принадлежит выбранный компонент.
  * @type {number|null}
  */
 let additionalWorks_currentProschetId = null;
 
 /**
- * Массив текущих дополнительных работ для выбранного просчёта
+ * Массив текущих дополнительных работ для выбранного компонента.
+ * Каждый элемент содержит поля: id, number, title, price, quantity, total_price,
+ * formatted_price, formatted_total_price, work_id (если связан со справочником).
  * @type {Array}
  */
-let additionalWorks_currentAdditionalWorks = [];
+let additionalWorks_currentWorks = [];
 
 /**
- * Объект с URL-адресами API для работы с дополнительными работами
+ * ID текущей выбранной дополнительной работы (если есть).
+ * @type {number|null}
+ */
+let additionalWorks_currentSelectedWorkId = null;
+
+/**
+ * Объект с URL-адресами API для работы с дополнительными работами.
  * @type {Object}
  */
 const additionalWorks_apiUrls = {
-    getWorks: '/calculator/get-additional-works/',
-    addWork: '/calculator/add-additional-work/',
-    updateWork: '/calculator/update-additional-work/',
-    deleteWork: '/calculator/delete-additional-work/',
+    getWorks: '/calculator/get-additional-works/',           // GET /<component_id>/
+    addWork: '/calculator/add-additional-work/',             // POST
+    updateWork: '/calculator/update-additional-work/',       // POST (только для количества)
+    deleteWork: '/calculator/delete-additional-work/',       // POST
+    getSpravochnikWorks: '/calculator/get-spravochnik-works/' // GET (справочник)
 };
 
-/**
- * DOM-элемент контейнера общей стоимости
- * @type {HTMLElement|null}
- */
+// DOM-элементы для блока общей стоимости
 let additionalWorks_totalContainer = null;
-
-/**
- * DOM-элемент для отображения общей цены
- * @type {HTMLElement|null}
- */
 let additionalWorks_totalPriceElement = null;
-
-/**
- * DOM-элемент для отображения метки общей стоимости
- * @type {HTMLElement|null}
- */
 let additionalWorks_totalLabelElement = null;
 
-// ===== 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
-
+// ===== ПЕРЕМЕННЫЕ для хранения данных из VichisliniyaListov =====
 /**
- * Обработчик события загрузки DOM
- * Вызывается когда весь DOM загружен и готов к работе
+ * Объект с данными вычислений листов для текущего компонента.
+ * Содержит поля: item_width, item_height, list_count, fit_total, cuts_count.
+ * @type {Object|null}
  */
+let additionalWorks_currentVichData = null;
+
+// ----------------------------------------------------------------------------
+// 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+// ----------------------------------------------------------------------------
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Секция "Дополнительные работы" загружена и инициализируется');
-    
-    // Инициализируем DOM элементы при загрузке
-    additionalWorks_initDOMElements();
-    
-    // Настраиваем обработчики событий для секции
-    additionalWorks_setupEventListeners();
-    
-    // Инициализируем интерфейс секции
-    additionalWorks_initInterface();
+    additionalWorks_initDOMElements();      // Найти все нужные DOM-элементы
+    additionalWorks_setupEventListeners();  // Навесить обработчики событий
+    additionalWorks_initInterface();        // Показать начальное состояние (нет компонента)
 });
 
-// ===== 3. ФУНКЦИИ ДЛЯ РАБОТЫ С DOM-ЭЛЕМЕНТАМИ =====
+// ----------------------------------------------------------------------------
+// 3. ФУНКЦИИ ДЛЯ РАБОТЫ С DOM-ЭЛЕМЕНТАМИ
+// ----------------------------------------------------------------------------
 
 /**
- * Инициализация DOM элементов секции
- * Вызывается при загрузке страницы для кэширования элементов
+ * Ищет и сохраняет ссылки на ключевые DOM-элементы.
+ * Если некоторые элементы отсутствуют, создаёт их программно.
  */
 function additionalWorks_initDOMElements() {
     console.log('🔍 Инициализация DOM элементов секции "Дополнительные работы"...');
-    
-    // Кэшируем элементы общей стоимости (ИСПРАВЛЕНО: уникальные названия)
+
+    // Поиск элементов, отвечающих за отображение общей стоимости
     additionalWorks_totalContainer = document.getElementById('additional-works-total-container');
     additionalWorks_totalPriceElement = document.getElementById('additional-works-total-price');
-    
-    // Находим элемент метки общей стоимости
-    additionalWorks_totalLabelElement = additionalWorks_totalContainer 
-        ? additionalWorks_totalContainer.querySelector('.additional-works-total-label') 
+    additionalWorks_totalLabelElement = additionalWorks_totalContainer
+        ? additionalWorks_totalContainer.querySelector('.additional-works-total-label')
         : null;
-    
-    // Отладочная информация
-    console.log('📊 DOM элементы общей стоимости:');
-    console.log('- Контейнер:', !!additionalWorks_totalContainer);
-    console.log('- Метка:', !!additionalWorks_totalLabelElement);
-    console.log('- Цена:', !!additionalWorks_totalPriceElement);
-    
-    // Если элементы не найдены, создаем их
+
+    // Если блок общей стоимости не найден, создаём его вручную
     if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
         console.warn('⚠️ Некоторые DOM элементы не найдены при инициализации');
-        additionalWorks_createMissingTotalElements();
+        additionalWorks_createMissingTotalElements(); // Создать их программно, если отсутствуют
     }
 }
 
 /**
- * Создает отсутствующие элементы общей стоимости
- * Вызывается если элементы не найдены в DOM
+ * Создаёт недостающие элементы для отображения общей стоимости.
+ * Это запасной вариант, если в HTML по какой-то причине их нет.
  */
 function additionalWorks_createMissingTotalElements() {
     console.log('🛠️ Создание отсутствующих элементов общей стоимости');
-    
-    // Находим контейнер таблицы
     const worksContainer = document.getElementById('additional-works-container');
     if (!worksContainer) {
         console.error('❌ Контейнер таблицы дополнительных работ не найден');
         return;
     }
-    
-    // Создаем элементы общей стоимости
+    // Создаём div-контейнер для общей стоимости
     const totalContainer = document.createElement('div');
     totalContainer.id = 'additional-works-total-container';
     totalContainer.className = 'additional-works-total-summary';
-    totalContainer.style.display = 'none';
-    
+    totalContainer.style.display = 'none'; // изначально скрыт
+
+    // Создаём метку
     const totalLabel = document.createElement('div');
     totalLabel.className = 'additional-works-total-label';
-    totalLabel.textContent = 'Общая стоимость дополнительных работ:';
-    
+    totalLabel.textContent = 'Общая стоимость дополнительных работ (компонент):';
+
+    // Создаём элемент для отображения суммы
     const totalPriceElement = document.createElement('div');
     totalPriceElement.id = 'additional-works-total-price';
     totalPriceElement.className = 'additional-works-total-price';
     totalPriceElement.textContent = '0.00 ₽';
-    
+
     // Собираем структуру
     totalContainer.appendChild(totalLabel);
     totalContainer.appendChild(totalPriceElement);
-    
-    // Добавляем элементы в контейнер таблицы
     worksContainer.appendChild(totalContainer);
-    
-    // Сохраняем ссылки на созданные элементы
+
+    // Сохраняем ссылки в глобальные переменные
     additionalWorks_totalContainer = totalContainer;
     additionalWorks_totalLabelElement = totalLabel;
     additionalWorks_totalPriceElement = totalPriceElement;
-    
+
     console.log('✅ Отсутствующие элементы общей стоимости созданы');
 }
 
-// ===== 4. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ =====
+// ----------------------------------------------------------------------------
+// 4. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ
+// ----------------------------------------------------------------------------
 
 /**
- * Настройка всех обработчиков событий для секции
+ * Навешивает все обработчики событий: внутренние (кнопки) и внешние (события документа).
  */
 function additionalWorks_setupEventListeners() {
     console.log('🔗 Настраиваем обработчики событий для секции "Дополнительные работы"...');
-    
-    // Обработчик для кнопки добавления работы
+
+    // Кнопка "Добавить" в заголовке секции
     const addBtn = document.getElementById('add-additional-work-btn');
-    if (addBtn) {
-        addBtn.addEventListener('click', additionalWorks_handleAddWork);
-    }
-    
-    // Обработчик для кнопки добавления первой работы
+    if (addBtn) addBtn.addEventListener('click', additionalWorks_handleAddWork);
+
+    // Кнопка "Добавить первую работу" (отображается, когда список пуст)
     const addFirstBtn = document.getElementById('add-first-work-btn');
-    if (addFirstBtn) {
-        addFirstBtn.addEventListener('click', additionalWorks_handleAddFirstWork);
-    }
-    
-    // Обработчик для кнопки сворачивания секции
+    if (addFirstBtn) addFirstBtn.addEventListener('click', additionalWorks_handleAddFirstWork);
+
+    // Кнопка сворачивания/разворачивания секции
     const collapseBtn = document.querySelector('.additional-works-btn-collapse-section');
-    if (collapseBtn) {
-        collapseBtn.addEventListener('click', additionalWorks_toggleSectionCollapse);
-    }
-    
+    if (collapseBtn) collapseBtn.addEventListener('click', additionalWorks_toggleSectionCollapse);
+
+    // ===== ВНЕШНИЕ СОБЫТИЯ, ГЕНЕРИРУЕМЫЕ ДРУГИМИ СЕКЦИЯМИ =====
+
+    // Событие выбора печатного компонента
+    document.addEventListener('printComponentSelected', function(event) {
+        console.log('📥 Получено событие выбора печатного компонента:', event.detail);
+        if (event.detail && event.detail.printComponentId) {
+            additionalWorks_currentProschetId = event.detail.proschetId;
+            additionalWorks_updateForPrintComponent(
+                event.detail.printComponentId,
+                event.detail.printComponentNumber,
+                event.detail.printerName
+            );
+        }
+    });
+
+    // Событие отмены выбора компонента
+    document.addEventListener('printComponentDeselected', function() {
+        console.log('📥 Получено событие отмены выбора компонента');
+        additionalWorks_resetSection();
+    });
+
+    // Событие обновления данных вычислений листов
+    document.addEventListener('vichisliniyaListovUpdated', function(event) {
+        console.log('📥 Получено событие vichisliniyaListovUpdated:', event.detail);
+        if (event.detail && event.detail.printComponentId == additionalWorks_currentComponentId) {
+            console.log('🔄 Данные вычислений листов изменились – перезагружаем доп. работы');
+            additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
+        }
+    });
+
+    // Событие изменения тиража просчёта
+    document.addEventListener('productCirculationUpdated', function(event) {
+        console.log('📥 Получено событие productCirculationUpdated:', event.detail);
+        if (event.detail && event.detail.proschetId == additionalWorks_currentProschetId) {
+            console.log('🔄 Тираж изменился – перезагружаем доп. работы для компонента', additionalWorks_currentComponentId);
+            if (additionalWorks_currentComponentId) {
+                additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
+            }
+        }
+    });
+
+    // ===== ОБРАБОТЧИК: обновление данных из справочника (в той же вкладке) =====
+    document.addEventListener('spravochnikWorkUpdated', function(event) {
+        console.log('📥 Получено событие spravochnikWorkUpdated:', event.detail);
+        if (additionalWorks_currentComponentId) {
+            console.log(`🔄 Работа в справочнике изменилась – перезагружаем доп. работы компонента ${additionalWorks_currentComponentId}`);
+            additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
+        }
+    });
+
+    // ===== СЛУШАТЕЛЬ ИЗМЕНЕНИЙ LOCALSTORAGE (МЕЖВКЛАДОЧНОЕ ВЗАИМОДЕЙСТВИЕ) =====
+    window.addEventListener('storage', function(event) {
+        // Проверяем, что изменился один из ключей, связанных со справочником
+        // Ключ spravochnik_last_update обновляется при изменении Work (базовые данные работы)
+        // Ключ work_price_last_update обновляется при изменении опорных точек цены (WorkPrice)
+        if (event.key === 'spravochnik_last_update' || event.key === 'work_price_last_update') {
+            console.log(`📥 Обнаружено изменение в другой вкладке по ключу ${event.key}, перезагружаем данные`);
+            // Если выбран печатный компонент, перезагружаем его дополнительные работы
+            if (additionalWorks_currentComponentId) {
+                additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
+            }
+        }
+    });
+
     console.log('✅ Обработчики событий настроены');
 }
 
 /**
- * Переключение состояния сворачивания/разворачивания секции
+ * Переключает сворачивание/разворачивание секции.
+ * @param {Event} event - событие клика по кнопке
  */
 function additionalWorks_toggleSectionCollapse(event) {
     const section = document.getElementById('additional-works-section');
     const icon = event.currentTarget.querySelector('i');
-    
     if (section.classList.contains('collapsed')) {
         section.classList.remove('collapsed');
         icon.classList.remove('fa-chevron-up');
@@ -191,76 +249,56 @@ function additionalWorks_toggleSectionCollapse(event) {
     }
 }
 
-// ===== 5. ОСНОВНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С ДОПОЛНИТЕЛЬНЫМИ РАБОТАМИ =====
+// ----------------------------------------------------------------------------
+// 5. ОСНОВНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ СЕКЦИЕЙ
+// ----------------------------------------------------------------------------
 
 /**
- * Инициализация интерфейса секции
- * Вызывается при загрузке страницы
+ * Инициализация интерфейса при загрузке страницы.
+ * Показывает сообщение о том, что компонент не выбран.
  */
 function additionalWorks_initInterface() {
     console.log('🎨 Инициализация интерфейса секции "Дополнительные работы"');
-    additionalWorks_showNoProschetSelectedMessage();
+    additionalWorks_showNoComponentSelectedMessage(); // Показываем сообщение "компонент не выбран"
 }
 
 /**
- * Обновление секции для выбранного просчёта
- * @param {number} proschetId - ID просчёта
- * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
+ * Обновляет секцию при выборе нового печатного компонента.
+ * @param {number} componentId - ID печатного компонента
+ * @param {string} componentNumber - Номер компонента (например, "KP-1")
+ * @param {string} printerName - Название принтера (может быть null)
  */
-function additionalWorks_updateForProschet(proschetId, rowElement) {
-    console.log(`🔄 Обновление секции "Дополнительные работы" для просчёта ID: ${proschetId}`);
-    
-    // Сохраняем ID просчёта
-    additionalWorks_currentProschetId = proschetId;
-    
-    // Обновляем заголовок
-    additionalWorks_updateProschetTitle(rowElement);
-    
-    // Загружаем работы
-    additionalWorks_loadWorksForProschet(proschetId);
-    
-    // Восстанавливаем выбор
-    additionalWorks_restoreProschetSelection(proschetId);
+function additionalWorks_updateForPrintComponent(componentId, componentNumber, printerName) {
+    console.log(`🔄 Обновление секции "Дополнительные работы" для компонента ID: ${componentId} (${componentNumber})`);
+    additionalWorks_deselectCurrentWork();               // Снимаем выделение с предыдущей работы
+    additionalWorks_currentComponentId = componentId;
+    additionalWorks_updateComponentTitle(componentNumber, printerName); // Обновляем заголовок
+    additionalWorks_loadWorksForComponent(componentId);  // Загружаем список работ с сервера
+    additionalWorks_showAddButton(true);                  // Показываем кнопку "Добавить"
 }
 
 /**
- * Обновление заголовка просчёта в секции
- * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
+ * Обновляет заголовок секции, добавляя номер и принтер выбранного компонента.
+ * @param {string} componentNumber - Номер компонента
+ * @param {string} printerName - Название принтера
  */
-function additionalWorks_updateProschetTitle(rowElement) {
-    const proschetTitleElement = document.getElementById('additional-works-proschet-title');
-    if (!proschetTitleElement) {
-        console.warn('❌ Элемент #additional-works-proschet-title не найден');
-        return;
-    }
-    
-    const titleCell = rowElement.querySelector('.proschet-title');
-    if (!titleCell) {
-        console.warn('❌ Ячейка с названием просчёта не найдена');
-        return;
-    }
-    
-    const proschetTitle = titleCell.textContent.trim();
-    proschetTitleElement.innerHTML = `
-        <span class="additional-works-proschet-title-active">
-            ${proschetTitle}
-        </span>
-    `;
+function additionalWorks_updateComponentTitle(componentNumber, printerName) {
+    const titleElement = document.getElementById('additional-works-component-title');
+    if (!titleElement) return;
+    let displayText = componentNumber;
+    if (printerName) displayText += ` (${printerName})`;
+    titleElement.innerHTML = `<span class="additional-works-component-title-active">${displayText}</span>`;
 }
 
 /**
- * Загрузка дополнительных работ для указанного просчёта
- * @param {number} proschetId - ID просчёта
+ * Загружает список дополнительных работ для указанного компонента с сервера.
+ * @param {number} componentId - ID печатного компонента
  */
-function additionalWorks_loadWorksForProschet(proschetId) {
-    console.log(`📥 Загрузка дополнительных работ для просчёта ID: ${proschetId}`);
-    
-    // Сохраняем ID просчёта перед загрузкой
-    additionalWorks_currentProschetId = proschetId;
-    
-    additionalWorks_showLoadingState();
-    const url = `${additionalWorks_apiUrls.getWorks}${proschetId}/`;
-    
+function additionalWorks_loadWorksForComponent(componentId) {
+    console.log(`📥 Загрузка дополнительных работ для компонента ID: ${componentId}`);
+    additionalWorks_showLoadingState(); // Показываем индикатор загрузки в таблице
+
+    const url = `${additionalWorks_apiUrls.getWorks}${componentId}/`;
     fetch(url, {
         method: 'GET',
         headers: {
@@ -269,18 +307,24 @@ function additionalWorks_loadWorksForProschet(proschetId) {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         return response.json();
     })
     .then(data => {
         console.log('📊 Получены данные дополнительных работ:', data);
-        
         if (data.success) {
-            additionalWorks_currentAdditionalWorks = data.works || [];
+            // Сохраняем список работ
+            additionalWorks_currentWorks = data.works || [];
+            // Сохраняем данные из VichisliniyaListov (параметры печатного компонента)
+            additionalWorks_currentVichData = data.vich_data || {
+                item_width: 0,
+                item_height: 0,
+                list_count: 0,
+                fit_total: 0,
+                cuts_count: 0
+            };
+            // Обновляем интерфейс на основе полученных данных
             additionalWorks_updateInterface(data.works || []);
-            console.log(`✅ Загружено ${additionalWorks_currentAdditionalWorks.length} дополнительных работ`);
         } else {
             console.error('❌ Ошибка при загрузке работ:', data.message);
             additionalWorks_showErrorMessage('Не удалось загрузить дополнительные работы');
@@ -289,41 +333,34 @@ function additionalWorks_loadWorksForProschet(proschetId) {
     .catch(error => {
         console.error('❌ Ошибка сети при загрузке работ:', error);
         additionalWorks_showErrorMessage('Ошибка сети при загрузке дополнительных работ');
-        
-        // Восстанавливаем выбор просчёта даже при ошибке
-        if (proschetId) {
-            additionalWorks_restoreProschetSelection(proschetId);
-        }
     });
 }
 
 /**
- * Обновление интерфейса с дополнительными работами
- * @param {Array} works - Массив объектов дополнительных работ
+ * Обновляет интерфейс в зависимости от наличия работ.
+ * @param {Array} works - массив объектов дополнительных работ
  */
 function additionalWorks_updateInterface(works) {
     console.log('🔄 Обновление интерфейса с дополнительными работами', works);
-    
-    // Синхронизируем выбранный просчёт с другими секциями
-    additionalWorks_syncProschetSelection();
-    
-    // Скрываем все сообщения и контейнеры
-    additionalWorks_hideAllMessagesAndContainers();
-    
+    additionalWorks_hideAllMessagesAndContainers(); // Скрываем все вспомогательные блоки
+
     if (works.length === 0) {
-        additionalWorks_showNoWorksMessage();
-        additionalWorks_updateTotalPrice([]);
+        // Если работ нет – показываем сообщение "нет работ"
+        additionalWorks_showNoWorksMessage();         // Показываем "нет работ"
+        additionalWorks_updateTotalPrice([]);         // Обнуляем общую сумму
+        additionalWorks_deselectCurrentWork();        // Снимаем выделение
     } else {
-        additionalWorks_showTable();
-        additionalWorks_populateTable(works);
-        additionalWorks_updateTotalPrice(works);
+        // Если работы есть – показываем таблицу и заполняем её
+        additionalWorks_showTable();                   // Показываем таблицу
+        additionalWorks_populateTable(works);          // Заполняем таблицу данными
+        additionalWorks_updateTotalPrice(works);       // Вычисляем и отображаем общую стоимость
     }
-    
-    additionalWorks_showAddButton(true);
-    
-    // Отправляем событие для обновления других секций
+    additionalWorks_showAddButton(true);                // Кнопка "Добавить" всегда видна при выбранном компоненте
+
+    // Отправляем событие, что список работ обновлён (для других секций, например "Цена")
     const event = new CustomEvent('additionalWorksUpdated', {
         detail: {
+            componentId: additionalWorks_currentComponentId,
             proschetId: additionalWorks_currentProschetId,
             works: works
         }
@@ -332,8 +369,8 @@ function additionalWorks_updateInterface(works) {
 }
 
 /**
- * Заполнение таблицы дополнительными работами
- * @param {Array} works - Массив объектов дополнительных работ
+ * Заполняет таблицу строками с данными работ.
+ * @param {Array} works - массив объектов дополнительных работ
  */
 function additionalWorks_populateTable(works) {
     const tableBody = document.getElementById('additional-works-table-body');
@@ -341,54 +378,68 @@ function additionalWorks_populateTable(works) {
         console.error('❌ Элемент #additional-works-table-body не найден');
         return;
     }
-    
-    tableBody.innerHTML = '';
-    
+    tableBody.innerHTML = ''; // Очищаем таблицу
+
+    // Для каждой работы создаём строку и добавляем в тело таблицы
     works.forEach((work, index) => {
         const row = additionalWorks_createWorkRow(work, index);
         tableBody.appendChild(row);
     });
-    
     console.log(`✅ Таблица обновлена: добавлено ${works.length} строк`);
+
+    // Если ранее была выбрана какая-то работа, восстанавливаем выделение
+    if (additionalWorks_currentSelectedWorkId) {
+        const selectedRow = document.querySelector(`#additional-works-table-body tr[data-work-id="${additionalWorks_currentSelectedWorkId}"]`);
+        if (selectedRow) {
+            document.querySelectorAll('#additional-works-table-body tr').forEach(r => r.classList.remove('selected'));
+            selectedRow.classList.add('selected');
+            console.log(`🔄 Восстановлено выделение работы ID=${additionalWorks_currentSelectedWorkId}`);
+        } else {
+            additionalWorks_deselectCurrentWork();
+        }
+    }
 }
 
 /**
- * Создание строки таблицы для дополнительной работы
- * @param {Object} work - Объект работы
- * @param {number} index - Индекс в массиве
- * @returns {HTMLElement} DOM-элемент строки таблицы
+ * Создаёт DOM-элемент строки таблицы для одной дополнительной работы.
+ * @param {Object} work - объект дополнительной работы (включает поля effective_price, formatted_effective_price)
+ * @param {number} index - индекс для чередования цвета строк
+ * @returns {HTMLTableRowElement} готовая строка таблицы
  */
 function additionalWorks_createWorkRow(work, index) {
     const row = document.createElement('tr');
-    
-    // Добавляем классы для чередования строк
-    if (index % 2 === 0) {
-        row.classList.add('additional-works-even-row');
-    } else {
-        row.classList.add('additional-works-odd-row');
-    }
-    
-    // Добавляем класс для возможности выбора строки
+    row.classList.add(index % 2 === 0 ? 'additional-works-even-row' : 'additional-works-odd-row');
     row.classList.add('additional-works-selectable-row');
     row.dataset.workId = work.id;
-    
-    // Заполняем содержимое строки
+
+    // Получаем данные из VichisliniyaListov (хранятся в глобальной переменной additionalWorks_currentVichData)
+    const vich = additionalWorks_currentVichData || {
+        item_width: 0,
+        item_height: 0,
+        list_count: 0,
+        fit_total: 0,
+        cuts_count: 0
+    };
+
+    // Формируем HTML строки.
+    // В колонке "Цена" теперь используется work.formatted_effective_price (эффективная цена за единицу)
     row.innerHTML = `
         <td class="additional-works-work-number">${work.number || '—'}</td>
-        <td class="additional-works-work-title additional-works-editable-cell" 
+        <td class="additional-works-work-title">${work.title || '—'}</td>
+        <td class="additional-works-work-price">${work.formatted_effective_price || '0.00 ₽'}</td>
+        <td class="additional-works-work-quantity additional-works-editable-cell"
             data-editable="true"
-            data-field="title"
-            data-original-value="${work.title || ''}"
+            data-field="quantity"
+            data-original-value="${work.quantity || 1}"
             data-work-id="${work.id}">
-            ${work.title || '—'}
+            ${work.quantity || 1}
         </td>
-        <td class="additional-works-work-price additional-works-editable-cell"
-            data-editable="true"
-            data-field="price"
-            data-original-value="${work.price || '0.00'}"
-            data-work-id="${work.id}">
-            ${work.formatted_price || '0.00 ₽'}
-        </td>
+        <td class="additional-works-component-width">${vich.item_width.toFixed(2)}</td>
+        <td class="additional-works-component-height">${vich.item_height.toFixed(2)}</td>
+        <td class="additional-works-component-sheet-count">${vich.list_count.toFixed(2)}</td>
+        <td class="additional-works-component-fit-total">${vich.fit_total}</td>
+        <td class="additional-works-component-cuts-count">${vich.cuts_count}</td>
+        <td class="additional-works-work-total-price">${work.formatted_total_price || '0.00 ₽'}</td>
         <td class="additional-works-work-actions">
             <button type="button" class="additional-works-delete-work-btn" 
                     title="Удалить работу" 
@@ -397,161 +448,156 @@ function additionalWorks_createWorkRow(work, index) {
             </button>
         </td>
     `;
-    
-    // Обработчик клика по строке (для выделения)
+
+    // Обработчик клика по строке (выделение работы)
     row.addEventListener('click', function(event) {
-        if (!event.target.closest('.additional-works-delete-work-btn') && 
-            !event.target.closest('.additional-works-editable-cell')) {
-            const allRows = document.querySelectorAll('#additional-works-table-body tr');
-            allRows.forEach(r => r.classList.remove('additional-works-selected'));
-            this.classList.add('additional-works-selected');
+        if (event.target.closest('.additional-works-delete-work-btn') ||
+            event.target.closest('.additional-works-editable-cell')) {
+            return;
         }
+        const allRows = document.querySelectorAll('#additional-works-table-body tr');
+        allRows.forEach(r => r.classList.remove('selected'));
+        this.classList.add('selected');
+        additionalWorks_currentSelectedWorkId = work.id;
+        console.log(`✅ Выбрана дополнительная работа ID=${work.id} (${work.number})`);
+
+        const selectEvent = new CustomEvent('additionalWorkSelected', {
+            detail: {
+                workId: work.id,
+                workNumber: work.number,
+                workTitle: work.title,
+                workPrice: work.effective_price, // теперь effective_price
+                formattedWorkPrice: work.formatted_effective_price,
+                componentId: additionalWorks_currentComponentId,
+                proschetId: additionalWorks_currentProschetId,
+                timestamp: new Date().toISOString()
+            }
+        });
+        document.dispatchEvent(selectEvent);
     });
-    
-    // Обработчики для inline-редактирования
-    const titleCell = row.querySelector('.additional-works-work-title');
-    const priceCell = row.querySelector('.additional-works-work-price');
-    
-    if (titleCell) {
-        titleCell.addEventListener('dblclick', function(event) {
+
+    // Навешиваем обработчик двойного клика только на ячейку количества
+    const quantityCell = row.querySelector('.additional-works-work-quantity');
+    if (quantityCell) {
+        quantityCell.addEventListener('dblclick', function(event) {
             event.stopPropagation();
-            additionalWorks_enableInlineEdit(this, 'title');
+            additionalWorks_enableInlineEdit(this, 'quantity');
         });
     }
-    
-    if (priceCell) {
-        priceCell.addEventListener('dblclick', function(event) {
-            event.stopPropagation();
-            additionalWorks_enableInlineEdit(this, 'price');
-        });
-    }
-    
+
     // Обработчик для кнопки удаления
     const deleteBtn = row.querySelector('.additional-works-delete-work-btn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function(event) {
             event.stopPropagation();
             const workId = this.dataset.workId;
-            if (workId) {
-                additionalWorks_deleteWork(workId, row);
-            }
+            if (workId) additionalWorks_deleteWork(workId, row);
         });
     }
-    
+
     return row;
 }
 
-// ===== 6. ФУНКЦИИ ДЛЯ РАБОТЫ С ОБЩЕЙ СТОИМОСТЬЮ (ИСПРАВЛЕНО) =====
+// ----------------------------------------------------------------------------
+// 6. ФУНКЦИИ ДЛЯ РАБОТЫ С ОБЩЕЙ СТОИМОСТЬЮ
+// ----------------------------------------------------------------------------
 
 /**
- * Обновление отображения общей стоимости работ
- * @param {Array} works - Массив объектов дополнительных работ
+ * Обновляет отображение общей стоимости дополнительных работ.
+ * Вычисляет сумму всех total_price работ, обновляет DOM и отправляет событие.
+ * @param {Array} works - Массив объектов работ
  */
 function additionalWorks_updateTotalPrice(works) {
     console.log('💰 Обновление общей стоимости дополнительных работ');
-    console.log('📊 Количество работ:', works.length);
-    
-    // Проверяем, инициализированы ли элементы
+    // Убеждаемся, что DOM-элементы существуют
     if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
-        console.warn('⚠️ DOM элементы общей стоимости не инициализированы, пытаемся найти...');
         additionalWorks_initDOMElements();
-        
         if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
             console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Элементы для отображения общей стоимости не найдены!');
             return;
         }
     }
-    
-    // Вычисляем общую стоимость всех работ
+
+    // Суммируем total_price (общую стоимость каждой работы), а не цену за единицу
     let totalPrice = 0;
     works.forEach(work => {
-        if (work.price) {
-            totalPrice += parseFloat(work.price);
+        if (work.total_price) {
+            totalPrice += parseFloat(work.total_price);
         }
     });
-    
-    console.log(`📊 Рассчитана общая стоимость работ: ${totalPrice.toFixed(2)} ₽`);
-    
-    // Форматируем и отображаем общую стоимость
+    console.log(`📊 Рассчитана общая стоимость работ (на основе total_price): ${totalPrice.toFixed(2)} ₽`);
+
+    // Обновляем текст в блоке
     additionalWorks_totalPriceElement.textContent = `${totalPrice.toFixed(2)} ₽`;
-    
-    // Обновляем метку (на всякий случай)
-    additionalWorks_totalLabelElement.textContent = 'Общая стоимость дополнительных работ:';
-    
-    // Управляем видимостью блока общей стоимости
-    if (works.length > 0) {
-        additionalWorks_totalContainer.style.display = 'flex';
-        console.log(`✅ Показан блок общей стоимости дополнительных работ`);
-    } else {
-        additionalWorks_totalContainer.style.display = 'none';
-        console.log(`✅ Скрыт блок общей стоимости (работ нет)`);
-    }
-    
+    additionalWorks_totalLabelElement.textContent = 'Общая стоимость дополнительных работ (компонент):';
+    // Показываем блок, только если есть работы
+    additionalWorks_totalContainer.style.display = works.length > 0 ? 'flex' : 'none';
+
     console.log(`✅ Локальная сумма обновлена: ${totalPrice.toFixed(2)} ₽`);
-    
-    // Отправляем событие для обновления секции "Цена"
-    if (additionalWorks_currentProschetId) {
+
+    // Отправляем событие для обновления секции "Цена" (price.js)
+    if (additionalWorks_currentComponentId) {
         const event = new CustomEvent('additionalWorksUpdated', {
             detail: {
+                componentId: additionalWorks_currentComponentId,
                 proschetId: additionalWorks_currentProschetId,
                 works: works,
                 totalPrice: totalPrice
             }
         });
         document.dispatchEvent(event);
-        console.log(`📤 Событие additionalWorksUpdated отправлено для просчёта ${additionalWorks_currentProschetId}`);
+        console.log(`📤 Событие additionalWorksUpdated отправлено для компонента ${additionalWorks_currentComponentId}`);
     } else {
-        console.warn('⚠️ Не удалось отправить событие additionalWorksUpdated: просчёт не выбран');
+        console.warn('⚠️ Не удалось отправить событие additionalWorksUpdated: компонент не выбран');
     }
 }
 
-// ===== 7. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА =====
+// ----------------------------------------------------------------------------
+// 7. УПРАВЛЕНИЕ СОСТОЯНИЯМИ ИНТЕРФЕЙСА
+// ----------------------------------------------------------------------------
 
 /**
- * Показ сообщения "Выберите просчёт"
+ * Показывает сообщение "Компонент не выбран" и скрывает всё остальное.
  */
-function additionalWorks_showNoProschetSelectedMessage() {
-    const noProschetMsg = document.getElementById('no-proschet-selected-additional');
+function additionalWorks_showNoComponentSelectedMessage() {
+    const noComponentMsg = document.getElementById('no-component-selected-additional');
     const noWorksMsg = document.getElementById('no-works-message');
     const worksContainer = document.getElementById('additional-works-container');
     const addButton = document.getElementById('add-additional-work-btn');
-    
-    if (noProschetMsg) noProschetMsg.style.display = 'block';
+    if (noComponentMsg) noComponentMsg.style.display = 'block';
     if (noWorksMsg) noWorksMsg.style.display = 'none';
     if (worksContainer) worksContainer.style.display = 'none';
     if (addButton) addButton.style.display = 'none';
-    
-    const proschetTitleElement = document.getElementById('additional-works-proschet-title');
-    if (proschetTitleElement) {
-        proschetTitleElement.innerHTML = `<span class="additional-works-placeholder-text">(просчёт не выбран)</span>`;
-    }
-    
+    const titleElement = document.getElementById('additional-works-component-title');
+    if (titleElement) titleElement.innerHTML = `<span class="additional-works-placeholder-text">(компонент не выбран)</span>`;
+    // Сбрасываем все данные
+    additionalWorks_currentComponentId = null;
     additionalWorks_currentProschetId = null;
-    additionalWorks_currentAdditionalWorks = [];
+    additionalWorks_currentWorks = [];
+    additionalWorks_currentVichData = null;
+    additionalWorks_deselectCurrentWork();
 }
 
 /**
- * Показ сообщения "Нет дополнительных работ"
+ * Показывает сообщение "Нет дополнительных работ" (когда компонент выбран, но список пуст).
  */
 function additionalWorks_showNoWorksMessage() {
-    const noProschetMsg = document.getElementById('no-proschet-selected-additional');
+    const noComponentMsg = document.getElementById('no-component-selected-additional');
     const noWorksMsg = document.getElementById('no-works-message');
     const worksContainer = document.getElementById('additional-works-container');
-    
-    if (noProschetMsg) noProschetMsg.style.display = 'none';
+    if (noComponentMsg) noComponentMsg.style.display = 'none';
     if (noWorksMsg) noWorksMsg.style.display = 'block';
     if (worksContainer) worksContainer.style.display = 'none';
 }
 
 /**
- * Показ таблицы с работами
+ * Показывает таблицу с дополнительными работами.
  */
 function additionalWorks_showTable() {
-    const noProschetMsg = document.getElementById('no-proschet-selected-additional');
+    const noComponentMsg = document.getElementById('no-component-selected-additional');
     const noWorksMsg = document.getElementById('no-works-message');
     const worksContainer = document.getElementById('additional-works-container');
-    
-    if (noProschetMsg) noProschetMsg.style.display = 'none';
+    if (noComponentMsg) noComponentMsg.style.display = 'none';
     if (noWorksMsg) noWorksMsg.style.display = 'none';
     if (worksContainer) {
         worksContainer.style.display = 'block';
@@ -560,43 +606,40 @@ function additionalWorks_showTable() {
 }
 
 /**
- * Показ состояния загрузки
+ * Показывает индикатор загрузки в таблице.
  */
 function additionalWorks_showLoadingState() {
-    const noProschetMsg = document.getElementById('no-proschet-selected-additional');
+    const noComponentMsg = document.getElementById('no-component-selected-additional');
     const noWorksMsg = document.getElementById('no-works-message');
     const worksContainer = document.getElementById('additional-works-container');
     const tableBody = document.getElementById('additional-works-table-body');
-    
-    if (noProschetMsg) noProschetMsg.style.display = 'none';
+    if (noComponentMsg) noComponentMsg.style.display = 'none';
     if (noWorksMsg) noWorksMsg.style.display = 'none';
-    
     if (tableBody) {
+        // Заменяем содержимое таблицы на строку с индикатором загрузки
+        // colspan должен быть равен количеству колонок (11)
         tableBody.innerHTML = `
             <tr>
-                <td colspan="4" class="additional-works-text-center" style="padding: 40px;">
+                <td colspan="11" class="additional-works-text-center" style="padding: 40px;">
                     <div class="additional-works-loading-spinner"></div>
                     <p>Загрузка дополнительных работ...</p>
                 </td>
             </tr>
         `;
-        
-        if (worksContainer) {
-            worksContainer.style.display = 'block';
-        }
+        if (worksContainer) worksContainer.style.display = 'block';
     }
 }
 
 /**
- * Показ сообщения об ошибке
- * @param {string} message - Текст сообщения об ошибке
+ * Показывает сообщение об ошибке при загрузке.
+ * @param {string} message - текст ошибки
  */
 function additionalWorks_showErrorMessage(message) {
     const tableBody = document.getElementById('additional-works-table-body');
     if (tableBody) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="4" class="additional-works-text-center" style="padding: 40px; color: #e74c3c;">
+                <td colspan="11" class="additional-works-text-center" style="padding: 40px; color: #e74c3c;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
                     <p>${message}</p>
                     <button type="button" id="additional-works-retry-load-btn" class="additional-works-btn-action" style="margin-top: 10px;">
@@ -605,297 +648,302 @@ function additionalWorks_showErrorMessage(message) {
                 </td>
             </tr>
         `;
-        
         const retryBtn = document.getElementById('additional-works-retry-load-btn');
-        if (retryBtn && additionalWorks_currentProschetId) {
+        if (retryBtn && additionalWorks_currentComponentId) {
             retryBtn.addEventListener('click', function() {
-                additionalWorks_loadWorksForProschet(additionalWorks_currentProschetId);
+                additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
             });
         }
     }
 }
 
 /**
- * Скрытие всех сообщений и контейнеров
+ * Скрывает все вспомогательные сообщения (компонент не выбран, нет работ).
  */
 function additionalWorks_hideAllMessagesAndContainers() {
-    const noProschetMsg = document.getElementById('no-proschet-selected-additional');
+    const noComponentMsg = document.getElementById('no-component-selected-additional');
     const noWorksMsg = document.getElementById('no-works-message');
-    
-    if (noProschetMsg) noProschetMsg.style.display = 'none';
+    if (noComponentMsg) noComponentMsg.style.display = 'none';
     if (noWorksMsg) noWorksMsg.style.display = 'none';
 }
 
 /**
- * Показ/скрытие кнопки добавления
- * @param {boolean} show - Показывать кнопку (true) или скрыть (false)
+ * Показывает или скрывает кнопку "Добавить".
+ * @param {boolean} show - true – показать, false – скрыть
  */
 function additionalWorks_showAddButton(show) {
     const addButton = document.getElementById('add-additional-work-btn');
-    if (addButton) {
-        addButton.style.display = show ? 'inline-block' : 'none';
-    }
+    if (addButton) addButton.style.display = show ? 'inline-block' : 'none';
 }
 
-// ===== 8. ОБРАБОТЧИКИ КНОПОК =====
+// ----------------------------------------------------------------------------
+// 8. ОБРАБОТЧИКИ ДОБАВЛЕНИЯ РАБОТЫ (МОДАЛЬНОЕ ОКНО)
+// ----------------------------------------------------------------------------
 
 /**
- * Обработчик кнопки добавления работы
+ * Обработчик клика по кнопке "Добавить".
  */
 function additionalWorks_handleAddWork() {
-    console.log('🛠️ Добавление новой дополнительной работы');
-    
-    if (!additionalWorks_currentProschetId) {
-        additionalWorks_showNotification('Сначала выберите просчёт', 'warning');
+    console.log('🛠️ Добавление новой дополнительной работы через справочник');
+    if (!additionalWorks_currentComponentId) {
+        additionalWorks_showNotification('Сначала выберите печатный компонент', 'warning');
         return;
     }
-    
-    additionalWorks_showAddWorkModal();
+    additionalWorks_openAddModal();
 }
 
 /**
- * Обработчик кнопки добавления первой работы
+ * Обработчик клика по кнопке "Добавить первую работу" (в сообщении о пустом списке).
  */
 function additionalWorks_handleAddFirstWork() {
     console.log('➕ Добавление первой дополнительной работы');
     additionalWorks_handleAddWork();
 }
 
-// ===== 9. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-
 /**
- * Получение CSRF-токена из куки
- * @returns {string} CSRF-токен
+ * Открывает модальное окно для добавления работы.
  */
-function additionalWorks_getCsrfToken() {
-    const name = 'csrftoken';
-    const cookies = document.cookie.split(';');
-    
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith(name + '=')) {
-            return decodeURIComponent(cookie.substring(name.length + 1));
-        }
-    }
-    
-    console.warn('⚠️ CSRF-токен не найден');
-    return '';
-}
-
-
-/**
- * Восстановление выбранного просчёта после операций
- * @param {number} proschetId - ID просчёта для восстановления
- */
-function additionalWorks_restoreProschetSelection(proschetId) {
-    console.log(`🔧 Восстановление выбора просчёта ID: ${proschetId}`);
-    
-    if (!proschetId) {
-        console.warn('⚠️ Не указан ID просчёта для восстановления');
+function additionalWorks_openAddModal() {
+    const modalOverlay = document.getElementById('additional-work-modal');
+    if (!modalOverlay) {
+        console.error('❌ Модальное окно не найдено!');
         return;
     }
-    
-    // Обновляем глобальную переменную
-    additionalWorks_currentProschetId = proschetId;
-    
-    // Обновляем заголовок в секции
-    const proschetTitleElement = document.getElementById('additional-works-proschet-title');
-    if (proschetTitleElement) {
-        proschetTitleElement.innerHTML = `
-            <span class="additional-works-proschet-title-active">
-                Просчёт #${proschetId}
-            </span>
-        `;
-    }
-    
-    // Показываем кнопку добавления
-    additionalWorks_showAddButton(true);
-    
-    // Синхронизируем с другими секциями
-    additionalWorks_syncProschetSelection();
-}
 
+    // Показываем оверлей (делаем display: flex)
+    modalOverlay.style.display = 'flex';
 
+    // Устанавливаем ID текущего компонента в скрытое поле формы
+    const hiddenInput = document.getElementById('modal-print-component-id');
+    if (hiddenInput) hiddenInput.value = additionalWorks_currentComponentId;
 
-/**
- * Показ уведомления
- * @param {string} message - Текст уведомления
- * @param {string} type - Тип уведомления (info, success, error, warning)
- */
-function additionalWorks_showNotification(message, type = 'info') {
-    console.log(`📢 Показ уведомления [${type}]: ${message}`);
-    
-    const notification = document.createElement('div');
-    notification.className = `additional-works-notification additional-works-notification-${type}`;
-    
-    let icon = 'info-circle';
-    if (type === 'success') icon = 'check-circle';
-    if (type === 'error') icon = 'exclamation-circle';
-    if (type === 'warning') icon = 'exclamation-triangle';
-    
-    notification.innerHTML = `
-        <div class="additional-works-notification-content">
-            <i class="fas fa-${icon}"></i>
-            <span>${message}</span>
-        </div>
-        <button type="button" class="additional-works-notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    document.body.appendChild(notification);
-    
+    // Сбрасываем форму
+    const form = document.getElementById('additional-work-add-form');
+    if (form) form.reset();
+
+    // Очищаем поля названия и цены (на всякий случай) – это гарантирует, что
+    // в полях не останется старых значений, и placeholder будет виден.
+    const titleDisplay = document.getElementById('work-title-display');
+    const priceInput = document.getElementById('work-price-input');
+    if (titleDisplay) titleDisplay.value = '';
+    if (priceInput) priceInput.value = '';
+
+    // Небольшая задержка перед добавлением классов анимации, чтобы браузер успел применить display
     setTimeout(() => {
-        notification.classList.add('additional-works-notification-show');
+        modalOverlay.classList.add('additional-works-active');
+        const modal = modalOverlay.querySelector('.additional-works-modal');
+        if (modal) modal.classList.add('additional-works-active');
     }, 10);
-    
-    const closeBtn = notification.querySelector('.additional-works-notification-close');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-            notification.classList.remove('additional-works-notification-show');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        });
-    }
-    
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.classList.remove('additional-works-notification-show');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }
-    }, 5000);
+
+    // Загружаем список работ из справочника для выпадающего списка
+    additionalWorks_loadSpravochnikWorks();
 }
 
-// ===== 10. ЭКСПОРТ ФУНКЦИЙ ДЛЯ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ =====
-
 /**
- * Объект для взаимодействия с другими секциями
+ * Загружает список работ из справочника и заполняет выпадающий список в модальном окне.
  */
-window.additionalWorksSection = {
-    /**
-     * Обновление секции для выбранного просчёта
-     * @param {number} proschetId - ID просчёта
-     * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
-     */
-    updateForProschet: function(proschetId, rowElement) {
-        additionalWorks_updateForProschet(proschetId, rowElement);
-    },
-    
-    /**
-     * Сброс секции к начальному состоянию
-     */
-    reset: function() {
-        additionalWorks_showNoProschetSelectedMessage();
-    },
-    
-    /**
-     * Получение текущего ID просчёта
-     * @returns {number|null} Текущий ID просчёта
-     */
-    getCurrentProschetId: function() {
-        return additionalWorks_currentProschetId;
-    },
-    
-    /**
-     * Получение текущих дополнительных работ
-     * @returns {Array} Массив текущих работ
-     */
-    getCurrentWorks: function() {
-        return additionalWorks_currentAdditionalWorks;
-    },
-    
-    /**
-     * Восстановление выбранного просчёта
-     * @param {number} proschetId - ID просчёта для восстановления
-     */
-    restoreProschetSelection: function(proschetId) {
-        additionalWorks_restoreProschetSelection(proschetId);
-    }
-};
+function additionalWorks_loadSpravochnikWorks() {
+    const select = document.getElementById('spravochnik-work-select');
+    if (!select) return;
 
-// ===== 11. ФУНКЦИИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ =====
+    // Показываем загрузку
+    select.innerHTML = '<option value="" disabled selected>⏳ Загрузка...</option>';
+
+    fetch(additionalWorks_apiUrls.getSpravochnikWorks, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': additionalWorks_getCsrfToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.works) {
+            // Очищаем и заполняем выпадающий список
+            select.innerHTML = '<option value="" disabled selected>— Выберите работу —</option>';
+            data.works.forEach(work => {
+                const option = document.createElement('option');
+                option.value = work.id;
+                option.dataset.name = work.name;
+                option.dataset.price = work.price;
+                option.textContent = `${work.name} — ${work.price} ₽`;
+                select.appendChild(option);
+            });
+            console.log(`✅ Загружено ${data.works.length} работ из справочника`);
+        } else {
+            select.innerHTML = '<option value="" disabled>Ошибка загрузки</option>';
+            additionalWorks_showNotification('Не удалось загрузить справочник', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ошибка загрузки справочника:', error);
+        select.innerHTML = '<option value="" disabled>Ошибка соединения</option>';
+        additionalWorks_showNotification('Ошибка сети при загрузке справочника', 'error');
+    });
+}
+
+// Обработчик изменения выпадающего списка – заполняет поля названия и цены
+document.getElementById('spravochnik-work-select')?.addEventListener('change', function(e) {
+    const selectedOption = e.target.selectedOptions[0];
+    if (!selectedOption || !selectedOption.value) return;
+
+    const name = selectedOption.dataset.name;
+    const price = selectedOption.dataset.price;
+
+    const titleDisplay = document.getElementById('work-title-display');
+    const priceInput = document.getElementById('work-price-input');
+    if (titleDisplay) titleDisplay.value = name || '';
+    if (priceInput) priceInput.value = price || '';
+});
+
+// Обработчик отправки формы добавления работы
+document.getElementById('additional-work-add-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const componentId = document.getElementById('modal-print-component-id')?.value;
+    const title = document.getElementById('work-title-display')?.value;
+    const price = document.getElementById('work-price-input')?.value;
+
+    if (!componentId) {
+        additionalWorks_showNotification('Ошибка: не выбран печатный компонент', 'error');
+        return;
+    }
+    if (!title || title.trim() === '') {
+        additionalWorks_showNotification('Название работы не может быть пустым', 'error');
+        return;
+    }
+    if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+        additionalWorks_showNotification('Введите корректную цену (≥ 0)', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('print_component_id', componentId);
+    formData.append('title', title.trim());
+    formData.append('price', parseFloat(price).toFixed(2));
+    formData.append('quantity', 1); // По умолчанию количество = 1
+
+    // Если выбран элемент справочника, передаём его ID
+    const workSelect = document.getElementById('spravochnik-work-select');
+    if (workSelect && workSelect.value) {
+        formData.append('work_id', workSelect.value);
+    }
+
+    const submitBtn = document.getElementById('modal-submit-btn');
+    const originalText = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
+    }
+
+    fetch(additionalWorks_apiUrls.addWork, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': additionalWorks_getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            additionalWorks_closeModal();
+            additionalWorks_showNotification('Дополнительная работа добавлена', 'success');
+            if (additionalWorks_currentComponentId) {
+                // Перезагружаем список работ, чтобы отобразить новую
+                additionalWorks_loadWorksForComponent(additionalWorks_currentComponentId);
+            }
+        } else {
+            additionalWorks_showNotification(data.message || 'Ошибка при добавлении', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ошибка:', error);
+        additionalWorks_showNotification('Ошибка сети', 'error');
+    })
+    .finally(() => {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+});
 
 /**
- * Активация inline-редактирования для ячейки таблицы
- * @param {HTMLElement} cellElement - DOM-элемент ячейки
- * @param {string} fieldName - Название поля (title или price)
+ * Закрывает модальное окно.
+ */
+function additionalWorks_closeModal() {
+    const modalOverlay = document.getElementById('additional-work-modal');
+    if (modalOverlay) {
+        const modal = modalOverlay.querySelector('.additional-works-modal');
+        if (modal) modal.classList.remove('additional-works-active');
+        modalOverlay.classList.remove('additional-works-active');
+        // После завершения анимации скрываем оверлей полностью
+        setTimeout(() => {
+            modalOverlay.style.display = 'none';
+        }, 300);
+    }
+}
+
+// Обработчики закрытия модального окна
+document.getElementById('modal-close-btn')?.addEventListener('click', additionalWorks_closeModal);
+document.getElementById('modal-cancel-btn')?.addEventListener('click', additionalWorks_closeModal);
+document.getElementById('additional-work-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) additionalWorks_closeModal(); // Клик по оверлею (фону) закрывает окно
+});
+
+// ----------------------------------------------------------------------------
+// 9. INLINE-РЕДАКТИРОВАНИЕ (ТОЛЬКО КОЛИЧЕСТВО) И УДАЛЕНИЕ
+// ----------------------------------------------------------------------------
+
+/**
+ * Активирует режим редактирования для ячейки количества.
+ * @param {HTMLElement} cellElement - ячейка таблицы
+ * @param {string} fieldName - название поля (всегда 'quantity')
  */
 function additionalWorks_enableInlineEdit(cellElement, fieldName) {
     console.log(`🔄 Активация inline-редактирования для поля: ${fieldName}`);
-    
-    if (!cellElement.dataset.editable || cellElement.dataset.editable !== 'true') {
-        console.warn('❌ Ячейка не доступна для редактирования');
-        return;
-    }
-    
-    if (cellElement.classList.contains('additional-works-editing-cell')) {
-        console.log('⚠️ Ячейка уже находится в режиме редактирования');
-        return;
-    }
-    
+    // Проверяем, что ячейка помечена как редактируемая и ещё не в режиме редактирования
+    if (!cellElement.dataset.editable || cellElement.dataset.editable !== 'true') return;
+    if (cellElement.classList.contains('additional-works-editing-cell')) return;
+
     const workId = cellElement.dataset.workId;
-    if (!workId) {
-        console.warn('❌ Не удалось получить ID работы для редактирования');
-        return;
-    }
-    
+    if (!workId) return;
+
     const currentValue = cellElement.dataset.originalValue || '';
     const originalHTML = cellElement.innerHTML;
-    
-    let inputElement;
-    
-    if (fieldName === 'title') {
-        inputElement = document.createElement('input');
-        inputElement.type = 'text';
-        inputElement.value = currentValue;
-        inputElement.className = 'additional-works-inline-edit-input';
-        inputElement.placeholder = 'Введите название работы';
-        inputElement.maxLength = 200;
-        inputElement.autocomplete = 'off';
-        inputElement.autocapitalize = 'off';
-        inputElement.spellcheck = false;
-    } else if (fieldName === 'price') {
-        inputElement = document.createElement('input');
-        inputElement.type = 'number';
-        inputElement.value = currentValue;
-        inputElement.className = 'additional-works-inline-edit-input';
-        inputElement.placeholder = '0.00';
-        inputElement.min = '0';
-        inputElement.step = '0.01';
-        inputElement.max = '9999999.99';
-        inputElement.autocomplete = 'off';
-    } else {
-        console.warn(`❌ Неподдерживаемое поле для редактирования: ${fieldName}`);
-        return;
-    }
-    
-    cellElement.dataset.currentInputId = 'input_' + Date.now();
+
+    // Создаём поле ввода для количества (тип number)
+    let inputElement = document.createElement('input');
+    inputElement.type = 'number';
+    inputElement.value = currentValue;
+    inputElement.className = 'additional-works-inline-edit-input';
+    inputElement.placeholder = '1';
+    inputElement.min = '1';
+    inputElement.step = '1';
+    inputElement.max = '9999';
+
+    // Заменяем содержимое ячейки на поле ввода
     cellElement.innerHTML = '';
     cellElement.appendChild(inputElement);
     cellElement.classList.add('additional-works-editing-cell');
-    
+
+    // Фокус на поле ввода с небольшой задержкой
     setTimeout(() => {
         inputElement.focus();
-        if (fieldName === 'title' || fieldName === 'price') {
-            inputElement.select();
-        }
+        inputElement.select();
     }, 10);
-    
-    let isSaving = false;
-    
-    // Обработчик нажатия клавиш
+
+    let isSaving = false; // Флаг, чтобы избежать двойного сохранения
+
+    // Обработчик нажатия клавиш в поле ввода
     inputElement.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
             event.stopPropagation();
-            
             if (!isSaving) {
                 isSaving = true;
                 additionalWorks_saveInlineEdit(cellElement, fieldName, workId, inputElement.value, originalHTML);
@@ -903,13 +951,13 @@ function additionalWorks_enableInlineEdit(cellElement, fieldName) {
         } else if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
-            
+            // Отмена редактирования – восстанавливаем исходное содержимое
             cellElement.innerHTML = originalHTML;
             cellElement.classList.remove('additional-works-editing-cell');
             additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
         }
     });
-    
+
     // Обработчик потери фокуса
     inputElement.addEventListener('blur', function(event) {
         setTimeout(() => {
@@ -919,95 +967,51 @@ function additionalWorks_enableInlineEdit(cellElement, fieldName) {
             }
         }, 150);
     });
-    
-    // Предотвращаем всплытие событий мыши
-    inputElement.addEventListener('mousedown', function(event) {
-        event.stopPropagation();
-    });
+
+    // Предотвращаем всплытие клика, чтобы не выделять строку при клике на поле
+    inputElement.addEventListener('mousedown', function(event) { event.stopPropagation(); });
 }
 
 /**
- * Сохранение изменений при inline-редактировании
- * @param {HTMLElement} cellElement - DOM-элемент ячейки
- * @param {string} fieldName - Название поля
- * @param {string} workId - ID работы
- * @param {string} newValue - Новое значение
- * @param {string} originalHTML - Оригинальное HTML содержимое
+ * Сохраняет изменённое значение количества на сервер.
+ * @param {HTMLElement} cellElement - ячейка таблицы
+ * @param {string} fieldName - название поля ('quantity')
+ * @param {number} workId - ID дополнительной работы
+ * @param {string} newValue - новое значение
+ * @param {string} originalHTML - исходный HTML ячейки для восстановления в случае ошибки
  */
 function additionalWorks_saveInlineEdit(cellElement, fieldName, workId, newValue, originalHTML) {
     console.log(`💾 Сохранение изменений для работы ID: ${workId}, поле: ${fieldName}`);
-    
-    // Сохраняем текущий ID просчёта перед сохранением
-    const currentProschetId = additionalWorks_currentProschetId;
-    console.log(`💾 Сохраняем текущий ID просчёта: ${currentProschetId}`);
-    
-    // Если значение не изменилось
+    const currentComponentId = additionalWorks_currentComponentId;
+
+    // Если значение не изменилось – просто выходим из режима редактирования
     if (newValue === cellElement.dataset.originalValue) {
-        console.log('📝 Значение не изменилось, отмена редактирования');
         cellElement.innerHTML = originalHTML;
         cellElement.classList.remove('additional-works-editing-cell');
         additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
         return;
     }
-    
+
+    // Валидация: должно быть целое число ≥ 1
     let validatedValue = newValue.trim();
-    
-    // Валидация для названия
-    if (fieldName === 'title') {
-        if (!validatedValue) {
-            additionalWorks_showNotification('Название не может быть пустым', 'error');
-            cellElement.innerHTML = originalHTML;
-            cellElement.classList.remove('additional-works-editing-cell');
-            additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
-            return;
-        }
-        
-        if (validatedValue.length > 200) {
-            additionalWorks_showNotification('Название не должно превышать 200 символов', 'error');
-            cellElement.innerHTML = originalHTML;
-            cellElement.classList.remove('additional-works-editing-cell');
-            additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
-            return;
-        }
-    } 
-    // Валидация для цены
-    else if (fieldName === 'price') {
-        const priceValue = parseFloat(validatedValue);
-        
-        if (isNaN(priceValue)) {
-            additionalWorks_showNotification('Цена должна быть числом', 'error');
-            cellElement.innerHTML = originalHTML;
-            cellElement.classList.remove('additional-works-editing-cell');
-            additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
-            return;
-        }
-        
-        if (priceValue < 0) {
-            additionalWorks_showNotification('Цена не может быть отрицательной', 'error');
-            cellElement.innerHTML = originalHTML;
-            cellElement.classList.remove('additional-works-editing-cell');
-            additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
-            return;
-        }
-        
-        validatedValue = priceValue.toFixed(2);
+    const quantityValue = parseInt(validatedValue, 10);
+    if (isNaN(quantityValue) || quantityValue < 1) {
+        additionalWorks_showNotification('Количество должно быть целым числом ≥ 1', 'error');
+        cellElement.innerHTML = originalHTML;
+        cellElement.classList.remove('additional-works-editing-cell');
+        additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
+        return;
     }
-    
+    validatedValue = quantityValue;
+
     // Показываем индикатор сохранения
-    cellElement.innerHTML = `
-        <div class="additional-works-inline-edit-saving">
-            <i class="fas fa-spinner fa-spin"></i>
-            <span>Сохранение...</span>
-        </div>
-    `;
-    
-    // Подготавливаем данные для отправки
+    cellElement.innerHTML = `<div class="additional-works-inline-edit-saving"><i class="fas fa-spinner fa-spin"></i><span>Сохранение...</span></div>`;
+
     const formData = new FormData();
     formData.append('work_id', workId);
     formData.append('field_name', fieldName);
     formData.append('field_value', validatedValue);
-    
-    // Отправляем запрос на сервер
+
     fetch(additionalWorks_apiUrls.updateWork, {
         method: 'POST',
         body: formData,
@@ -1019,34 +1023,13 @@ function additionalWorks_saveInlineEdit(cellElement, fieldName, workId, newValue
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log('✅ Изменения успешно сохранены');
-            
-            // Обновляем содержимое ячейки
-            if (fieldName === 'title') {
-                cellElement.textContent = validatedValue;
-                cellElement.dataset.originalValue = validatedValue;
-                additionalWorks_showNotification('Изменения сохранены', 'success');
-                
-                // Немедленно обновляем интерфейс для названия
-                cellElement.classList.remove('additional-works-editing-cell');
-                additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
-            } else if (fieldName === 'price') {
-                const formattedPrice = `${parseFloat(validatedValue).toFixed(2)} ₽`;
-                cellElement.textContent = formattedPrice;
-                cellElement.dataset.originalValue = validatedValue;
-                
-                // Перезагружаем работы для обновления общей стоимости, но сохраняем ID просчёта
-                if (currentProschetId) {
-                    console.log(`🔄 Перезагружаем работы для сохранённого просчёта ID: ${currentProschetId}`);
-                    // Небольшая задержка для надёжности
-                    setTimeout(() => {
-                        additionalWorks_loadWorksForProschet(currentProschetId);
-                    }, 300);
-                }
-                additionalWorks_showNotification('Изменения сохранены', 'success');
+            // После успешного сохранения перезагружаем список работ, чтобы обновить total_price и общую сумму
+            if (currentComponentId) {
+                setTimeout(() => additionalWorks_loadWorksForComponent(currentComponentId), 300);
             }
+            additionalWorks_showNotification('Количество обновлено', 'success');
         } else {
-            console.error('❌ Ошибка при сохранении:', data.message);
+            // Ошибка – восстанавливаем исходное содержимое ячейки
             cellElement.innerHTML = originalHTML;
             cellElement.classList.remove('additional-works-editing-cell');
             additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId);
@@ -1062,102 +1045,44 @@ function additionalWorks_saveInlineEdit(cellElement, fieldName, workId, newValue
     });
 }
 
-
 /**
- * Синхронизация выбранного просчёта с другими секциями
- */
-function additionalWorks_syncProschetSelection() {
-    console.log(`🔄 Синхронизация выбранного просчёта: ${additionalWorks_currentProschetId}`);
-    
-    if (!additionalWorks_currentProschetId) {
-        console.warn('⚠️ Нет текущего ID просчёта для синхронизации');
-        return;
-    }
-    
-    // Отправляем событие другим секциям для обновления выделения
-    const event = new CustomEvent('additionalWorksProschetSync', {
-        detail: {
-            proschetId: additionalWorks_currentProschetId
-        }
-    });
-    document.dispatchEvent(event);
-    console.log(`📤 Событие синхронизации отправлено для просчёта ${additionalWorks_currentProschetId}`);
-}
-
-// Вызывать эту функцию после каждой операции:
-// В additionalWorks_loadWorksForProschet после успешной загрузки:
-// additionalWorks_syncProschetSelection();
-
-// В additionalWorks_handleAddWorkSubmit после успешного добавления:
-// additionalWorks_syncProschetSelection();
-
-// В additionalWorks_deleteWork после успешного удаления:
-// additionalWorks_syncProschetSelection();
-
-
-
-
-/**
- * Восстановление обработчиков событий для ячейки после редактирования
- * @param {HTMLElement} cellElement - DOM-элемент ячейки
- * @param {string} fieldName - Название поля
- * @param {string} workId - ID работы
+ * Восстанавливает обработчик двойного клика для ячейки количества.
+ * @param {HTMLElement} cellElement - ячейка таблицы
+ * @param {string} fieldName - название поля ('quantity')
+ * @param {number} workId - ID работы
  */
 function additionalWorks_restoreCellEventListeners(cellElement, fieldName, workId) {
-    console.log(`🔄 Восстановление обработчиков для ячейки, поле: ${fieldName}`);
-    
-    // Удаляем старые обработчики
     const oldHandler = cellElement._doubleClickHandler;
-    if (oldHandler) {
-        cellElement.removeEventListener('dblclick', oldHandler);
-    }
-    
-    // Создаем новый обработчик
+    if (oldHandler) cellElement.removeEventListener('dblclick', oldHandler);
     const handleDoubleClick = function(event) {
         event.stopPropagation();
         additionalWorks_enableInlineEdit(this, fieldName);
     };
-    
-    // Сохраняем ссылку на обработчик
     cellElement._doubleClickHandler = handleDoubleClick;
-    
-    // Добавляем новый обработчик
     cellElement.addEventListener('dblclick', handleDoubleClick);
 }
 
 /**
- * Удаление дополнительной работы
- * @param {string} workId - ID работы для удаления
- * @param {HTMLElement} rowElement - DOM-элемент строки таблицы
+ * Удаляет дополнительную работу.
+ * @param {number} workId - ID работы
+ * @param {HTMLElement} rowElement - строка таблицы, соответствующая работе
  */
 function additionalWorks_deleteWork(workId, rowElement) {
     console.log(`🗑️ Запрос на удаление работы ID: ${workId}`);
-    
-    // Сохраняем текущий ID просчёта перед удалением
-    const currentProschetId = additionalWorks_currentProschetId;
-    console.log(`💾 Сохраняем текущий ID просчёта: ${currentProschetId}`);
-    
-    if (!workId) {
-        console.warn('❌ Не указан ID работы для удаления');
-        return;
-    }
-    
-    if (!confirm('Вы уверены, что хотите удалить эту дополнительную работу?')) {
-        console.log('❌ Удаление отменено пользователем');
-        return;
-    }
-    
-    console.log(`🗑️ Удаление дополнительной работы ID: ${workId}`);
-    
-    // Визуально отключаем строку
+    const currentComponentId = additionalWorks_currentComponentId;
+    if (!workId) return;
+    if (!confirm('Вы уверены, что хотите удалить эту дополнительную работу?')) return;
+
+    // Если удаляемая работа была выделена, снимаем выделение
+    if (additionalWorks_currentSelectedWorkId == workId) additionalWorks_deselectCurrentWork();
+
+    // Визуально отмечаем удаление (делаем строку полупрозрачной)
     rowElement.style.opacity = '0.5';
     rowElement.style.pointerEvents = 'none';
-    
-    // Подготавливаем данные для отправки
+
     const formData = new FormData();
     formData.append('work_id', workId);
-    
-    // Отправляем запрос на сервер
+
     fetch(additionalWorks_apiUrls.deleteWork, {
         method: 'POST',
         body: formData,
@@ -1169,28 +1094,15 @@ function additionalWorks_deleteWork(workId, rowElement) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log('✅ Работа успешно удалена');
-            
-            // Удаляем строку из таблицы
-            if (rowElement.parentNode) {
-                rowElement.parentNode.removeChild(rowElement);
-            }
-            
-            // Показываем уведомление
+            // Удаляем строку из DOM
+            if (rowElement.parentNode) rowElement.parentNode.removeChild(rowElement);
             additionalWorks_showNotification('Работа успешно удалена', 'success');
-            
-            // Восстанавливаем и перезагружаем работы для текущего просчёта
-            if (currentProschetId) {
-                console.log(`🔄 Перезагружаем работы для сохранённого просчёта ID: ${currentProschetId}`);
-                // Небольшая задержка для надёжности
-                setTimeout(() => {
-                    additionalWorks_loadWorksForProschet(currentProschetId);
-                }, 300);
-            } else {
-                console.error('❌ Ошибка: не удалось восстановить ID просчёта');
+            // Перезагружаем список, чтобы обновить общую сумму (можно и без перезагрузки, но для надёжности)
+            if (currentComponentId) {
+                setTimeout(() => additionalWorks_loadWorksForComponent(currentComponentId), 300);
             }
         } else {
-            console.error('❌ Ошибка при удалении работы:', data.message);
+            // Возвращаем строку в нормальное состояние
             rowElement.style.opacity = '1';
             rowElement.style.pointerEvents = 'auto';
             additionalWorks_showNotification(data.message || 'Ошибка при удалении работы', 'error');
@@ -1204,300 +1116,118 @@ function additionalWorks_deleteWork(workId, rowElement) {
     });
 }
 
+// ----------------------------------------------------------------------------
+// 10. УПРАВЛЕНИЕ ВЫБОРОМ РАБОТЫ
+// ----------------------------------------------------------------------------
+
 /**
- * Показать модальное окно для добавления новой работы
+ * Снимает выделение с текущей выбранной работы.
  */
-function additionalWorks_showAddWorkModal() {
-    console.log('🪟 Открытие модального окна для добавления работы');
-    
-    // Проверяем, не открыто ли уже модальное окно
-    if (document.getElementById('additional-works-modal-overlay')) {
-        console.log('⚠️ Модальное окно уже открыто');
-        return;
+function additionalWorks_deselectCurrentWork() {
+    if (additionalWorks_currentSelectedWorkId) {
+        console.log(`🔄 Снятие выбора с работы ID=${additionalWorks_currentSelectedWorkId}`);
+        document.querySelectorAll('#additional-works-table-body tr').forEach(row => row.classList.remove('selected'));
+        const deselectedWorkId = additionalWorks_currentSelectedWorkId;
+        additionalWorks_currentSelectedWorkId = null;
+        const event = new CustomEvent('additionalWorkDeselected', {
+            detail: {
+                workId: deselectedWorkId,
+                componentId: additionalWorks_currentComponentId,
+                proschetId: additionalWorks_currentProschetId,
+                timestamp: new Date().toISOString()
+            }
+        });
+        document.dispatchEvent(event);
+        console.log('📤 Событие additionalWorkDeselected отправлено');
+    } else {
+        console.log('ℹ️ Нет выбранной работы для снятия выделения');
     }
-    
-    // Создаем оверлей для модального окна
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'additional-works-modal-overlay';
-    modalOverlay.id = 'additional-works-modal-overlay';
-    
-    // Создаем само модальное окно
-    const modal = document.createElement('div');
-    modal.className = 'additional-works-modal';
-    modal.id = 'additional-works-modal';
-    
-    // Заполняем содержимое модального окна
-    modal.innerHTML = `
-        <div class="additional-works-modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Добавить дополнительную работу</h3>
-            <button type="button" class="additional-works-modal-close-btn" id="additional-works-modal-close">
-                <i class="fas fa-times"></i>
-            </button>
+}
+
+// ----------------------------------------------------------------------------
+// 11. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (CSRF, уведомления, сброс)
+// ----------------------------------------------------------------------------
+
+/**
+ * Получает CSRF-токен из cookies.
+ * @returns {string} токен или пустая строка
+ */
+function additionalWorks_getCsrfToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith(name + '=')) return decodeURIComponent(cookie.substring(name.length + 1));
+    }
+    console.warn('⚠️ CSRF-токен не найден');
+    return '';
+}
+
+/**
+ * Показывает всплывающее уведомление.
+ * @param {string} message - текст сообщения
+ * @param {string} type - тип: 'success', 'error', 'warning', 'info'
+ */
+function additionalWorks_showNotification(message, type = 'info') {
+    console.log(`📢 Показ уведомления [${type}]: ${message}`);
+    const notification = document.createElement('div');
+    notification.className = `additional-works-notification additional-works-notification-${type}`;
+    let icon = 'info-circle';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'error') icon = 'exclamation-circle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    notification.innerHTML = `
+        <div class="additional-works-notification-content">
+            <i class="fas fa-${icon}"></i>
+            <span>${message}</span>
         </div>
-        <div class="additional-works-modal-body">
-            <form id="additional-works-add-form">
-                <div class="additional-works-form-group">
-                    <label for="additional-work-title">
-                        <i class="fas fa-heading"></i> Название работы *
-                    </label>
-                    <input type="text" 
-                           id="additional-work-title" 
-                           name="title" 
-                           class="additional-works-modal-input" 
-                           placeholder="Например: Резка, Ламинация, Доставка..." 
-                           maxlength="200"
-                           required>
-                    <small class="additional-works-form-hint">Максимум 200 символов</small>
-                </div>
-                
-                <div class="additional-works-form-group">
-                    <label for="additional-work-price">
-                        <i class="fas fa-ruble-sign"></i> Цена (₽) *
-                    </label>
-                    <input type="number" 
-                           id="additional-work-price" 
-                           name="price" 
-                           class="additional-works-modal-input" 
-                           placeholder="0.00" 
-                           min="0" 
-                           step="0.01" 
-                           max="9999999.99"
-                           required>
-                    <small class="additional-works-form-hint">Цена в рублях. Максимум 9 999 999.99 ₽</small>
-                </div>
-                
-                <div class="additional-works-form-footer">
-                    <button type="button" 
-                            id="additional-works-modal-cancel" 
-                            class="additional-works-modal-cancel-btn">
-                        <i class="fas fa-times"></i> Отмена
-                    </button>
-                    <button type="submit" 
-                            id="additional-works-modal-submit" 
-                            class="additional-works-modal-submit-btn">
-                        <i class="fas fa-plus"></i> Добавить работу
-                    </button>
-                </div>
-            </form>
-        </div>
+        <button type="button" class="additional-works-notification-close"><i class="fas fa-times"></i></button>
     `;
-    
-    modalOverlay.appendChild(modal);
-    document.body.appendChild(modalOverlay);
-    
-    // Анимация появления
-    setTimeout(() => {
-        modalOverlay.classList.add('additional-works-active');
-        modal.classList.add('additional-works-active');
-    }, 10);
-    
-    // Функция закрытия модального окна
-    const createCloseModal = () => {
-        // Внутренняя функция закрытия
-        const closeModalFunction = () => {
-            console.log('🪟 Закрытие модального окна');
-            modalOverlay.classList.remove('additional-works-active');
-            modal.classList.remove('additional-works-active');
-            setTimeout(() => {
-                if (modalOverlay.parentNode) {
-                    modalOverlay.parentNode.removeChild(modalOverlay);
-                }
-            }, 300);
-            
-            // Удаляем обработчик ESC при закрытии
-            document.removeEventListener('keydown', handleEscKey);
-        };
-        
-        return closeModalFunction;
-    };
-    
-    // Создаем функцию закрытия
-    const closeModal = createCloseModal();
-    
-    // Закрытие по клавише ESC
-    const handleEscKey = (event) => {
-        if (event.key === 'Escape') {
-            closeModal();
-        }
-    };
-    document.addEventListener('keydown', handleEscKey);
-    
-    // Обработчики для кнопок закрытия
-    const closeBtn = document.getElementById('additional-works-modal-close');
-    const cancelBtn = document.getElementById('additional-works-modal-cancel');
-    
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    
-    // Закрытие по клику на оверлей (вне модального окна)
-    modalOverlay.addEventListener('click', (event) => {
-        if (event.target === modalOverlay) {
-            closeModal();
-        }
-    });
-    
-    // Обработчик отправки формы
-    const form = document.getElementById('additional-works-add-form');
-    if (form) {
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            additionalWorks_handleAddWorkSubmit(this);
+    document.body.appendChild(notification);
+    setTimeout(() => notification.classList.add('additional-works-notification-show'), 10);
+
+    const closeBtn = notification.querySelector('.additional-works-notification-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            notification.classList.remove('additional-works-notification-show');
+            setTimeout(() => { if (notification.parentNode) notification.parentNode.removeChild(notification); }, 300);
         });
     }
-    
-    // Фокус на поле названия
+
+    // Автоматически скрываем через 5 секунд
     setTimeout(() => {
-        const titleInput = document.getElementById('additional-work-title');
-        if (titleInput) titleInput.focus();
-    }, 100);
+        if (notification.parentNode) {
+            notification.classList.remove('additional-works-notification-show');
+            setTimeout(() => { if (notification.parentNode) notification.parentNode.removeChild(notification); }, 300);
+        }
+    }, 5000);
 }
 
 /**
- * Обработчик отправки формы добавления работы
- * @param {HTMLFormElement} formElement - DOM-элемент формы
+ * Полный сброс секции (при отмене выбора компонента).
  */
-function additionalWorks_handleAddWorkSubmit(formElement) {
-    console.log('📤 Отправка формы добавления работы');
-    
-    // Сохраняем текущий ID просчёта перед отправкой
-    const currentProschetId = additionalWorks_currentProschetId;
-    console.log(`💾 Сохраняем текущий ID просчёта: ${currentProschetId}`);
-    
-    if (!currentProschetId) {
-        console.error('❌ Ошибка: ID просчёта не установлен');
-        additionalWorks_showNotification('Ошибка: не выбран просчёт', 'error');
-        return;
-    }
-    
-    // Получаем данные из формы
-    const title = document.getElementById('additional-work-title').value;
-    const price = document.getElementById('additional-work-price').value;
-    
-    // Валидация данных
-    if (!title || title.trim() === '') {
-        additionalWorks_showNotification('Введите название работы', 'error');
-        return;
-    }
-    
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-        additionalWorks_showNotification('Введите корректную цену', 'error');
-        return;
-    }
-    
-    // Получаем кнопку отправки
-    const submitBtn = document.getElementById('additional-works-modal-submit');
-    const originalText = submitBtn ? submitBtn.innerHTML : '';
-    
-    // Блокируем кнопку отправки
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
-    }
-    
-    // Подготавливаем данные для отправки
-    const formData = new FormData();
-    formData.append('title', title.trim());
-    formData.append('price', parseFloat(price).toFixed(2));
-    formData.append('proschet_id', currentProschetId);
-    
-    // Получаем CSRF токен
-    const csrfToken = additionalWorks_getCsrfToken();
-    if (!csrfToken) {
-        console.error('❌ Ошибка: CSRF токен не найден');
-        additionalWorks_showNotification('Ошибка безопасности', 'error');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-        return;
-    }
-    
-    console.log('📦 Отправляемые данные:', {
-        title: title.trim(),
-        price: parseFloat(price).toFixed(2),
-        proschet_id: currentProschetId
-    });
-    
-    // Отправляем запрос на сервер
-    fetch(additionalWorks_apiUrls.addWork, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => {
-        console.log('📥 Статус ответа:', response.status);
-        if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('📊 Данные ответа:', data);
-        
-        if (data.success) {
-            console.log('✅ Работа успешно добавлена, ID:', data.work_id);
-            
-            // Закрываем модальное окно
-            const modalOverlay = document.getElementById('additional-works-modal-overlay');
-            if (modalOverlay) {
-                modalOverlay.classList.remove('additional-works-active');
-                setTimeout(() => {
-                    if (modalOverlay.parentNode) {
-                        modalOverlay.parentNode.removeChild(modalOverlay);
-                    }
-                }, 300);
-            }
-            
-            // Показываем уведомление
-            additionalWorks_showNotification('Дополнительная работа успешно добавлена', 'success');
-            
-            // Восстанавливаем и перезагружаем работы для текущего просчёта
-            if (currentProschetId) {
-                console.log(`🔄 Перезагружаем работы для сохранённого просчёта ID: ${currentProschetId}`);
-                // Небольшая задержка для надёжности
-                setTimeout(() => {
-                    additionalWorks_loadWorksForProschet(currentProschetId);
-                }, 300);
-            } else {
-                console.error('❌ Ошибка: не удалось восстановить ID просчёта');
-            }
-        } else {
-            console.error('❌ Ошибка при добавлении работы:', data.message);
-            let errorMessage = data.message || 'Ошибка при добавлении работы';
-            
-            // Если есть ошибки валидации, показываем их
-            if (data.errors) {
-                errorMessage += ': ' + JSON.stringify(data.errors);
-            }
-            
-            additionalWorks_showNotification(errorMessage, 'error');
-            
-            // Разблокируем кнопку
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
-        }
-    })
-    .catch(error => {
-        console.error('❌ Ошибка сети при добавлении работы:', error);
-        additionalWorks_showNotification('Ошибка сети при добавлении работы: ' + error.message, 'error');
-        
-        // Разблокируем кнопку
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-    });
+function additionalWorks_resetSection() {
+    console.log('🔄 Сброс секции "Дополнительные работы"');
+    additionalWorks_showNoComponentSelectedMessage();
+    additionalWorks_currentComponentId = null;
+    additionalWorks_currentProschetId = null;
+    additionalWorks_currentWorks = [];
+    additionalWorks_currentVichData = null;
+    additionalWorks_deselectCurrentWork();
 }
 
+// ----------------------------------------------------------------------------
+// 12. ЭКСПОРТ ФУНКЦИЙ ДЛЯ ДРУГИХ СЕКЦИЙ
+// ----------------------------------------------------------------------------
 
-
-// ===== 12. ЭКСПОРТ ФУНКЦИЙ ДЛЯ ВЗАИМОДЕЙСТВИЯ С ДРУГИМИ СЕКЦИЯМИ =====
-
-
+window.additionalWorksSection = {
+    updateForPrintComponent: additionalWorks_updateForPrintComponent,
+    reset: additionalWorks_resetSection,
+    getCurrentComponentId: () => additionalWorks_currentComponentId,
+    getCurrentWorks: () => additionalWorks_currentWorks,
+    getSelectedWorkId: () => additionalWorks_currentSelectedWorkId,
+    deselectCurrentWork: additionalWorks_deselectCurrentWork,
+    getCurrentVichData: () => additionalWorks_currentVichData,
+};
 
 console.log('✅ Секция "Дополнительные работы" полностью реализована со всеми функциями');
