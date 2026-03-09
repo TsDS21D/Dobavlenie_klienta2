@@ -603,99 +603,157 @@ class AdditionalWork(models.Model):
         - Получает актуальное количество листов и резов из модели VichisliniyaListovModel.
         - Получает тираж из связанного просчёта.
         - Вычисляет effective_price (интерполированную цену за единицу) для данной работы.
-        - Для формул 3 и 4 подставляет актуальное количество резов вместо lines_count.
-        - Для формулы 4 использует коэффициент k_lines из связанной работы Work.
-        - Рассчитывает общую стоимость по выбранной формуле, используя effective_price.
+        - В зависимости от типа формулы рассчитывает общую стоимость (total_price).
+        - Сохраняет объект в базу данных.
         """
-        # 1. Генерация номера в формате DR-...
+
+        # ------------------------------------------------------------------
+        # 1. Генерация номера работы в формате DR-...
+        # ------------------------------------------------------------------
         if not self.number or self.number.strip() == '':
             try:
+                # Находим все существующие номера, начинающиеся с "DR-"
                 existing_numbers = AdditionalWork.objects.filter(
                     number__startswith='DR-'
                 ).exclude(number__exact='').exclude(number__isnull=True).values_list('number', flat=True)
+
                 max_num = 0
                 for num_str in existing_numbers:
                     try:
+                        # Извлекаем числовую часть после дефиса
                         num_part = num_str.split('-')[1]
                         current_num = int(num_part)
                         if current_num > max_num:
                             max_num = current_num
                     except (ValueError, IndexError, AttributeError):
-                        continue
+                        continue  # пропускаем некорректные номера
+
+                # Новый номер = максимальный + 1
                 self.number = f"DR-{max_num + 1}"
             except Exception:
+                # Если что-то пошло не так, просто присваиваем номер на основе общего количества записей
                 self.number = f"DR-{AdditionalWork.objects.count() + 1}"
 
+        # ------------------------------------------------------------------
         # 2. Получение данных из связанного печатного компонента и просчёта
+        # ------------------------------------------------------------------
         if self.print_component_id:
-            component = self.print_component
-            proschet = component.proschet
+            component = self.print_component          # объект печатного компонента
+            proschet = component.proschet              # связанный просчёт
 
-            # ===== ПОЛУЧАЕМ АКТУАЛЬНОЕ КОЛИЧЕСТВО ЛИСТОВ И РЕЗОВ ИЗ VichisliniyaListovModel =====
+            # Получаем актуальное количество листов и резов из модели VichisliniyaListovModel
             from vichisliniya_listov.models import VichisliniyaListovModel
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
                     vichisliniya_listov_print_component=component
                 )
-                sheet_count = vich_data.vichisliniya_listov_list_count
-                cuts_count = vich_data.vichisliniya_listov_cuts_count  # получаем количество резов
+                sheet_count = vich_data.vichisliniya_listov_list_count   # количество листов
+                cuts_count = vich_data.vichisliniya_listov_cuts_count    # количество резов
             except VichisliniyaListovModel.DoesNotExist:
-                # Если записи нет – количество листов равно 0, резы = 0
+                # Если запись отсутствует – листов и резов нет (0)
                 sheet_count = Decimal('0')
                 cuts_count = 0
 
             # Тираж берём из просчёта
             circulation = proschet.circulation if proschet.circulation else 0
         else:
-            # Если компонент не указан (такого быть не должно, но на всякий случай)
+            # Без печатного компонента (такого не должно быть, но на всякий случай)
             sheet_count = Decimal('0')
             circulation = 0
             cuts_count = 0
 
-        # 3. Подготовка значений для формулы
+        # ------------------------------------------------------------------
+        # 3. Вычисление эффективной цены за единицу работы (effective_price)
+        #    Метод _get_effective_price() использует опорные точки из справочника,
+        #    если работа связана со справочником (self.work != None), иначе возвращает self.price.
+        # ------------------------------------------------------------------
         effective_price = self._get_effective_price(sheet_count)
-        qty = self.quantity if self.quantity else 1
-        lines = self.lines_count if self.lines_count else 1
-        items = self.items_per_sheet if self.items_per_sheet else 1
 
-        # ===== ИСПРАВЛЕНИЕ: для формул, использующих линии реза, подставляем актуальное количество резов =====
+        # ------------------------------------------------------------------
+        # 4. Подготовка переменных, используемых в формулах
+        # ------------------------------------------------------------------
+        qty = self.quantity if self.quantity else 1          # количество единиц работы
+        items = self.items_per_sheet if self.items_per_sheet else 1   # изделий на листе
+
+        # Для формул, использующих линии реза, подставляем актуальное количество резов (cuts_count)
         if self.formula_type in [3, 4]:
-            lines = cuts_count  # используем реальное количество резов
+            lines = cuts_count   # реальные резы
+        else:
+            lines = self.lines_count if self.lines_count else 1   # значение по умолчанию
 
-        # 4. Вычисление общей стоимости в зависимости от типа формулы
+        # ------------------------------------------------------------------
+        # 5. Вычисление общей стоимости в зависимости от типа формулы
+        # ------------------------------------------------------------------
         if self.formula_type == 1:
-            # Фиксированная цена: effective_price × количество
-            total = effective_price * qty
+            # ===== ФОРМУЛА 1 (ФИКСИРОВАННАЯ ЦЕНА) =====
+            # Берётся базовая цена self.price (из поля модели, скопированная из справочника или введённая вручную).
+            # Не зависит от количества листов и тиража. Умножается на количество единиц (qty).
+            total = self.price * qty
+
         elif self.formula_type == 2:
-            # Тираж × effective_price: effective_price × тираж × количество
+            # ===== ФОРМУЛА 2 (ТИРАЖ × ЦЕНА) =====
+            # Используется effective_price (интерполированная цена за единицу), умноженная на тираж и количество.
             total = effective_price * circulation * qty
+
         elif self.formula_type == 3:
-            # Тираж × effective_price × количество линий реза
-            total = effective_price * circulation * lines * qty
+            # ===== ФОРМУЛА 3 (ЦЕНА × КОЛИЧЕСТВО ЛИСТОВ × КОЛИЧЕСТВО РЕЗОВ С КОЭФФИЦИЕНТОМ) =====
+            # Участвуют:
+            #   effective_price – цена за единицу (Decimal)
+            #   sheet_count    – количество листов печатного компонента (Decimal)
+            #   lines          – реальное количество резов (int)
+            #   k_lines        – коэффициент влияния резов, берётся из связанной работы Work (поле k_lines)
+            #   qty            – количество единиц работы (int)
+            #
+            # Если работа не связана со справочником (self.work is None), используется значение по умолчанию 2.0.
+            if self.work:
+                k_lines = float(self.work.k_lines)   # преобразуем Decimal в float для математических операций
+            else:
+                k_lines = 2.0   # значение по умолчанию
+
+            # Умножаем количество резов на коэффициент (получаем float)
+            lines_with_coeff_float = lines * k_lines   # int * float -> float
+
+            # !!! ВАЖНО: преобразуем полученное значение в Decimal, чтобы избежать ошибки умножения Decimal на float
+            lines_with_coeff = Decimal(str(lines_with_coeff_float))
+
+            # Итог: effective_price (Decimal) × sheet_count (Decimal) × lines_with_coeff (Decimal) × qty (int)
+            total = effective_price * sheet_count * lines_with_coeff * qty   # всё Decimal
+
         elif self.formula_type == 4:
-            # количество листов × effective_price × количество линий реза
-            # Берём коэффициент k_lines из связанной работы Work (если есть)
+            # ===== ФОРМУЛА 4 (ЛИСТЫ × ЦЕНА × РЕЗЫ С ЛОГАРИФМИЧЕСКИМ КОЭФФИЦИЕНТОМ) =====
+            # ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ.
+            # Использует логарифмическую зависимость сложности от количества резов и листов.
             if self.work:
                 k_lines = float(self.work.k_lines)
             else:
-                k_lines = 2.0  # значение по умолчанию, если работа не связана со справочником
-            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count, 1)))
-            complexity_factor = Decimal(str(factor_float))
-            total = effective_price * complexity_factor * qty
-        elif self.formula_type == 5:
-            # Количество изделий на листе × effective_price × количество листов
-            total = effective_price * items * sheet_count * qty
-        elif self.formula_type == 6:
-            # Количество изделий на листе × effective_price × тираж
-            total = effective_price * items * circulation * qty
-        else:
-            # По умолчанию – фиксированная цена (на случай неизвестного типа)
-            total = effective_price * qty
+                k_lines = 2.0
 
-        # 5. Сохраняем результат в поле total_price (с округлением до двух знаков)
+            # Вычисляем логарифмический множитель сложности
+            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count, 1)))
+            complexity_factor = Decimal(str(factor_float))   # преобразуем в Decimal для денежных расчётов
+
+            total = effective_price * complexity_factor * qty
+
+        elif self.formula_type == 5:
+            # ===== ФОРМУЛА 5 (ИЗДЕЛИЯ НА ЛИСТЕ × ЦЕНА × КОЛИЧЕСТВО ЛИСТОВ) =====
+            total = effective_price * items * sheet_count * qty
+
+        elif self.formula_type == 6:
+            # ===== ФОРМУЛА 6 (ИЗДЕЛИЯ НА ЛИСТЕ × ЦЕНА × ТИРАЖ) =====
+            total = effective_price * items * circulation * qty
+
+        else:
+            # ===== НЕИЗВЕСТНЫЙ ТИП ФОРМУЛЫ – ПО УМОЛЧАНИЮ ФИКСИРОВАННАЯ ЦЕНА =====
+            total = self.price * qty
+
+        # ------------------------------------------------------------------
+        # 6. Округление результата до двух знаков после запятой и сохранение в поле total_price
+        # ------------------------------------------------------------------
         self.total_price = total.quantize(Decimal('0.01'))
 
-        # 6. Вызов родительского метода сохранения
+        # ------------------------------------------------------------------
+        # 7. Вызов родительского метода save() для фактического сохранения в БД
+        # ------------------------------------------------------------------
         super().save(*args, **kwargs)
 
     def to_dict(self):

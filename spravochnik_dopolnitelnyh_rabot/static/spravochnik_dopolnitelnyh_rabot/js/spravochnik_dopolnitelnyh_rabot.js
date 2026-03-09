@@ -425,18 +425,22 @@ const SpravochnikDopRabot = (function() {
      * @returns {string} HTML-строк с опциями
      */
     function generateFormulaOptions(selectedValue) {
-        // Список формул должен соответствовать FORMULA_CHOICES в модели
+        // Список формул должен строго соответствовать FORMULA_CHOICES из модели Work.
+        // Каждый элемент: { value: числовой код, label: отображаемый текст }
         const formulas = [
             { value: 1, label: 'Фиксированная цена' },
             { value: 2, label: 'Тираж × Цена' },
-            { value: 3, label: 'Тираж × Цена × Количество линий реза' },
-            { value: 4, label: 'Количество листов × Цена × Количество линий реза' },
+            { value: 3, label: 'Цена × Количество листов × (Количество резов × Коэффициент)' }, // обновлено
+            { value: 4, label: 'Количество листов × Цена × Количество резов (логарифмическая)' }, // обновлено
             { value: 5, label: 'Количество изделий на листе × Цена × Количество листов' },
             { value: 6, label: 'Количество изделий на листе × Цена × Тираж' }
         ];
+
         let options = '';
         for (let f of formulas) {
-            options += `<option value="${f.value}" ${f.value == selectedValue ? 'selected' : ''}>${f.label}</option>`;
+            // Если текущее значение совпадает с кодом, добавляем атрибут selected
+            const selectedAttr = (f.value == selectedValue) ? 'selected' : '';
+            options += `<option value="${f.value}" ${selectedAttr}>${escapeHtml(f.label)}</option>`;
         }
         return options;
     }
