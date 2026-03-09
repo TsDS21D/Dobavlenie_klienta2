@@ -72,18 +72,15 @@ def index(request):
 
 @require_POST
 def create_work(request):
-    print(f"🔥 Метод запроса: {request.method}")  # появится в логах сервера
     try:
         form = WorkForm(request.POST)
         if form.is_valid():
             work = form.save()
-            return JsonResponse({'success': True, 'work_id': work.id, 'message': 'Работа создана'})
+            return JsonResponse({'success': True, 'work': work.to_dict()})
         else:
-            # Логируем ошибки формы для отладки
             print("Form errors:", form.errors)
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
     except Exception as e:
-        # Выводим traceback в консоль сервера
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
