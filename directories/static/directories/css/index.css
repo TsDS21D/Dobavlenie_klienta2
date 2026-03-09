@@ -2,6 +2,7 @@
 directories/static/directories/css/index.css
 Стили для приложения "Справочники".
 Содержит специфичные стили для карточек и элементов directories.
+ДОБАВЛЕНА задержка анимации для шестой карточки (.directory-card:nth-child(6)).
 */
 
 /* ===== 1. СТИЛИ ДЛЯ ПРИВЕТСТВЕННОГО ТЕКСТА ===== */
@@ -273,5 +274,7 @@ directories/static/directories/css/index.css
 .directory-card:nth-child(1) { animation-delay: 0.1s; }
 .directory-card:nth-child(2) { animation-delay: 0.2s; }
 .directory-card:nth-child(3) { animation-delay: 0.3s; }
-.directory-card:nth-child(4) { animation-delay: 0.4s; }  /* Новая строка для 4-й карточки */
-.directory-card:nth-child(5) { animation-delay: 0.5s; } 
+.directory-card:nth-child(4) { animation-delay: 0.4s; }
+.directory-card:nth-child(5) { animation-delay: 0.5s; }
+/* ===== ДОБАВЛЕНО для шестой карточки ===== */
+.directory-card:nth-child(6) { animation-delay: 0.6s; }

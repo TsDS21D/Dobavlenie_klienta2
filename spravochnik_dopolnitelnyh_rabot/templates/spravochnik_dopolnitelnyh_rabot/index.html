@@ -138,6 +138,18 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         {% endif %}
                     </div>
                     
+                    <!-- ===== НОВОЕ ПОЛЕ: Коэффициент резов ===== -->
+                    <div class="form-group">
+                        <label for="{{ work_form.k_lines.id_for_label }}">Коэффициент резов:</label>
+                        {{ work_form.k_lines }}
+                        {% if work_form.k_lines.errors %}
+                            <div class="error-message">{{ work_form.k_lines.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Коэффициент усиления влияния количества резов (формула 4).</small>
+                    </div>
+
+
+
                     <!-- Поле "Линий реза" -->
                     <div class="form-group">
                         <label for="{{ work_form.default_lines_count.id_for_label }}">Линий реза (по умолч.):</label>

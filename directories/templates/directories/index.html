@@ -2,6 +2,7 @@
 directories/templates/directories/index.html
 Главная страница приложения "Справочники".
 Содержит карточки для навигации ко всем справочникам системы.
+ДОБАВЛЕНА карточка для "Дополнительные работы" (spravochnik_dopolnitelnyh_rabot).
 -->
 
 <!-- Наследуем базовый шаблон directories/base.html -->
@@ -35,18 +36,13 @@ directories/templates/directories/index.html
     <div class="directories-container">
         <!-- КАРТОЧКА 1: Форматы листов -->
         <a href="/sheet_formats/" class="directory-card">
-            <!-- Иконка карточки (эмодзи или иконка FontAwesome) -->
             <div class="directory-icon">📄</div>
-            <!-- Название справочника -->
             <div class="directory-name">Форматы листов</div>
-            <!-- Подробное описание справочника -->
             <div class="directory-description">
                 Управление форматами печатных листов (SRA3, A4, A3+ и другие). 
                 Добавление, редактирование и удаление форматов бумаги для расчетов.
             </div>
-            <!-- Статус доступности справочника -->
             <div class="directory-status">Доступно</div>
-            <!-- Подсказка для пользователя -->
             <div class="directory-hint">Нажмите для перехода →</div>
         </a>
         
@@ -74,50 +70,53 @@ directories/templates/directories/index.html
             <div class="directory-hint">Нажмите для перехода →</div>
         </a>
 
-        <!-- КАРТОЧКА 4: Цены на печать (НОВАЯ КАРТОЧКА) -->
+        <!-- КАРТОЧКА 4: Цены на печать -->
         <a href="/print_price/" class="directory-card">
-            <!-- Иконка в виде денег (эмодзи) -->
             <div class="directory-icon">💰</div>
-            <!-- Название нового справочника -->
             <div class="directory-name">Цены на печать</div>
-            <!-- Подробное описание функционала -->
             <div class="directory-description">
                 Управление ценами на печать для различных принтеров и тиражей. 
                 Настройка стоимости печати одного листа.
             </div>
-            <!-- Статус - доступно -->
             <div class="directory-status">Доступно</div>
-            <!-- Подсказка для навигации -->
             <div class="directory-hint">Нажмите для перехода →</div>
         </a>
-        <!-- КАРТОЧКА 5: База клиентов (НОВАЯ КАРТОЧКА) -->
+
+        <!-- КАРТОЧКА 5: База клиентов -->
         <a href="/baza_klientov/" class="directory-card">
-            <!-- Иконка в виде пользователей (эмодзи) -->
             <div class="directory-icon">👥</div>
-            <!-- Название нового справочника -->
             <div class="directory-name">База клиентов</div>
-            <!-- Подробное описание функционала базы клиентов -->
             <div class="directory-description">
                 Управление клиентской базой типографии. Хранение контактных данных, 
                 истории заказов, скидок и банковских реквизитов клиентов.
             </div>
-            <!-- Статус - доступно (приложение уже есть в проекте) -->
             <div class="directory-status">Доступно</div>
-            <!-- Подсказка для навигации -->
             <div class="directory-hint">Нажмите для перехода →</div>
         </a>
 
-
-
+        <!-- ===== КАРТОЧКА 6: Дополнительные работы (НОВАЯ) ===== -->
+        <a href="/spravochnik_dopolnitelnyh_rabot/" class="directory-card">
+            <!-- Иконка инструментов (эмодзи) -->
+            <div class="directory-icon">🔧</div>
+            <!-- Название справочника -->
+            <div class="directory-name">Дополнительные работы</div>
+            <!-- Подробное описание справочника -->
+            <div class="directory-description">
+                Управление справочником дополнительных работ: настройка цен, 
+                формул расчета, коэффициентов и опорных точек для различных 
+                послепечатных операций.
+            </div>
+            <!-- Статус доступности -->
+            <div class="directory-status">Доступно</div>
+            <!-- Подсказка для перехода -->
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
     </div>
     
     <!-- Секция "Скоро появится" - справочники в разработке -->
     <div class="coming-soon-section">
-        <!-- Заголовок секции -->
         <div class="coming-soon-title">Справочники в разработке:</div>
-        <!-- Контейнер для элементов -->
         <div class="coming-soon-grid">
-            <!-- Убрали "Стоимость печати" из списка, так как теперь она реализована -->
             <div class="coming-soon-item">Услуги и операции</div>
             <div class="coming-soon-item">Клиенты и заказчики</div>
             <div class="coming-soon-item">Сотрудники</div>
