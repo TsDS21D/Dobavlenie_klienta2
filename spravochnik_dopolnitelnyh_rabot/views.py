@@ -77,7 +77,7 @@ def create_work(request):
         form = WorkForm(request.POST)
         if form.is_valid():
             work = form.save()
-            return JsonResponse({'success': True, 'work': work.to_dict()})
+            return JsonResponse({'success': True, 'work_id': work.id, 'message': 'Работа создана'})
         else:
             # Логируем ошибки формы для отладки
             print("Form errors:", form.errors)
