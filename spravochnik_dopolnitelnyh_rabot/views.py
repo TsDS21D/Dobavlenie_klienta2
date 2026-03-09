@@ -72,6 +72,7 @@ def index(request):
 
 @require_POST
 def create_work(request):
+    print(f"🔥 Метод запроса: {request.method}")  # появится в логах сервера
     try:
         form = WorkForm(request.POST)
         if form.is_valid():
