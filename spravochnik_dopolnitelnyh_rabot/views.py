@@ -17,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from decimal import Decimal, InvalidOperation
 import math  # для логарифмической интерполяции (может использоваться в utils)
+import traceback
 
 from .models import Work, WorkPrice
 from .forms import WorkForm, WorkPriceForm, WorkPriceUpdateForm
@@ -71,23 +72,19 @@ def index(request):
 
 @require_POST
 def create_work(request):
-    """
-    Создание новой работы через AJAX.
-    Принимает POST-данные формы, возвращает JSON.
-    """
-    form = WorkForm(request.POST)
-    if form.is_valid():
-        work = form.save()
-        return JsonResponse({
-            'success': True,
-            'message': 'Работа успешно добавлена',
-            'work': work.to_dict(),
-        })
-    else:
-        return JsonResponse({
-            'success': False,
-            'errors': form.errors,
-        }, status=400)
+    try:
+        form = WorkForm(request.POST)
+        if form.is_valid():
+            work = form.save()
+            return JsonResponse({'success': True, 'work': work.to_dict()})
+        else:
+            # Логируем ошибки формы для отладки
+            print("Form errors:", form.errors)
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    except Exception as e:
+        # Выводим traceback в консоль сервера
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @require_POST
