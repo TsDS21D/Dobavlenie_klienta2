@@ -8,6 +8,8 @@
     * пересчитывается размещение изделий на листе на основе данных принтера (если доступны);
     * обновляется количество резов;
     * пересчитывается количество листов на основе тиража из связанного просчёта.
+- ИСПРАВЛЕНИЕ: поле vichisliniya_listov_print_component заменено с ForeignKey(unique=True) на OneToOneField,
+  что устраняет предупреждение Django и делает связь более явной.
 """
 
 from django.db import models
@@ -18,11 +20,8 @@ import math  # для округления вверх
 class VichisliniyaListovModel(models.Model):
     """
     Модель VichisliniyaListovModel для хранения данных вычислений листов.
-    ВАЖНОЕ ИЗМЕНЕНИЕ: Теперь модель привязана к печатным компонентам (PrintComponent), а не к просчётам.
-    Это позволяет иметь отдельные вычисления листов для каждого компонента печати в рамках одного просчёта.
-    
-    ВНИМАНИЕ: Все имена полей и переменных используют префикс "vichisliniya_listov_"
-    для избежания конфликтов с другими приложениями.
+    ВАЖНОЕ ИЗМЕНЕНИЕ: Теперь модель привязана к печатным компонентам (PrintComponent) через OneToOneField,
+    что гарантирует уникальность: один компонент – одна запись вычислений.
     """
 
     # ===== ВЫБОРЫ ДЛЯ ПОЛЕЙ =====
@@ -44,15 +43,13 @@ class VichisliniyaListovModel(models.Model):
 
     # ===== ОСНОВНЫЕ ПОЛЯ МОДЕЛИ =====
 
-    # Связь с печатным компонентом (один к одному)
-    vichisliniya_listov_print_component = models.ForeignKey(
+    # Связь с печатным компонентом (один к одному) – ИСПРАВЛЕНО
+    vichisliniya_listov_print_component = models.OneToOneField(
         'calculator.PrintComponent',
         verbose_name='Печатный компонент',
         on_delete=models.CASCADE,
         related_name='vichisliniya_listov_data',
-        help_text='Печатный компонент, для которого выполняются вычисления листов',
-        db_index=True,
-        unique=True
+        help_text='Печатный компонент, для которого выполняются вычисления листов (один компонент – одна запись)',
     )
 
     # Количество листов - основное вычисляемое значение
@@ -187,7 +184,7 @@ class VichisliniyaListovModel(models.Model):
                 f"{self.vichisliniya_listov_list_count} листов, "
                 f"изделие {self.vichisliniya_listov_item_width}×{self.vichisliniya_listov_item_height} мм, "
                 f"на листе {self.vichisliniya_listov_fit_total} шт., "
-                f"резов {self.vichisliniya_listov_cuts_count}")  # добавили отображение резов
+                f"резов {self.vichisliniya_listov_cuts_count}")
 
     # ===== ПОЛЬЗОВАТЕЛЬСКИЕ МЕТОДЫ =====
 
@@ -221,7 +218,6 @@ class VichisliniyaListovModel(models.Model):
         raw_list_count = circulation_decimal / Decimal(fit_total)
 
         # Округляем вверх до целого числа (так как листы считаются целыми)
-        # Для округления вверх используем math.ceil, результат преобразуем в Decimal
         ceil_list_count = math.ceil(float(raw_list_count))
 
         # Сохраняем результат с двумя десятичными знаками (как целое число, но в формате 2 знака)
@@ -256,7 +252,7 @@ class VichisliniyaListovModel(models.Model):
             'fit_landscape_total': self.vichisliniya_listov_fit_landscape_total,
             'fit_portrait_total': self.vichisliniya_listov_fit_portrait_total,
             'fit_selected_orientation': self.vichisliniya_listov_fit_selected_orientation,
-            'cuts_count': self.vichisliniya_listov_cuts_count,  # добавлено
+            'cuts_count': self.vichisliniya_listov_cuts_count,
             'created_at': self.vichisliniya_listov_created_at.isoformat(),
             'updated_at': self.vichisliniya_listov_updated_at.isoformat(),
         }
@@ -277,7 +273,7 @@ class VichisliniyaListovModel(models.Model):
                 'circulation': proschet.circulation,
             }
         return None
-    
+
     # ===== МЕТОД ДЛЯ РАСЧЁТА РАЗМЕЩЕНИЯ =====
     def calculate_fitting(self, sheet_width, sheet_height, margin):
         """
@@ -358,7 +354,7 @@ class VichisliniyaListovModel(models.Model):
         # Обновляем количество резов после изменения fit_horizontal и fit_vertical
         self.update_cuts_count()
 
-    # ===== НОВЫЙ МЕТОД: обновление количества резов =====
+    # ===== МЕТОД ДЛЯ ОБНОВЛЕНИЯ КОЛИЧЕСТВА РЕЗОВ =====
     def update_cuts_count(self):
         """
         Обновляет поле vichisliniya_listov_cuts_count на основе текущих значений
@@ -379,12 +375,12 @@ class VichisliniyaListovModel(models.Model):
         if (self.vichisliniya_listov_print_component and
             self.vichisliniya_listov_print_component.printer and
             self.vichisliniya_listov_print_component.printer.sheet_format):
-            
+
             printer = self.vichisliniya_listov_print_component.printer
             sheet_width = printer.sheet_format.width_mm
             sheet_height = printer.sheet_format.height_mm
             margin = printer.margin_mm
-            
+
             # Пересчитываем размещение (внутри вызовет update_cuts_count)
             self.calculate_fitting(sheet_width, sheet_height, margin)
         else:
