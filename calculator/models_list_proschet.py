@@ -695,44 +695,74 @@ class AdditionalWork(models.Model):
             # Используется effective_price (интерполированная цена за единицу), умноженная на тираж и количество.
             total = effective_price * circulation * qty
 
+        # ----------------------------------------------------------------------
+        # ФОРМУЛА 3.2 (АДДИТИВНАЯ, ЛИНЕЙНАЯ ЗАВИСИМОСТЬ ОТ РЕЗОВ И ЛИСТОВ)
+        # total = (effective_price * sheet_count + k_lines * lines * sheet_count) * qty
+        #
+        # Логика:
+        # - effective_price * sheet_count – базовая стоимость всех листов
+        #   (интерполированная цена за лист × количество листов).
+        # - k_lines * lines * sheet_count – добавка за резы, пропорциональная
+        #   количеству резов и количеству листов. Каждый лист вносит фиксированную
+        #   надбавку за каждый рез, определяемую коэффициентом k_lines.
+        # - qty – количество единиц работы.
+        #
+        # Примечание: k_lines имеет размерность "руб. за рез на лист".
+        # Например, k_lines = 0.1 означает, что каждый рез добавляет 10 копеек
+        # к стоимости каждого листа.
+        # ----------------------------------------------------------------------
         elif self.formula_type == 3:
-            # ===== ФОРМУЛА 3 (ЦЕНА × КОЛИЧЕСТВО ЛИСТОВ × КОЛИЧЕСТВО РЕЗОВ С КОЭФФИЦИЕНТОМ) =====
-            # Участвуют:
-            #   effective_price – цена за единицу (Decimal)
-            #   sheet_count    – количество листов печатного компонента (Decimal)
-            #   lines          – реальное количество резов (int)
-            #   k_lines        – коэффициент влияния резов, берётся из связанной работы Work (поле k_lines)
-            #   qty            – количество единиц работы (int)
-            #
-            # Если работа не связана со справочником (self.work is None), используется значение по умолчанию 2.0.
+            # Получаем коэффициент влияния резов из связанной работы (если есть)
             if self.work:
-                k_lines = float(self.work.k_lines)   # преобразуем Decimal в float для математических операций
+                k_lines = float(self.work.k_lines)   # преобразуем Decimal в float
             else:
-                k_lines = 2.0   # значение по умолчанию
+                k_lines = 2.0                         # значение по умолчанию
 
-            # Умножаем количество резов на коэффициент (получаем float)
-            lines_with_coeff_float = lines * k_lines   # int * float -> float
+            # Базовая часть
+            base_cost = effective_price * sheet_count
 
-            # !!! ВАЖНО: преобразуем полученное значение в Decimal, чтобы избежать ошибки умножения Decimal на float
-            lines_with_coeff = Decimal(str(lines_with_coeff_float))
+            # Добавка за резы: k_lines * lines * sheet_count
+            # Преобразуем произведение k_lines * lines (float) в Decimal и умножаем на sheet_count
+            surcharge = Decimal(str(k_lines * lines)) * sheet_count
 
-            # Итог: effective_price (Decimal) × sheet_count (Decimal) × lines_with_coeff (Decimal) × qty (int)
-            total = effective_price * sheet_count * lines_with_coeff * qty   # всё Decimal
+            # Итог: (base_cost + surcharge) * qty
+            total = (base_cost + surcharge) * qty
 
+        # ----------------------------------------------------------------------
+        # ФОРМУЛА 4.2 (АДДИТИВНАЯ, ЛОГАРИФМИЧЕСКАЯ ЗАВИСИМОСТЬ ОТ РЕЗОВ, ЛИНЕЙНАЯ ОТ ЛИСТОВ)
+        # total = (effective_price * sheet_count + k_lines * log2(1 + lines) * sheet_count) * qty
+        #
+        # Логика:
+        # - effective_price * sheet_count – базовая стоимость листов.
+        # - k_lines * log2(1 + lines) * sheet_count – добавка за резы, где влияние
+        #   резов имеет логарифмический характер: первые резы дают больший прирост,
+        #   последующие – меньший. Эта добавка также масштабируется количеством листов,
+        #   так что при большом тираже резы оказывают большее абсолютное влияние.
+        # - log2(1+lines) используется для избежания логарифма нуля при lines = 0.
+        # - qty – количество единиц работы.
+        #
+        # Примечание: k_lines безразмерный и определяет, насколько сильно логарифм
+        # резов влияет на добавку. Например, при k_lines = 10 и lines = 13,
+        # log2(14) ≈ 3.8, добавка = 38 * sheet_count (в рублях).
+        # ----------------------------------------------------------------------
         elif self.formula_type == 4:
-            # ===== ФОРМУЛА 4 (ЛИСТЫ × ЦЕНА × РЕЗЫ С ЛОГАРИФМИЧЕСКИМ КОЭФФИЦИЕНТОМ) =====
-            # ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ.
-            # Использует логарифмическую зависимость сложности от количества резов и листов.
+            # Коэффициент влияния резов
             if self.work:
                 k_lines = float(self.work.k_lines)
             else:
                 k_lines = 2.0
 
-            # Вычисляем логарифмический множитель сложности
-            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count, 1)))
-            complexity_factor = Decimal(str(factor_float))   # преобразуем в Decimal для денежных расчётов
+            # Логарифмическая составляющая резов: log2(1+lines)
+            log_lines = math.log2(1 + lines) if lines > 0 else 0
 
-            total = effective_price * complexity_factor * qty
+            # Базовая часть
+            base_cost = effective_price * sheet_count
+
+            # Добавка: k_lines * log_lines * sheet_count
+            surcharge = Decimal(str(k_lines * log_lines)) * sheet_count
+
+            # Итог
+            total = (base_cost + surcharge) * qty
 
         elif self.formula_type == 5:
             # ===== ФОРМУЛА 5 (ИЗДЕЛИЯ НА ЛИСТЕ × ЦЕНА × КОЛИЧЕСТВО ЛИСТОВ) =====
