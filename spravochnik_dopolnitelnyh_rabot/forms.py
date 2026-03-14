@@ -2,24 +2,20 @@
 forms.py для приложения spravochnik_dopolnitelnyh_rabot.
 
 Содержит формы:
-- WorkForm: для создания и редактирования работы (добавлены поля interpolation_method и k_lines).
-- WorkPriceForm: для создания новой опорной точки цены.
-- WorkPriceUpdateForm: для inline-редактирования существующей опорной точки.
-
-ВСЕ ПОЛЯ снабжены явными идентификаторами (id) для связи с JavaScript.
+- WorkForm: для создания и редактирования работы.
+- WorkPriceForm: для создания опорной точки цены по листам.
+- WorkCirculationPriceForm: для создания опорной точки цены по тиражу (НОВОЕ).
 """
 
 from django import forms
-from .models import Work, WorkPrice
+from .models import Work, WorkPrice, WorkCirculationPrice
 
 
 class WorkForm(forms.ModelForm):
     """
     Форма для создания и редактирования работы.
     Включает все поля модели Work, а также дополнительные настройки виджетов.
-    ДОБАВЛЕНО: поле interpolation_method (метод интерполяции цены) и k_lines (коэффициент резов).
     """
-
     formula_type = forms.ChoiceField(
         choices=Work.FORMULA_CHOICES,
         widget=forms.Select(attrs={
@@ -36,14 +32,11 @@ class WorkForm(forms.ModelForm):
         })
     )
 
-    # ===== ПОЛЕ КОЭФФИЦИЕНТА РЕЗОВ =====
-    # Сделано необязательным (required=False), так как в модели есть значение по умолчанию.
-    # Это позволяет не передавать поле из формы, если оно не нужно (например, при создании через JS).
     k_lines = forms.DecimalField(
         label='Коэффициент резов',
         help_text='Коэффициент, усиливающий влияние количества резов в формуле 4 (по умолчанию 2.0)',
         initial=2.0,
-        required=False,              # <--- ВАЖНО: поле необязательное
+        required=False,
         min_value=0.1,
         max_value=100.0,
         widget=forms.NumberInput(attrs={
@@ -102,7 +95,7 @@ class WorkForm(forms.ModelForm):
         self.fields['formula_type'].choices = Work.FORMULA_CHOICES
         self.fields['interpolation_method'].choices = Work.INTERPOLATION_CHOICES
 
-    # Методы валидации (без изменений)
+    # Методы валидации
     def clean_price(self):
         price = self.cleaned_data.get('price')
         if price is None:
@@ -124,14 +117,10 @@ class WorkForm(forms.ModelForm):
         return value
 
 
-
 class WorkPriceForm(forms.ModelForm):
     """
-    Форма для создания новой опорной точки цены (WorkPrice).
-    Аналог PrintPriceForm из приложения print_price.
-    Позволяет выбрать работу, указать количество листов и цену.
+    Форма для создания новой опорной точки цены по листам (WorkPrice).
     """
-
     work = forms.ModelChoiceField(
         queryset=Work.objects.all().order_by('name'),
         label='Работа',
@@ -175,16 +164,13 @@ class WorkPriceForm(forms.ModelForm):
     def clean(self):
         """
         Проверка уникальности пары (работа, количество листов).
-        Нельзя создать две цены для одной работы с одинаковым количеством листов.
         """
         cleaned_data = super().clean()
         work = cleaned_data.get('work')
         sheets = cleaned_data.get('sheets')
 
         if work and sheets is not None:
-            # Ищем существующую запись с такой же парой
             existing = WorkPrice.objects.filter(work=work, sheets=sheets)
-            # Если редактируется существующий объект, исключаем его из проверки
             if self.instance and self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
@@ -194,48 +180,63 @@ class WorkPriceForm(forms.ModelForm):
         return cleaned_data
 
 
-class WorkPriceUpdateForm(forms.ModelForm):
+# НОВАЯ ФОРМА: для опорных точек по тиражу
+class WorkCirculationPriceForm(forms.ModelForm):
     """
-    Форма для inline-редактирования существующей опорной точки.
-    Используется при обновлении через AJAX (поля sheets и price).
+    Форма для создания опорной точки цены по тиражу (WorkCirculationPrice).
+    Аналогична WorkPriceForm, но вместо sheets используется circulation.
     """
+    work = forms.ModelChoiceField(
+        queryset=Work.objects.all().order_by('name'),
+        label='Работа',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'work-circulation-price-work'
+        }),
+        empty_label="-- Выберите работу --",
+    )
+
+    circulation = forms.IntegerField(
+        label='Тираж (количество экземпляров)',
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'work-circulation-price-circulation',
+            'placeholder': '100'
+        })
+    )
+
+    price = forms.DecimalField(
+        label='Цена (руб.)',
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'work-circulation-price-price',
+            'placeholder': '50.00',
+            'step': '0.01'
+        })
+    )
 
     class Meta:
-        model = WorkPrice
-        fields = ['sheets', 'price']
-
-    def __init__(self, *args, **kwargs):
-        """
-        Настройка виджетов для полей sheets и price.
-        Эти виджеты используются в JavaScript для inline-редактирования.
-        """
-        super().__init__(*args, **kwargs)
-        self.fields['sheets'].widget = forms.NumberInput(attrs={
-            'class': 'inline-edit-input sheets-input',
-            'min': 1,
-            'step': 1,
-        })
-        self.fields['price'].widget = forms.NumberInput(attrs={
-            'class': 'inline-edit-input price-input',
-            'min': 0.01,
-            'step': 0.01,
-        })
+        model = WorkCirculationPrice
+        fields = ['work', 'circulation', 'price']
 
     def clean(self):
         """
-        Проверка уникальности при изменении количества листов.
-        Если пользователь изменил количество листов, нужно убедиться,
-        что для данной работы ещё нет цены с таким количеством.
+        Проверка уникальности пары (работа, тираж).
         """
         cleaned_data = super().clean()
-        if self.instance and self.instance.pk:
-            work = self.instance.work
-            sheets = cleaned_data.get('sheets')
-            # Если sheets изменено и не равно исходному
-            if sheets is not None and sheets != self.instance.sheets:
-                existing = WorkPrice.objects.filter(work=work, sheets=sheets).exclude(pk=self.instance.pk)
-                if existing.exists():
-                    raise forms.ValidationError(
-                        f"Цена для работы '{work.name}' с количеством листов {sheets} уже существует."
-                    )
+        work = cleaned_data.get('work')
+        circulation = cleaned_data.get('circulation')
+
+        if work and circulation is not None:
+            existing = WorkCirculationPrice.objects.filter(work=work, circulation=circulation)
+            if self.instance and self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError(
+                    f"Цена для работы '{work.name}' с тиражом {circulation} уже существует."
+                )
         return cleaned_data

@@ -7,10 +7,10 @@
 - Дополнительная работа (AdditionalWork)
 
 ИЗМЕНЕНИЯ:
-- В модель AdditionalWork добавлен метод recalculate_price() для пересчёта общей стоимости
-  без повторных запросов к БД. Этот метод используется в save() и в представлениях.
-- Метод save() теперь вызывает recalculate_price() с актуальными данными из связанных моделей.
-- Убрано дублирование логики расчёта (раньше логика была и в модели, и в представлении).
+- В модель AdditionalWork добавлены методы _get_effective_price и recalculate_price
+  для поддержки интерполяции по тиражу (формула 3).
+- Метод save() теперь использует recalculate_price с правильными параметрами.
+- to_dict() теперь включает effective_price, вычисленную по формуле.
 """
 
 from django.db import models
@@ -21,8 +21,8 @@ import math
 
 # Импортируем модель Work из справочника дополнительных работ
 from spravochnik_dopolnitelnyh_rabot.models import Work
-# Импортируем функцию интерполяции из утилит справочника
-from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
+# Импортируем функции интерполяции из утилит справочника
+from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work, calculate_price_for_work_by_circulation
 
 
 class Proschet(models.Model):
@@ -474,10 +474,11 @@ class AdditionalWork(models.Model):
     """
     Дополнительная работа, привязанная к конкретному печатному компоненту.
     ИЗМЕНЕНИЯ:
+    - Добавлен метод _get_effective_price для получения цены за единицу с учётом формулы.
     - Добавлен метод recalculate_price(), который вычисляет общую стоимость работы
       на основе переданных параметров (количество листов, резов, тираж).
     - В методе save() вызывается recalculate_price() с актуальными данными из связанных моделей.
-    - Логика расчёта теперь только в одном месте – в методе recalculate_price().
+    - to_dict() теперь возвращает effective_price, вычисленную по формуле.
     """
 
     number = models.CharField(
@@ -564,141 +565,107 @@ class AdditionalWork(models.Model):
     def __str__(self):
         return f"{self.number}: {self.title} (для компонента {self.print_component.number})"
 
-    # ----- НОВЫЙ МЕТОД: вычисление эффективной цены за единицу -----
-    def _get_effective_price(self, sheet_count=None):
+    # ----- НОВЫЙ МЕТОД: вычисление эффективной цены за единицу с учётом типа формулы -----
+    def _get_effective_price(self, sheet_count=None, circulation=None):
         """
-        Возвращает цену за единицу работы с учётом количества листов и опорных точек справочника.
-        Если работа связана со справочником (self.work не None), то вызывается функция
-        calculate_price_for_work(self.work, sheet_count). Если sheet_count не передан,
-        пытается получить его из связанного компонента через VichisliniyaListovModel.
+        Возвращает цену за единицу работы с учётом количества листов или тиража.
+        - Для формул 2 и 3 используется интерполяция по тиражу.
+        - Для остальных формул (1,4,5,6) – по листам.
         Если работа не связана со справочником, возвращает self.price.
         """
-        # Если sheet_count не передан, пытаемся получить его из модели VichisliniyaListovModel
-        if sheet_count is None:
-            from vichisliniya_listov.models import VichisliniyaListovModel
-            try:
-                vich_data = VichisliniyaListovModel.objects.get(
-                    vichisliniya_listov_print_component=self.print_component
-                )
-                sheet_count = vich_data.vichisliniya_listov_list_count
-            except VichisliniyaListovModel.DoesNotExist:
-                # Если записи нет, считаем листы равными 0
-                sheet_count = Decimal('0')
+        # Если нет связанной работы из справочника, возвращаем базовую цену
+        if not self.work:
+            return self.price
 
-        # Если есть связанная работа из справочника, используем интерполяцию
-        if self.work:
+        # ===== ИЗМЕНЕНИЕ: теперь формула 2 тоже использует тираж =====
+        if self.formula_type in [2, 3]:  # формулы, зависящие от тиража
+            if circulation is None:
+                # Если circulation не передан, пытаемся получить его из просчёта
+                if self.print_component and self.print_component.proschet:
+                    circulation = self.print_component.proschet.circulation
+                else:
+                    circulation = 0  # по умолчанию 0 (будет обработано в функции интерполяции)
             try:
+                from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work_by_circulation
+                effective_price = calculate_price_for_work_by_circulation(self.work, circulation)
+                return effective_price
+            except Exception as e:
+                print(f"⚠️ Ошибка при вычислении effective_price по тиражу для работы {self.id}: {e}")
+                return self.price
+        else:
+            # Остальные формулы используют количество листов
+            if sheet_count is None:
+                from vichisliniya_listov.models import VichisliniyaListovModel
+                try:
+                    vich_data = VichisliniyaListovModel.objects.get(
+                        vichisliniya_listov_print_component=self.print_component
+                    )
+                    sheet_count = vich_data.vichisliniya_listov_list_count
+                except VichisliniyaListovModel.DoesNotExist:
+                    sheet_count = Decimal('0')
+            try:
+                from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
                 effective_price = calculate_price_for_work(self.work, sheet_count)
                 return effective_price
             except Exception as e:
-                # В случае ошибки интерполяции (например, нет опорных точек) возвращаем базовую цену
-                print(f"⚠️ Ошибка при вычислении effective_price для работы {self.id}: {e}")
+                print(f"⚠️ Ошибка при вычислении effective_price по листам для работы {self.id}: {e}")
                 return self.price
-        else:
-            # Если работа не связана со справочником, возвращаем базовую цену
-            return self.price
 
     # ----- НОВЫЙ МЕТОД: пересчёт общей стоимости с переданными параметрами -----
     def recalculate_price(self, sheet_count, cuts_count, circulation):
         """
-        Пересчитывает общую стоимость работы (total_price) на основе переданных
-        параметров: количество листов, количество резов, тираж.
-        Этот метод не обращается к БД за этими данными, поэтому его можно вызывать
-        из представлений, уже имея актуальные значения.
-        После вычисления обновляет поле self.total_price, но не сохраняет его в БД.
-        Для сохранения нужно вызвать save() отдельно.
+        Пересчитывает общую стоимость работы (total_price) на основе переданных параметров.
+        Для формулы 3 использует effective_price, вычисленную по тиражу, для остальных – по листам.
         """
-        # ------------------------------------------------------------------
-        # 1. Подготовка переменных, используемых в формулах
-        # ------------------------------------------------------------------
-        qty = self.quantity if self.quantity else 1          # количество единиц работы
-        items = self.items_per_sheet if self.items_per_sheet else 1   # изделий на листе
+        qty = self.quantity if self.quantity else 1
+        items = self.items_per_sheet if self.items_per_sheet else 1
 
         # Для формул, использующих линии реза, подставляем актуальное количество резов (cuts_count)
         if self.formula_type in [3, 4]:
-            lines = cuts_count   # реальные резы
+            lines = cuts_count
         else:
-            lines = self.lines_count if self.lines_count else 1   # значение по умолчанию
+            lines = self.lines_count if self.lines_count else 1
 
-        # ------------------------------------------------------------------
-        # 2. Вычисление эффективной цены за единицу работы (effective_price)
-        #    Используем переданное количество листов.
-        # ------------------------------------------------------------------
-        effective_price = self._get_effective_price(sheet_count)
+        # Получаем effective_price в зависимости от типа формулы
+        if self.formula_type == 3:
+            # Для формулы 3 используем тираж
+            effective_price = self._get_effective_price(circulation=circulation)
+        else:
+            # Для остальных используем листы
+            effective_price = self._get_effective_price(sheet_count=sheet_count)
 
-        # ------------------------------------------------------------------
-        # 3. Вычисление общей стоимости в зависимости от типа формулы
-        # ------------------------------------------------------------------
+        # Вычисление общей стоимости в зависимости от типа формулы
         if self.formula_type == 1:
-            # ===== ФОРМУЛА 1 (ФИКСИРОВАННАЯ ЦЕНА) =====
-            # Берётся базовая цена self.price (из поля модели, скопированная из справочника или введённая вручную).
-            # Не зависит от количества листов и тиража. Умножается на количество единиц (qty).
             total = self.price * qty
-
         elif self.formula_type == 2:
-            # ===== ФОРМУЛА 2 (ТИРАЖ × ЦЕНА) =====
-            # Используется effective_price (интерполированная цена за единицу), умноженная на тираж и количество.
             total = effective_price * circulation * qty
-
-        # ----------------------------------------------------------------------
-        # ФОРМУЛА 3 (АДДИТИВНАЯ, ЛИНЕЙНАЯ ЗАВИСИМОСТЬ ОТ РЕЗОВ И ЛИСТОВ)
-        # total = (effective_price * sheet_count + k_lines * lines * sheet_count) * qty
-        # ----------------------------------------------------------------------
         elif self.formula_type == 3:
-            # Получаем коэффициент влияния резов из связанной работы (если есть)
-            if self.work:
-                k_lines = float(self.work.k_lines)   # преобразуем Decimal в float
-            else:
-                k_lines = 2.0                         # значение по умолчанию
-
-            # Базовая часть
-            base_cost = effective_price * sheet_count
-
-            # Добавка за резы: k_lines * lines * sheet_count
-            # Преобразуем произведение k_lines * lines (float) в Decimal и умножаем на sheet_count
-            surcharge = Decimal(str(k_lines * lines)) * sheet_count
-
-            # Итог: (base_cost + surcharge) * qty
-            total = (base_cost + surcharge) * qty
-
-        # ----------------------------------------------------------------------
-        # ФОРМУЛА 4 (АДДИТИВНАЯ, ЛОГАРИФМИЧЕСКАЯ ЗАВИСИМОСТЬ ОТ РЕЗОВ, ЛИНЕЙНАЯ ОТ ЛИСТОВ)
-        # total = (effective_price * sheet_count + k_lines * log2(1 + lines) * sheet_count) * qty
-        # ----------------------------------------------------------------------
-        elif self.formula_type == 4:
-            # Коэффициент влияния резов
+            # Формула 3: (effective_price * circulation) + (k_lines * log2(1+lines) * sheet_count)  * qty
             if self.work:
                 k_lines = float(self.work.k_lines)
             else:
                 k_lines = 2.0
-
-            # Логарифмическая составляющая резов: log2(1+lines)
             log_lines = math.log2(1 + lines) if lines > 0 else 0
-
-            # Базовая часть
-            base_cost = effective_price * sheet_count
-
-            # Добавка: k_lines * log_lines * sheet_count
-            surcharge = Decimal(str(k_lines * log_lines)) * sheet_count
-
-            # Итог
+            base_cost = (effective_price * circulation)/6
+            surcharge = (Decimal(str(k_lines * log_lines)) * circulation)/4
             total = (base_cost + surcharge) * qty
-
+        elif self.formula_type == 4:
+            # Формула 4: (effective_price * sheet_count) + (k_lines * log2(1+lines) * sheet_count)  * qty
+            if self.work:
+                k_lines = float(self.work.k_lines)
+            else:
+                k_lines = 2.0
+            log_lines = math.log2(1 + lines) if lines > 0 else 0
+            base_cost = effective_price * sheet_count
+            surcharge = Decimal(str(k_lines * log_lines)) * sheet_count
+            total = (base_cost + surcharge) * qty
         elif self.formula_type == 5:
-            # ===== ФОРМУЛА 5 (ИЗДЕЛИЯ НА ЛИСТЕ × ЦЕНА × КОЛИЧЕСТВО ЛИСТОВ) =====
             total = effective_price * items * sheet_count * qty
-
         elif self.formula_type == 6:
-            # ===== ФОРМУЛА 6 (ИЗДЕЛИЯ НА ЛИСТЕ × ЦЕНА × ТИРАЖ) =====
             total = effective_price * items * circulation * qty
-
         else:
-            # ===== НЕИЗВЕСТНЫЙ ТИП ФОРМУЛЫ – ПО УМОЛЧАНИЮ ФИКСИРОВАННАЯ ЦЕНА =====
             total = self.price * qty
 
-        # ------------------------------------------------------------------
-        # 4. Округление результата до двух знаков после запятой и сохранение в поле total_price
-        # ------------------------------------------------------------------
         self.total_price = total.quantize(Decimal('0.01'))
 
     def save(self, *args, **kwargs):
@@ -780,19 +747,27 @@ class AdditionalWork(models.Model):
         Преобразует объект в словарь для передачи в JSON (AJAX).
         Включает все необходимые поля для клиентской части.
         ДОБАВЛЕНО: поле effective_price и formatted_effective_price,
-        которые вычисляются на основе текущего количества листов компонента.
+        которые вычисляются на основе текущего количества листов и тиража в зависимости от формулы.
         """
-        # Получаем количество листов для вычисления effective_price
+        # Получаем количество листов и тираж для вычисления effective_price
         from vichisliniya_listov.models import VichisliniyaListovModel
         try:
             vich_data = VichisliniyaListovModel.objects.get(
                 vichisliniya_listov_print_component=self.print_component
             )
             sheet_count = vich_data.vichisliniya_listov_list_count
+            cuts_count = vich_data.vichisliniya_listov_cuts_count
         except VichisliniyaListovModel.DoesNotExist:
             sheet_count = Decimal('0')
+            cuts_count = 0
 
-        effective_price = self._get_effective_price(sheet_count)
+        circulation = self.print_component.proschet.circulation if self.print_component and self.print_component.proschet else 0
+
+        # Вычисляем effective_price в зависимости от формулы
+        if self.formula_type == 3:
+            effective_price = self._get_effective_price(circulation=circulation)
+        else:
+            effective_price = self._get_effective_price(sheet_count=sheet_count)
 
         return {
             'id': self.id,

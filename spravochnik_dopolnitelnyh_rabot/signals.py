@@ -12,7 +12,7 @@ from django.db.models.signals import post_save, post_delete  # добавили 
 from django.dispatch import receiver
 
 # Импортируем модели справочника (Work и WorkPrice)
-from .models import Work, WorkPrice
+from .models import Work, WorkPrice, WorkCirculationPrice
 
 # Импортируем модель дополнительной работы из приложения calculator
 # Важно: используем прямой импорт, так как приложения связаны.
@@ -93,3 +93,19 @@ def update_related_additional_works_on_workprice_change(sender, instance, **kwar
         # В методе save() модели AdditionalWork будет вызвана функция _get_effective_price(),
         # которая использует актуальные опорные точки (через work) и пересчитает total_price.
         aw.save()
+        
+# НОВЫЙ СИГНАЛ: для WorkCirculationPrice
+@receiver(post_save, sender=WorkCirculationPrice)
+@receiver(post_delete, sender=WorkCirculationPrice)
+def update_related_additional_works_on_circulation_price_change(sender, instance, **kwargs):
+    """
+    Сигнал, вызываемый после сохранения или удаления опорной точки цены по тиражу.
+    Пересохраняет все дополнительные работы, связанные с Work, к которому относится эта точка,
+    чтобы пересчитать их total_price (так как изменилась effective_price для формул, зависящих от тиража).
+    """
+    work = instance.work
+    related_works = AdditionalWork.objects.filter(work=work)
+    if not related_works.exists():
+        return
+    for aw in related_works:
+        aw.save()  # вызовет пересчёт с использованием актуальных опорных точек по тиражу

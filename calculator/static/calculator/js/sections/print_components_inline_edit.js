@@ -1383,16 +1383,29 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
 
             print_components_show_notification('Изменения сохранены', 'success');
 
-            // ===== ИСПРАВЛЕНИЕ: Сбрасываем состояние редактирования =====
+            // ===== ИСПРАВЛЕНИЕ: сбрасываем состояние редактирования =====
             print_components_reset_editing_state();
 
-            // ===== ИСПРАВЛЕНИЕ: Перезагружаем всю таблицу компонентов для текущего просчёта =====
-            const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
-            if (currentProschetId) {
-                const proschetRow = document.querySelector('.proschet-row.selected');
-                if (proschetRow && window.printComponentsSection?.updateForProschet) {
-                    window.printComponentsSection.updateForProschet(currentProschetId, proschetRow);
+            // ===== ИСПРАВЛЕНИЕ: обновляем строку таблицы, используя полученные с сервера данные =====
+            if (data.updated_data) {
+                // 1. Обновляем данные в глобальном массиве currentComponents
+                updateCurrentComponent(data.updated_data);
+
+                // 2. Находим текущую строку таблицы по data-component-id
+                const row = document.querySelector(`tr[data-component-id="${componentId}"]`);
+                if (row) {
+                    // Создаём новую строку с обновлёнными данными, сохраняя индекс для чередования цветов
+                    const newRow = createComponentRow(data.updated_data, row.rowIndex);
+                    // Заменяем старую строку новой
+                    row.parentNode.replaceChild(newRow, row);
                 }
+
+                // 3. Пересчитываем общую стоимость всех компонентов и обновляем её отображение
+                const total = calculateTotalPrice(currentComponents);
+                updateTotalPrice(total);
+
+                // 4. Отправляем событие об обновлении компонентов (для секции "Цена")
+                dispatchPrintComponentsUpdated();
             }
         } else {
             // Ошибка на сервере – показываем исходное значение красным

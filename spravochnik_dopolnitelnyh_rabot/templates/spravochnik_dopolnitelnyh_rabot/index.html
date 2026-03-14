@@ -2,10 +2,11 @@
 index.html для приложения spravochnik_dopolnitelnyh_rabot.
 Двухколоночный макет: слева список работ, справа детали выбранной работы.
 Добавлены поля для формулы и параметров с поддержкой inline-редактирования.
+ДОБАВЛЕНО: блок для цен по тиражу (WorkCirculationPrice) и соответствующие скрипты.
 -->
 
 {% extends "spravochnik_dopolnitelnyh_rabot/base.html" %}
-{% load static %}  <!-- ЯВНО ЗАГРУЖАЕМ ТЕГ static, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК -->
+{% load static %}
 
 {% block title %}Справочник дополнительных работ{% endblock %}
 
@@ -91,13 +92,12 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                 </div>
             </div>
 
-            <!-- ========== ИСПРАВЛЕННАЯ ФОРМА ДОБАВЛЕНИЯ РАБОТЫ ========== -->
-            <!-- Добавлено поле выбора метода интерполяции (interpolation_method) -->
+            <!-- Форма добавления работы -->
             <div class="form-section" id="spravochnik-form-section" style="display: none;">
                 <h3>Добавить новую работу</h3>
                 <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create' %}" id="spravochnik-add-form">
                     {% csrf_token %}
-                    
+
                     <!-- Поле "Название" -->
                     <div class="form-group">
                         <label for="{{ work_form.name.id_for_label }}">Название работы:</label>
@@ -106,7 +106,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             <div class="error-message">{{ work_form.name.errors }}</div>
                         {% endif %}
                     </div>
-                    
+
                     <!-- Поле "Цена" -->
                     <div class="form-group">
                         <label for="{{ work_form.price.id_for_label }}">Цена (руб):</label>
@@ -115,7 +115,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             <div class="error-message">{{ work_form.price.errors }}</div>
                         {% endif %}
                     </div>
-                    
+
                     <!-- Поле "Формула расчёта" -->
                     <div class="form-group">
                         <label for="{{ work_form.formula_type.id_for_label }}">Формула расчёта:</label>
@@ -125,20 +125,16 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         {% endif %}
                     </div>
 
-                    <!-- ===== НОВОЕ ПОЛЕ: Метод интерполяции ===== -->
-                    <!-- Это поле необходимо для выбора способа расчёта цены при произвольном количестве листов.
-                         Оно соответствует полю interpolation_method модели Work.
-                         Идентификатор spravochnik-interpolation-method используется в JavaScript для добавления значения в FormData. -->
+                    <!-- Поле "Метод интерполяции" -->
                     <div class="form-group">
                         <label for="{{ work_form.interpolation_method.id_for_label }}">Метод интерполяции:</label>
-                        <!-- Рендерим поле через Django-форму, которая уже содержит нужные атрибуты (в том числе id="spravochnik-interpolation-method") -->
                         {{ work_form.interpolation_method }}
                         {% if work_form.interpolation_method.errors %}
                             <div class="error-message">{{ work_form.interpolation_method.errors }}</div>
                         {% endif %}
                     </div>
-                    
-                    <!-- ===== НОВОЕ ПОЛЕ: Коэффициент резов ===== -->
+
+                    <!-- Поле "Коэффициент резов" -->
                     <div class="form-group">
                         <label for="{{ work_form.k_lines.id_for_label }}">Коэффициент резов:</label>
                         {{ work_form.k_lines }}
@@ -148,8 +144,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         <small class="form-text text-muted">Коэффициент усиления влияния количества резов (формула 4).</small>
                     </div>
 
-
-
                     <!-- Поле "Линий реза" -->
                     <div class="form-group">
                         <label for="{{ work_form.default_lines_count.id_for_label }}">Линий реза (по умолч.):</label>
@@ -158,7 +152,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             <div class="error-message">{{ work_form.default_lines_count.errors }}</div>
                         {% endif %}
                     </div>
-                    
+
                     <!-- Поле "Изделий на листе" -->
                     <div class="form-group">
                         <label for="{{ work_form.default_items_per_sheet.id_for_label }}">Изделий на листе (по умолч.):</label>
@@ -167,7 +161,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             <div class="error-message">{{ work_form.default_items_per_sheet.errors }}</div>
                         {% endif %}
                     </div>
-                    
+
                     <div class="button-group">
                         <button type="submit" class="btn-submit">Сохранить</button>
                         <button type="button" class="btn-clear" onclick="SpravochnikDopRabot.clearForm()">Очистить</button>
@@ -321,7 +315,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="1">
                             </div>
 
-                            <!-- ===== НОВОЕ ПОЛЕ: Коэффициент резов ===== -->
+                            <!-- Поле "Коэффициент резов" (редактируемое по двойному клику) -->
                             <div class="work-field">
                                 <label>Коэффициент резов:</label>
                                 <span class="editable-field spravochnik-k-lines-field"
@@ -342,7 +336,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="2.0">
                             </div>
 
-
                             <!-- Даты создания/обновления (только для просмотра) -->
                             <div class="work-field">
                                 <label>Дата создания:</label>
@@ -355,151 +348,267 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         </div>
                     </div>
 
-                    <!-- ===== НОВЫЙ БЛОК: Опорные точки цены (как в print_price) ===== -->
-                    {% if selected_work %}
-                        <div class="price-points-section">
-                            <div class="section-header" style="margin-top: 1.5rem;">
-                                <h3>
-                                    <i class="fas fa-chart-line"></i> Цены в зависимости от количества листов
-                                </h3>
-                                <div class="header-buttons">
-                                    <button type="button" class="btn-action btn-add-price-point" id="add-price-point-btn">
-                                        + Добавить цену
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Форма добавления цены (скрыта) -->
-                            <div class="form-section" id="price-point-form-section" style="display: none;">
-                                <h4>Добавить новую цену</h4>
-                                <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_work_price' %}" id="price-point-form">
-                                    {% csrf_token %}
-                                    <!-- Скрытое поле work (принудительно выставляем текущую работу) -->
-                                    <input type="hidden" name="work" value="{{ selected_work.id }}" id="price-point-work">
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="price-point-sheets">Количество листов*</label>
-                                            <input type="number" id="price-point-sheets" name="sheets" class="form-control"
-                                                min="1" placeholder="100" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="price-point-price">Цена (руб.)*</label>
-                                            <input type="number" id="price-point-price" name="price" class="form-control"
-                                                step="0.01" min="0.01" placeholder="50.00" required>
-                                        </div>
-                                    </div>
-
-                                    <div class="button-group">
-                                        <button type="submit" class="btn-submit">Сохранить</button>
-                                        <button type="button" class="btn-clear" onclick="WorkPrice.clearForm()">Очистить</button>
-                                    </div>
-                                </form>
-                            </div>
-
-                            <!-- Таблица опорных точек -->
-                            <div class="price-points-container">
-                                {% if work_prices %}
-                                    <div class="price-points-table">
-                                        <div class="table-header">
-                                            <div class="col-sheets">Количество листов</div>
-                                            <div class="col-price">Цена</div>
-                                            <div class="col-actions">Действия</div>
-                                        </div>
-                                        <div class="table-body">
-                                            {% for price in work_prices %}
-                                                <div class="table-row" data-price-id="{{ price.id }}">
-                                                    <div class="col-sheets">
-                                                        <span class="sheets-badge editable-field-price"
-                                                            data-field="sheets"
-                                                            data-price-id="{{ price.id }}"
-                                                            data-original-value="{{ price.sheets|stringformat:'d' }}"
-                                                            title="Двойной клик для редактирования">
-                                                            {{ price.get_sheets_display }}
-                                                        </span>
-                                                        <input type="number"
-                                                            class="inline-edit-input sheets-input"
-                                                            data-price-id="{{ price.id }}"
-                                                            data-field="sheets"
-                                                            value="{{ price.sheets }}"
-                                                            min="1"
-                                                            step="1"
-                                                            style="display: none;">
-                                                    </div>
-                                                    <div class="col-price">
-                                                        <span class="price-badge editable-field-price"
-                                                            data-field="price"
-                                                            data-price-id="{{ price.id }}"
-                                                            data-original-value="{{ price.price|stringformat:'f' }}"
-                                                            title="Двойной клик для редактирования">
-                                                            {{ price.get_price_display }}
-                                                        </span>
-                                                        <input type="number"
-                                                            class="inline-edit-input price-input"
-                                                            data-price-id="{{ price.id }}"
-                                                            data-field="price"
-                                                            value="{{ price.price|stringformat:'f' }}"
-                                                            min="0.01"
-                                                            step="0.01"
-                                                            style="display: none;">
-                                                    </div>
-                                                    <div class="col-actions">
-                                                        <button type="button"
-                                                                class="btn-action btn-delete-price"
-                                                                data-price-id="{{ price.id }}"
-                                                                data-price-sheets="{{ price.sheets }}">
-                                                            Удалить
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-
-                                    <!-- Блок расчёта для произвольного количества листов -->
-                                    <div class="arbitrary-calc-section">
-                                        <div class="section-header">
-                                            <h4><i class="fas fa-calculator"></i> Расчёт для произвольного количества листов</h4>
-                                        </div>
-                                        <div class="arbitrary-form-row">
-                                            <div class="form-group">
-                                                <label for="interpolation-method-work">Метод интерполяции:</label>
-                                                <select id="interpolation-method-work"
-                                                        class="form-control"
-                                                        data-work-id="{{ selected_work.id }}">
-                                                    <option value="linear" {% if selected_work.interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
-                                                    <option value="logarithmic" {% if selected_work.interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="arbitrary-sheets">Количество листов:</label>
-                                                <input type="number" id="arbitrary-sheets" class="form-control" min="1" step="1" placeholder="Введите количество">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
-                                                    <i class="fas fa-calculator"></i> Рассчитать
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
-                                            <div class="result-content">
-                                                <div class="result-item"><span class="result-label">Метод:</span> <span id="result-method"></span></div>
-                                                <div class="result-item"><span class="result-label">Листов:</span> <span id="result-sheets"></span></div>
-                                                <div class="result-item"><span class="result-label">Цена:</span> <span id="result-price" class="price-value"></span></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    <div class="empty-message">
-                                        <i class="fas fa-chart-line"></i>
-                                        Нет сохранённых цен. Добавьте первую цену, используя кнопку выше.
-                                    </div>
-                                {% endif %}
+                    <!-- БЛОК ЦЕН ПО ЛИСТАМ (WorkPrice) -->
+                    <div class="price-points-section">
+                        <div class="section-header" style="margin-top: 1.5rem;">
+                            <h3><i class="fas fa-chart-line"></i> Цены в зависимости от количества листов</h3>
+                            <div class="header-buttons">
+                                <button type="button" class="btn-action btn-add-price-point" id="add-price-point-btn">+ Добавить цену</button>
                             </div>
                         </div>
-                    {% endif %}
 
+                        <!-- Форма добавления цены по листам (скрыта) -->
+                        <div class="form-section" id="price-point-form-section" style="display: none;">
+                            <h4>Добавить новую цену</h4>
+                            <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_work_price' %}" id="price-point-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="work" value="{{ selected_work.id }}" id="price-point-work">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="price-point-sheets">Количество листов*</label>
+                                        <input type="number" id="price-point-sheets" name="sheets" class="form-control"
+                                            min="1" placeholder="100" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="price-point-price">Цена (руб.)*</label>
+                                        <input type="number" id="price-point-price" name="price" class="form-control"
+                                            step="0.01" min="0.01" placeholder="50.00" required>
+                                    </div>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn-submit">Сохранить</button>
+                                    <button type="button" class="btn-clear" onclick="WorkPrice.clearForm()">Очистить</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Таблица опорных точек по листам -->
+                        <div class="price-points-container">
+                            {% if work_prices %}
+                                <div class="price-points-table">
+                                    <div class="table-header">
+                                        <div class="col-sheets">Количество листов</div>
+                                        <div class="col-price">Цена</div>
+                                        <div class="col-actions">Действия</div>
+                                    </div>
+                                    <div class="table-body">
+                                        {% for price in work_prices %}
+                                            <div class="table-row" data-price-id="{{ price.id }}">
+                                                <div class="col-sheets">
+                                                    <span class="sheets-badge editable-field-price"
+                                                        data-field="sheets"
+                                                        data-price-id="{{ price.id }}"
+                                                        data-original-value="{{ price.sheets|stringformat:'d' }}"
+                                                        title="Двойной клик для редактирования">
+                                                        {{ price.get_sheets_display }}
+                                                    </span>
+                                                    <input type="number"
+                                                        class="inline-edit-input sheets-input"
+                                                        data-price-id="{{ price.id }}"
+                                                        data-field="sheets"
+                                                        value="{{ price.sheets }}"
+                                                        min="1"
+                                                        step="1"
+                                                        style="display: none;">
+                                                </div>
+                                                <div class="col-price">
+                                                    <span class="price-badge editable-field-price"
+                                                        data-field="price"
+                                                        data-price-id="{{ price.id }}"
+                                                        data-original-value="{{ price.price|stringformat:'f' }}"
+                                                        title="Двойной клик для редактирования">
+                                                        {{ price.get_price_display }}
+                                                    </span>
+                                                    <input type="number"
+                                                        class="inline-edit-input price-input"
+                                                        data-price-id="{{ price.id }}"
+                                                        data-field="price"
+                                                        value="{{ price.price|stringformat:'f' }}"
+                                                        min="0.01"
+                                                        step="0.01"
+                                                        style="display: none;">
+                                                </div>
+                                                <div class="col-actions">
+                                                    <button type="button"
+                                                            class="btn-action btn-delete-price"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-price-sheets="{{ price.sheets }}">
+                                                        Удалить
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Блок расчёта для произвольного количества листов -->
+                                <div class="arbitrary-calc-section">
+                                    <div class="section-header">
+                                        <h4><i class="fas fa-calculator"></i> Расчёт для произвольного количества листов</h4>
+                                    </div>
+                                    <div class="arbitrary-form-row">
+                                        <div class="form-group">
+                                            <label for="interpolation-method-work">Метод интерполяции:</label>
+                                            <select id="interpolation-method-work"
+                                                    class="form-control"
+                                                    data-work-id="{{ selected_work.id }}">
+                                                <option value="linear" {% if selected_work.interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                                <option value="logarithmic" {% if selected_work.interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="arbitrary-sheets">Количество листов:</label>
+                                            <input type="number" id="arbitrary-sheets" class="form-control" min="1" step="1" placeholder="Введите количество">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>&nbsp;</label>
+                                            <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
+                                                <i class="fas fa-calculator"></i> Рассчитать
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
+                                        <div class="result-content">
+                                            <div class="result-item"><span class="result-label">Метод:</span> <span id="result-method"></span></div>
+                                            <div class="result-item"><span class="result-label">Листов:</span> <span id="result-sheets"></span></div>
+                                            <div class="result-item"><span class="result-label">Цена:</span> <span id="result-price" class="price-value"></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="empty-message"><i class="fas fa-chart-line"></i> Нет сохранённых цен. Добавьте первую цену, используя кнопку выше.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- ===== НОВЫЙ БЛОК: Цены по тиражу (WorkCirculationPrice) ===== -->
+                    <div class="circulation-price-points-section" style="margin-top: 2rem;">
+                        <div class="section-header">
+                            <h3><i class="fas fa-chart-bar"></i> Цены в зависимости от тиража</h3>
+                            <div class="header-buttons">
+                                <button type="button" class="btn-action btn-add-circulation-price" id="add-circulation-price-btn">+ Добавить цену по тиражу</button>
+                            </div>
+                        </div>
+
+                        <!-- Форма добавления цены по тиражу (скрыта) -->
+                        <div class="form-section" id="circulation-price-form-section" style="display: none;">
+                            <h4>Добавить новую цену по тиражу</h4>
+                            <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_circulation_price' %}" id="circulation-price-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="work" value="{{ selected_work.id }}" id="work-circulation-price-work">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="work-circulation-price-circulation">Тираж*</label>
+                                        <input type="number" id="work-circulation-price-circulation" name="circulation" class="form-control" min="1" placeholder="100" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="work-circulation-price-price">Цена (руб.)*</label>
+                                        <input type="number" id="work-circulation-price-price" name="price" class="form-control" step="0.01" min="0.01" placeholder="50.00" required>
+                                    </div>
+                                </div>
+                                <div class="button-group">
+                                    <button type="submit" class="btn-submit">Сохранить</button>
+                                    <button type="button" class="btn-clear" onclick="WorkCirculationPrice.clearForm()">Очистить</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Таблица опорных точек по тиражу -->
+                        <div class="price-points-container">
+                            {% if circulation_prices %}
+                                <div class="price-points-table">
+                                    <div class="table-header">
+                                        <div class="col-sheets">Тираж (экз.)</div>
+                                        <div class="col-price">Цена</div>
+                                        <div class="col-actions">Действия</div>
+                                    </div>
+                                    <div class="table-body">
+                                        {% for price in circulation_prices %}
+                                            <div class="table-row" data-price-id="{{ price.id }}">
+                                                <div class="col-sheets">
+                                                    <span class="sheets-badge editable-field-circulation-price"
+                                                          data-field="circulation"
+                                                          data-price-id="{{ price.id }}"
+                                                          data-original-value="{{ price.circulation }}"
+                                                          title="Двойной клик для редактирования">
+                                                        {{ price.get_circulation_display }}
+                                                    </span>
+                                                    <input type="number"
+                                                           class="inline-edit-input circulation-input"
+                                                           data-price-id="{{ price.id }}"
+                                                           data-field="circulation"
+                                                           value="{{ price.circulation }}"
+                                                           min="1"
+                                                           step="1"
+                                                           style="display: none;">
+                                                </div>
+                                                <div class="col-price">
+                                                    <span class="price-badge editable-field-circulation-price"
+                                                          data-field="price"
+                                                          data-price-id="{{ price.id }}"
+                                                          data-original-value="{{ price.price|stringformat:'f' }}"
+                                                          title="Двойной клик для редактирования">
+                                                        {{ price.get_price_display }}
+                                                    </span>
+                                                    <input type="number"
+                                                           class="inline-edit-input price-input"
+                                                           data-price-id="{{ price.id }}"
+                                                           data-field="price"
+                                                           value="{{ price.price|stringformat:'f' }}"
+                                                           min="0.01"
+                                                           step="0.01"
+                                                           style="display: none;">
+                                                </div>
+                                                <div class="col-actions">
+                                                    <button type="button"
+                                                            class="btn-action btn-delete-circulation-price"
+                                                            data-price-id="{{ price.id }}"
+                                                            data-price-circulation="{{ price.circulation }}">
+                                                        Удалить
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Блок расчёта для произвольного тиража -->
+                                <div class="arbitrary-calc-section">
+                                    <div class="section-header">
+                                        <h4><i class="fas fa-calculator"></i> Расчёт для произвольного тиража</h4>
+                                    </div>
+                                    <div class="arbitrary-form-row">
+                                        <div class="form-group">
+                                            <label for="interpolation-method-circulation">Метод интерполяции:</label>
+                                            <select id="interpolation-method-circulation" class="form-control" data-work-id="{{ selected_work.id }}">
+                                                <option value="linear" {% if selected_work.interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                                <option value="logarithmic" {% if selected_work.interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="arbitrary-circulation">Тираж (экз.):</label>
+                                            <input type="number" id="arbitrary-circulation" class="form-control" min="1" step="1" placeholder="Введите тираж">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>&nbsp;</label>
+                                            <button type="button" id="calculate-arbitrary-circulation-price" class="btn-submit" style="margin-top: 1.7rem;">
+                                                <i class="fas fa-calculator"></i> Рассчитать
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="arbitrary-result" id="arbitrary-circulation-result" style="display: none;">
+                                        <div class="result-content">
+                                            <div class="result-item"><span class="result-label">Метод:</span> <span id="result-circulation-method"></span></div>
+                                            <div class="result-item"><span class="result-label">Тираж:</span> <span id="result-circulation-value"></span></div>
+                                            <div class="result-item"><span class="result-label">Цена:</span> <span id="result-circulation-price" class="price-value"></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="empty-message"><i class="fas fa-chart-bar"></i> Нет сохранённых цен по тиражу. Добавьте первую цену, используя кнопку выше.</div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             {% endif %}
         </div> <!-- Закрываем правую колонку -->
@@ -512,5 +621,9 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_inline_edit.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_arbitrary.js' %}"></script>
+        <!-- НОВЫЕ СКРИПТЫ ДЛЯ ЦЕН ПО ТИРАЖУ -->
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price.js' %}"></script>
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price_inline_edit.js' %}"></script>
+        <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price_arbitrary.js' %}"></script>
     {% endif %}
 {% endblock %}
