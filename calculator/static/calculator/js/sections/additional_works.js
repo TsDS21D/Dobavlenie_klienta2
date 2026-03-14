@@ -7,7 +7,14 @@
 //           (только количества) и удалением дополнительных работ.
 //           Интеграция со справочником, с приложением "Вычисления листов",
 //           с изменением тиража.
-//           Детальные комментарии для каждой строки.
+// ============================================================================
+//
+// ИСПРАВЛЕНИЯ:
+//   - В функции additionalWorks_createWorkRow добавлено явное преобразование
+//     полей vich_data (item_width, item_height, list_count) в числа,
+//     чтобы избежать ошибки "toFixed is not a function" при работе со строками.
+//   - Все данные из vich_data теперь гарантированно числа перед использованием.
+//
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -421,6 +428,15 @@ function additionalWorks_createWorkRow(work, index) {
         cuts_count: 0
     };
 
+    // ===== ИСПРАВЛЕНИЕ: преобразуем строковые значения в числа, чтобы избежать ошибок toFixed =====
+    // Сервер может возвращать числа как строки (особенно Decimal), поэтому явно преобразуем.
+    const itemWidth = typeof vich.item_width === 'number' ? vich.item_width : parseFloat(vich.item_width) || 0;
+    const itemHeight = typeof vich.item_height === 'number' ? vich.item_height : parseFloat(vich.item_height) || 0;
+    const listCount = typeof vich.list_count === 'number' ? vich.list_count : parseFloat(vich.list_count) || 0;
+    const fitTotal = typeof vich.fit_total === 'number' ? vich.fit_total : parseInt(vich.fit_total, 10) || 0;
+    const cutsCount = typeof vich.cuts_count === 'number' ? vich.cuts_count : parseInt(vich.cuts_count, 10) || 0;
+    // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
+
     // Формируем HTML строки.
     // В колонке "Цена" теперь используется work.formatted_effective_price (эффективная цена за единицу)
     row.innerHTML = `
@@ -434,11 +450,11 @@ function additionalWorks_createWorkRow(work, index) {
             data-work-id="${work.id}">
             ${work.quantity || 1}
         </td>
-        <td class="additional-works-component-width">${vich.item_width.toFixed(2)}</td>
-        <td class="additional-works-component-height">${vich.item_height.toFixed(2)}</td>
-        <td class="additional-works-component-sheet-count">${vich.list_count.toFixed(2)}</td>
-        <td class="additional-works-component-fit-total">${vich.fit_total}</td>
-        <td class="additional-works-component-cuts-count">${vich.cuts_count}</td>
+        <td class="additional-works-component-width">${itemWidth.toFixed(2)}</td>
+        <td class="additional-works-component-height">${itemHeight.toFixed(2)}</td>
+        <td class="additional-works-component-sheet-count">${listCount.toFixed(2)}</td>
+        <td class="additional-works-component-fit-total">${fitTotal}</td>
+        <td class="additional-works-component-cuts-count">${cutsCount}</td>
         <td class="additional-works-work-total-price">${work.formatted_total_price || '0.00 ₽'}</td>
         <td class="additional-works-work-actions">
             <button type="button" class="additional-works-delete-work-btn" 

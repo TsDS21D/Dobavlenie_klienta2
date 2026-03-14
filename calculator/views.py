@@ -582,16 +582,20 @@ def get_print_components(request, proschet_id):
     возвращается 0.00, что сигнализирует о необходимости настройки вычислений.
     """
     try:
+        # Получаем все не удалённые печатные компоненты для данного просчёта.
+        # Используем select_related для оптимизации запросов (подгружаем связанные принтер и бумагу).
         components = PrintComponent.objects.filter(
             proschet_id=proschet_id,
             is_deleted=False
         ).select_related('printer', 'paper')
 
-        # Получаем данные из приложения vichisliniya_listov
+        # Получаем данные из приложения vichisliniya_listov.
+        # Берём только нужные поля: ID компонента и количество листов.
         vich_data_qs = VichisliniyaListovModel.objects.filter(
             vichisliniya_listov_print_component__proschet_id=proschet_id
         ).values('vichisliniya_listov_print_component_id', 'vichisliniya_listov_list_count')
 
+        # Преобразуем queryset в словарь для быстрого доступа по ID компонента.
         vich_data_dict = {
             item['vichisliniya_listov_print_component_id']: item['vichisliniya_listov_list_count']
             for item in vich_data_qs
@@ -599,28 +603,29 @@ def get_print_components(request, proschet_id):
 
         components_data = []
         for component in components:
+            # Получаем количество листов из словаря, если записи нет – 0.00.
             sheet_count = vich_data_dict.get(component.id, Decimal('0.00'))
 
+            # Форматируем количество листов для отображения (с пробелами как разделителями тысяч).
             try:
                 sheet_count_float = float(sheet_count)
                 formatted_sheet_count = f"{sheet_count_float:,.2f}".replace(',', ' ')
             except:
                 formatted_sheet_count = "0.00"
 
+            # Формируем данные компонента для отправки на клиент.
             component_data = {
                 'id': component.id,
                 'number': component.number,
                 'printer_name': component.printer.name if component.printer else None,
                 'paper_name': component.paper.name if component.paper else None,
-                'sheet_count': float(sheet_count),
-                'formatted_sheet_count_display': formatted_sheet_count,
+                'sheet_count': float(sheet_count),                       # числовое значение для расчётов
+                'formatted_sheet_count_display': formatted_sheet_count, # строка для отображения в таблице
                 'price_per_sheet': str(component.price_per_sheet),
                 'formatted_price_per_sheet': component.formatted_price_per_sheet,
-                # Используем сохранённое поле total_circulation_price
                 'total_circulation_price': str(component.total_circulation_price),
                 'formatted_total_circulation_price': component.formatted_total_circulation_price,
                 'has_vich_data': component.id in vich_data_dict,
-                # Добавляем цену бумаги для клиента (понадобится в JS)
                 'paper_price': float(component.material_price_per_unit) if component.paper else 0,
             }
             components_data.append(component_data)
@@ -1329,23 +1334,20 @@ def get_additional_works(request, component_id):
     Возвращает список дополнительных работ для указанного компонента,
     а также информацию о самом компоненте, просчёте и параметрах из VichisliniyaListovModel.
     
-    ИЗМЕНЕНИЯ:
-    - Для каждой работы вычисляется effective_price (интерполированная цена за единицу)
-      на основе количества листов компонента (из vich_data).
-    - ВАЖНО: total_price пересчитывается на лету с использованием текущих значений
-      тиража и количества листов, чтобы всегда возвращать актуальную общую стоимость.
-      Это не сохраняется в БД, но гарантирует правильность отображаемых данных.
-    - Для формул 3 и 4 вместо сохранённого lines_count подставляется актуальное
-      количество резов (cuts_count) из vich_data.
-    - Для формулы 4 используется коэффициент k_lines из связанной работы Work.
+    ИСПРАВЛЕНИЕ:
+    - Логика расчёта общей стоимости работ теперь полностью находится в модели AdditionalWork.
+    - Здесь мы получаем актуальные данные из VichisliniyaListovModel и тираж,
+      затем для каждой работы вызываем метод recalculate_price() с этими параметрами,
+      сохраняем обновлённое поле total_price (только его) и возвращаем to_dict().
+    - Это гарантирует, что данные в админке и на фронтенде всегда будут синхронизированы.
     """
-    # Получаем печатный компонент или 404
+    # Получаем печатный компонент по ID, проверяем, что он не удалён
     component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
-    
-    # Все не удалённые доп. работы для этого компонента
+
+    # Получаем все не удалённые дополнительные работы для этого компонента
     works = AdditionalWork.objects.filter(print_component=component, is_deleted=False).order_by('created_at')
 
-    # Получаем данные вычислений листов для этого компонента
+    # Пытаемся получить данные из приложения "Вычисления листов" (VichisliniyaListovModel)
     try:
         vich_obj = VichisliniyaListovModel.objects.get(
             vichisliniya_listov_print_component=component
@@ -1353,86 +1355,41 @@ def get_additional_works(request, component_id):
         vich_data = {
             'item_width': float(vich_obj.vichisliniya_listov_item_width),
             'item_height': float(vich_obj.vichisliniya_listov_item_height),
-            'list_count': float(vich_obj.vichisliniya_listov_list_count),
+            'list_count': vich_obj.vichisliniya_listov_list_count,        # количество листов (Decimal)
             'fit_total': vich_obj.vichisliniya_listov_fit_total,
-            'cuts_count': vich_obj.vichisliniya_listov_cuts_count,
+            'cuts_count': vich_obj.vichisliniya_listov_cuts_count,        # количество резов
         }
         sheet_count_decimal = vich_obj.vichisliniya_listov_list_count
+        cuts_count = vich_obj.vichisliniya_listov_cuts_count
     except VichisliniyaListovModel.DoesNotExist:
+        # Если записи нет – устанавливаем значения по умолчанию (0)
         vich_data = {
             'item_width': 0.0,
             'item_height': 0.0,
-            'list_count': 0.0,
+            'list_count': Decimal('0'),
             'fit_total': 0,
             'cuts_count': 0,
         }
         sheet_count_decimal = Decimal('0')
+        cuts_count = 0
 
-    # Получаем тираж из просчёта
-    circulation = component.proschet.circulation if component.proschet and component.proschet.circulation else 1
+    # Получаем тираж из связанного просчёта (если просчёта нет – берём 1)
+    proschet = component.proschet
+    circulation = proschet.circulation if proschet and proschet.circulation else 1
 
-    # Формируем список работ с добавленными полями effective_price и пересчитанным total_price
-    works_data = []
+    # Перебираем все дополнительные работы и обновляем их общую стоимость
     for work in works:
-        # ===== ПЕРЕСЧИТЫВАЕМ total_price НА ЛЕТУ (без сохранения в БД) =====
-        # Используем ту же логику, что и в методе save() модели AdditionalWork
-        # Получаем параметры из самой работы
-        qty = work.quantity if work.quantity else 1
-        lines = work.lines_count if work.lines_count else 1
-        items = work.items_per_sheet if work.items_per_sheet else 1
+        # Вызываем метод recalculate_price, передавая актуальные данные
+        work.recalculate_price(sheet_count_decimal, cuts_count, circulation)
 
-        # ===== ИСПРАВЛЕНИЕ: для формул, использующих линии реза, подставляем актуальное количество резов =====
-        if work.formula_type in [3, 4]:
-            lines = vich_data['cuts_count']  # используем количество резов из вычислений листов
+        # Сохраняем только поле total_price, чтобы не изменять другие поля
+        # и не вызывать лишних сигналов
+        work.save(update_fields=['total_price'])
 
-        # Вычисляем effective_price (интерполированная цена за единицу)
-        if work.work:
-            try:
-                effective_price = calculate_price_for_work(work.work, sheet_count_decimal)
-            except Exception:
-                effective_price = work.price
-        else:
-            effective_price = work.price
+    # Формируем данные для ответа: для каждой работы вызываем to_dict()
+    works_data = [work.to_dict() for work in works]
 
-        # Вычисляем total_price по формуле (копия логики из save())
-        formula_type = work.formula_type
-        if formula_type == 1:
-            total = effective_price * qty
-        elif formula_type == 2:
-            total = effective_price * circulation * qty
-        elif formula_type == 3:
-            total = effective_price * circulation * lines * qty
-        elif formula_type == 4:
-            # количество листов × effective_price × количество линий реза
-            # Берём коэффициент k_lines из связанной работы Work (если есть)
-            if work.work:
-                k_lines = float(work.work.k_lines)
-            else:
-                k_lines = 2.0  # значение по умолчанию
-            factor_float = (1 + k_lines * math.log2(max(lines, 1))) * (1 + math.log2(max(sheet_count_decimal, 1)))
-            complexity_factor = Decimal(str(factor_float))
-            total = effective_price * complexity_factor * qty
-        elif formula_type == 5:
-            total = effective_price * items * sheet_count_decimal * qty
-        elif formula_type == 6:
-            total = effective_price * items * circulation * qty
-        else:
-            total = effective_price * qty
-
-        # Округляем до двух знаков
-        total = total.quantize(Decimal('0.01'))
-
-        # ===== СОЗДАЁМ ВРЕМЕННЫЙ СЛОВАРЬ С АКТУАЛЬНЫМИ ДАННЫМИ =====
-        # Используем метод to_dict() для базовых полей, но заменяем total_price на пересчитанное
-        work_dict = work.to_dict()
-        work_dict['effective_price'] = str(effective_price)
-        work_dict['formatted_effective_price'] = f"{effective_price} ₽"
-        work_dict['total_price'] = str(total)
-        work_dict['formatted_total_price'] = f"{total} ₽"
-
-        works_data.append(work_dict)
-
-    # Информация о самом компоненте (для JS)
+    # Информация о компоненте (для фронтенда)
     component_info = {
         'id': component.id,
         'number': component.number,
@@ -1440,14 +1397,14 @@ def get_additional_works(request, component_id):
         'printer_name': component.printer.name if component.printer else None,
     }
 
-    # Информация о просчёте (тираж и номер)
-    proschet = component.proschet
+    # Информация о просчёте
     proschet_info = {
         'id': proschet.id,
         'number': proschet.number,
         'circulation': proschet.circulation,
     }
 
+    # Возвращаем JSON-ответ
     return JsonResponse({
         'success': True,
         'works': works_data,

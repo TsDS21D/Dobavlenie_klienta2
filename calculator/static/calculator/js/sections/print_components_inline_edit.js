@@ -15,6 +15,11 @@
  * 3. Модальное окно для добавления нового компонента печати.
  * 4. Автоматический расчёт цены за лист при выборе принтера в модальном окне.
  * 5. Удаление компонентов с подтверждением.
+ * 
+ * ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С ОТОБРАЖЕНИЕМ КОЛИЧЕСТВА ЛИСТОВ:
+ * - После успешного сохранения изменений (например, смена принтера) теперь полностью перезагружается
+ *   таблица компонентов для текущего просчёта (вызов updateForProschet). Это гарантирует, что все данные,
+ *   включая количество листов, цену за лист и общую стоимость, будут получены с сервера заново и отображены корректно.
  */
 
 "use strict"; // Строгий режим – запрещает использование необъявленных переменных
@@ -1372,37 +1377,22 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
     })
     .then(data => {
         if (data.success) {
-            // Успех – отображаем новое значение
+            // Успех – отображаем новое значение для отредактированной ячейки
             cell.innerHTML = displayValue;
             cell.classList.remove('editing-cell');
 
             print_components_show_notification('Изменения сохранены', 'success');
 
-            // Если изменяли принтер, вызываем пересчёт стоимости
-            if (fieldName === 'printer') {
-                // Получаем количество листов из ячейки этой же строки
-                const row = cell.closest('tr');
-                const sheetCountCell = row.querySelector('.component-sheet-count');
-                if (sheetCountCell) {
-                    const sheetCountText = sheetCountCell.textContent.replace(/\s/g, ''); // убираем пробелы
-                    const sheetCount = parseFloat(sheetCountText);
-                    if (!isNaN(sheetCount) && window.printComponentsSection?.recalculateComponentPrice) {
-                        window.printComponentsSection.recalculateComponentPrice(componentId, sheetCount);
-                    } else {
-                        console.warn('Не удалось получить количество листов или функцию recalculateComponentPrice');
-                    }
-                }
-            }
+            // ===== ИСПРАВЛЕНИЕ: Сбрасываем состояние редактирования =====
+            print_components_reset_editing_state();
 
-            // Обновляем таблицу компонентов, чтобы отразить возможные изменения цены
+            // ===== ИСПРАВЛЕНИЕ: Перезагружаем всю таблицу компонентов для текущего просчёта =====
             const currentProschetId = window.printComponentsSection?.getCurrentProschetId();
             if (currentProschetId) {
-                setTimeout(() => {
-                    const proschetRow = document.querySelector('.proschet-row.selected');
-                    if (proschetRow && window.printComponentsSection?.updateForProschet) {
-                        window.printComponentsSection.updateForProschet(currentProschetId, proschetRow);
-                    }
-                }, 300);
+                const proschetRow = document.querySelector('.proschet-row.selected');
+                if (proschetRow && window.printComponentsSection?.updateForProschet) {
+                    window.printComponentsSection.updateForProschet(currentProschetId, proschetRow);
+                }
             }
         } else {
             // Ошибка на сервере – показываем исходное значение красным
@@ -1430,7 +1420,7 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         }, 2000);
     })
     .finally(() => {
-        // Сбрасываем состояние редактирования (но не сразу, т.к. ячейка ещё может обновляться)
+        // Сбрасываем состояние редактирования на случай, если оно не было сброшено
         print_components_reset_editing_state();
     });
 }
