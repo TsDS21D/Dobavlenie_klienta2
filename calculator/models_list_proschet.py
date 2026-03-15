@@ -151,7 +151,19 @@ class Proschet(models.Model):
 
 
 class PrintComponent(models.Model):
-    """Компонент печати (без изменений, приведён для полноты)"""
+    """Компонент печати.
+    ИЗМЕНЕНИЯ:
+    - Добавлено поле printing_mode для выбора односторонней/двусторонней печати.
+    - Добавлено свойство runs_count для количества прогонов принтера.
+    - Метод refresh_total_price теперь использует runs_count для расчёта стоимости печати.
+    """
+
+    # Варианты режима печати
+    PRINT_MODE_CHOICES = [
+        ('single', 'Односторонняя'),
+        ('duplex', 'Двусторонняя'),
+    ]
+
     number = models.CharField(
         verbose_name='Номер компонента',
         max_length=20,
@@ -222,14 +234,22 @@ class PrintComponent(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
-        help_text='Итоговая стоимость компонента = (цена печати + цена бумаги) × количество листов. Сохраняется автоматически.'
+        help_text='Итоговая стоимость компонента = (цена печати за прогон * количество прогонов) + (цена бумаги * количество листов). Сохраняется автоматически.'
     )
     color_mode = models.CharField(
         verbose_name='Цветность',
         max_length=10,
         default='4+0',
         help_text='Формат цветности, например 4+0, 4+4 и т.п.'
-    )    
+    )
+    # ===== НОВОЕ ПОЛЕ: режим печати =====
+    printing_mode = models.CharField(
+        verbose_name='Режим печати',
+        max_length=10,
+        choices=PRINT_MODE_CHOICES,
+        default='single',
+        help_text='Односторонняя или двусторонняя печать. Влияет на количество прогонов принтера.'
+    )
 
     class Meta:
         verbose_name = 'Компонент печати'
@@ -240,7 +260,8 @@ class PrintComponent(models.Model):
         paper_name = self.paper.name if self.paper else 'Бумага не выбрана'
         printer_name = self.printer.name if self.printer else 'Без принтера'
         sheet_count_text = f"Листов: {self.sheet_count}" if self.sheet_count else "Листов не указано"
-        return f"{self.number}: {printer_name} - {paper_name} ({sheet_count_text})"
+        mode_text = "Двуст." if self.printing_mode == 'duplex' else "Одност."
+        return f"{self.number}: {printer_name} - {paper_name} ({sheet_count_text}, {mode_text})"
 
     # ---------- Свойства для работы с тиражом просчёта ----------
     @property
@@ -252,6 +273,23 @@ class PrintComponent(models.Model):
     @property
     def circulation_display(self):
         return self.formatted_circulation
+
+    # ---------- НОВОЕ СВОЙСТВО: количество прогонов принтера ----------
+    @property
+    def runs_count(self):
+        """
+        Количество прогонов принтера для данного компонента.
+        При односторонней печати (single) прогонов = количество листов.
+        При двусторонней (duplex) прогонов = количество листов * 2.
+        """
+        if self.sheet_count is None:
+            return 0
+        # sheet_count хранится как Decimal, преобразуем в int для целого числа прогонов
+        sheets = int(self.sheet_count)
+        if self.printing_mode == 'duplex':
+            return sheets * 2
+        else:
+            return sheets
 
     # ---------- Метод для пересчёта цены ----------
     def recalculate_price(self):
@@ -274,9 +312,13 @@ class PrintComponent(models.Model):
         """
         Пересчитывает общую стоимость компонента на основе текущих данных
         и сохраняет её в поле total_circulation_price.
-        Используется при изменении цены, бумаги или количества листов.
+        НОВАЯ ФОРМУЛА:
+        total = (price_per_sheet * runs_count) + (material_price_per_unit * sheet_count)
+        Где runs_count = количество листов * коэффициент режима печати.
+        ВАЖНО: количество листов всегда берётся из связанной записи VichisliniyaListovModel.
         """
         try:
+            # Получаем количество листов из связанной записи вычислений листов
             from vichisliniya_listov.models import VichisliniyaListovModel
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
@@ -286,10 +328,23 @@ class PrintComponent(models.Model):
             except VichisliniyaListovModel.DoesNotExist:
                 sheet_count = Decimal('0.00')
 
+            # Цена печати за лист (может быть None)
             price_per_sheet = self.price_per_sheet if self.price_per_sheet is not None else Decimal('0.00')
+            # Цена бумаги за лист
             material_price = self.material_price_per_unit
-            total = (price_per_sheet + material_price) * sheet_count
-            self.total_circulation_price = total
+
+            # Количество прогонов принтера – рассчитываем на основе актуального количества листов
+            runs = int(sheet_count) * (2 if self.printing_mode == 'duplex' else 1)
+
+            # Общая стоимость печати = цена за лист * количество прогонов
+            printing_cost = price_per_sheet * runs
+
+            # Общая стоимость бумаги = цена бумаги за лист * количество листов
+            material_cost = material_price * sheet_count
+
+            # Итоговая стоимость компонента
+            total = printing_cost + material_cost
+            self.total_circulation_price = total.quantize(Decimal('0.01'))
         except Exception as e:
             print(f"⚠️ Ошибка при пересчёте общей стоимости компонента {self.id}: {e}")
             self.total_circulation_price = Decimal('0.00')
@@ -349,6 +404,7 @@ class PrintComponent(models.Model):
                 self.price_per_sheet = Decimal('0.00')
             self.is_price_calculated = False
 
+        # Если объект уже существует, пересчитываем общую стоимость с учётом режима печати
         if self.pk:
             self.refresh_total_price()
 
@@ -461,13 +517,19 @@ class PrintComponent(models.Model):
             except VichisliniyaListovModel.DoesNotExist:
                 sheet_count = Decimal('0.00')
             price_per_sheet = self.price_per_sheet if self.price_per_sheet is not None else Decimal('0.00')
-            return price_per_sheet * sheet_count
+            runs = self.runs_count  # используем свойство runs_count
+            return price_per_sheet * runs
         except:
             return Decimal('0.00')
 
     @property
     def formatted_printing_cost_for_circulation(self):
         return f"{self.printing_cost_for_circulation:.2f} ₽"
+
+    # Добавляем метод для получения отображаемого названия режима печати
+    @property
+    def printing_mode_display_name(self):
+        return dict(self.PRINT_MODE_CHOICES).get(self.printing_mode, self.printing_mode)
 
 
 class AdditionalWork(models.Model):

@@ -572,7 +572,7 @@ def get_clients(request):
 # ============================================================================
 # ИСПРАВЛЕННАЯ ФУНКЦИЯ: get_print_components
 # Теперь возвращает количество листов из приложения vichisliniya_listov,
-# а не из поля sheet_count модели PrintComponent.
+# а также добавляет поле printing_mode и runs_count.
 # ============================================================================
 def get_print_components(request, proschet_id):
     """
@@ -580,6 +580,7 @@ def get_print_components(request, proschet_id):
     ВАЖНО: Количество листов (sheet_count) берётся из связанной записи
     VichisliniyaListovModel (если она существует). Если записи нет,
     возвращается 0.00, что сигнализирует о необходимости настройки вычислений.
+    ДОБАВЛЕНО: поле printing_mode (режим печати) и runs_count (количество прогонов).
     """
     try:
         # Получаем все не удалённые печатные компоненты для данного просчёта.
@@ -613,6 +614,9 @@ def get_print_components(request, proschet_id):
             except:
                 formatted_sheet_count = "0.00"
 
+            # Количество прогонов = sheet_count * (2 если двусторонняя, иначе 1)
+            runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
+
             # Формируем данные компонента для отправки на клиент.
             component_data = {
                 'id': component.id,
@@ -627,6 +631,10 @@ def get_print_components(request, proschet_id):
                 'formatted_total_circulation_price': component.formatted_total_circulation_price,
                 'has_vich_data': component.id in vich_data_dict,
                 'paper_price': float(component.material_price_per_unit) if component.paper else 0,
+                # НОВЫЕ ПОЛЯ:
+                'printing_mode': component.printing_mode,                # 'single' или 'duplex'
+                'printing_mode_display': component.printing_mode_display_name,  # текстовое отображение
+                'runs_count': runs_count,                                # количество прогонов
             }
             components_data.append(component_data)
 
@@ -766,7 +774,8 @@ def add_print_component(request):
     - Если выбран принтер, вызывается calculate_fitting() для расчёта размещения.
     - Рассчитывается количество листов на основе тиража просчёта.
     - Пересчитывается цена за лист (интерполяция) и общая стоимость компонента.
-    - Возвращаются все данные для отображения в таблице.
+    - НОВОЕ: режим печати (printing_mode) устанавливается по умолчанию 'single'.
+    - Возвращаются все данные для отображения в таблице, включая printing_mode.
     """
     try:
         # Получаем данные из POST-запроса
@@ -815,7 +824,8 @@ def add_print_component(request):
             proschet=proschet,
             printer=printer,
             paper=paper,
-            price_per_sheet=Decimal('0.00')  # временно, потом пересчитаем
+            price_per_sheet=Decimal('0.00'),  # временно, потом пересчитаем
+            printing_mode='single'  # НОВОЕ: по умолчанию односторонняя печать
         )
         component.save()
 
@@ -849,7 +859,7 @@ def add_print_component(request):
         vich_data.save()
 
         # ===== 4. РАССЧИТЫВАЕМ КОЛИЧЕСТВО ЛИСТОВ НА ОСНОВЕ ТИРАЖА =====
-        circulation = proschet.circulation or 1  # если тираж не задан, берём 1 (чтобы избежать деления на ноль)
+        circulation = proschet.circulation or 1
         new_list_count = vich_data.vichisliniya_listov_calculate_list_count(circulation)
         vich_data.vichisliniya_listov_list_count = new_list_count
         vich_data.save()
@@ -863,7 +873,7 @@ def add_print_component(request):
         else:
             component.price_per_sheet = Decimal('0.00')
 
-        # ===== 6. ПЕРЕСЧИТЫВАЕМ ОБЩУЮ СТОИМОСТЬ КОМПОНЕНТА =====
+        # ===== 6. ПЕРЕСЧИТЫВАЕМ ОБЩУЮ СТОИМОСТЬ КОМПОНЕНТА (с учётом printing_mode) =====
         component.refresh_total_price()
         component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
 
@@ -873,6 +883,9 @@ def add_print_component(request):
 
         def format_sheet_count(c):
             return f"{float(c):,.2f}".replace(',', ' ')
+
+        # Количество прогонов для отображения (не обязательно, но полезно)
+        runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
 
         component_data = {
             'id': component.id,
@@ -887,6 +900,10 @@ def add_print_component(request):
             'formatted_total_circulation_price': format_price(component.total_circulation_price),
             'paper_price': float(component.material_price_per_unit),
             'formatted_paper_price': format_price(component.material_price_per_unit),
+            # НОВЫЕ ПОЛЯ:
+            'printing_mode': component.printing_mode,
+            'printing_mode_display': component.printing_mode_display_name,
+            'runs_count': runs_count,
         }
 
         return JsonResponse({
@@ -909,8 +926,8 @@ def update_print_component(request):
     """
     API для обновления компонента печати.
     ОБНОВЛЕНО:
-    - При изменении принтера теперь пересчитывается размещение изделий на листе
-      (метод calculate_fitting) и обновляется количество листов.
+    - Добавлена поддержка поля printing_mode.
+    - При изменении принтера пересчитывается размещение и количество листов.
     - После любого изменения пересчитывается общая стоимость компонента.
     """
     try:
@@ -1010,15 +1027,6 @@ def update_print_component(request):
             except Exception as e:
                 return JsonResponse({'success': False, 'message': f'Бумага не найдена: {str(e)}'}, status=404)
 
-        elif field_name == 'sheet_count':
-            try:
-                sheet_count = int(field_value)
-                if sheet_count < 1:
-                    return JsonResponse({'success': False, 'message': 'Количество листов должно быть положительным'}, status=400)
-                component.sheet_count = sheet_count
-            except ValueError:
-                return JsonResponse({'success': False, 'message': 'Количество листов должно быть целым числом'}, status=400)
-
         elif field_name == 'price_per_sheet':
             try:
                 price = Decimal(field_value)
@@ -1027,6 +1035,12 @@ def update_print_component(request):
                 component.price_per_sheet = price
             except (ValueError, InvalidOperation):
                 return JsonResponse({'success': False, 'message': 'Некорректный формат цены'}, status=400)
+
+        # ===== НОВЫЙ ОБРАБОТЧИК ДЛЯ ПОЛЯ printing_mode =====
+        elif field_name == 'printing_mode':
+            if field_value not in ['single', 'duplex']:
+                return JsonResponse({'success': False, 'message': 'Некорректное значение режима печати'}, status=400)
+            component.printing_mode = field_value
 
         else:
             return JsonResponse({'success': False, 'message': f'Поле "{field_name}" не поддерживается'}, status=400)
@@ -1037,6 +1051,7 @@ def update_print_component(request):
 
         print(f"✅ Компонент обновлён: ID={component.id}, номер={component.number}")
 
+        # Формируем обновлённые данные для клиента
         updated_data = {
             'id': component.id,
             'number': component.number,
@@ -1049,6 +1064,10 @@ def update_print_component(request):
             'total_circulation_price': str(component.total_circulation_price),
             'formatted_total_circulation_price': component.formatted_total_circulation_price,
             'paper_price': float(component.material_price_per_unit),
+            # НОВЫЕ ПОЛЯ:
+            'printing_mode': component.printing_mode,
+            'printing_mode_display': component.printing_mode_display_name,
+            'runs_count': int(vich_data.vichisliniya_listov_list_count) * (2 if component.printing_mode == 'duplex' else 1) if vich_data else 0,
         }
 
         return JsonResponse({
@@ -1223,6 +1242,7 @@ def recalculate_components_for_circulation(request, proschet_id):
     Пересчитывает цены для всех компонентов печати при изменении тиража просчёта.
     ВАЖНО: теперь также пересчитывается количество листов в модели VichisliniyaListovModel
     для каждого компонента, используя сохранённые параметры (вылеты, полосы, цветность).
+    При пересчёте общей стоимости учитывается режим печати (printing_mode).
     Возвращает обновлённые данные компонентов.
     """
     print(f"🔄 Запрос на пересчёт компонентов для просчёта ID={proschet_id}")
@@ -1267,17 +1287,14 @@ def recalculate_components_for_circulation(request, proschet_id):
         )
 
         # ===== 2. ПЕРЕСЧИТЫВАЕМ КОЛИЧЕСТВО ЛИСТОВ С НОВЫМ ТИРАЖОМ =====
-        # Метод модели возвращает вычисленное значение, но не сохраняет его автоматически
         new_list_count = vich_data.vichisliniya_listov_calculate_list_count(new_circulation)
         vich_data.vichisliniya_listov_list_count = new_list_count
-        vich_data.save()  # сохраняем новое значение в БД
+        vich_data.save()
         sheet_count = new_list_count
 
         # ===== 3. ПЕРЕСЧИТЫВАЕМ ЦЕНУ ЗА ЛИСТ, ЕСЛИ ЕСТЬ ПРИНТЕР =====
         if component.printer and sheet_count > 0:
             try:
-                from print_price.models import PrintPrice
-                # Используем метод модели для расчёта цены (интерполяция)
                 component.price_per_sheet = component.calculate_price_for_printer_and_copies(
                     component.printer, int(float(sheet_count))
                 )
@@ -1285,8 +1302,7 @@ def recalculate_components_for_circulation(request, proschet_id):
                 print(f"⚠️ Ошибка при пересчёте цены для компонента {component.id}: {e}")
                 # оставляем старую цену
 
-        # ===== 4. ПЕРЕСЧИТЫВАЕМ ОБЩУЮ СТОИМОСТЬ КОМПОНЕНТА =====
-        # Метод refresh_total_price() использует актуальное количество листов из vich_data
+        # ===== 4. ПЕРЕСЧИТЫВАЕМ ОБЩУЮ СТОИМОСТЬ КОМПОНЕНТА (с учётом printing_mode) =====
         component.refresh_total_price()
         component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
 
@@ -1294,6 +1310,7 @@ def recalculate_components_for_circulation(request, proschet_id):
         total_price_sum += component.total_circulation_price
 
         # ===== 6. ФОРМИРУЕМ ДАННЫЕ ДЛЯ ОТВЕТА =====
+        runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
         component_data = {
             'id': component.id,
             'number': component.number,
@@ -1306,6 +1323,10 @@ def recalculate_components_for_circulation(request, proschet_id):
             'total_circulation_price': str(component.total_circulation_price),
             'formatted_total_circulation_price': component.formatted_total_circulation_price,
             'paper_price': float(component.material_price_per_unit),
+            # НОВЫЕ ПОЛЯ:
+            'printing_mode': component.printing_mode,
+            'printing_mode_display': component.printing_mode_display_name,
+            'runs_count': runs_count,
         }
         updated_components.append(component_data)
 
@@ -1632,6 +1653,8 @@ def get_proschet_price_data(request, proschet_id):
                 'price_per_sheet': str(component.price_per_sheet) if component.price_per_sheet else '0.00',
                 'total_circulation_price': str(comp_price),
                 'formatted_total_circulation_price': f"{comp_price:.2f} ₽",
+                # НОВОЕ ПОЛЕ:
+                'printing_mode': component.printing_mode,
             })
 
         # Вычисляем общую стоимость печатных компонентов
@@ -1687,23 +1710,7 @@ def get_proschet_price_data(request, proschet_id):
 def update_component_price(request):
     """
     API для обновления стоимости печатного компонента на основе нового количества листов.
-    ВОЗВРАЩАЕТ:
-        - success: bool
-        - component: объект компонента с полями:
-            * id
-            * number
-            * printer_name
-            * paper_name
-            * paper_price
-            * formatted_paper_price
-            * sheet_count
-            * sheet_count_display
-            * price_per_sheet
-            * formatted_price_per_sheet
-            * total_circulation_price   # ← ИСПРАВЛЕНО: раньше было total_price
-            * formatted_total_circulation_price
-        - total_price: общая стоимость всех компонентов просчёта
-        - calculation_details: детали расчёта
+    ТЕПЕРЬ УЧИТЫВАЕТ РЕЖИМ ПЕЧАТИ (printing_mode) ПРИ РАСЧЁТЕ ОБЩЕЙ СТОИМОСТИ.
     """
     try:
         data = json.loads(request.body)
@@ -1731,42 +1738,38 @@ def update_component_price(request):
         # Пересчёт цены за лист, если есть принтер
         if component.printer and sheet_count_decimal > 0:
             try:
-                from print_price.models import PrintPrice
-                print_prices = PrintPrice.objects.filter(printer=component.printer).order_by('copies')
-                if print_prices.exists():
-                    sheet_count_int = int(float(sheet_count_decimal))
-                    new_price = component.calculate_price_for_printer_and_copies(
-                        component.printer, sheet_count_int
-                    )
-                    component.price_per_sheet = new_price
+                sheet_count_int = int(float(sheet_count_decimal))
+                new_price = component.calculate_price_for_printer_and_copies(
+                    component.printer, sheet_count_int
+                )
+                component.price_per_sheet = new_price
             except Exception as e:
                 print(f"⚠️ Ошибка при пересчёте цены: {e}")
-                # оставляем старую цену
 
-        # Сохраняем цену (обновляем поле price_per_sheet)
+        # Сохраняем цену
         component.save(update_fields=['price_per_sheet'])
 
-        # ===== ВАЖНО: пересчитываем общую стоимость компонента и сохраняем её =====
-        component.refresh_total_price()  # использует sheet_count_decimal и обновлённую цену
+        # ===== ВАЖНО: пересчитываем общую стоимость компонента с учётом printing_mode =====
+        component.refresh_total_price()
         component.save(update_fields=['total_circulation_price'])
 
-        # Общая стоимость всех компонентов просчёта (для информации)
+        # Общая стоимость всех компонентов просчёта
         total_price = Decimal('0.00')
         try:
             proschet_components = PrintComponent.objects.filter(
                 proschet_id=proschet_id, is_deleted=False
             )
             for comp in proschet_components:
-                # Используем сохранённое поле
                 total_price += comp.total_circulation_price
         except Exception as e:
             print(f"⚠️ Ошибка при расчёте общей стоимости: {e}")
-            total_price = component.total_circulation_price  # fallback
+            total_price = component.total_circulation_price
 
         def format_price(p): return f"{float(p):.2f} ₽"
         def format_sheet_count(c): return f"{float(c):,.2f}".replace(',', ' ')
 
-        # Возвращаем данные компонента. ВАЖНО: используем единое имя total_circulation_price
+        runs_count = int(sheet_count_decimal) * (2 if component.printing_mode == 'duplex' else 1)
+
         return JsonResponse({
             'success': True,
             'message': f'Стоимость пересчитана',
@@ -1781,16 +1784,20 @@ def update_component_price(request):
                 'sheet_count_display': format_sheet_count(sheet_count_decimal),
                 'price_per_sheet': float(component.price_per_sheet),
                 'formatted_price_per_sheet': format_price(component.price_per_sheet),
-                # ИСПРАВЛЕНО: теперь total_circulation_price, а не total_price
                 'total_circulation_price': float(component.total_circulation_price),
                 'formatted_total_circulation_price': format_price(component.total_circulation_price),
+                # НОВЫЕ ПОЛЯ:
+                'printing_mode': component.printing_mode,
+                'printing_mode_display': component.printing_mode_display_name,
+                'runs_count': runs_count,
             },
             'total_price': float(total_price),
             'calculation_details': {
                 'based_on': 'client_provided_sheet_count',
                 'sheet_count_used': float(sheet_count_decimal),
                 'price_recalculated': True,
-                'paper_included': bool(component.paper)
+                'paper_included': bool(component.paper),
+                'printing_mode': component.printing_mode,
             }
         })
 

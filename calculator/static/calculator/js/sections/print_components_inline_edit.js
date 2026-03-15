@@ -810,15 +810,12 @@ function print_components_load_dropdown_data() {
 function print_components_setup_table_event_listeners() {
     const tableBody = document.getElementById('print-components-table-body');
 
-    // Если таблица ещё не загружена, пробуем снова через 500 мс
     if (!tableBody) {
         setTimeout(print_components_setup_table_event_listeners, 500);
         return;
     }
 
-    // Обработчик двойного клика по ячейке таблицы
     tableBody.addEventListener('dblclick', function(event) {
-        // Блокируем повторный двойной клик на короткое время
         if (print_components_dblclick_lock) {
             return;
         }
@@ -827,56 +824,53 @@ function print_components_setup_table_event_listeners() {
             print_components_dblclick_lock = false;
         }, 300);
 
-        // Определяем, по какой ячейке кликнули
         const cell = event.target.closest('td');
         const row = event.target.closest('tr');
 
-        // Если клик не по ячейке или по колонке действий – игнорируем
         if (!cell || !row || cell.classList.contains('component-actions')) {
             return;
         }
 
-        const componentId = row.dataset.componentId; // ID компонента из data-атрибута
+        const componentId = row.dataset.componentId;
         if (!componentId) {
             return;
         }
 
-        // Определяем индекс колонки, чтобы понять, какое поле редактируем
+        // Определяем индекс колонки
         const cellIndex = Array.from(row.children).indexOf(cell);
         let fieldName = '';
         let fieldType = 'text';
 
-        // Соответствие индексов колонкам:
+        // Соответствие индексов (с учётом новой колонки "Режим")
         // 0 – № компонента (не редактируется)
         // 1 – Принтер
         // 2 – Бумага
-        // 3 – Количество листов (не редактируется, т.к. берётся из вычислений)
-        // 4 – Цена за лист (НЕ РЕДАКТИРУЕТСЯ, т.к. рассчитывается автоматически)
-        // 5 – Стоимость (не редактируется, вычисляемое поле)
-        // 6 – Действия (кнопки)
+        // 3 – Количество листов (не редактируется)
+        // 4 – Цена за лист (не редактируется)
+        // 5 – Режим (НОВАЯ) – редактируем
+        // 6 – Стоимость (не редактируется)
+        // 7 – Действия (кнопки)
         switch (cellIndex) {
-            case 0: return; // не редактируем
+            case 0: return;
             case 1: fieldName = 'printer'; fieldType = 'printer'; break;
             case 2: fieldName = 'paper'; fieldType = 'paper'; break;
-            case 3: return; // количество листов – не редактируем
-            case 4: return; // ЦЕНА ЗА ЛИСТ – НЕ РЕДАКТИРУЕМ (автоматический расчёт)
-            case 5: return; // стоимость – не редактируем
-            case 6: return; // действия – не редактируем
+            case 3: return; // количество листов
+            case 4: return; // цена за лист
+            case 5: fieldName = 'printing_mode'; fieldType = 'printing_mode'; break; // НОВОЕ
+            case 6: return; // стоимость
+            case 7: return; // действия
             default: return;
         }
 
-        // Запускаем режим редактирования только для разрешённых полей
         print_components_start_edit(cell, componentId, fieldName, fieldType, row);
     });
 
-    // Обработчик клика для выделения строки (без редактирования)
     tableBody.addEventListener('click', function(event) {
         const row = event.target.closest('tr');
-        // Если кликнули не по кнопке удаления
         if (row && !event.target.closest('.delete-component-btn')) {
             const allRows = tableBody.querySelectorAll('tr');
-            allRows.forEach(r => r.classList.remove('selected')); // убираем выделение со всех
-            row.classList.add('selected'); // выделяем текущую строку
+            allRows.forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
         }
     });
 }
@@ -1000,6 +994,8 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
         inputElement = print_components_create_printer_dropdown(cell);
     } else if (fieldType === 'paper') {
         inputElement = print_components_create_paper_dropdown(cell);
+    } else if (fieldType === 'printing_mode') {          // <--- ДОБАВЛЕННАЯ ВЕТКА
+        inputElement = print_components_create_mode_dropdown(cell);
     } else if (fieldType === 'number') {
         inputElement = document.createElement('input');
         inputElement.type = 'number';
@@ -1024,12 +1020,8 @@ function print_components_start_edit(cell, componentId, fieldName, fieldType, ro
     // Добавляем элемент в ячейку
     cell.appendChild(inputElement);
 
-    // ===== ИСПРАВЛЕНИЕ: Добавляем обработчик blur для завершения редактирования =====
-    // При потере фокуса сохраняем изменения. Это стандартный способ для inline-редактирования,
-    // который не конфликтует с выпадающими списками (при клике на опцию фокус остаётся на select).
+    // Добавляем обработчик blur для завершения редактирования
     inputElement.addEventListener('blur', function() {
-        // Используем setTimeout, чтобы избежать конфликта с другими обработчиками,
-        // и проверяем, что редактирование всё ещё активно (не было отменено)
         setTimeout(() => {
             if (print_components_is_editing && print_components_current_editing_element === cell) {
                 print_components_finish_edit(true);
@@ -1187,6 +1179,37 @@ function print_components_create_paper_dropdown(cell) {
 }
 
 /**
+ * НОВАЯ ФУНКЦИЯ: создаёт выпадающий список для выбора режима печати.
+ * @param {HTMLElement} cell - ячейка
+ * @returns {HTMLSelectElement}
+ */
+function print_components_create_mode_dropdown(cell) {
+    const select = document.createElement('select');
+    select.className = 'inline-edit-select';
+
+    const optionSingle = document.createElement('option');
+    optionSingle.value = 'single';
+    optionSingle.textContent = 'Односторонняя';
+    select.appendChild(optionSingle);
+
+    const optionDuplex = document.createElement('option');
+    optionDuplex.value = 'duplex';
+    optionDuplex.textContent = 'Двусторонняя';
+    select.appendChild(optionDuplex);
+
+    // Устанавливаем выбранное значение на основе исходного
+    const currentValue = print_components_original_value;
+    if (currentValue && currentValue.toLowerCase().includes('двуст')) {
+        optionDuplex.selected = true;
+    } else {
+        optionSingle.selected = true;
+    }
+
+    return select;
+}
+
+
+/**
  * Извлекает целое число из текста (удаляет всё, кроме цифр).
  * @param {string} text - исходный текст
  * @returns {number} извлечённое число или 1, если не удалось
@@ -1212,7 +1235,6 @@ function print_components_extract_price(text) {
  * @param {boolean} save - true – сохранить изменения, false – отменить
  */
 function print_components_finish_edit(save) {
-    // Если не в режиме редактирования – выходим
     if (!print_components_is_editing || !print_components_current_editing_element) {
         return;
     }
@@ -1221,22 +1243,24 @@ function print_components_finish_edit(save) {
     const componentId = print_components_current_editing_id;
     const fieldType = print_components_current_field_type;
 
-    // Определяем имя поля по индексу колонки
+    // Определяем имя поля по индексу колонки (с учётом новой колонки)
     let fieldName = '';
     const cellIndex = Array.from(cell.parentElement.children).indexOf(cell);
 
     switch (cellIndex) {
         case 1: fieldName = 'printer'; break;
         case 2: fieldName = 'paper'; break;
-        case 3: return; // количество листов – не сохраняем
-        case 4: fieldName = 'price_per_sheet'; break;
+        case 3: return;
+        case 4: return;
+        case 5: fieldName = 'printing_mode'; break; // НОВОЕ
+        case 6: return;
+        case 7: return;
         default:
             print_components_cancel_edit();
             return;
     }
 
     if (save) {
-        // Находим элемент ввода внутри ячейки
         let inputElement = cell.querySelector('input, select');
 
         if (!inputElement) {
@@ -1248,14 +1272,12 @@ function print_components_finish_edit(save) {
         let newValue = '';
         let displayText = '';
 
-        // В зависимости от типа элемента получаем новое значение и текст для отображения
         if (inputElement.tagName === 'SELECT') {
             const selectedOption = inputElement.options[inputElement.selectedIndex];
             newValue = selectedOption.value;
             displayText = selectedOption.textContent;
 
             if (newValue === '') {
-                // Если выбрано пустое значение, показываем соответствующий текст
                 displayText = fieldType === 'printer' ? 'Принтер не выбран' : 'Бумага не выбрана';
             }
         } else {
@@ -1270,22 +1292,18 @@ function print_components_finish_edit(save) {
             }
         }
 
-        // Валидируем значение
         if (!print_components_validate_value(newValue, fieldType)) {
             print_components_show_notification('Некорректное значение', 'error');
             inputElement.focus();
             return;
         }
 
-        // Если значение изменилось, отправляем на сервер
         if (print_components_has_value_changed(newValue, fieldType)) {
             print_components_save_to_server(componentId, fieldName, newValue, displayText, cell);
         } else {
-            // Если не изменилось, просто выходим из режима редактирования
             print_components_cancel_edit();
         }
     } else {
-        // Отмена редактирования
         print_components_cancel_edit();
     }
 }
@@ -1334,6 +1352,13 @@ function print_components_has_value_changed(newValue, fieldType) {
     if (fieldType === 'price') {
         const originalPrice = print_components_extract_price(print_components_original_value);
         return parseFloat(newValue) !== originalPrice;
+    }
+
+    if (fieldType === 'printing_mode') {
+        // Сравниваем строки
+        const originalText = print_components_original_value;
+        const newText = (newValue === 'duplex') ? 'Двуст.' : 'Одност.';
+        return originalText !== newText;
     }
 
     return newValue !== print_components_original_value;

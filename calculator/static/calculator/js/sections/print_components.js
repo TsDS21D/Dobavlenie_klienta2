@@ -2,25 +2,14 @@
  * ФАЙЛ: print_components.js
  * НАЗНАЧЕНИЕ: JavaScript для секции "Печатные компоненты"
  * 
- * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист + Цена бумаги за лист) × Количество листов
+ * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист × количество прогонов) + (Цена бумаги за лист × Количество листов)
+ * где количество прогонов = количество листов * (2 если двусторонняя печать, иначе 1)
  * 
- * ИЗМЕНЕНИЯ ДЛЯ ОБНОВЛЕНИЯ СЕКЦИИ "ЦЕНА":
- * - Добавлена функция dispatchPrintComponentsUpdated(), которая отправляет событие
- *   'printComponentsUpdated' с актуальным списком компонентов.
- * - Это событие теперь генерируется во всех местах, где изменяются данные компонентов:
- *   * после загрузки компонентов для выбранного просчёта (loadComponentsForProschet)
- *   * после успешного пересчёта одного компонента (recalculateComponentPrice)
- *   * после массового пересчёта при изменении тиража (recalculateAllComponentsForCirculation)
- * - Добавлена функция updateCurrentComponent() для обновления одного компонента в массиве currentComponents.
- * - В updateComponentInTable исправлено использование поля total_circulation_price вместо total_price.
- * 
- * ИСПРАВЛЕНИЕ ОТОБРАЖЕНИЯ КОЛИЧЕСТВА ЛИСТОВ:
- * - В функции createComponentRow теперь явно используется поле formatted_sheet_count_display
- *   из ответа сервера для отображения количества листов.
- * - Функция updateSheetCountDisplayForComponent обновляет ячейку с количеством листов
- *   и применяет правильное форматирование.
- * - В updateComponentInTable добавлено обновление ячейки количества листов при получении
- *   обновлённых данных компонента.
+ * ИЗМЕНЕНИЯ:
+ * - Добавлена поддержка поля printing_mode (режим печати).
+ * - В таблице добавлена новая колонка "Режим".
+ * - При создании строки учитывается runs_count для отображения.
+ * - Событие 'vichisliniyaListovUpdated' обрабатывается для обновления количества листов.
  */
 
 "use strict";
@@ -49,7 +38,7 @@ const UPDATE_DELAY = 1000; // 1 секунда
 // ============================================================================
 function initPrintComponents() {
     console.log('🔄 Инициализация секции "Печатные компоненты"...');
-    console.log('📝 ФОРМУЛА РАСЧЁТА: (Цена печати за лист + Цена бумаги за лист) × Количество листов');
+    console.log('📝 ФОРМУЛА РАСЧЁТА: (Цена печати за лист × количество прогонов) + (Цена бумаги за лист × Количество листов)');
 
     setupEventListeners();
     initInterface();
@@ -72,9 +61,7 @@ function setupEventListeners() {
 function setupIntersectionListeners() {
     console.log('🔗 Настройка обработчиков событий от других секций...');
 
-    // ------------------------------------------------------------
     // 1. ВЫБОР ПРОСЧЁТА (из секции "Список просчётов")
-    // ------------------------------------------------------------
     document.addEventListener('proschetSelected', function(event) {
         console.log('📥 Получено событие выбора просчёта:', event.detail);
         if (event.detail && event.detail.proschetId) {
@@ -82,22 +69,18 @@ function setupIntersectionListeners() {
         }
     });
 
-    // ------------------------------------------------------------
     // 2. ИЗМЕНЕНИЕ КОЛИЧЕСТВА ЛИСТОВ ДЛЯ ОДНОГО КОМПОНЕНТА (из секции "Вычисления листов")
-    // ------------------------------------------------------------
     document.addEventListener('vichisliniyaListovUpdated', function(event) {
         console.log('📥 Получено событие обновления количества листов для одного компонента:', event.detail);
         if (event.detail && event.detail.printComponentId) {
             // Обновляем отображение количества листов в строке таблицы
             updateSheetCountDisplayForComponent(event.detail.printComponentId, event.detail.listCount);
-            // Пересчитываем цену компонента с новым количеством листов
+            // Пересчитываем цену компонента с новым количеством листов (учитывая режим печати)
             recalculateComponentPrice(event.detail.printComponentId, event.detail.listCount);
         }
     });
 
-    // ------------------------------------------------------------
     // 3. ВЫБОР ПЕЧАТНОГО КОМПОНЕНТА (генерируется внутри этой же секции)
-    // ------------------------------------------------------------
     document.addEventListener('printComponentSelected', function(event) {
         console.log('📥 Получено событие выбора печатного компонента:', event.detail);
         selectedComponentId = event.detail.printComponentId;
@@ -106,17 +89,13 @@ function setupIntersectionListeners() {
         }
     });
 
-    // ------------------------------------------------------------
     // 4. ОТМЕНА ВЫБОРА ПРОСЧЁТА
-    // ------------------------------------------------------------
     document.addEventListener('proschetDeselected', function() {
         console.log('📥 Получено событие отмены выбора просчёта');
         resetSection();
     });
 
-    // ------------------------------------------------------------
     // 5. МАССОВЫЙ ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ ТИРАЖА
-    // ------------------------------------------------------------
     document.addEventListener('productCirculationSaved', function(event) {
         const { proschetId, circulation } = event.detail;
         console.log(`📥 Получено событие сохранения тиража: просчёт=${proschetId}, тираж=${circulation}`);
@@ -188,7 +167,7 @@ function loadComponentsForProschet(proschetId, signal) {
             // Обновляем интерфейс (таблицу) с полученными компонентами
             updateInterface(currentComponents);
             console.log(`✅ Загружено ${currentComponents.length} компонентов`);
-            
+
             // Отправляем событие об обновлении компонентов для секции "Цена"
             dispatchPrintComponentsUpdated();
         } else {
@@ -280,16 +259,16 @@ function recalculateComponentPrice(componentId, sheetCount) {
     .then(data => {
         if (data.success) {
             console.log('✅ СЕРВЕР УСПЕШНО ПЕРЕСЧИТАЛ СТОИМОСТЬ:', data);
-            
+
             // Обновляем данные в текущем массиве компонентов
             if (data.component) {
                 updateCurrentComponent(data.component);
             }
-            
+
             // Обновляем отображение в таблице
             updateComponentInTable(componentId, data.component);
             updateTotalPrice(data.total_price);
-            
+
             // Отправляем событие об обновлении компонентов
             dispatchPrintComponentsUpdated();
         } else {
@@ -335,9 +314,9 @@ function recalculateAllComponentsForCirculation(proschetId, circulation) {
             currentComponents = data.components || [];
             updateInterface(currentComponents);
             updateTotalPrice(data.total_price || calculateTotalPrice(currentComponents));
-            
+
             dispatchPrintComponentsUpdated();
-            
+
             showNotification(data.message || 'Компоненты пересчитаны', 'success');
         } else {
             console.error('❌ Ошибка массового пересчёта:', data.message);
@@ -409,7 +388,6 @@ function populateTable(components) {
  */
 function createComponentRow(component, index) {
     const row = document.createElement('tr');
-    // Добавляем классы для чередования фона строк
     if (index % 2 === 0) {
         row.classList.add('even-row');
     } else {
@@ -419,26 +397,31 @@ function createComponentRow(component, index) {
     row.dataset.componentId = component.id; // сохраняем ID компонента в data-атрибуте
 
     // Определяем отображаемое значение количества листов.
-    // Приоритет:
-    // 1. formatted_sheet_count_display из ответа сервера (уже отформатировано)
-    // 2. если нет, пробуем sheet_count_display (устаревшее поле)
-    // 3. если нет, используем числовое sheet_count и форматируем вручную
     let sheetCountDisplay = 'Не указан';
     if (component.formatted_sheet_count_display && component.formatted_sheet_count_display !== 'Не указан') {
         sheetCountDisplay = component.formatted_sheet_count_display;
     } else if (component.sheet_count_display && component.sheet_count_display !== 'Не указан') {
         sheetCountDisplay = component.sheet_count_display;
     } else if (component.sheet_count) {
-        // Если есть только числовое значение, форматируем его с двумя знаками после запятой
         sheetCountDisplay = parseFloat(component.sheet_count).toFixed(2);
     }
 
     // Извлекаем цены для подсказок
     const pricePerSheet = parseFloat(component.price_per_sheet) || 0;
     const paperPrice = parseFloat(component.paper_price) || 0;
-    const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать + ${paperPrice.toFixed(2)} руб./бумага) × ${sheetCountDisplay} листов`;
+    const runsCount = component.runs_count || 0;
+    // Формула теперь с прогонами
+    const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать × ${runsCount} прогонов) + (${paperPrice.toFixed(2)} руб./бумага × ${sheetCountDisplay} листов)`;
 
-    // Заполняем HTML-содержимое строки
+    // Текстовое отображение режима
+    let modeDisplay = '';
+    if (component.printing_mode === 'duplex') {
+        modeDisplay = 'Двуст.';
+    } else {
+        modeDisplay = 'Одност.';
+    }
+
+    // Заполняем HTML-содержимое строки с учётом новой колонки "Режим"
     row.innerHTML = `
         <td class="component-number" title="Уникальный номер компонента">${component.number || '—'}</td>
         <td class="component-printer" title="Выбранное печатное оборудование">${component.printer_name || 'Принтер не выбран'}</td>
@@ -448,6 +431,10 @@ function createComponentRow(component, index) {
         </td>
         <td class="component-sheet-count" title="Количество листов из секции 'Вычисления листов'">${sheetCountDisplay}</td>
         <td class="component-price" title="Цена печати одного листа (рассчитана интерполяцией)">${pricePerSheet.toFixed(2)} ₽</td>
+        <!-- НОВАЯ ЯЧЕЙКА: Режим печати -->
+        <td class="component-mode" title="Режим печати: ${component.printing_mode_display || (component.printing_mode === 'duplex' ? 'двусторонняя' : 'односторонняя')}">
+            ${modeDisplay}
+        </td>
         <td class="component-total" title="${formulaTooltip}">${parseFloat(component.total_circulation_price).toFixed(2)} ₽</td>
         <td class="component-actions">
             <button type="button" class="delete-component-btn" 
@@ -480,7 +467,8 @@ function createComponentRow(component, index) {
                 proschetId: currentProschetId,
                 sheetCount: component.sheet_count || 0,
                 pricePerSheet: pricePerSheet,
-                formula: '(price_per_sheet + paper_price) * sheet_count'
+                printingMode: component.printing_mode, // передаём режим
+                formula: '(price_per_sheet * runs_count) + (paper_price * sheet_count)'
             };
             document.dispatchEvent(new CustomEvent('printComponentSelected', { detail: eventDetail }));
             console.log(`📤 Событие printComponentSelected отправлено для компонента: ${component.id}`);
@@ -565,6 +553,9 @@ function updateComponentInTable(componentId, componentData) {
     const paperPrice = parseFloat(componentData.paper_price) || 0;
     const sheetCount = parseFloat(componentData.sheet_count) || 0;
     const totalPrice = parseFloat(componentData.total_circulation_price) || 0;
+    const runsCount = componentData.runs_count || (sheetCount * (componentData.printing_mode === 'duplex' ? 2 : 1));
+    const printingMode = componentData.printing_mode || 'single';
+    const modeDisplay = (printingMode === 'duplex') ? 'Двуст.' : 'Одност.';
 
     // Обновляем ячейку с названием бумаги и ценой за лист
     const paperCell = componentRow.querySelector('.component-paper');
@@ -575,7 +566,7 @@ function updateComponentInTable(componentId, componentData) {
         `;
     }
 
-    // Обновляем ячейку с количеством листов (используем отдельную функцию для единообразия)
+    // Обновляем ячейку с количеством листов
     const sheetCountCell = componentRow.querySelector('.component-sheet-count');
     if (sheetCountCell) {
         const formattedSheetCount = sheetCount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -591,12 +582,19 @@ function updateComponentInTable(componentId, componentData) {
         priceCell.title = `Цена печати одного листа: ${formattedPrice}`;
     }
 
+    // Обновляем ячейку с режимом печати
+    const modeCell = componentRow.querySelector('.component-mode');
+    if (modeCell) {
+        modeCell.textContent = modeDisplay;
+        modeCell.title = `Режим печати: ${componentData.printing_mode_display || (printingMode === 'duplex' ? 'двусторонняя' : 'односторонняя')}`;
+    }
+
     // Обновляем ячейку с общей стоимостью
     const totalCell = componentRow.querySelector('.component-total');
     if (totalCell) {
         const formattedTotal = totalPrice.toFixed(2) + ' ₽';
         totalCell.textContent = formattedTotal;
-        const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать + ${paperPrice.toFixed(2)} руб./бумага) × ${sheetCount} листов`;
+        const formulaTooltip = `Формула: (${pricePerSheet.toFixed(2)} руб./печать × ${runsCount} прогонов) + (${paperPrice.toFixed(2)} руб./бумага × ${sheetCount} листов)`;
         totalCell.title = formulaTooltip;
     }
 
@@ -850,7 +848,7 @@ function showLoadingState() {
     if (elements.tableBody) {
         elements.tableBody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px;">
+                <td colspan="8" style="text-align: center; padding: 40px;">
                     <div class="loading-spinner"></div>
                     <p>Загрузка компонентов печати...</p>
                     <p class="loading-note">Используется "Количество листов" из секции "Вычисления листов"</p>
@@ -866,7 +864,7 @@ function showErrorMessage(message) {
     if (tableBody) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: #e74c3c;">
+                <td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
                     <p>${message}</p>
                 </td>

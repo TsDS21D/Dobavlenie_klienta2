@@ -110,61 +110,20 @@
                 <!-- Заголовок таблицы -->
                 <thead>
                     <tr>
-                        <!-- Колонка 1: Номер компонента -->
-                        <th width="12%">
-                            № компонента
-                            <span class="column-help" title="Уникальный идентификатор печатного компонента (генерируется автоматически)">
+                        <th width="10%">№ компонента</th>
+                        <th width="18%">Принтер</th>
+                        <th width="18%">Бумага</th>
+                        <th width="10%">Кол-во листов</th>
+                        <th width="12%">Цена за лист</th>
+                        <!-- НОВАЯ КОЛОНКА: Режим печати -->
+                        <th width="8%">
+                            Режим
+                            <span class="column-help" title="Односторонняя (1 прогон на лист) или двусторонняя (2 прогона на лист)">
                                 <i class="fas fa-question-circle"></i>
                             </span>
                         </th>
-                        
-                        <!-- Колонка 2: Принтер -->
-                        <th width="20%">
-                            Принтер
-                            <span class="column-help" title="Печатное оборудование. Цена за лист зависит от выбранного принтера и количества листов">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        
-                        <!-- Колонка 3: Бумага -->
-                        <th width="20%">
-                            Бумага
-                            <span class="column-help" title="Материал для печати. Цена бумаги добавляется к стоимости печати">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        
-                        <!-- Колонка 4: Количество листов -->
-                        <th width="12%">
-                            Кол-во листов
-                            <span class="column-help" title="Количество листов из секции 'Вычисления листов'. Умножается на сумму (печать + бумага)">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        
-                        <!-- Колонка 5: Цена за лист -->
-                        <th width="15%">
-                            Цена за лист
-                            <span class="column-help" title="Стоимость печати одного листа (рассчитывается интерполяцией на основе количества листов)">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        
-                        <!-- Колонка 6: Стоимость -->
-                        <th width="15%">
-                            Стоимость
-                            <span class="column-help" title="Общая стоимость = (Цена печати + Цена бумаги) × Количество листов">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        
-                        <!-- Колонка 7: Действия -->
-                        <th width="6%">
-                            Действия
-                            <span class="column-help" title="Управление компонентом">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
+                        <th width="14%">Стоимость</th>
+                        <th width="10%">Действия</th>
                     </tr>
                 </thead>
                 
@@ -185,14 +144,10 @@
                         <i class="fas fa-question-circle"></i>
                     </span>
                     <small class="formula-summary">
-                        (Цена печати + Цена бумаги) × Количество листов
+                        (Цена печати × прогоны) + (Цена бумаги × листы)
                     </small>
                 </div>
-                
-                <!-- Отображение общей стоимости -->
-                <div id="print-components-total-price" class="total-price">
-                    0.00 ₽
-                </div>
+                <div id="print-components-total-price" class="total-price">0.00 ₽</div>
             </div>
         </div>
     </div>
