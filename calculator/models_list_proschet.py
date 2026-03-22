@@ -23,6 +23,8 @@ import math
 from spravochnik_dopolnitelnyh_rabot.models import Work
 # Импортируем функции интерполяции из утилит справочника
 from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work, calculate_price_for_work_by_circulation
+# Импортируем модель вычислений листов
+from vichisliniya_listov.models import VichisliniyaListovModel
 
 
 class Proschet(models.Model):
@@ -535,14 +537,11 @@ class PrintComponent(models.Model):
 class AdditionalWork(models.Model):
     """
     Дополнительная работа, привязанная к конкретному печатному компоненту.
-    ИЗМЕНЕНИЯ:
-    - Добавлен метод _get_effective_price для получения цены за единицу с учётом формулы.
-    - Добавлен метод recalculate_price(), который вычисляет общую стоимость работы
-      на основе переданных параметров (количество листов, резов, тираж).
-    - В методе save() вызывается recalculate_price() с актуальными данными из связанных моделей.
-    - to_dict() теперь возвращает effective_price, вычисленную по формуле.
+    Добавлены поля cost (себестоимость) и markup_percent (наценка в процентах),
+    скопированные из справочника при создании.
     """
 
+    # Автоматически генерируемый номер работы (DR-1, DR-2...)
     number = models.CharField(
         verbose_name='Номер работы',
         max_length=20,
@@ -550,6 +549,8 @@ class AdditionalWork(models.Model):
         blank=True,
         help_text='Автоматически генерируется в формате DR-1, DR-2 и т.д.'
     )
+
+    # Связь с печатным компонентом (каскадное удаление)
     print_component = models.ForeignKey(
         PrintComponent,
         verbose_name='Печатный компонент',
@@ -557,11 +558,33 @@ class AdditionalWork(models.Model):
         related_name='additional_works',
         help_text='Печатный компонент, к которому относится эта дополнительная работа'
     )
+
+    # Название работы (копируется из справочника или вводится вручную)
     title = models.CharField(
         verbose_name='Название работы',
         max_length=200,
         help_text='Название дополнительной работы'
     )
+
+    # ===== НОВЫЕ ПОЛЯ ДЛЯ СЕБЕСТОИМОСТИ И НАЦЕНКИ =====
+    cost = models.DecimalField(
+        verbose_name='Себестоимость (руб)',
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text='Себестоимость работы (без наценки)'
+    )
+
+    markup_percent = models.DecimalField(
+        verbose_name='Наценка (%)',
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        help_text='Процент наценки от себестоимости'
+    )
+    # ===== КОНЕЦ НОВЫХ ПОЛЕЙ =====
+
+    # Базовая цена (итоговая цена = cost + наценка) – копируется из справочника
     price = models.DecimalField(
         verbose_name='Цена',
         max_digits=10,
@@ -569,11 +592,15 @@ class AdditionalWork(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Базовая стоимость работы в рублях (из справочника или введённая вручную)'
     )
+
+    # Количество единиц работы (пользователь может редактировать)
     quantity = models.PositiveIntegerField(
         verbose_name='Количество',
         default=1,
         help_text='Количество единиц данной работы (по умолчанию 1)'
     )
+
+    # Общая стоимость работы (пересчитывается при сохранении)
     total_price = models.DecimalField(
         verbose_name='Общая стоимость',
         max_digits=10,
@@ -582,14 +609,18 @@ class AdditionalWork(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Общая стоимость работы = результат применения формулы, где используется effective_price (интерполированная цена)'
     )
+
     created_at = models.DateTimeField(
         verbose_name='Дата создания',
         auto_now_add=True
     )
+
     is_deleted = models.BooleanField(
         verbose_name='Удален',
         default=False
     )
+
+    # Ссылка на запись в справочнике (если работа была добавлена из справочника)
     work = models.ForeignKey(
         Work,
         verbose_name='Работа из справочника',
@@ -627,37 +658,32 @@ class AdditionalWork(models.Model):
     def __str__(self):
         return f"{self.number}: {self.title} (для компонента {self.print_component.number})"
 
-    # ----- НОВЫЙ МЕТОД: вычисление эффективной цены за единицу с учётом типа формулы -----
+    # ----- ВСПОМОГАТЕЛЬНЫЙ МЕТОД: вычисление эффективной цены за единицу с учётом интерполяции -----
     def _get_effective_price(self, sheet_count=None, circulation=None):
         """
         Возвращает цену за единицу работы с учётом количества листов или тиража.
         - Для формул 2 и 3 используется интерполяция по тиражу.
         - Для остальных формул (1,4,5,6) – по листам.
-        Если работа не связана со справочником, возвращает self.price.
+        Если работа не связана со справочником, возвращает self.price (итоговая цена).
         """
-        # Если нет связанной работы из справочника, возвращаем базовую цену
+        # Если нет связанной работы из справочника, возвращаем базовую цену (итоговую)
         if not self.work:
             return self.price
 
-        # ===== ИЗМЕНЕНИЕ: теперь формула 2 тоже использует тираж =====
-        if self.formula_type in [2, 3]:  # формулы, зависящие от тиража
+        # Получаем себестоимость (cost) через интерполяцию
+        if self.formula_type in [2, 3]:
             if circulation is None:
-                # Если circulation не передан, пытаемся получить его из просчёта
                 if self.print_component and self.print_component.proschet:
                     circulation = self.print_component.proschet.circulation
                 else:
-                    circulation = 0  # по умолчанию 0 (будет обработано в функции интерполяции)
+                    circulation = 0
             try:
-                from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work_by_circulation
-                effective_price = calculate_price_for_work_by_circulation(self.work, circulation)
-                return effective_price
+                cost = calculate_price_for_work_by_circulation(self.work, circulation)
             except Exception as e:
-                print(f"⚠️ Ошибка при вычислении effective_price по тиражу для работы {self.id}: {e}")
-                return self.price
+                print(f"⚠️ Ошибка при вычислении себестоимости по тиражу для работы {self.id}: {e}")
+                cost = Decimal('0')
         else:
-            # Остальные формулы используют количество листов
             if sheet_count is None:
-                from vichisliniya_listov.models import VichisliniyaListovModel
                 try:
                     vich_data = VichisliniyaListovModel.objects.get(
                         vichisliniya_listov_print_component=self.print_component
@@ -666,14 +692,20 @@ class AdditionalWork(models.Model):
                 except VichisliniyaListovModel.DoesNotExist:
                     sheet_count = Decimal('0')
             try:
-                from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
-                effective_price = calculate_price_for_work(self.work, sheet_count)
-                return effective_price
+                cost = calculate_price_for_work(self.work, sheet_count)
             except Exception as e:
-                print(f"⚠️ Ошибка при вычислении effective_price по листам для работы {self.id}: {e}")
-                return self.price
+                print(f"⚠️ Ошибка при вычислении себестоимости по листам для работы {self.id}: {e}")
+                cost = Decimal('0')
 
-    # ----- НОВЫЙ МЕТОД: пересчёт общей стоимости с переданными параметрами -----
+        # Применяем наценку, чтобы получить итоговую цену
+        if self.markup_percent is not None and self.markup_percent > 0:
+            effective_price = cost + (cost * self.markup_percent / Decimal('100'))
+        else:
+            effective_price = cost  # если наценка 0, то цена равна себестоимости
+
+        return effective_price
+
+    # ----- МЕТОД ПЕРЕСЧЁТА ОБЩЕЙ СТОИМОСТИ -----
     def recalculate_price(self, sheet_count, cuts_count, circulation):
         """
         Пересчитывает общую стоимость работы (total_price) на основе переданных параметров.
@@ -698,21 +730,26 @@ class AdditionalWork(models.Model):
 
         # Вычисление общей стоимости в зависимости от типа формулы
         if self.formula_type == 1:
+            # Формула 1: Фиксированная цена × количество
             total = self.price * qty
+
         elif self.formula_type == 2:
+            # Формула 2: effective_price × тираж × количество
             total = effective_price * circulation * qty
+
         elif self.formula_type == 3:
-            # Формула 3: (effective_price * circulation) + (k_lines * log2(1+lines) * sheet_count)  * qty
+            # Формула 3: (effective_price * circulation)/6 + (k_lines * log2(1+lines) * circulation)/4
             if self.work:
                 k_lines = float(self.work.k_lines)
             else:
                 k_lines = 2.0
             log_lines = math.log2(1 + lines) if lines > 0 else 0
-            base_cost = (effective_price * circulation)/6
-            surcharge = (Decimal(str(k_lines * log_lines)) * circulation)/4
+            base_cost = (effective_price * circulation) / 6
+            surcharge = (Decimal(str(k_lines * log_lines)) * circulation) / 4
             total = (base_cost + surcharge) * qty
+
         elif self.formula_type == 4:
-            # Формула 4: (effective_price * sheet_count) + (k_lines * log2(1+lines) * sheet_count)  * qty
+            # Формула 4: (effective_price * sheet_count) + (k_lines * log2(1+lines) * sheet_count)
             if self.work:
                 k_lines = float(self.work.k_lines)
             else:
@@ -721,98 +758,96 @@ class AdditionalWork(models.Model):
             base_cost = effective_price * sheet_count
             surcharge = Decimal(str(k_lines * log_lines)) * sheet_count
             total = (base_cost + surcharge) * qty
+
         elif self.formula_type == 5:
+            # Формула 5: effective_price × items × sheet_count × quantity
             total = effective_price * items * sheet_count * qty
+
         elif self.formula_type == 6:
+            # Формула 6: effective_price × items × circulation × quantity
             total = effective_price * items * circulation * qty
+
         else:
+            # На случай, если формула не распознана
             total = self.price * qty
 
         self.total_price = total.quantize(Decimal('0.01'))
 
+    # ----- ПЕРЕОПРЕДЕЛЁННЫЙ МЕТОД СОХРАНЕНИЯ -----
     def save(self, *args, **kwargs):
-        """
-        Переопределённый метод сохранения.
-        - Генерирует номер работы, если он не задан.
-        - Получает актуальное количество листов и резов из модели VichisliniyaListovModel.
-        - Получает тираж из связанного просчёта.
-        - Вызывает recalculate_price() для вычисления total_price.
-        - Сохраняет объект в базу данных.
-        """
-        # ------------------------------------------------------------------
-        # 1. Генерация номера работы в формате DR-...
-        # ------------------------------------------------------------------
+        # 1. Генерация номера (как было)
         if not self.number or self.number.strip() == '':
             try:
-                # Находим все существующие номера, начинающиеся с "DR-"
                 existing_numbers = AdditionalWork.objects.filter(
                     number__startswith='DR-'
                 ).exclude(number__exact='').exclude(number__isnull=True).values_list('number', flat=True)
-
                 max_num = 0
                 for num_str in existing_numbers:
                     try:
-                        # Извлекаем числовую часть после дефиса
                         num_part = num_str.split('-')[1]
                         current_num = int(num_part)
                         if current_num > max_num:
                             max_num = current_num
                     except (ValueError, IndexError, AttributeError):
-                        continue  # пропускаем некорректные номера
-
-                # Новый номер = максимальный + 1
+                        continue
                 self.number = f"DR-{max_num + 1}"
             except Exception:
-                # Если что-то пошло не так, просто присваиваем номер на основе общего количества записей
                 self.number = f"DR-{AdditionalWork.objects.count() + 1}"
 
-        # ------------------------------------------------------------------
-        # 2. Получение данных из связанного печатного компонента и просчёта
-        # ------------------------------------------------------------------
-        if self.print_component_id:
-            component = self.print_component          # объект печатного компонента
-            proschet = component.proschet              # связанный просчёт
+        # ===== ДОБАВЛЯЕМ: синхронизация с Work =====
+        if self.work_id:
+            # Получаем актуальные данные из справочника
+            source_work = self.work  # объект уже загружен, т.к. мы его установили
+            # Обновляем поля, если они отличаются
+            if self.title != source_work.name:
+                self.title = source_work.name
+            if self.cost != source_work.cost:
+                self.cost = source_work.cost
+            if self.markup_percent != source_work.markup_percent:
+                self.markup_percent = source_work.markup_percent
+            if self.price != source_work.price:
+                self.price = source_work.price
+            if self.formula_type != source_work.formula_type:
+                self.formula_type = source_work.formula_type
+            if self.lines_count != source_work.default_lines_count:
+                self.lines_count = source_work.default_lines_count
+            if self.items_per_sheet != source_work.default_items_per_sheet:
+                self.items_per_sheet = source_work.default_items_per_sheet
+        # ===== КОНЕЦ ДОБАВЛЕНИЯ =====
 
-            # Получаем актуальное количество листов и резов из модели VichisliniyaListovModel
-            from vichisliniya_listov.models import VichisliniyaListovModel
+        # 2. Получение данных из связанного печатного компонента и просчёта (без изменений)
+        if self.print_component_id:
+            component = self.print_component
+            proschet = component.proschet
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
                     vichisliniya_listov_print_component=component
                 )
-                sheet_count = vich_data.vichisliniya_listov_list_count   # количество листов
-                cuts_count = vich_data.vichisliniya_listov_cuts_count    # количество резов
+                sheet_count = vich_data.vichisliniya_listov_list_count
+                cuts_count = vich_data.vichisliniya_listov_cuts_count
             except VichisliniyaListovModel.DoesNotExist:
-                # Если запись отсутствует – листов и резов нет (0)
                 sheet_count = Decimal('0')
                 cuts_count = 0
-
-            # Тираж берём из просчёта
             circulation = proschet.circulation if proschet.circulation else 0
         else:
-            # Без печатного компонента (такого не должно быть, но на всякий случай)
             sheet_count = Decimal('0')
             circulation = 0
             cuts_count = 0
 
-        # ------------------------------------------------------------------
-        # 3. Пересчёт общей стоимости с использованием полученных данных
-        # ------------------------------------------------------------------
+        # 3. Пересчёт общей стоимости
         self.recalculate_price(sheet_count, cuts_count, circulation)
 
-        # ------------------------------------------------------------------
-        # 4. Вызов родительского метода save() для фактического сохранения в БД
-        # ------------------------------------------------------------------
+        # 4. Сохранение в БД
         super().save(*args, **kwargs)
 
+    # ----- ПРЕОБРАЗОВАНИЕ ОБЪЕКТА В СЛОВАРЬ ДЛЯ JSON -----
     def to_dict(self):
         """
         Преобразует объект в словарь для передачи в JSON (AJAX).
-        Включает все необходимые поля для клиентской части.
-        ДОБАВЛЕНО: поле effective_price и formatted_effective_price,
-        которые вычисляются на основе текущего количества листов и тиража в зависимости от формулы.
+        Включает все необходимые поля для клиентской части,
+        в том числе cost, markup_percent, profit_per_unit (прибыль на единицу).
         """
         # Получаем количество листов и тираж для вычисления effective_price
-        from vichisliniya_listov.models import VichisliniyaListovModel
         try:
             vich_data = VichisliniyaListovModel.objects.get(
                 vichisliniya_listov_print_component=self.print_component
@@ -831,17 +866,26 @@ class AdditionalWork(models.Model):
         else:
             effective_price = self._get_effective_price(sheet_count=sheet_count)
 
+        # Вычисляем прибыль на единицу (цена - себестоимость)
+        profit_per_unit = self.price - self.cost
+
         return {
             'id': self.id,
             'number': self.number,
             'title': self.title,
+            'cost': str(self.cost),
+            'formatted_cost': f"{self.cost:.2f} ₽",
+            'markup_percent': str(self.markup_percent),
+            'formatted_markup_percent': f"{self.markup_percent}%",
             'price': str(self.price),
-            'formatted_price': f"{self.price} ₽",
+            'formatted_price': f"{self.price:.2f} ₽",
+            'profit_per_unit': str(profit_per_unit),
+            'formatted_profit_per_unit': f"{profit_per_unit:.2f} ₽",
             'effective_price': str(effective_price),
-            'formatted_effective_price': f"{effective_price} ₽",
+            'formatted_effective_price': f"{effective_price:.2f} ₽",
             'quantity': self.quantity,
             'total_price': str(self.total_price),
-            'formatted_total_price': f"{self.total_price} ₽",
+            'formatted_total_price': f"{self.total_price:.2f} ₽",
             'formula_type': self.formula_type,
             'formula_display': self.get_formula_type_display(),
             'lines_count': self.lines_count,

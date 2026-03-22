@@ -1382,7 +1382,7 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
     formData.append('field_name', fieldName);
     formData.append('field_value', fieldValue);
 
-    // Отправляем POST-запрос
+    // Отправляем POST-запрос на сервер
     fetch(print_components_api_urls.update, {
         method: 'POST',
         headers: {
@@ -1392,7 +1392,6 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         body: formData
     })
     .then(response => {
-        // Если ответ не OK, парсим JSON с ошибкой
         if (!response.ok) {
             return response.json().then(errData => {
                 throw new Error(errData.message || `HTTP ошибка: ${response.status}`);
@@ -1402,42 +1401,46 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
     })
     .then(data => {
         if (data.success) {
-            // Успех – отображаем новое значение для отредактированной ячейки
-            cell.innerHTML = displayValue;
-            cell.classList.remove('editing-cell');
-
+            // Успех – показываем уведомление
             print_components_show_notification('Изменения сохранены', 'success');
 
-            // ===== ИСПРАВЛЕНИЕ: сбрасываем состояние редактирования =====
+            // Сбрасываем состояние редактирования
             print_components_reset_editing_state();
 
-            // ===== ИСПРАВЛЕНИЕ: обновляем строку таблицы, используя полученные с сервера данные =====
-            if (data.updated_data) {
-                // 1. Обновляем данные в глобальном массиве currentComponents
-                updateCurrentComponent(data.updated_data);
-
-                // 2. Находим текущую строку таблицы по data-component-id
-                const row = document.querySelector(`tr[data-component-id="${componentId}"]`);
-                if (row) {
-                    // Создаём новую строку с обновлёнными данными, сохраняя индекс для чередования цветов
-                    const newRow = createComponentRow(data.updated_data, row.rowIndex);
-                    // Заменяем старую строку новой
-                    row.parentNode.replaceChild(newRow, row);
-                }
-
-                // 3. Пересчитываем общую стоимость всех компонентов и обновляем её отображение
-                const total = calculateTotalPrice(currentComponents);
-                updateTotalPrice(total);
-
-                // 4. Отправляем событие об обновлении компонентов (для секции "Цена")
-                dispatchPrintComponentsUpdated();
+            // ===== 1. НЕМЕДЛЕННОЕ ОБНОВЛЕНИЕ СЕКЦИИ "ВЫЧИСЛЕНИЯ ЛИСТОВ" =====
+            if (window.vichisliniyaListov && typeof window.vichisliniyaListov.loadVichisliniyaListovParameters === 'function') {
+                window.vichisliniyaListov.loadVichisliniyaListovParameters(componentId);
+                console.log(`📤 Обновлена секция вычислений листов для компонента ${componentId}`);
+            } else {
+                console.warn('⚠️ Функция loadVichisliniyaListovParameters не найдена в объекте vichisliniyaListov');
             }
+
+            // ===== 2. МАССОВЫЙ ПЕРЕСЧЁТ ДЛЯ ОБНОВЛЕНИЯ ТАБЛИЦЫ КОМПОНЕНТОВ =====
+            const proschetId = window.printComponentsSection?.getCurrentProschetId();
+            const circulation = window.productSection?.getCurrentCirculation();
+            if (proschetId && circulation) {
+                // Вызываем массовый пересчёт – он обновит все компоненты и отправит события
+                window.printComponentsSection.recalculateAllComponentsForCirculation(proschetId, circulation);
+                console.log(`📤 Запущен массовый пересчёт для просчёта ${proschetId} после изменения компонента ${componentId}`);
+            } else {
+                // Если не удалось получить ID просчёта или тираж, просто перезагружаем таблицу
+                console.warn('⚠️ Не удалось получить ID просчёта или тираж, выполняем обычную перезагрузку компонентов');
+                if (proschetId) {
+                    const proschetRow = document.querySelector('.proschet-row.selected');
+                    if (proschetRow && window.printComponentsSection?.updateForProschet) {
+                        window.printComponentsSection.updateForProschet(proschetId, proschetRow);
+                    }
+                }
+            }
+
+            // Восстанавливаем содержимое ячейки (отображаем новое значение)
+            cell.innerHTML = displayValue;
+            cell.classList.remove('editing-cell');
         } else {
             // Ошибка на сервере – показываем исходное значение красным
             cell.innerHTML = `<span style="color: #e74c3c;">${print_components_original_value}</span>`;
             print_components_show_notification('Ошибка сохранения: ' + data.message, 'error');
 
-            // Возвращаем исходное значение через 2 секунды
             setTimeout(() => {
                 cell.innerHTML = print_components_original_value;
                 cell.classList.remove('editing-cell');
@@ -1458,7 +1461,6 @@ function print_components_save_to_server(componentId, fieldName, fieldValue, dis
         }, 2000);
     })
     .finally(() => {
-        // Сбрасываем состояние редактирования на случай, если оно не было сброшено
         print_components_reset_editing_state();
     });
 }
@@ -1584,16 +1586,13 @@ window.printComponentsInlineEditState = {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔄 Загрузка inline-редактирования компонентов печати...');
 
-    // Даём небольшую задержку, чтобы основной скрипт (print_components.js) успел инициализироваться
     setTimeout(() => {
         print_components_init_inline_edit();
 
-        // Экспортируем функции для использования в print_components.js
         window.print_components_handle_add_component = print_components_handle_add_component;
         window.print_components_create_add_modal = print_components_create_add_modal;
         window.print_components_show_notification = print_components_show_notification;
 
-        // Также экспортируем объект с методами для удобства
         window.printComponentsInlineEdit = {
             init: print_components_init_inline_edit,
             showNotification: print_components_show_notification,
@@ -1619,12 +1618,8 @@ setTimeout(() => {
 
     if (originalUpdateFunction) {
         window.printComponentsSection.updateForProschet = function(proschetId, rowElement) {
-            // Вызываем оригинальную функцию
             originalUpdateFunction.call(this, proschetId, rowElement);
-
-            // После обновления таблицы (с небольшой задержкой) переинициализируем inline-редактирование
             setTimeout(() => {
-                // Сбрасываем флаг инициализации, чтобы обработчики снова навесились
                 print_components_initialized = false;
                 print_components_init_inline_edit();
             }, 500);

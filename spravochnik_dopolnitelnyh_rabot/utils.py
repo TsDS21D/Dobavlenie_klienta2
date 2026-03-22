@@ -9,7 +9,7 @@ import math
 
 def calculate_price_for_work(work, sheets):
     """
-    Рассчитывает цену работы для заданного количества листов,
+    Рассчитывает себестоимость работы для заданного количества листов,
     используя опорные точки WorkPrice и метод интерполяции, сохранённый в работе.
 
     Аргументы:
@@ -17,7 +17,7 @@ def calculate_price_for_work(work, sheets):
         sheets: int, количество листов
 
     Возвращает:
-        Decimal: интерполированная цена
+        Decimal: интерполированная себестоимость (без наценки)
     """
     # Получаем все опорные точки для данной работы, отсортированные по sheets
     price_points = work.work_prices.order_by('sheets')
@@ -89,7 +89,7 @@ def calculate_price_for_work(work, sheets):
 # НОВАЯ ФУНКЦИЯ: интерполяция цены по тиражу
 def calculate_price_for_work_by_circulation(work, circulation):
     """
-    Рассчитывает цену работы для заданного тиража,
+    Рассчитывает себестоимость работы для заданного тиража,
     используя опорные точки WorkCirculationPrice и метод интерполяции, сохранённый в работе.
 
     Аргументы:
@@ -97,7 +97,7 @@ def calculate_price_for_work_by_circulation(work, circulation):
         circulation: int, тираж
 
     Возвращает:
-        Decimal: интерполированная цена
+        Decimal: интерполированная себестоимость (без наценки)
     """
     # Получаем все опорные точки по тиражу для данной работы, отсортированные по circulation
     price_points = work.circulation_prices.order_by('circulation')

@@ -5,55 +5,27 @@
  * - отправку AJAX-запроса при сохранении,
  * - удаление опорной точки,
  * - отображение ошибок валидации,
- * - расчёт цены для произвольного количества листов (интерполяция).
- * 
- * Все функции и переменные находятся в объекте WorkPrice, чтобы не засорять глобальную область.
- * После загрузки DOM вызывается WorkPrice.init().
- * 
- * ИСПРАВЛЕНИЕ: добавлена запись в localStorage при успешном создании/удалении цены,
- * чтобы уведомить другие вкладки (калькулятор) об изменении.
+ * - расчёт цены для произвольного количества листов.
  */
 
 (function() {
-    // ===== ПРИВАТНЫЕ ПЕРЕМЕННЫЕ =====
-    // Флаг, показывающий, видима ли форма добавления
     let isFormVisible = false;
 
-    // ===== ИНИЦИАЛИЗАЦИЯ =====
     function init() {
         console.log('WorkPrice: инициализация...');
 
-        // Находим кнопку "Добавить цену"
         const addBtn = document.getElementById('add-price-point-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', toggleForm);
-        }
+        if (addBtn) addBtn.addEventListener('click', toggleForm);
 
-        // Находим форму добавления цены
         const form = document.getElementById('price-point-form');
-        if (form) {
-            form.addEventListener('submit', handleFormSubmit);
-        }
+        if (form) form.addEventListener('submit', handleFormSubmit);
 
-        // Делегирование событий для кнопок удаления (они могут быть динамически добавлены)
         document.addEventListener('click', function(e) {
             const deleteBtn = e.target.closest('.btn-delete-price');
-            if (deleteBtn) {
-                handleDelete(deleteBtn);
-            }
-        });
-
-        // Обработчик для кнопки "Рассчитать" произвольное количество листов
-        document.addEventListener('click', function(e) {
-            const calcBtn = e.target.closest('#calculate-arbitrary-btn');
-            if (calcBtn) {
-                e.preventDefault();
-                calculateArbitrary();
-            }
+            if (deleteBtn) handleDelete(deleteBtn);
         });
     }
 
-    // ===== ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ФОРМЫ =====
     function toggleForm() {
         const formSection = document.getElementById('price-point-form-section');
         const addBtn = document.getElementById('add-price-point-btn');
@@ -77,24 +49,19 @@
         }
     }
 
-    // ===== ОЧИСТКА ФОРМЫ =====
     function clearForm() {
         const form = document.getElementById('price-point-form');
         if (!form) return;
-
         form.reset();
         form.querySelectorAll('.error-message').forEach(el => el.remove());
         form.querySelectorAll('.form-control.error').forEach(el => el.classList.remove('error'));
     }
 
-    // ===== ОБРАБОТКА ОТПРАВКИ ФОРМЫ (AJAX) =====
     function handleFormSubmit(e) {
         e.preventDefault();
-
         const form = e.target;
         const formData = new FormData(form);
 
-        // Замена запятой на точку в цене
         let priceValue = formData.get('price');
         if (priceValue && priceValue.includes(',')) {
             formData.set('price', priceValue.replace(',', '.'));
@@ -114,12 +81,9 @@
         .then(data => {
             if (data.success) {
                 showNotification('Цена успешно добавлена!', 'success');
-                // ===== ДОБАВЛЕНО: запись в localStorage для уведомления других вкладок =====
                 localStorage.setItem('work_price_last_update', Date.now().toString());
                 console.log('💾 В localStorage записан work_price_last_update');
-                // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
                 if (isFormVisible) toggleForm();
-                // Перезагружаем страницу, чтобы увидеть новую цену в таблице
                 location.reload();
             } else {
                 showNotification('Ошибка при добавлении цены', 'error');
@@ -136,7 +100,6 @@
         });
     }
 
-    // ===== ОТОБРАЖЕНИЕ ОШИБОК ВАЛИДАЦИИ =====
     function displayFormErrors(form, errors) {
         form.querySelectorAll('.error-message').forEach(el => el.remove());
         form.querySelectorAll('.form-control.error').forEach(el => el.classList.remove('error'));
@@ -156,7 +119,6 @@
         }
     }
 
-    // ===== ОБРАБОТКА УДАЛЕНИЯ ОПОРНОЙ ТОЧКИ =====
     function handleDelete(btn) {
         const priceId = btn.getAttribute('data-price-id');
         const sheets = btn.getAttribute('data-price-sheets');
@@ -178,16 +140,18 @@
         .then(data => {
             if (data.success) {
                 showNotification('Цена удалена', 'success');
-                // ===== ДОБАВЛЕНО: запись в localStorage при удалении =====
                 localStorage.setItem('work_price_last_update', Date.now().toString());
                 console.log('💾 В localStorage записан work_price_last_update (удаление)');
-                // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
                 const row = btn.closest('.table-row');
                 if (row) row.remove();
 
                 const tableBody = document.querySelector('.price-points-table .table-body');
                 if (tableBody && tableBody.children.length === 0) {
                     location.reload();
+                }
+                // ===== ДОБАВЛЕНО: обновляем себестоимость текущей работы =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateCalculatedCost) {
+                    window.SpravochnikDopRabot.updateCalculatedCost();
                 }
             } else {
                 showNotification('Ошибка при удалении', 'error');
@@ -203,68 +167,6 @@
         });
     }
 
-    // ===== РАСЧЁТ ЦЕНЫ ДЛЯ ПРОИЗВОЛЬНОГО КОЛИЧЕСТВА ЛИСТОВ =====
-    function calculateArbitrary() {
-        // Получаем ID текущей работы из URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const workId = urlParams.get('work_id');
-        if (!workId) {
-            showNotification('Сначала выберите работу', 'error');
-            return;
-        }
-
-        // Получаем количество листов из поля ввода
-        const sheetsInput = document.getElementById('arbitrary-sheets');
-        if (!sheetsInput) {
-            showNotification('Поле ввода количества листов не найдено', 'error');
-            return;
-        }
-        const sheets = sheetsInput.value.trim();
-        if (!sheets || parseInt(sheets) < 1) {
-            showNotification('Введите корректное количество листов (≥ 1)', 'error');
-            return;
-        }
-
-        // Показываем индикатор загрузки в блоке результата
-        const resultDiv = document.getElementById('arbitrary-result');
-        if (resultDiv) {
-            resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Расчёт...';
-        }
-
-        // Отправляем GET-запрос на сервер
-        fetch(`/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_sheets_price/${workId}/?arbitrary_sheets=${encodeURIComponent(sheets)}`, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Отображаем результат
-                if (resultDiv) {
-                    resultDiv.innerHTML = `
-                        <span style="color: #28a745;">
-                            ${data.calculated_price_display}
-                        </span>
-                    `;
-                }
-                showNotification(data.message, 'success');
-            } else {
-                if (resultDiv) {
-                    resultDiv.innerHTML = `<span style="color: #dc3545;">Ошибка</span>`;
-                }
-                showNotification(data.error || 'Ошибка расчёта', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при расчёте:', error);
-            if (resultDiv) {
-                resultDiv.innerHTML = `<span style="color: #dc3545;">Ошибка сети</span>`;
-            }
-            showNotification('Ошибка соединения с сервером', 'error');
-        });
-    }
-
-    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -286,14 +188,11 @@
         }
     }
 
-    // ===== ЭКСПОРТ ПУБЛИЧНЫХ МЕТОДОВ =====
     window.WorkPrice = {
         init: init,
         clearForm: clearForm,
-        toggleForm: toggleForm,
-        calculateArbitrary: calculateArbitrary
+        toggleForm: toggleForm
     };
 
-    // Запускаем инициализацию после полной загрузки DOM
     document.addEventListener('DOMContentLoaded', init);
 })();

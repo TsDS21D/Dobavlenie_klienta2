@@ -8,32 +8,23 @@
  */
 
 (function() {
-    let isFormVisible = false;  // флаг видимости формы добавления
+    let isFormVisible = false;
 
-    /**
-     * Инициализация при загрузке DOM.
-     */
     function init() {
         console.log('WorkCirculationPrice: инициализация...');
 
-        // Находим кнопку "Добавить цену по тиражу"
         const addBtn = document.getElementById('add-circulation-price-btn');
         if (addBtn) addBtn.addEventListener('click', toggleForm);
 
-        // Находим форму добавления
         const form = document.getElementById('circulation-price-form');
         if (form) form.addEventListener('submit', handleFormSubmit);
 
-        // Делегирование событий для кнопок удаления (они могут быть динамически добавлены)
         document.addEventListener('click', function(e) {
             const deleteBtn = e.target.closest('.btn-delete-circulation-price');
             if (deleteBtn) handleDelete(deleteBtn);
         });
     }
 
-    /**
-     * Переключение видимости формы добавления.
-     */
     function toggleForm() {
         const formSection = document.getElementById('circulation-price-form-section');
         const addBtn = document.getElementById('add-circulation-price-btn');
@@ -44,9 +35,7 @@
             formSection.style.display = 'block';
             addBtn.innerHTML = '− Скрыть форму';
             addBtn.classList.add('btn-cancel');
-            // Плавная прокрутка к форме
             formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            // Устанавливаем фокус на поле ввода тиража
             document.getElementById('work-circulation-price-circulation').focus();
         } else {
             formSection.style.display = 'none';
@@ -56,9 +45,6 @@
         }
     }
 
-    /**
-     * Очистка формы от введённых данных и ошибок.
-     */
     function clearForm() {
         const form = document.getElementById('circulation-price-form');
         if (!form) return;
@@ -67,16 +53,11 @@
         form.querySelectorAll('.form-control.error').forEach(el => el.classList.remove('error'));
     }
 
-    /**
-     * Обработка отправки формы через AJAX.
-     * @param {Event} e - событие submit
-     */
     function handleFormSubmit(e) {
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
 
-        // Замена запятой на точку в цене
         let priceValue = formData.get('price');
         if (priceValue && priceValue.includes(',')) {
             formData.set('price', priceValue.replace(',', '.'));
@@ -96,10 +77,8 @@
         .then(data => {
             if (data.success) {
                 showNotification('Цена по тиражу добавлена!', 'success');
-                // Записываем метку времени в localStorage для синхронизации между вкладками
                 localStorage.setItem('work_price_last_update', Date.now().toString());
                 if (isFormVisible) toggleForm();
-                // Перезагружаем страницу для отображения новой цены (можно обновить таблицу динамически, но для простоты reload)
                 location.reload();
             } else {
                 showNotification('Ошибка при добавлении', 'error');
@@ -116,13 +95,7 @@
         });
     }
 
-    /**
-     * Отображение ошибок валидации под соответствующими полями.
-     * @param {HTMLFormElement} form - форма
-     * @param {Object} errors - словарь ошибок
-     */
     function displayFormErrors(form, errors) {
-        // Удаляем старые сообщения об ошибках
         form.querySelectorAll('.error-message').forEach(el => el.remove());
         form.querySelectorAll('.form-control.error').forEach(el => el.classList.remove('error'));
 
@@ -141,10 +114,6 @@
         }
     }
 
-    /**
-     * Обработка удаления опорной точки.
-     * @param {HTMLElement} btn - кнопка удаления
-     */
     function handleDelete(btn) {
         const priceId = btn.getAttribute('data-price-id');
         const circulation = btn.getAttribute('data-price-circulation');
@@ -165,13 +134,16 @@
         .then(data => {
             if (data.success) {
                 showNotification('Цена удалена', 'success');
-                localStorage.setItem('work_price_last_update', Date.now().toString()); // синхронизация
+                localStorage.setItem('work_price_last_update', Date.now().toString());
                 const row = btn.closest('.table-row');
-                if (row) row.remove(); // удаляем строку из таблицы
-                // Если таблица стала пустой, можно перезагрузить страницу или показать сообщение
+                if (row) row.remove();
                 const tableBody = document.querySelector('.price-points-container .table-body');
                 if (tableBody && tableBody.children.length === 0) {
-                    location.reload(); // для простоты перезагружаем
+                    location.reload();
+                }
+                // ===== ДОБАВЛЕНО: обновляем себестоимость текущей работы =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateCalculatedCost) {
+                    window.SpravochnikDopRabot.updateCalculatedCost();
                 }
             } else {
                 showNotification('Ошибка при удалении', 'error');
@@ -187,10 +159,6 @@
         });
     }
 
-    /**
-     * Получение CSRF-токена из cookie.
-     * @returns {string} токен
-     */
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -204,11 +172,6 @@
         return cookieValue;
     }
 
-    /**
-     * Показ уведомления (использует глобальный объект SpravochnikDopRabot, если доступен).
-     * @param {string} message - текст
-     * @param {string} type - тип ('success', 'error', 'warning', 'info')
-     */
     function showNotification(message, type) {
         if (window.SpravochnikDopRabot && typeof window.SpravochnikDopRabot.showNotification === 'function') {
             window.SpravochnikDopRabot.showNotification(message, type);
@@ -217,7 +180,6 @@
         }
     }
 
-    // Экспортируем публичные методы
     window.WorkCirculationPrice = {
         init: init,
         clearForm: clearForm,

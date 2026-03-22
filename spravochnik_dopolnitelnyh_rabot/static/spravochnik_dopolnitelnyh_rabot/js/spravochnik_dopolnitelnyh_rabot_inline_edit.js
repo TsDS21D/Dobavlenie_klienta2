@@ -1,37 +1,33 @@
 /*
 spravochnik_dopolnitelnyh_rabot_inline_edit.js
 Inline-редактирование для справочника дополнительных работ.
-Поля "название", "цена", "формула", "линии реза", "изделия на листе"
+Поля "название", "цена", "себестоимость", "наценка", "формула", "линии реза", "изделия на листе"
 можно редактировать двойным кликом.
-Использует делегирование через .right-column и экспортирует cancelEdit.
-Добавлена запись в localStorage для межвкладочного взаимодействия и обработчик storage
-для автоматического обновления данных в других вкладках.
+Исправлено: для полей cost и markup_percent корректно заменяем запятую на точку.
+Добавлено: при изменении поля formula_type отправляется событие formulaTypeChanged.
 */
 
 // Немедленно вызываемая функция (IIFE), чтобы не засорять глобальную область видимости
 (function() {
     // ===== ПЕРЕМЕННЫЕ СОСТОЯНИЯ =====
-    // Текущее редактируемое поле (объект с деталями: field, input, workId, fieldType, originalValue)
+    // Объект с информацией о текущем редактируемом поле
     let currentlyEditing = null;
 
-    // Таймаут, используемый для игнорирования blur при двойном клике (чтобы не срабатывало сохранение преждевременно)
+    // Таймаут для игнорирования события blur при двойном клике
     let ignoreBlurTimeout = null;
 
-    // Флаг, указывающий, что сейчас происходит обработка двойного клика (используется для таймаута)
+    // Флаг, указывающий, что мы сейчас обрабатываем двойной клик
     let isProcessingDoubleClick = false;
 
-    // Флаг, указывающий, что процесс сохранения уже запущен (чтобы избежать повторных вызовов)
+    // Флаг, предотвращающий повторное завершение редактирования
     let isFinishing = false;
 
-    /**
-     * Обработчик потери фокуса для input/select.
-     * @param {Event} e - событие blur
-     */
+    // ===== ОБРАБОТЧИК ПОТЕРИ ФОКУСА =====
     function handleInputBlur(e) {
         // Если есть запланированный таймаут, отменяем его
         if (ignoreBlurTimeout) clearTimeout(ignoreBlurTimeout);
 
-        // Если мы обрабатывали двойной клик, даём небольшой таймаут перед сохранением,
+        // Если мы обрабатывали двойной клик, даём небольшую задержку перед сохранением,
         // чтобы дать возможность обработать другие события (например, клик по кнопке)
         if (isProcessingDoubleClick) {
             ignoreBlurTimeout = setTimeout(() => finishEdit(e), 100);
@@ -41,45 +37,39 @@ Inline-редактирование для справочника дополни
         }
     }
 
-    /**
-     * Обработчик нажатия клавиш в input.
-     * @param {KeyboardEvent} e
-     */
+    // ===== ОБРАБОТЧИК НАЖАТИЯ КЛАВИШ =====
     function handleInputKeyPress(e) {
         if (!currentlyEditing) return; // если ничего не редактируется, игнорируем
 
         if (e.key === 'Enter') {
             e.preventDefault();         // предотвращаем отправку формы (если вдруг)
-            finishEdit();                // Enter сохраняет изменения
+            finishEdit();               // Enter сохраняет изменения
         } else if (e.key === 'Escape') {
-            e.preventDefault();          // предотвращаем возможные действия браузера
-            cancelEdit();                 // Escape отменяет редактирование
+            e.preventDefault();         // предотвращаем возможные действия браузера
+            cancelEdit();              // Escape отменяет редактирование
         }
     }
 
-    /**
-     * Инициализация обработчиков.
-     * Вызывается после загрузки DOM.
-     */
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
     function init() {
         console.log('Inline-редактирование справочника: инициализация...');
 
+        // Контейнер, в котором находятся поля для редактирования (правая колонка)
         const rightColumn = document.querySelector('.right-column');
         if (!rightColumn) return;
 
+        // Обработчик двойного клика – начинаем редактирование
         rightColumn.addEventListener('dblclick', function(e) {
             const field = e.target.closest('.editable-field[data-work-id]');
-            if (field) {
-                startEdit(field);
-            }
+            if (field) startEdit(field);
         });
 
+        // Глобальная клавиша Escape для отмены редактирования из любого места
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && currentlyEditing) {
-                cancelEdit();
-            }
+            if (e.key === 'Escape' && currentlyEditing) cancelEdit();
         });
 
+        // Слушаем изменения в localStorage для синхронизации между вкладками
         window.addEventListener('storage', function(e) {
             if (e.key === 'spravochnik_last_update') {
                 console.log('Обнаружено изменение в другой вкладке, обновляем данные');
@@ -92,6 +82,7 @@ Inline-редактирование для справочника дополни
         });
     }
 
+    // ===== НАЧАЛО РЕДАКТИРОВАНИЯ =====
     function startEdit(field) {
         const workId = field.getAttribute('data-work-id');
         const fieldType = field.getAttribute('data-field');
@@ -99,38 +90,42 @@ Inline-редактирование для справочника дополни
 
         if (!workId || !fieldType) return;
 
-        if (currentlyEditing) {
-            finishEdit();
-        }
+        // Если уже есть активное редактирование, завершаем его (сохраняем)
+        if (currentlyEditing) finishEdit();
 
+        // Находим соответствующий скрытый input в этой же строке
         let inputField;
         if (fieldType === 'name') {
             inputField = field.parentNode.querySelector('.spravochnik-name-input');
         } else if (fieldType === 'price') {
             inputField = field.parentNode.querySelector('.spravochnik-price-input');
+        } else if (fieldType === 'cost') {
+            inputField = field.parentNode.querySelector('.spravochnik-cost-input');
+        } else if (fieldType === 'markup_percent') {
+            inputField = field.parentNode.querySelector('.spravochnik-markup-input');
         } else if (fieldType === 'formula_type') {
             inputField = field.parentNode.querySelector('.spravochnik-formula-select');
         } else if (fieldType === 'default_lines_count') {
             inputField = field.parentNode.querySelector('.spravochnik-lines-input');
         } else if (fieldType === 'default_items_per_sheet') {
             inputField = field.parentNode.querySelector('.spravochnik-items-input');
-        } else if (fieldType === 'k_lines') {  // ===== НОВОЕ ПОЛЕ =====
+        } else if (fieldType === 'k_lines') {
             inputField = field.parentNode.querySelector('.spravochnik-k-lines-input');
         }
 
         if (!inputField) return;
 
+        // Добавляем обработчики событий на input, если они ещё не добавлены
         if (!inputField.hasAttribute('data-initialized')) {
             inputField.addEventListener('blur', handleInputBlur);
             inputField.addEventListener('keydown', handleInputKeyPress);
             if (inputField.tagName === 'SELECT') {
-                inputField.addEventListener('change', function(e) {
-                    finishEdit(e);
-                });
+                inputField.addEventListener('change', function(e) { finishEdit(e); });
             }
             inputField.setAttribute('data-initialized', 'true');
         }
 
+        // Сохраняем состояние
         currentlyEditing = {
             field: field,
             input: inputField,
@@ -139,12 +134,13 @@ Inline-редактирование для справочника дополни
             originalValue: originalValue
         };
 
+        // Скрываем span
         field.style.display = 'none';
         field.classList.add('editing');
 
-        // Устанавливаем значение
-        if (fieldType === 'price' || fieldType === 'k_lines') {
-            // Для чисел заменяем запятую на точку
+        // Устанавливаем значение в input с заменой запятой на точку для числовых полей
+        const numericFields = ['price', 'cost', 'k_lines', 'markup_percent'];
+        if (numericFields.includes(fieldType)) {
             inputField.value = originalValue.replace(',', '.');
         } else if (fieldType === 'formula_type') {
             inputField.value = originalValue;
@@ -152,18 +148,21 @@ Inline-редактирование для справочника дополни
             inputField.value = originalValue;
         }
 
+        // Показываем input
         inputField.style.display = 'block';
 
+        // Ставим фокус и выделяем текст
         setTimeout(() => {
             if (inputField.style.display === 'block') {
                 inputField.focus();
-                if (fieldType === 'name' || fieldType === 'price' || fieldType === 'k_lines') {
+                if (numericFields.includes(fieldType) || fieldType === 'name') {
                     inputField.select();
                 }
             }
         }, 10);
     }
 
+    // ===== ЗАВЕРШЕНИЕ РЕДАКТИРОВАНИЯ (СОХРАНЕНИЕ) =====
     function finishEdit(e) {
         if (!currentlyEditing || isFinishing) return;
         isFinishing = true;
@@ -181,17 +180,21 @@ Inline-редактирование для справочника дополни
             newValue = input.value.trim();
         }
 
-        // Если значение не изменилось
+        // Если значение не изменилось – просто отменяем редактирование
         if (newValue == originalValue) {
             cancelEdit();
             isFinishing = false;
             return;
         }
 
-        // Валидация
-        if (fieldType === 'price' || fieldType === 'k_lines') {
+        // Валидация на клиенте перед отправкой
+        const numericFields = ['price', 'cost', 'k_lines', 'markup_percent'];
+        if (numericFields.includes(fieldType)) {
             const num = parseFloat(newValue.replace(',', '.'));
-            if (isNaN(num) || (fieldType === 'price' && num < 0) || (fieldType === 'k_lines' && num < 0.1)) {
+            if (isNaN(num) || (fieldType === 'price' && num < 0) ||
+                (fieldType === 'cost' && num < 0) ||
+                (fieldType === 'markup_percent' && num < 0) ||
+                (fieldType === 'k_lines' && num < 0.1)) {
                 showNotification('Некорректное значение', 'error');
                 input.value = originalValue.replace(',', '.');
                 cancelEdit();
@@ -218,16 +221,18 @@ Inline-редактирование для справочника дополни
             }
         }
 
-        // Показываем спиннер
+        // Показываем индикатор загрузки в span
         field.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         field.style.display = 'inline-block';
         input.style.display = 'none';
 
+        // Формируем данные для отправки
         const formData = new FormData();
         formData.append('field_name', fieldType);
         formData.append('new_value', newValue);
         formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
 
+        // Отправляем AJAX-запрос
         fetch(`/spravochnik_dopolnitelnyh_rabot/api/update/${workId}/`, {
             method: 'POST',
             body: formData,
@@ -236,7 +241,7 @@ Inline-редактирование для справочника дополни
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Обновляем отображение
+                // Успех: обновляем отображение поля
                 if (fieldType === 'formula_type' && currentlyEditing.newDisplayValue) {
                     field.textContent = currentlyEditing.newDisplayValue;
                     field.setAttribute('data-original-value', newValue);
@@ -246,24 +251,45 @@ Inline-редактирование для справочника дополни
                 } else if (fieldType === 'price') {
                     field.textContent = data.work.price;
                     field.setAttribute('data-original-value', data.work.price);
+                } else if (fieldType === 'cost') {
+                    field.textContent = data.work.cost;
+                    field.setAttribute('data-original-value', data.work.cost);
+                } else if (fieldType === 'markup_percent') {
+                    field.textContent = data.work.markup_percent;
+                    field.setAttribute('data-original-value', data.work.markup_percent);
                 } else if (fieldType === 'default_lines_count') {
                     field.textContent = data.work.default_lines_count;
                     field.setAttribute('data-original-value', data.work.default_lines_count);
                 } else if (fieldType === 'default_items_per_sheet') {
                     field.textContent = data.work.default_items_per_sheet;
                     field.setAttribute('data-original-value', data.work.default_items_per_sheet);
-                } else if (fieldType === 'k_lines') {  // ===== НОВОЕ =====
+                } else if (fieldType === 'k_lines') {
                     field.textContent = data.work.k_lines;
                     field.setAttribute('data-original-value', data.work.k_lines);
                 }
 
+                // Обновляем элемент в списке слева (название и цена)
                 updateWorkInList(data.work);
 
-                const event = new CustomEvent('spravochnikWorkUpdated', {
+                // ===== ДОБАВЛЕНО: отправляем событие, если изменилась формула =====
+                if (fieldType === 'formula_type') {
+                    const event = new CustomEvent('formulaTypeChanged', {
+                        detail: {
+                            workId: workId,
+                            formulaType: newValue
+                        }
+                    });
+                    document.dispatchEvent(event);
+                    console.log(`📢 Событие formulaTypeChanged отправлено для работы ${workId}, новая формула: ${newValue}`);
+                }
+
+                // Генерируем общее событие обновления справочника
+                const updateEvent = new CustomEvent('spravochnikWorkUpdated', {
                     detail: { workId: data.work_id || data.work.id, work: data.work }
                 });
-                document.dispatchEvent(event);
+                document.dispatchEvent(updateEvent);
 
+                // Записываем метку времени в localStorage для синхронизации между вкладками
                 localStorage.setItem('spravochnik_last_update', Date.now().toString());
             } else {
                 throw new Error(data.error || 'Ошибка сохранения');
@@ -272,10 +298,12 @@ Inline-редактирование для справочника дополни
         .catch(error => {
             console.error(error);
             showNotification(error.message, 'error');
+            // Восстанавливаем исходное значение
             field.textContent = originalValue;
             field.style.display = 'inline-block';
         })
         .finally(() => {
+            // Скрываем input, сбрасываем состояние
             input.style.display = 'none';
             currentlyEditing = null;
             isProcessingDoubleClick = false;
@@ -284,25 +312,19 @@ Inline-редактирование для справочника дополни
         });
     }
 
-    /**
-     * Обновление элемента в списке слева после редактирования (название и цена).
-     * @param {Object} workData - обновлённые данные работы
-     */
+    // ===== ОБНОВЛЕНИЕ ЭЛЕМЕНТА В СПИСКЕ СЛЕВА =====
     function updateWorkInList(workData) {
-        // Ищем элемент списка с соответствующим data-work-id
         const workItem = document.querySelector(`.work-item[data-work-id="${workData.id}"]`);
         if (!workItem) return;
 
-        // Обновляем название
         const nameSpan = workItem.querySelector('.work-name');
         if (nameSpan) {
-            const icon = nameSpan.querySelector('i'); // сохраняем иконку
-            nameSpan.innerHTML = '';                   // очищаем содержимое
-            if (icon) nameSpan.appendChild(icon);      // возвращаем иконку
-            nameSpan.append(document.createTextNode(' ' + workData.name)); // добавляем новый текст
+            const icon = nameSpan.querySelector('i');
+            nameSpan.innerHTML = '';
+            if (icon) nameSpan.appendChild(icon);
+            nameSpan.append(document.createTextNode(' ' + workData.name));
         }
 
-        // Обновляем цену
         const priceSpan = workItem.querySelector('.work-price');
         if (priceSpan) {
             const icon = priceSpan.querySelector('i');
@@ -312,37 +334,28 @@ Inline-редактирование для справочника дополни
         }
     }
 
-    /**
-     * Отмена редактирования (без сохранения).
-     */
+    // ===== ОТМЕНА РЕДАКТИРОВАНИЯ (БЕЗ СОХРАНЕНИЯ) =====
     function cancelEdit() {
         if (!currentlyEditing) return;
 
         const { field, input } = currentlyEditing;
-        // Возвращаем исходное состояние: показываем span, скрываем input
         field.style.display = 'inline-block';
         field.classList.remove('editing');
         input.style.display = 'none';
 
-        // Сбрасываем состояние
         currentlyEditing = null;
         isProcessingDoubleClick = false;
         isFinishing = false;
         if (ignoreBlurTimeout) clearTimeout(ignoreBlurTimeout);
     }
 
-    /**
-     * Получение CSRF-токена из cookie.
-     * @param {string} name - имя cookie (обычно 'csrftoken')
-     * @returns {string} значение токена
-     */
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
-                // Ищем cookie с нужным именем
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -352,25 +365,17 @@ Inline-редактирование для справочника дополни
         return cookieValue;
     }
 
-    /**
-     * Уведомление (переиспользуем функцию из основного файла spravochnik_dopolnitelnyh_rabot.js).
-     * @param {string} message - текст уведомления
-     * @param {string} type - тип (success, error, warning, info)
-     */
     function showNotification(message, type) {
         if (window.SpravochnikDopRabot && typeof window.SpravochnikDopRabot.showNotification === 'function') {
             window.SpravochnikDopRabot.showNotification(message, type);
         } else {
-            // Если основной модуль не загрузился – используем alert
             alert(message);
         }
     }
 
     // Экспортируем функцию cancelEdit в глобальный объект InlineEdit,
     // чтобы основной скрипт мог отменить редактирование при необходимости (например, при выборе другой работы)
-    window.InlineEdit = {
-        cancelEdit: cancelEdit
-    };
+    window.InlineEdit = { cancelEdit: cancelEdit };
 
     // Запускаем инициализацию после полной загрузки DOM
     document.addEventListener('DOMContentLoaded', init);

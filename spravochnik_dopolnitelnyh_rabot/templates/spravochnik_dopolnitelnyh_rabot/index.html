@@ -1,8 +1,7 @@
 <!--
 index.html для приложения spravochnik_dopolnitelnyh_rabot.
 Двухколоночный макет: слева список работ, справа детали выбранной работы.
-Добавлены поля для формулы и параметров с поддержкой inline-редактирования.
-ДОБАВЛЕНО: блок для цен по тиражу (WorkCirculationPrice) и соответствующие скрипты.
+Добавлены поля для себестоимости и наценки в форму добавления и в детали.
 -->
 
 {% extends "spravochnik_dopolnitelnyh_rabot/base.html" %}
@@ -11,13 +10,11 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
 {% block title %}Справочник дополнительных работ{% endblock %}
 
 {% block content %}
-    <!-- Заголовок страницы -->
     <h1>
         <i class="fas fa-tools"></i>
         Справочник дополнительных работ
     </h1>
 
-    <!-- Скрытый контейнер для сообщений Django (используется для уведомлений) -->
     <div class="django-messages" style="display: none;">
         {% if messages %}
             {% for message in messages %}
@@ -26,7 +23,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
         {% endif %}
     </div>
 
-    <!-- Двухколоночный layout -->
     <div class="two-column-layout spravochnik-layout">
 
         <!-- ЛЕВАЯ КОЛОНКА: список работ -->
@@ -92,7 +88,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                 </div>
             </div>
 
-            <!-- Форма добавления работы -->
+            <!-- Форма добавления работы (исправлена: добавлены поля cost и markup_percent) -->
             <div class="form-section" id="spravochnik-form-section" style="display: none;">
                 <h3>Добавить новую работу</h3>
                 <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create' %}" id="spravochnik-add-form">
@@ -107,12 +103,21 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         {% endif %}
                     </div>
 
-                    <!-- Поле "Цена" -->
+                    <!-- Поле "Себестоимость" (НОВОЕ) -->
                     <div class="form-group">
-                        <label for="{{ work_form.price.id_for_label }}">Цена (руб):</label>
-                        {{ work_form.price }}
-                        {% if work_form.price.errors %}
-                            <div class="error-message">{{ work_form.price.errors }}</div>
+                        <label for="{{ work_form.cost.id_for_label }}">Себестоимость (руб):</label>
+                        {{ work_form.cost }}
+                        {% if work_form.cost.errors %}
+                            <div class="error-message">{{ work_form.cost.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Поле "Наценка %" (НОВОЕ) -->
+                    <div class="form-group">
+                        <label for="{{ work_form.markup_percent.id_for_label }}">Наценка (%):</label>
+                        {{ work_form.markup_percent }}
+                        {% if work_form.markup_percent.errors %}
+                            <div class="error-message">{{ work_form.markup_percent.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -230,28 +235,61 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="Введите название">
                             </div>
 
-                            <!-- Поле "Цена" (редактируемое по двойному клику) -->
-                            <div class="work-field">
-                                <label>Цена (руб):</label>
-                                <span class="editable-field spravochnik-price-field"
-                                      data-field="price"
-                                      data-work-id="{{ selected_work.id }}"
-                                      data-original-value="{{ selected_work.price }}"
-                                      title="Двойной клик для редактирования">
-                                    {{ selected_work.price }}
+                            <!-- Поле "Себестоимость" (редактируемое, только для формулы 1) -->
+                            <div class="work-field" id="cost-edit-field" style="display: none;">
+                                <label>Себестоимость (руб):</label>
+                                <span class="editable-field spravochnik-cost-field"
+                                    data-field="cost"
+                                    data-work-id="{{ selected_work.id }}"
+                                    data-original-value="{{ selected_work.cost }}"
+                                    title="Двойной клик для редактирования">
+                                    {{ selected_work.cost }}
                                 </span>
                                 <input type="number"
-                                       class="inline-edit-input spravochnik-price-input"
-                                       data-work-id="{{ selected_work.id }}"
-                                       data-field="price"
-                                       value="{{ selected_work.price }}"
-                                       step="0.01"
-                                       min="0"
-                                       style="display: none;"
-                                       placeholder="0.00">
+                                    class="inline-edit-input spravochnik-cost-input"
+                                    data-work-id="{{ selected_work.id }}"
+                                    data-field="cost"
+                                    value="{{ selected_work.cost }}"
+                                    step="0.01"
+                                    min="0"
+                                    style="display: none;">
                             </div>
 
-                            <!-- Поле "Формула расчёта" (редактируемое по двойному клику) -->
+                            <!-- Поле "Себестоимость" (расчётное, для формул 2-6) -->
+                            <div class="work-field" id="cost-calc-field">
+                                <label>Себестоимость (руб):</label>
+                                <span id="calculated-cost-display" class="readonly-field">--</span>
+                                <input type="hidden" id="current-work-id" value="{{ selected_work.id }}">
+                                <input type="hidden" id="current-formula-type" value="{{ selected_work.formula_type }}">
+                            </div>
+
+                            <!-- Поле "Наценка %" (НОВОЕ) -->
+                            <div class="work-field">
+                                <label>Наценка (%):</label>
+                                <span class="editable-field spravochnik-markup-field"
+                                    data-field="markup_percent"
+                                    data-work-id="{{ selected_work.id }}"
+                                    data-original-value="{{ selected_work.markup_percent }}"
+                                    title="Двойной клик для редактирования">
+                                    {{ selected_work.markup_percent }}
+                                </span>
+                                <input type="number"
+                                    class="inline-edit-input spravochnik-markup-input"
+                                    data-work-id="{{ selected_work.id }}"
+                                    data-field="markup_percent"
+                                    value="{{ selected_work.markup_percent }}"
+                                    step="0.01"
+                                    min="0"
+                                    style="display: none;">
+                            </div>
+
+                            <!-- Поле "Цена" (только чтение) -->
+                            <div class="work-field">
+                                <label>Цена (руб):</label>
+                                <span class="readonly-field">{{ selected_work.price }}</span>
+                            </div>
+
+                            <!-- Поле "Формула расчёта" (редактируемое) -->
                             <div class="work-field">
                                 <label>Формула расчёта:</label>
                                 <span class="editable-field spravochnik-formula-field"
@@ -261,19 +299,17 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                       title="Двойной клик для редактирования">
                                     {{ selected_work.get_formula_type_display }}
                                 </span>
-                                <!-- Скрытый выпадающий список для редактирования -->
                                 <select class="inline-edit-input spravochnik-formula-select"
                                         data-work-id="{{ selected_work.id }}"
                                         data-field="formula_type"
                                         style="display: none;">
-                                    <!-- Перебираем варианты формул из модели -->
                                     {% for value, label in selected_work.FORMULA_CHOICES %}
                                         <option value="{{ value }}" {% if selected_work.formula_type == value %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
 
-                            <!-- Поле "Линий реза" (редактируемое по двойному клику) -->
+                            <!-- Поле "Линий реза" (редактируемое) -->
                             <div class="work-field">
                                 <label>Линий реза (по умолч.):</label>
                                 <span class="editable-field spravochnik-lines-field"
@@ -294,7 +330,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="1">
                             </div>
 
-                            <!-- Поле "Изделий на листе" (редактируемое по двойному клику) -->
+                            <!-- Поле "Изделий на листе" (редактируемое) -->
                             <div class="work-field">
                                 <label>Изделий на листе (по умолч.):</label>
                                 <span class="editable-field spravochnik-items-field"
@@ -315,7 +351,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="1">
                             </div>
 
-                            <!-- Поле "Коэффициент резов" (редактируемое по двойному клику) -->
+                            <!-- Поле "Коэффициент резов" (редактируемое) -->
                             <div class="work-field">
                                 <label>Коэффициент резов:</label>
                                 <span class="editable-field spravochnik-k-lines-field"
@@ -336,7 +372,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="2.0">
                             </div>
 
-                            <!-- Даты создания/обновления (только для просмотра) -->
+                            <!-- Даты создания/обновления -->
                             <div class="work-field">
                                 <label>Дата создания:</label>
                                 <span class="readonly-field">{{ selected_work.created_at|date:"d.m.Y H:i" }}</span>
@@ -348,7 +384,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         </div>
                     </div>
 
-                    <!-- БЛОК ЦЕН ПО ЛИСТАМ (WorkPrice) -->
+                    <!-- Блок цен по листам (WorkPrice) – без изменений -->
                     <div class="price-points-section">
                         <div class="section-header" style="margin-top: 1.5rem;">
                             <h3><i class="fas fa-chart-line"></i> Цены в зависимости от количества листов</h3>
@@ -357,7 +393,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             </div>
                         </div>
 
-                        <!-- Форма добавления цены по листам (скрыта) -->
                         <div class="form-section" id="price-point-form-section" style="display: none;">
                             <h4>Добавить новую цену</h4>
                             <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_work_price' %}" id="price-point-form">
@@ -366,13 +401,11 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="price-point-sheets">Количество листов*</label>
-                                        <input type="number" id="price-point-sheets" name="sheets" class="form-control"
-                                            min="1" placeholder="100" required>
+                                        <input type="number" id="price-point-sheets" name="sheets" class="form-control" min="1" placeholder="100" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="price-point-price">Цена (руб.)*</label>
-                                        <input type="number" id="price-point-price" name="price" class="form-control"
-                                            step="0.01" min="0.01" placeholder="50.00" required>
+                                        <input type="number" id="price-point-price" name="price" class="form-control" step="0.01" min="0.01" placeholder="50.00" required>
                                     </div>
                                 </div>
                                 <div class="button-group">
@@ -382,7 +415,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             </form>
                         </div>
 
-                        <!-- Таблица опорных точек по листам -->
                         <div class="price-points-container">
                             {% if work_prices %}
                                 <div class="price-points-table">
@@ -441,7 +473,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                     </div>
                                 </div>
 
-                                <!-- Блок расчёта для произвольного количества листов -->
                                 <div class="arbitrary-calc-section">
                                     <div class="section-header">
                                         <h4><i class="fas fa-calculator"></i> Расчёт для произвольного количества листов</h4>
@@ -481,7 +512,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         </div>
                     </div>
 
-                    <!-- ===== НОВЫЙ БЛОК: Цены по тиражу (WorkCirculationPrice) ===== -->
+                    <!-- Блок цен по тиражу (WorkCirculationPrice) – без изменений -->
                     <div class="circulation-price-points-section" style="margin-top: 2rem;">
                         <div class="section-header">
                             <h3><i class="fas fa-chart-bar"></i> Цены в зависимости от тиража</h3>
@@ -490,7 +521,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             </div>
                         </div>
 
-                        <!-- Форма добавления цены по тиражу (скрыта) -->
                         <div class="form-section" id="circulation-price-form-section" style="display: none;">
                             <h4>Добавить новую цену по тиражу</h4>
                             <form method="post" action="{% url 'spravochnik_dopolnitelnyh_rabot:create_circulation_price' %}" id="circulation-price-form">
@@ -513,7 +543,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                             </form>
                         </div>
 
-                        <!-- Таблица опорных точек по тиражу -->
                         <div class="price-points-container">
                             {% if circulation_prices %}
                                 <div class="price-points-table">
@@ -572,7 +601,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                     </div>
                                 </div>
 
-                                <!-- Блок расчёта для произвольного тиража -->
                                 <div class="arbitrary-calc-section">
                                     <div class="section-header">
                                         <h4><i class="fas fa-calculator"></i> Расчёт для произвольного тиража</h4>
@@ -621,7 +649,6 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_inline_edit.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_price_arbitrary.js' %}"></script>
-        <!-- НОВЫЕ СКРИПТЫ ДЛЯ ЦЕН ПО ТИРАЖУ -->
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price_inline_edit.js' %}"></script>
         <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/work_circulation_price_arbitrary.js' %}"></script>

@@ -6,59 +6,84 @@
  */
 
 (function() {
-    /**
-     * Инициализация после загрузки DOM.
-     */
     function init() {
         const calcBtn = document.getElementById('calculate-arbitrary-circulation-price');
-        if (!calcBtn) return;
+        if (!calcBtn) {
+            console.log('Кнопка #calculate-arbitrary-circulation-price не найдена');
+            return;
+        }
 
         const circulationInput = document.getElementById('arbitrary-circulation');
         const resultDiv = document.getElementById('arbitrary-circulation-result');
         const methodSelect = document.getElementById('interpolation-method-circulation');
 
+        if (!circulationInput) console.warn('Поле #arbitrary-circulation не найдено');
+        if (!resultDiv) console.warn('Блок #arbitrary-circulation-result не найден');
+
         calcBtn.addEventListener('click', function() {
-            const workId = methodSelect.getAttribute('data-work-id');
-            const circulation = circulationInput.value.trim();
+            const workId = methodSelect?.getAttribute('data-work-id');
+            const circulation = circulationInput?.value.trim();
+
+            console.log(`🔄 Расчёт для тиража ${circulation}, workId=${workId}`);
 
             if (!circulation) {
                 showNotification('Введите тираж', 'warning');
                 return;
             }
-            if (parseInt(circulation) < 1) {
-                showNotification('Тираж должен быть ≥ 1', 'error');
+            const circNum = parseInt(circulation, 10);
+            if (isNaN(circNum) || circNum < 1) {
+                showNotification('Тираж должен быть целым числом ≥ 1', 'error');
                 return;
             }
 
             calcBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Расчёт...';
             calcBtn.disabled = true;
 
-            // Отправляем GET-запрос
-            fetch(`/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_circulation_price/${workId}/?arbitrary_circulation=${encodeURIComponent(circulation)}`, {
+            const url = `/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_circulation_price/${workId}/?arbitrary_circulation=${encodeURIComponent(circulation)}`;
+            console.log(`📡 Запрос к ${url}`);
+
+            fetch(url, {
                 method: 'GET',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => {
+                console.log('📥 Ответ сервера:', data);
                 if (data.success) {
-                    document.getElementById('result-circulation-method').textContent = data.interpolation_method_display;
-                    document.getElementById('result-circulation-value').textContent = data.arbitrary_circulation + ' экз.';
-                    document.getElementById('result-circulation-price').textContent = data.calculated_price_display;
-                    resultDiv.style.display = 'block';
+                    const methodSpan = document.getElementById('result-circulation-method');
+                    const valueSpan = document.getElementById('result-circulation-value');
+                    const priceSpan = document.getElementById('result-circulation-price');
+
+                    if (methodSpan) methodSpan.textContent = data.interpolation_method_display;
+                    if (valueSpan) valueSpan.textContent = data.arbitrary_circulation + ' экз.';
+                    if (priceSpan) {
+                        // Используем final_price_display – итоговая цена с наценкой
+                        priceSpan.textContent = data.final_price_display;
+                        console.log(`✅ Цена отображена: ${data.final_price_display}`);
+                    } else {
+                        console.warn('⚠️ Элемент #result-circulation-price не найден');
+                    }
+                    if (resultDiv) resultDiv.style.display = 'block';
                 } else {
                     showNotification(data.error || 'Ошибка расчёта', 'error');
-                    resultDiv.style.display = 'none';
+                    if (resultDiv) resultDiv.style.display = 'none';
                 }
             })
-            .catch(() => showNotification('Ошибка соединения', 'error'))
+            .catch(error => {
+                console.error('❌ Ошибка:', error);
+                showNotification('Ошибка соединения', 'error');
+                if (resultDiv) resultDiv.style.display = 'none';
+            })
             .finally(() => {
                 calcBtn.innerHTML = '<i class="fas fa-calculator"></i> Рассчитать';
                 calcBtn.disabled = false;
             });
         });
 
-        // Нажатие Enter в поле ввода запускает расчёт
-        circulationInput.addEventListener('keypress', function(e) {
+        circulationInput?.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 calcBtn.click();

@@ -283,20 +283,31 @@ class PrintComponentAdmin(admin.ModelAdmin):
 class AdditionalWorkAdmin(admin.ModelAdmin):
     """
     Административный класс для AdditionalWork.
-    Теперь отображает привязку к печатному компоненту.
+    Добавлены поля cost и markup_percent в список и форму.
     """
     list_display = [
         'number',
         'title',
+        'cost',
+        'markup_percent',
         'price',
-        'print_component',          # вместо proschet
+        'profit_per_unit',   # вычисляемое поле
+        'quantity',
+        'total_price',
+        'print_component',
         'created_at',
         'is_deleted',
     ]
     list_filter = ['title', 'print_component', 'created_at', 'is_deleted']
     search_fields = ['number', 'title', 'print_component__number']
-    readonly_fields = ['number', 'created_at']
-    autocomplete_fields = ['print_component']   # теперь автодополнение по компонентам
+    readonly_fields = ['number', 'created_at', 'profit_per_unit']
+    autocomplete_fields = ['print_component']
+
+    # Добавляем вычисляемое поле для отображения прибыли на единицу
+    def profit_per_unit(self, obj):
+        profit = obj.price - obj.cost
+        return f"{profit:.2f} ₽"
+    profit_per_unit.short_description = 'Прибыль на ед.'
 
     def is_deleted_display(self, obj):
         if obj.is_deleted:

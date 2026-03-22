@@ -2,9 +2,9 @@
 forms.py для приложения spravochnik_dopolnitelnyh_rabot.
 
 Содержит формы:
-- WorkForm: для создания и редактирования работы.
+- WorkForm: для создания и редактирования работы (добавлены поля cost и markup_percent).
 - WorkPriceForm: для создания опорной точки цены по листам.
-- WorkCirculationPriceForm: для создания опорной точки цены по тиражу (НОВОЕ).
+- WorkCirculationPriceForm: для создания опорной точки цены по тиражу.
 """
 
 from django import forms
@@ -14,7 +14,7 @@ from .models import Work, WorkPrice, WorkCirculationPrice
 class WorkForm(forms.ModelForm):
     """
     Форма для создания и редактирования работы.
-    Включает все поля модели Work, а также дополнительные настройки виджетов.
+    Включает все поля модели Work, включая новые cost и markup_percent.
     """
     formula_type = forms.ChoiceField(
         choices=Work.FORMULA_CHOICES,
@@ -49,10 +49,37 @@ class WorkForm(forms.ModelForm):
         })
     )
 
+    # ===== НОВЫЕ ПОЛЯ ДЛЯ СЕБЕСТОИМОСТИ И НАЦЕНКИ =====
+    cost = forms.DecimalField(
+        label='Себестоимость (руб)',
+        help_text='Себестоимость работы (без наценки)',
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control spravochnik-cost-input',
+            'step': '0.01',
+            'min': '0',
+            'id': 'spravochnik-cost'
+        })
+    )
+
+    markup_percent = forms.DecimalField(
+        label='Наценка (%)',
+        help_text='Процент наценки от себестоимости',
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control spravochnik-markup-input',
+            'step': '0.01',
+            'min': '0',
+            'id': 'spravochnik-markup-percent'
+        })
+    )
+    # ===== КОНЕЦ НОВЫХ ПОЛЕЙ =====
+
     class Meta:
         model = Work
         fields = [
-            'name', 'price', 'formula_type',
+            'name', 'cost', 'markup_percent',   # cost и markup_percent добавлены
+            'formula_type',
             'interpolation_method', 'k_lines',
             'default_lines_count', 'default_items_per_sheet'
         ]
@@ -67,13 +94,7 @@ class WorkForm(forms.ModelForm):
             'id': 'spravochnik-name'
         })
 
-        self.fields['price'].widget = forms.NumberInput(attrs={
-            'class': 'form-control spravochnik-price-input',
-            'placeholder': '0.00',
-            'step': '0.01',
-            'min': '0',
-            'id': 'spravochnik-price'
-        })
+        # Поле price больше не включаем в форму, оно вычисляется автоматически
 
         self.fields['default_lines_count'].widget = forms.NumberInput(attrs={
             'class': 'form-control spravochnik-lines-input',
@@ -96,13 +117,21 @@ class WorkForm(forms.ModelForm):
         self.fields['interpolation_method'].choices = Work.INTERPOLATION_CHOICES
 
     # Методы валидации
-    def clean_price(self):
-        price = self.cleaned_data.get('price')
-        if price is None:
-            raise forms.ValidationError("Цена должна быть указана.")
-        if price < 0:
-            raise forms.ValidationError("Цена не может быть отрицательной.")
-        return price
+    def clean_cost(self):
+        cost = self.cleaned_data.get('cost')
+        if cost is None:
+            raise forms.ValidationError("Себестоимость должна быть указана.")
+        if cost < 0:
+            raise forms.ValidationError("Себестоимость не может быть отрицательной.")
+        return cost
+
+    def clean_markup_percent(self):
+        markup = self.cleaned_data.get('markup_percent')
+        if markup is None:
+            raise forms.ValidationError("Наценка должна быть указана.")
+        if markup < 0:
+            raise forms.ValidationError("Наценка не может быть отрицательной.")
+        return markup
 
     def clean_default_lines_count(self):
         value = self.cleaned_data.get('default_lines_count')
@@ -118,9 +147,7 @@ class WorkForm(forms.ModelForm):
 
 
 class WorkPriceForm(forms.ModelForm):
-    """
-    Форма для создания новой опорной точки цены по листам (WorkPrice).
-    """
+    """Форма для создания новой опорной точки цены по листам (без изменений)."""
     work = forms.ModelChoiceField(
         queryset=Work.objects.all().order_by('name'),
         label='Работа',
@@ -145,7 +172,7 @@ class WorkPriceForm(forms.ModelForm):
 
     price = forms.DecimalField(
         label='Цена (руб.)',
-        help_text='Введите цену работы при данном количестве листов',
+        help_text='Итоговая цена работы при данном количестве листов (включая наценку)',
         min_value=0,
         max_digits=10,
         decimal_places=2,
@@ -162,9 +189,6 @@ class WorkPriceForm(forms.ModelForm):
         fields = ['work', 'sheets', 'price']
 
     def clean(self):
-        """
-        Проверка уникальности пары (работа, количество листов).
-        """
         cleaned_data = super().clean()
         work = cleaned_data.get('work')
         sheets = cleaned_data.get('sheets')
@@ -180,12 +204,8 @@ class WorkPriceForm(forms.ModelForm):
         return cleaned_data
 
 
-# НОВАЯ ФОРМА: для опорных точек по тиражу
 class WorkCirculationPriceForm(forms.ModelForm):
-    """
-    Форма для создания опорной точки цены по тиражу (WorkCirculationPrice).
-    Аналогична WorkPriceForm, но вместо sheets используется circulation.
-    """
+    """Форма для создания опорной точки цены по тиражу (без изменений)."""
     work = forms.ModelChoiceField(
         queryset=Work.objects.all().order_by('name'),
         label='Работа',
@@ -224,9 +244,6 @@ class WorkCirculationPriceForm(forms.ModelForm):
         fields = ['work', 'circulation', 'price']
 
     def clean(self):
-        """
-        Проверка уникальности пары (работа, тираж).
-        """
         cleaned_data = super().clean()
         work = cleaned_data.get('work')
         circulation = cleaned_data.get('circulation')

@@ -105,11 +105,6 @@ def create_work(request):
 
 @require_POST
 def update_work(request, work_id):
-    """
-    Обновление поля работы через AJAX (inline-редактирование).
-    Ожидает параметры: field_name, new_value.
-    Возвращает обновлённые данные работы.
-    """
     work = get_object_or_404(Work, id=work_id)
 
     field_name = request.POST.get('field_name')
@@ -118,21 +113,24 @@ def update_work(request, work_id):
     if not field_name or new_value is None:
         return JsonResponse({'success': False, 'error': 'Не указано поле или новое значение'}, status=400)
 
-    # Список полей, разрешённых для редактирования
-    allowed_fields = ['name', 'price', 'formula_type', 'default_lines_count', 'default_items_per_sheet', 'k_lines']
+    # Разрешённые поля (добавлены cost и markup_percent)
+    allowed_fields = ['name', 'cost', 'markup_percent', 'formula_type',
+                      'default_lines_count', 'default_items_per_sheet', 'k_lines']
     if field_name not in allowed_fields:
         return JsonResponse({'success': False, 'error': f'Поле "{field_name}" нельзя редактировать'}, status=400)
 
     try:
         # Преобразование значения в зависимости от типа поля
-        if field_name == 'price' or field_name == 'k_lines':
+        if field_name in ['cost', 'price', 'k_lines', 'markup_percent']:
             new_value = new_value.replace(',', '.')
             try:
                 new_value = Decimal(new_value)
             except InvalidOperation:
                 raise ValueError("Некорректный формат числа")
-            if field_name == 'price' and new_value < 0:
-                raise ValueError("Цена не может быть отрицательной")
+            if field_name in ['cost'] and new_value < 0:
+                raise ValueError("Себестоимость не может быть отрицательной")
+            if field_name in ['markup_percent'] and new_value < 0:
+                raise ValueError("Наценка не может быть отрицательной")
             if field_name == 'k_lines' and (new_value < 0.1 or new_value > 100):
                 raise ValueError("Коэффициент резов должен быть от 0.1 до 100")
         elif field_name in ['formula_type', 'default_lines_count', 'default_items_per_sheet']:
@@ -146,11 +144,9 @@ def update_work(request, work_id):
                 raise ValueError("Значение должно быть не менее 1")
         # Для name оставляем строку как есть
 
-        # Устанавливаем новое значение и сохраняем объект
         setattr(work, field_name, new_value)
-        work.save()
+        work.save()  # здесь автоматически пересчитается price
 
-        # Возвращаем успешный ответ с обновлёнными данными работы
         return JsonResponse({
             'success': True,
             'message': 'Данные обновлены',
@@ -456,48 +452,30 @@ def update_work_interpolation_method(request, work_id):
 
 @require_http_methods(["GET", "POST"])
 def calculate_arbitrary_sheets_price(request, work_id):
-    """
-    Расчёт цены для произвольного количества листов на основе опорных точек (WorkPrice).
-    Использует функцию calculate_price_for_work из utils.py.
-    """
     work = get_object_or_404(Work, id=work_id)
 
-    # Получаем количество листов из запроса
     if request.method == 'POST':
         arbitrary_sheets = request.POST.get('arbitrary_sheets')
     else:
         arbitrary_sheets = request.GET.get('arbitrary_sheets')
 
     if not arbitrary_sheets:
-        return JsonResponse({
-            'success': False,
-            'error': 'Не указано количество листов для расчёта'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Не указано количество листов'}, status=400)
 
     try:
         sheets_int = int(float(arbitrary_sheets))
         if sheets_int < 1:
-            return JsonResponse({
-                'success': False,
-                'error': 'Количество листов должно быть положительным'
-            }, status=400)
+            return JsonResponse({'success': False, 'error': 'Количество листов должно быть положительным'}, status=400)
     except (ValueError, TypeError):
-        return JsonResponse({
-            'success': False,
-            'error': 'Количество листов должно быть числом'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Количество листов должно быть числом'}, status=400)
 
-    # Проверяем наличие опорных точек
     if not work.work_prices.exists():
-        return JsonResponse({
-            'success': False,
-            'error': f'Для работы "{work.name}" нет сохранённых цен. Добавьте цены в таблице.'
-        })
+        return JsonResponse({'success': False, 'error': f'Для работы "{work.name}" нет сохранённых цен.'})
 
-    # Вызываем функцию интерполяции
-    calculated_price = calculate_price_for_work(work, sheets_int)
+    cost = calculate_price_for_work(work, sheets_int)  # себестоимость
+    markup = work.markup_percent if work.markup_percent else Decimal('0')
+    final_price = cost + (cost * markup / Decimal('100'))
 
-    # Подготавливаем информацию об опорных точках
     points_info = []
     for point in work.work_prices.order_by('sheets'):
         points_info.append({
@@ -506,7 +484,6 @@ def calculate_arbitrary_sheets_price(request, work_id):
             'price_display': point.get_price_display(),
         })
 
-    # Определяем отображаемое название метода
     method_display = dict(Work.INTERPOLATION_CHOICES).get(work.interpolation_method, 'Линейная')
 
     return JsonResponse({
@@ -516,60 +493,44 @@ def calculate_arbitrary_sheets_price(request, work_id):
         'interpolation_method': work.interpolation_method,
         'interpolation_method_display': method_display,
         'arbitrary_sheets': sheets_int,
-        'calculated_price': float(calculated_price),
-        'calculated_price_display': f"{calculated_price:.2f} руб.",
-        'calculated_price_formatted': f"{calculated_price:.2f}",
+        'cost': float(cost),
+        'cost_display': f"{cost:.2f} руб.",
+        'final_price': float(final_price),
+        'final_price_display': f"{final_price:.2f} руб.",
         'points_count': len(points_info),
         'price_points': points_info,
-        'message': f'Для {sheets_int} листов цена: {calculated_price:.2f} руб. (метод: {method_display})'
+        'message': f'Для {sheets_int} листов себестоимость: {cost:.2f} руб., цена: {final_price:.2f} руб. (метод: {method_display})'
     })
+
 
 
 # НОВОЕ ПРЕДСТАВЛЕНИЕ: расчёт цены для произвольного тиража
 @require_http_methods(["GET", "POST"])
 def calculate_arbitrary_circulation_price(request, work_id):
-    """
-    Расчёт цены для произвольного тиража на основе опорных точек по тиражу (WorkCirculationPrice).
-    Использует функцию calculate_price_for_work_by_circulation из utils.py.
-    """
     work = get_object_or_404(Work, id=work_id)
 
-    # Получаем тираж из запроса
     if request.method == 'POST':
         arbitrary_circulation = request.POST.get('arbitrary_circulation')
     else:
         arbitrary_circulation = request.GET.get('arbitrary_circulation')
 
     if not arbitrary_circulation:
-        return JsonResponse({
-            'success': False,
-            'error': 'Не указан тираж для расчёта'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Не указан тираж'}, status=400)
 
     try:
         circulation_int = int(float(arbitrary_circulation))
         if circulation_int < 1:
-            return JsonResponse({
-                'success': False,
-                'error': 'Тираж должен быть положительным'
-            }, status=400)
+            return JsonResponse({'success': False, 'error': 'Тираж должен быть положительным'}, status=400)
     except (ValueError, TypeError):
-        return JsonResponse({
-            'success': False,
-            'error': 'Тираж должен быть числом'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Тираж должен быть числом'}, status=400)
 
-    # Проверяем наличие опорных точек по тиражу
     if not work.circulation_prices.exists():
-        return JsonResponse({
-            'success': False,
-            'error': f'Для работы "{work.name}" нет сохранённых цен по тиражу. Добавьте цены в таблице.'
-        })
+        return JsonResponse({'success': False, 'error': f'Для работы "{work.name}" нет сохранённых цен по тиражу.'})
 
-    # Вызываем функцию интерполяции
-    calculated_price = calculate_price_for_work_by_circulation(work, circulation_int)
+    cost = calculate_price_for_work_by_circulation(work, circulation_int)  # себестоимость
+    markup = work.markup_percent if work.markup_percent else Decimal('0')
+    final_price = cost + (cost * markup / Decimal('100'))
 
-    # Подготавливаем информацию об опорных точках
     points_info = []
     for point in work.circulation_prices.order_by('circulation'):
         points_info.append({
@@ -587,9 +548,11 @@ def calculate_arbitrary_circulation_price(request, work_id):
         'interpolation_method': work.interpolation_method,
         'interpolation_method_display': method_display,
         'arbitrary_circulation': circulation_int,
-        'calculated_price': float(calculated_price),
-        'calculated_price_display': f"{calculated_price:.2f} руб.",
+        'cost': float(cost),
+        'cost_display': f"{cost:.2f} руб.",
+        'final_price': float(final_price),
+        'final_price_display': f"{final_price:.2f} руб.",
         'points_count': len(points_info),
         'price_points': points_info,
-        'message': f'Для тиража {circulation_int} цена: {calculated_price:.2f} руб. (метод: {method_display})'
+        'message': f'Для тиража {circulation_int} себестоимость: {cost:.2f} руб., цена: {final_price:.2f} руб. (метод: {method_display})'
     })

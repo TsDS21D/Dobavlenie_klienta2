@@ -419,7 +419,6 @@ function additionalWorks_createWorkRow(work, index) {
     row.classList.add('additional-works-selectable-row');
     row.dataset.workId = work.id;
 
-    // Получаем данные из VichisliniyaListov (хранятся в глобальной переменной additionalWorks_currentVichData)
     const vich = additionalWorks_currentVichData || {
         item_width: 0,
         item_height: 0,
@@ -428,21 +427,19 @@ function additionalWorks_createWorkRow(work, index) {
         cuts_count: 0
     };
 
-    // ===== ИСПРАВЛЕНИЕ: преобразуем строковые значения в числа, чтобы избежать ошибок toFixed =====
-    // Сервер может возвращать числа как строки (особенно Decimal), поэтому явно преобразуем.
     const itemWidth = typeof vich.item_width === 'number' ? vich.item_width : parseFloat(vich.item_width) || 0;
     const itemHeight = typeof vich.item_height === 'number' ? vich.item_height : parseFloat(vich.item_height) || 0;
     const listCount = typeof vich.list_count === 'number' ? vich.list_count : parseFloat(vich.list_count) || 0;
     const fitTotal = typeof vich.fit_total === 'number' ? vich.fit_total : parseInt(vich.fit_total, 10) || 0;
     const cutsCount = typeof vich.cuts_count === 'number' ? vich.cuts_count : parseInt(vich.cuts_count, 10) || 0;
-    // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
 
-    // Формируем HTML строки.
-    // В колонке "Цена" теперь используется work.formatted_effective_price (эффективная цена за единицу)
     row.innerHTML = `
         <td class="additional-works-work-number">${work.number || '—'}</td>
         <td class="additional-works-work-title">${work.title || '—'}</td>
+        <td class="additional-works-work-cost">${work.formatted_cost || '0.00 ₽'}</td>
+        <td class="additional-works-work-markup">${work.formatted_markup_percent || '0%'}</td>
         <td class="additional-works-work-price">${work.formatted_effective_price || '0.00 ₽'}</td>
+        <td class="additional-works-work-profit">${work.formatted_profit_per_unit || '0.00 ₽'}</td>
         <td class="additional-works-work-quantity additional-works-editable-cell"
             data-editable="true"
             data-field="quantity"

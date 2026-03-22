@@ -2,20 +2,14 @@
 signals.py для приложения spravochnik_dopolnitelnyh_rabot.
 
 Содержит сигналы, которые автоматически обновляют все дополнительные работы,
-связанные с изменённой записью справочника (Work или WorkPrice).
-Это гарантирует, что цены и названия в просчётах всегда актуальны.
+связанные с изменённой записью справочника (Work, WorkPrice, WorkCirculationPrice).
+Теперь сигнал для Work копирует также cost и markup_percent.
 """
 
-# Импортируем сигнал post_save – он срабатывает после сохранения объекта
-from django.db.models.signals import post_save, post_delete  # добавили post_delete
-# Импортируем декоратор receiver для подключения функции к сигналу
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-# Импортируем модели справочника (Work и WorkPrice)
 from .models import Work, WorkPrice, WorkCirculationPrice
-
-# Импортируем модель дополнительной работы из приложения calculator
-# Важно: используем прямой импорт, так как приложения связаны.
 from calculator.models_list_proschet import AdditionalWork
 
 
@@ -24,7 +18,8 @@ def update_related_additional_works_on_work_save(sender, instance, **kwargs):
     """
     Сигнальная функция, вызываемая автоматически после сохранения объекта Work.
     Находит все дополнительные работы, у которых поле work ссылается на этот экземпляр,
-    и обновляет их поля из справочника, после чего пересчитывает их общую стоимость.
+    и обновляет их поля из справочника (включая cost, markup_percent, price),
+    после чего пересчитывает их общую стоимость.
 
     Аргументы:
         sender   – класс модели, отправившей сигнал (Work)
@@ -45,8 +40,12 @@ def update_related_additional_works_on_work_save(sender, instance, **kwargs):
         # Копируем название из справочника (оно могло измениться)
         aw.title = instance.name
 
-        # Копируем цену из справочника (она могла измениться)
+        # ===== НОВЫЕ ПОЛЯ: копируем себестоимость и наценку =====
+        aw.cost = instance.cost
+        aw.markup_percent = instance.markup_percent
+        # Цена копируется из instance.price, которая уже пересчитана при сохранении Work
         aw.price = instance.price
+        # ===== КОНЕЦ НОВЫХ ПОЛЕЙ =====
 
         # Копируем тип формулы (на случай, если он изменился)
         aw.formula_type = instance.formula_type
@@ -61,7 +60,6 @@ def update_related_additional_works_on_work_save(sender, instance, **kwargs):
         aw.save()
 
 
-# ===== НОВЫЙ СИГНАЛ ДЛЯ ОПОРНЫХ ТОЧЕК ЦЕН (WorkPrice) =====
 @receiver(post_save, sender=WorkPrice)
 @receiver(post_delete, sender=WorkPrice)
 def update_related_additional_works_on_workprice_change(sender, instance, **kwargs):
@@ -70,31 +68,15 @@ def update_related_additional_works_on_workprice_change(sender, instance, **kwar
     При изменении опорных точек цена работы (effective_price) может измениться,
     поэтому необходимо пересохранить все дополнительные работы, связанные с Work,
     к которому относится эта опорная точка. Пересохранение вызовет пересчёт total_price.
-
-    Аргументы:
-        sender   – класс модели (WorkPrice)
-        instance – конкретный объект WorkPrice (сохранённый или удаляемый)
-        **kwargs – дополнительные параметры (created для post_save и др.)
     """
-
-    # Получаем Work, к которому относится изменённая опорная точка
     work = instance.work
-
-    # Находим все дополнительные работы, связанные с этим Work
     related_works = AdditionalWork.objects.filter(work=work)
-
-    # Если связанных работ нет – выходим
     if not related_works.exists():
         return
-
-    # Для каждой работы просто вызываем save(), чтобы пересчитался total_price
     for aw in related_works:
-        # Важно: не меняем никакие поля, просто сохраняем, чтобы сработал пересчёт.
-        # В методе save() модели AdditionalWork будет вызвана функция _get_effective_price(),
-        # которая использует актуальные опорные точки (через work) и пересчитает total_price.
         aw.save()
-        
-# НОВЫЙ СИГНАЛ: для WorkCirculationPrice
+
+
 @receiver(post_save, sender=WorkCirculationPrice)
 @receiver(post_delete, sender=WorkCirculationPrice)
 def update_related_additional_works_on_circulation_price_change(sender, instance, **kwargs):
@@ -108,4 +90,4 @@ def update_related_additional_works_on_circulation_price_change(sender, instance
     if not related_works.exists():
         return
     for aw in related_works:
-        aw.save()  # вызовет пересчёт с использованием актуальных опорных точек по тиражу
+        aw.save()
