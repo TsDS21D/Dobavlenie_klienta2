@@ -2,51 +2,34 @@
 spravochnik_dopolnitelnyh_rabot.js
 Основной JavaScript для справочника дополнительных работ.
 Управление формой добавления, AJAX-запросами, удалением, уведомлениями.
-Все функции и переменные находятся в объекте SpravochnikDopRabot.
+Реализовано отображение трёх блоков себестоимости и цены для разных типов формул.
+Блоки отображаются постоянно, обновляются при загрузке работы и при изменении данных.
 
-ИСПРАВЛЕНО:
-  - В форму добавления добавлены поля cost и markup_percent.
-  - Функция handleAddFormSubmit теперь передаёт cost и markup_percent.
-  - Функция renderWorkDetails отображает cost и markup_percent.
-  - Добавлена функция updateCalculatedCost для отображения расчётной себестоимости.
-  - Добавлен вызов toggleCostFieldVisibility при загрузке страницы.
-  - Добавлены отладочные console.log.
+ИСПРАВЛЕНО: исправлены URL для запросов расчёта (были неверные пути).
 */
 
-// Создаём объект SpravochnikDopRabot, используя немедленно вызываемую функцию (IIFE),
-// чтобы не засорять глобальную область видимости. Все внутренние переменные и функции
-// остаются приватными, наружу выходят только те, что перечислены в return.
 const SpravochnikDopRabot = (function() {
-    // Приватная переменная для отслеживания видимости формы
     let isFormVisible = false;
 
-    /**
-     * Инициализация при загрузке страницы.
-     * Навешивает обработчики событий.
-     */
     function init() {
         console.log('Справочник дополнительных работ: инициализация...');
 
-        // Кнопка "Добавить работу"
         const addBtn = document.getElementById('spravochnik-add-btn');
         if (addBtn) addBtn.addEventListener('click', toggleForm);
 
-        // Форма добавления (AJAX)
         const addForm = document.getElementById('spravochnik-add-form');
         if (addForm) addForm.addEventListener('submit', handleAddFormSubmit);
 
-        // Обработчик поиска (Enter)
         const searchInput = document.querySelector('.search-input');
         if (searchInput) {
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    e.preventDefault(); // предотвращаем стандартную отправку
-                    this.form.submit(); // отправляем форму поиска
+                    e.preventDefault();
+                    this.form.submit();
                 }
             });
         }
 
-        // Делегирование событий для кнопок удаления (работает для динамически добавленных кнопок)
         document.addEventListener('click', function(e) {
             const deleteBtn = e.target.closest('.btn-delete-work');
             if (deleteBtn) handleDeleteWork(deleteBtn);
@@ -54,29 +37,30 @@ const SpravochnikDopRabot = (function() {
 
         // Слушаем событие изменения формулы (отправляется из inline-edit)
         document.addEventListener('formulaTypeChanged', function(e) {
-            // Если событие содержит ID работы, совпадающий с текущим ID в скрытом поле,
-            // обновляем значение скрытого поля и пересчитываем себестоимость.
             if (e.detail && e.detail.workId == document.getElementById('current-work-id')?.value) {
                 document.getElementById('current-formula-type').value = e.detail.formulaType;
-                toggleCostFieldVisibility(); // переключаем видимость полей
+                // При изменении формулы обновляем расчётные блоки (они не зависят от текущей формулы)
+                updateAllCalculatedValues();
             }
         });
 
-        // Отображение сообщений Django (flash-сообщения) как уведомлений
+        // Слушаем событие обновления данных работы (из справочника или при изменении цены)
+        document.addEventListener('spravochnikWorkUpdated', function(e) {
+            if (e.detail && e.detail.workId == document.getElementById('current-work-id')?.value) {
+                updateAllCalculatedValues();
+            }
+        });
+
         showDjangoMessages();
 
-        // ===== ДОБАВЛЕНО: при загрузке страницы, если есть выбранная работа, обновляем себестоимость =====
+        // При загрузке, если есть выбранная работа, обновляем расчётные значения
         setTimeout(() => {
             if (document.getElementById('current-work-id')) {
-                console.log('🔄 Найдена выбранная работа, переключаем видимость полей себестоимости');
-                toggleCostFieldVisibility();
+                updateAllCalculatedValues();
             }
         }, 100);
     }
 
-    /**
-     * Переключение видимости формы добавления.
-     */
     function toggleForm() {
         const formSection = document.getElementById('spravochnik-form-section');
         const addBtn = document.getElementById('spravochnik-add-btn');
@@ -100,9 +84,6 @@ const SpravochnikDopRabot = (function() {
         }
     }
 
-    /**
-     * Очистка формы добавления от введённых данных и ошибок.
-     */
     function clearForm() {
         const form = document.getElementById('spravochnik-add-form');
         if (!form) return;
@@ -111,10 +92,6 @@ const SpravochnikDopRabot = (function() {
         form.querySelectorAll('.form-control.error').forEach(el => el.classList.remove('error'));
     }
 
-    /**
-     * Обработчик отправки формы добавления через AJAX.
-     * @param {Event} e - событие submit
-     */
     function handleAddFormSubmit(e) {
         e.preventDefault();
         const form = e.target;
@@ -189,10 +166,6 @@ const SpravochnikDopRabot = (function() {
         });
     }
 
-    /**
-     * Добавляет элемент работы в список слева.
-     * @param {Object} work - объект работы (из ответа сервера)
-     */
     function addWorkToList(work) {
         const container = document.querySelector('.works-list');
         if (!container) return;
@@ -221,10 +194,6 @@ const SpravochnikDopRabot = (function() {
         container.prepend(workItem);
     }
 
-    /**
-     * Отображает выбранную работу в правой колонке.
-     * @param {Object} work - объект работы
-     */
     function selectWork(work) {
         if (window.InlineEdit && typeof window.InlineEdit.cancelEdit === 'function') {
             window.InlineEdit.cancelEdit();
@@ -247,17 +216,10 @@ const SpravochnikDopRabot = (function() {
         if (!rightColumn) return;
 
         rightColumn.innerHTML = renderWorkDetails(work);
-
-        // После вставки HTML вызываем переключение видимости и расчёт себестоимости
-        toggleCostFieldVisibility();
-        // updateCalculatedCost вызывается внутри toggleCostFieldVisibility для формул != 1
+        // После вставки HTML обновляем расчётные значения
+        updateAllCalculatedValues();
     }
 
-    /**
-     * Генерирует HTML для правой колонки с деталями работы.
-     * @param {Object} work - объект работы
-     * @returns {string} HTML-строка
-     */
     function renderWorkDetails(work) {
         const formulaOptions = generateFormulaOptions(work.formula_type);
 
@@ -289,7 +251,7 @@ const SpravochnikDopRabot = (function() {
                         </div>
                     </div>
                     <div class="work-body">
-                        <!-- Поле "Название" (редактируемое) -->
+                        <!-- Поле "Название" -->
                         <div class="work-field">
                             <label>Название:</label>
                             <span class="editable-field spravochnik-name-field"
@@ -308,33 +270,62 @@ const SpravochnikDopRabot = (function() {
                                    placeholder="Введите название">
                         </div>
 
-                        <!-- Поле "Себестоимость" (редактируемое, только для формулы 1) -->
-                        <div class="work-field" id="cost-edit-field" style="display: none;">
-                            <label>Себестоимость (руб):</label>
-                            <span class="editable-field spravochnik-cost-field"
-                                  data-field="cost"
-                                  data-work-id="${work.id}"
-                                  data-original-value="${work.cost}"
-                                  title="Двойной клик для редактирования">
-                                ${work.cost}
-                            </span>
-                            <input type="number"
-                                   class="inline-edit-input spravochnik-cost-input"
-                                   data-work-id="${work.id}"
-                                   data-field="cost"
-                                   value="${work.cost}"
-                                   step="0.01"
-                                   min="0"
-                                   style="display: none;">
+                        <!-- ========== БЛОК 1: Для формулы 1 ========== -->
+                        <div class="work-field-group">
+                            <h4>📌 Для формулы 1 (фиксированная цена)</h4>
+                            <div class="work-field">
+                                <label>Себестоимость (руб):</label>
+                                <span class="editable-field spravochnik-cost-field"
+                                      data-field="cost"
+                                      data-work-id="${work.id}"
+                                      data-original-value="${work.cost}"
+                                      title="Двойной клик для редактирования">
+                                    ${work.cost}
+                                </span>
+                                <input type="number"
+                                       class="inline-edit-input spravochnik-cost-input"
+                                       data-work-id="${work.id}"
+                                       data-field="cost"
+                                       value="${work.cost}"
+                                       step="0.01"
+                                       min="0"
+                                       style="display: none;">
+                            </div>
+                            <div class="work-field">
+                                <label>Цена (руб):</label>
+                                <span class="readonly-field">${work.price}</span>
+                            </div>
                         </div>
 
-                        <!-- Поле "Себестоимость" (расчётное, для формул 2-6) -->
-                        <div class="work-field" id="cost-calc-field">
-                            <label>Себестоимость (руб):</label>
-                            <span id="calculated-cost-display" class="readonly-field">--</span>
-                            <input type="hidden" id="current-work-id" value="${work.id}">
-                            <input type="hidden" id="current-formula-type" value="${work.formula_type}">
+                        <!-- ========== БЛОК 2: Для формул 2 и 3 ========== -->
+                        <div class="work-field-group">
+                            <h4>📌 Для формул 2 и 3 (зависимость от тиража)</h4>
+                            <div class="work-field">
+                                <label>Себестоимость (для тиража 1):</label>
+                                <span id="calculated-cost-circulation-display" class="readonly-field">--</span>
+                            </div>
+                            <div class="work-field">
+                                <label>Цена (руб):</label>
+                                <span id="calculated-price-circulation-display" class="readonly-field">--</span>
+                            </div>
                         </div>
+
+                        <!-- ========== БЛОК 3: Для формул 4,5,6 ========== -->
+                        <div class="work-field-group">
+                            <h4>📌 Для формул 4,5,6 (зависимость от листов)</h4>
+                            <div class="work-field">
+                                <label>Себестоимость (для 1 листа):</label>
+                                <span id="calculated-cost-sheets-display" class="readonly-field">--</span>
+                            </div>
+                            <div class="work-field">
+                                <label>Цена (руб):</label>
+                                <span id="calculated-price-sheets-display" class="readonly-field">--</span>
+                            </div>
+                        </div>
+
+                        <!-- Скрытые поля для передачи данных -->
+                        <input type="hidden" id="current-work-id" value="${work.id}">
+                        <input type="hidden" id="current-formula-type" value="${work.formula_type}">
 
                         <!-- Поле "Наценка %" -->
                         <div class="work-field">
@@ -354,12 +345,6 @@ const SpravochnikDopRabot = (function() {
                                    step="0.01"
                                    min="0"
                                    style="display: none;">
-                        </div>
-
-                        <!-- Поле "Цена" (только чтение) -->
-                        <div class="work-field">
-                            <label>Цена (руб):</label>
-                            <span class="readonly-field">${work.price}</span>
                         </div>
 
                         <!-- Поле "Формула расчёта" -->
@@ -466,9 +451,6 @@ const SpravochnikDopRabot = (function() {
         `;
     }
 
-    /**
-     * Генерирует опции для выпадающего списка формул.
-     */
     function generateFormulaOptions(selectedValue) {
         const formulas = [
             { value: 1, label: 'Фиксированная цена' },
@@ -486,9 +468,6 @@ const SpravochnikDopRabot = (function() {
         return options;
     }
 
-    /**
-     * Очищает правую колонку (показывает сообщение о необходимости выбора).
-     */
     function clearRightColumn() {
         if (window.InlineEdit && typeof window.InlineEdit.cancelEdit === 'function') {
             window.InlineEdit.cancelEdit();
@@ -509,9 +488,6 @@ const SpravochnikDopRabot = (function() {
         `;
     }
 
-    /**
-     * Обработка удаления работы.
-     */
     function handleDeleteWork(btn) {
         const workId = btn.getAttribute('data-work-id');
         const workName = btn.getAttribute('data-work-name');
@@ -556,9 +532,6 @@ const SpravochnikDopRabot = (function() {
         });
     }
 
-    /**
-     * Валидация формы на клиенте.
-     */
     function validateForm(form) {
         let isValid = true;
         const nameInput = form.querySelector('#spravochnik-name');
@@ -645,9 +618,6 @@ const SpravochnikDopRabot = (function() {
         }
     }
 
-    /**
-     * Загружает с сервера обновлённые данные для текущей выбранной работы.
-     */
     function reloadCurrentWorkFromServer() {
         const urlParams = new URLSearchParams(window.location.search);
         const workId = urlParams.get('work_id');
@@ -660,7 +630,7 @@ const SpravochnikDopRabot = (function() {
                     const rightColumn = document.querySelector('.right-column');
                     if (rightColumn) {
                         rightColumn.innerHTML = renderWorkDetails(data.work);
-                        updateCalculatedCost();
+                        updateAllCalculatedValues();
                     }
                     updateWorkInList(data.work);
                 }
@@ -668,9 +638,6 @@ const SpravochnikDopRabot = (function() {
             .catch(error => console.error('Ошибка при обновлении данных:', error));
     }
 
-    /**
-     * Обновляет элемент работы в списке слева.
-     */
     function updateWorkInList(workData) {
         const workItem = document.querySelector(`.work-item[data-work-id="${workData.id}"]`);
         if (!workItem) return;
@@ -693,83 +660,98 @@ const SpravochnikDopRabot = (function() {
     }
 
     /**
-     * Переключает видимость полей себестоимости в зависимости от формулы.
+     * Обновляет все расчётные блоки: для тиража 1 и для 1 листа.
+     * Вызывается при загрузке работы и при любых изменениях, влияющих на эти значения.
      */
-    function toggleCostFieldVisibility() {
-        const formulaType = parseInt(document.getElementById('current-formula-type')?.value);
-        const editField = document.getElementById('cost-edit-field');
-        const calcField = document.getElementById('cost-calc-field');
-
-        console.log(`🔄 toggleCostFieldVisibility: formulaType = ${formulaType}, editField = ${!!editField}, calcField = ${!!calcField}`);
-
-        if (!editField || !calcField) {
-            console.warn('⚠️ toggleCostFieldVisibility: не найдены поля cost-edit-field или cost-calc-field');
-            return;
-        }
-
-        if (formulaType === 1) {
-            editField.style.display = 'block';
-            calcField.style.display = 'none';
-            console.log('✅ Формула 1: показано редактируемое поле себестоимости');
-        } else {
-            editField.style.display = 'none';
-            calcField.style.display = 'block';
-            console.log('✅ Формула != 1: показано расчётное поле себестоимости, вызываем updateCalculatedCost()');
-            updateCalculatedCost();
-        }
+    function updateAllCalculatedValues() {
+        updateCalculatedForCirculation();
+        updateCalculatedForSheets();
     }
 
     /**
-     * Обновляет отображение рассчитанной себестоимости.
+     * Запрашивает себестоимость и цену для тиража = 1 (формулы 2,3)
+     * и обновляет соответствующие поля.
+     * ИСПРАВЛЕНО: используется правильный URL из urls.py.
      */
-    function updateCalculatedCost() {
+    function updateCalculatedForCirculation() {
         const workId = document.getElementById('current-work-id')?.value;
-        const formulaType = parseInt(document.getElementById('current-formula-type')?.value);
-        console.log(`📊 updateCalculatedCost: workId=${workId}, formulaType=${formulaType}`);
+        if (!workId) return;
 
-        if (!workId || isNaN(formulaType)) return;
+        // Внимание: в urls.py путь: api/calculate_arbitrary_circulation_price/<int:work_id>/
+        const url = `/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_circulation_price/${workId}/?arbitrary_circulation=1`;
 
-        if (formulaType === 1) return;
-
-        const usesCirculation = [2, 3].includes(formulaType);
-        const paramValue = 1;
-        const url = usesCirculation
-            ? `/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_circulation_price/${workId}/?arbitrary_circulation=${paramValue}`
-            : `/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_sheets_price/${workId}/?arbitrary_sheets=${paramValue}`;
-
-        console.log(`📡 Запрос к ${url}`);
-
-        fetch(url, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('📥 Ответ сервера:', data);
-            if (data.success) {
-                const costDisplay = document.getElementById('calculated-cost-display');
-                if (costDisplay) {
-                    costDisplay.textContent = data.cost_display;
-                    console.log(`✅ Себестоимость обновлена: ${data.cost_display}`);
-                } else {
-                    console.warn('⚠️ Элемент #calculated-cost-display не найден');
+        fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-            } else {
-                console.error('❌ Ошибка расчёта:', data.error);
-                const costDisplay = document.getElementById('calculated-cost-display');
-                if (costDisplay) costDisplay.textContent = 'Ошибка расчёта';
-            }
-        })
-        .catch(error => {
-            console.error('❌ Ошибка сети:', error);
-            const costDisplay = document.getElementById('calculated-cost-display');
-            if (costDisplay) costDisplay.textContent = 'Ошибка сети';
-        });
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const costSpan = document.getElementById('calculated-cost-circulation-display');
+                    const priceSpan = document.getElementById('calculated-price-circulation-display');
+                    if (costSpan) costSpan.textContent = data.cost_display;
+                    if (priceSpan) priceSpan.textContent = data.final_price_display;
+                } else {
+                    console.error('Ошибка расчёта для тиража:', data.error);
+                    const costSpan = document.getElementById('calculated-cost-circulation-display');
+                    const priceSpan = document.getElementById('calculated-price-circulation-display');
+                    if (costSpan) costSpan.textContent = 'Ошибка расчёта';
+                    if (priceSpan) priceSpan.textContent = 'Ошибка расчёта';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка сети при загрузке данных для тиража:', error);
+                const costSpan = document.getElementById('calculated-cost-circulation-display');
+                const priceSpan = document.getElementById('calculated-price-circulation-display');
+                if (costSpan) costSpan.textContent = 'Ошибка сети';
+                if (priceSpan) priceSpan.textContent = 'Ошибка сети';
+            });
     }
 
     /**
-     * Показывает всплывающее уведомление.
+     * Запрашивает себестоимость и цену для 1 листа (формулы 4,5,6)
+     * и обновляет соответствующие поля.
+     * ИСПРАВЛЕНО: используется правильный URL из urls.py.
      */
+    function updateCalculatedForSheets() {
+        const workId = document.getElementById('current-work-id')?.value;
+        if (!workId) return;
+
+        // Внимание: в urls.py путь: api/calculate_arbitrary_price/<int:work_id>/
+        const url = `/spravochnik_dopolnitelnyh_rabot/api/calculate_arbitrary_price/${workId}/?arbitrary_sheets=1`;
+
+        fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const costSpan = document.getElementById('calculated-cost-sheets-display');
+                    const priceSpan = document.getElementById('calculated-price-sheets-display');
+                    if (costSpan) costSpan.textContent = data.cost_display;
+                    if (priceSpan) priceSpan.textContent = data.final_price_display;
+                } else {
+                    console.error('Ошибка расчёта для листов:', data.error);
+                    const costSpan = document.getElementById('calculated-cost-sheets-display');
+                    const priceSpan = document.getElementById('calculated-price-sheets-display');
+                    if (costSpan) costSpan.textContent = 'Ошибка расчёта';
+                    if (priceSpan) priceSpan.textContent = 'Ошибка расчёта';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка сети при загрузке данных для листов:', error);
+                const costSpan = document.getElementById('calculated-cost-sheets-display');
+                const priceSpan = document.getElementById('calculated-price-sheets-display');
+                if (costSpan) costSpan.textContent = 'Ошибка сети';
+                if (priceSpan) priceSpan.textContent = 'Ошибка сети';
+            });
+    }
+
     function showNotification(message, type = 'info') {
         document.querySelectorAll('.notification').forEach(el => el.remove());
 
@@ -783,9 +765,6 @@ const SpravochnikDopRabot = (function() {
         }, 5000);
     }
 
-    /**
-     * Показывает сообщения Django.
-     */
     function showDjangoMessages() {
         const container = document.querySelector('.django-messages');
         if (!container) return;
@@ -796,9 +775,6 @@ const SpravochnikDopRabot = (function() {
         });
     }
 
-    /**
-     * Получение CSRF-токена из cookie.
-     */
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -814,9 +790,6 @@ const SpravochnikDopRabot = (function() {
         return cookieValue;
     }
 
-    /**
-     * Экранирование HTML-спецсимволов.
-     */
     function escapeHtml(unsafe) {
         if (unsafe === null || unsafe === undefined) return '';
         const str = String(unsafe);
@@ -828,16 +801,14 @@ const SpravochnikDopRabot = (function() {
             .replace(/'/g, "&#039;");
     }
 
-    // Публичное API
     return {
         init: init,
         toggleForm: toggleForm,
         clearForm: clearForm,
         showNotification: showNotification,
         reloadCurrentWorkFromServer: reloadCurrentWorkFromServer,
-        updateCalculatedCost: updateCalculatedCost
+        updateAllCalculatedValues: updateAllCalculatedValues
     };
 })();
 
-// Запуск инициализации после полной загрузки DOM
 document.addEventListener('DOMContentLoaded', SpravochnikDopRabot.init);

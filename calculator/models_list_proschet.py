@@ -845,7 +845,8 @@ class AdditionalWork(models.Model):
         """
         Преобразует объект в словарь для передачи в JSON (AJAX).
         Включает все необходимые поля для клиентской части,
-        в том числе cost, markup_percent, profit_per_unit (прибыль на единицу).
+        в том числе cost (интерполированную себестоимость для единицы),
+        markup_percent, profit_per_unit.
         """
         # Получаем количество листов и тираж для вычисления effective_price
         try:
@@ -866,15 +867,34 @@ class AdditionalWork(models.Model):
         else:
             effective_price = self._get_effective_price(sheet_count=sheet_count)
 
-        # Вычисляем прибыль на единицу (цена - себестоимость)
-        profit_per_unit = self.price - self.cost
+        # ===== ИСПРАВЛЕНИЕ: вычисляем себестоимость для единицы (без наценки) =====
+        if self.work:
+            if self.formula_type in [2, 3]:
+                # Для формул 2 и 3 – по тиражу
+                try:
+                    cost = calculate_price_for_work_by_circulation(self.work, circulation)
+                except Exception:
+                    cost = self.cost
+            else:
+                # Для остальных – по листам
+                try:
+                    cost = calculate_price_for_work(self.work, sheet_count)
+                except Exception:
+                    cost = self.cost
+        else:
+            # Если нет справочника, берём сохранённую себестоимость
+            cost = self.cost
+        # ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
+
+        # Прибыль на единицу
+        profit_per_unit = effective_price - cost
 
         return {
             'id': self.id,
             'number': self.number,
             'title': self.title,
-            'cost': str(self.cost),
-            'formatted_cost': f"{self.cost:.2f} ₽",
+            'cost': str(cost),
+            'formatted_cost': f"{cost:.2f} ₽",
             'markup_percent': str(self.markup_percent),
             'formatted_markup_percent': f"{self.markup_percent}%",
             'price': str(self.price),

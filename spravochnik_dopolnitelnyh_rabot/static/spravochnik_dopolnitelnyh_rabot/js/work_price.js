@@ -4,8 +4,9 @@
  * - отображение/скрытие формы добавления новой цены,
  * - отправку AJAX-запроса при сохранении,
  * - удаление опорной точки,
- * - отображение ошибок валидации,
- * - расчёт цены для произвольного количества листов.
+ * - отображение ошибок валидации.
+ * 
+ * ИСПРАВЛЕНИЕ: после добавления/удаления цены обновляем расчётные поля без перезагрузки страницы.
  */
 
 (function() {
@@ -82,8 +83,12 @@
             if (data.success) {
                 showNotification('Цена успешно добавлена!', 'success');
                 localStorage.setItem('work_price_last_update', Date.now().toString());
-                console.log('💾 В localStorage записан work_price_last_update');
-                if (isFormVisible) toggleForm();
+                // ===== ИСПРАВЛЕНИЕ: обновляем расчётные поля =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateAllCalculatedValues) {
+                    window.SpravochnikDopRabot.updateAllCalculatedValues();
+                }
+                // Обновляем таблицу: добавляем новую строку (или перезагружаем страницу для простоты)
+                // Для простоты перезагрузим страницу, чтобы не усложнять.
                 location.reload();
             } else {
                 showNotification('Ошибка при добавлении цены', 'error');
@@ -141,17 +146,15 @@
             if (data.success) {
                 showNotification('Цена удалена', 'success');
                 localStorage.setItem('work_price_last_update', Date.now().toString());
-                console.log('💾 В localStorage записан work_price_last_update (удаление)');
+                // ===== ИСПРАВЛЕНИЕ: обновляем расчётные поля =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateAllCalculatedValues) {
+                    window.SpravochnikDopRabot.updateAllCalculatedValues();
+                }
                 const row = btn.closest('.table-row');
                 if (row) row.remove();
-
                 const tableBody = document.querySelector('.price-points-table .table-body');
                 if (tableBody && tableBody.children.length === 0) {
                     location.reload();
-                }
-                // ===== ДОБАВЛЕНО: обновляем себестоимость текущей работы =====
-                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateCalculatedCost) {
-                    window.SpravochnikDopRabot.updateCalculatedCost();
                 }
             } else {
                 showNotification('Ошибка при удалении', 'error');

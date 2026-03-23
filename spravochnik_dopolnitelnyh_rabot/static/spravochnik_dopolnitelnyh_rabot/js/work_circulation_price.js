@@ -5,6 +5,8 @@
  * - отправку AJAX-запроса при сохранении,
  * - удаление опорной точки,
  * - отображение ошибок валидации.
+ * 
+ * ИСПРАВЛЕНИЕ: после добавления/удаления цены обновляем расчётные поля без перезагрузки страницы.
  */
 
 (function() {
@@ -78,7 +80,10 @@
             if (data.success) {
                 showNotification('Цена по тиражу добавлена!', 'success');
                 localStorage.setItem('work_price_last_update', Date.now().toString());
-                if (isFormVisible) toggleForm();
+                // ===== ИСПРАВЛЕНИЕ: обновляем расчётные поля =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateAllCalculatedValues) {
+                    window.SpravochnikDopRabot.updateAllCalculatedValues();
+                }
                 location.reload();
             } else {
                 showNotification('Ошибка при добавлении', 'error');
@@ -135,15 +140,15 @@
             if (data.success) {
                 showNotification('Цена удалена', 'success');
                 localStorage.setItem('work_price_last_update', Date.now().toString());
+                // ===== ИСПРАВЛЕНИЕ: обновляем расчётные поля =====
+                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateAllCalculatedValues) {
+                    window.SpravochnikDopRabot.updateAllCalculatedValues();
+                }
                 const row = btn.closest('.table-row');
                 if (row) row.remove();
                 const tableBody = document.querySelector('.price-points-container .table-body');
                 if (tableBody && tableBody.children.length === 0) {
                     location.reload();
-                }
-                // ===== ДОБАВЛЕНО: обновляем себестоимость текущей работы =====
-                if (window.SpravochnikDopRabot && window.SpravochnikDopRabot.updateCalculatedCost) {
-                    window.SpravochnikDopRabot.updateCalculatedCost();
                 }
             } else {
                 showNotification('Ошибка при удалении', 'error');

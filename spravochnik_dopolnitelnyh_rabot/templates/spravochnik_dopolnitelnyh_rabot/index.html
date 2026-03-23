@@ -1,7 +1,11 @@
 <!--
 index.html для приложения spravochnik_dopolnitelnyh_rabot.
 Двухколоночный макет: слева список работ, справа детали выбранной работы.
-Добавлены поля для себестоимости и наценки в форму добавления и в детали.
+Отображаются три блока себестоимости и цены для разных типов формул:
+- Блок 1: для формулы 1 (фиксированная цена) – редактируемая себестоимость и автоматически вычисляемая цена.
+- Блок 2: для формул 2 и 3 (зависимость от тиража) – себестоимость и цена для тиража = 1.
+- Блок 3: для формул 4,5,6 (зависимость от листов) – себестоимость и цена для 1 листа.
+Все блоки отображаются постоянно, чтобы пользователь видел значения для всех вариантов.
 -->
 
 {% extends "spravochnik_dopolnitelnyh_rabot/base.html" %}
@@ -103,7 +107,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         {% endif %}
                     </div>
 
-                    <!-- Поле "Себестоимость" (НОВОЕ) -->
+                    <!-- Поле "Себестоимость" (для фиксированной цены) -->
                     <div class="form-group">
                         <label for="{{ work_form.cost.id_for_label }}">Себестоимость (руб):</label>
                         {{ work_form.cost }}
@@ -112,7 +116,7 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                         {% endif %}
                     </div>
 
-                    <!-- Поле "Наценка %" (НОВОЕ) -->
+                    <!-- Поле "Наценка %" -->
                     <div class="form-group">
                         <label for="{{ work_form.markup_percent.id_for_label }}">Наценка (%):</label>
                         {{ work_form.markup_percent }}
@@ -235,58 +239,81 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="Введите название">
                             </div>
 
-                            <!-- Поле "Себестоимость" (редактируемое, только для формулы 1) -->
-                            <div class="work-field" id="cost-edit-field" style="display: none;">
-                                <label>Себестоимость (руб):</label>
-                                <span class="editable-field spravochnik-cost-field"
-                                    data-field="cost"
-                                    data-work-id="{{ selected_work.id }}"
-                                    data-original-value="{{ selected_work.cost }}"
-                                    title="Двойной клик для редактирования">
-                                    {{ selected_work.cost }}
-                                </span>
-                                <input type="number"
-                                    class="inline-edit-input spravochnik-cost-input"
-                                    data-work-id="{{ selected_work.id }}"
-                                    data-field="cost"
-                                    value="{{ selected_work.cost }}"
-                                    step="0.01"
-                                    min="0"
-                                    style="display: none;">
+                            <!-- ========== БЛОК 1: Для формулы 1 (фиксированная цена) ========== -->
+                            <div class="work-field-group">
+                                <h4>📌 Для формулы 1 (фиксированная цена)</h4>
+                                <div class="work-field">
+                                    <label>Себестоимость (руб):</label>
+                                    <span class="editable-field spravochnik-cost-field"
+                                          data-field="cost"
+                                          data-work-id="{{ selected_work.id }}"
+                                          data-original-value="{{ selected_work.cost }}"
+                                          title="Двойной клик для редактирования">
+                                        {{ selected_work.cost }}
+                                    </span>
+                                    <input type="number"
+                                           class="inline-edit-input spravochnik-cost-input"
+                                           data-work-id="{{ selected_work.id }}"
+                                           data-field="cost"
+                                           value="{{ selected_work.cost }}"
+                                           step="0.01"
+                                           min="0"
+                                           style="display: none;">
+                                </div>
+                                <div class="work-field">
+                                    <label>Цена (руб):</label>
+                                    <span class="readonly-field">{{ selected_work.price }}</span>
+                                </div>
                             </div>
 
-                            <!-- Поле "Себестоимость" (расчётное, для формул 2-6) -->
-                            <div class="work-field" id="cost-calc-field">
-                                <label>Себестоимость (руб):</label>
-                                <span id="calculated-cost-display" class="readonly-field">--</span>
-                                <input type="hidden" id="current-work-id" value="{{ selected_work.id }}">
-                                <input type="hidden" id="current-formula-type" value="{{ selected_work.formula_type }}">
+                            <!-- ========== БЛОК 2: Для формул 2 и 3 (зависимость от тиража) ========== -->
+                            <div class="work-field-group">
+                                <h4>📌 Для формул 2 и 3 (зависимость от тиража)</h4>
+                                <div class="work-field">
+                                    <label>Себестоимость (для тиража 1):</label>
+                                    <span id="calculated-cost-circulation-display" class="readonly-field">--</span>
+                                </div>
+                                <div class="work-field">
+                                    <label>Цена (руб):</label>
+                                    <span id="calculated-price-circulation-display" class="readonly-field">--</span>
+                                </div>
                             </div>
 
-                            <!-- Поле "Наценка %" (НОВОЕ) -->
+                            <!-- ========== БЛОК 3: Для формул 4,5,6 (зависимость от листов) ========== -->
+                            <div class="work-field-group">
+                                <h4>📌 Для формул 4,5,6 (зависимость от листов)</h4>
+                                <div class="work-field">
+                                    <label>Себестоимость (для 1 листа):</label>
+                                    <span id="calculated-cost-sheets-display" class="readonly-field">--</span>
+                                </div>
+                                <div class="work-field">
+                                    <label>Цена (руб):</label>
+                                    <span id="calculated-price-sheets-display" class="readonly-field">--</span>
+                                </div>
+                            </div>
+
+                            <!-- Скрытые поля для передачи данных в JS -->
+                            <input type="hidden" id="current-work-id" value="{{ selected_work.id }}">
+                            <input type="hidden" id="current-formula-type" value="{{ selected_work.formula_type }}">
+
+                            <!-- Поле "Наценка %" (редактируемое) -->
                             <div class="work-field">
                                 <label>Наценка (%):</label>
                                 <span class="editable-field spravochnik-markup-field"
-                                    data-field="markup_percent"
-                                    data-work-id="{{ selected_work.id }}"
-                                    data-original-value="{{ selected_work.markup_percent }}"
-                                    title="Двойной клик для редактирования">
+                                      data-field="markup_percent"
+                                      data-work-id="{{ selected_work.id }}"
+                                      data-original-value="{{ selected_work.markup_percent }}"
+                                      title="Двойной клик для редактирования">
                                     {{ selected_work.markup_percent }}
                                 </span>
                                 <input type="number"
-                                    class="inline-edit-input spravochnik-markup-input"
-                                    data-work-id="{{ selected_work.id }}"
-                                    data-field="markup_percent"
-                                    value="{{ selected_work.markup_percent }}"
-                                    step="0.01"
-                                    min="0"
-                                    style="display: none;">
-                            </div>
-
-                            <!-- Поле "Цена" (только чтение) -->
-                            <div class="work-field">
-                                <label>Цена (руб):</label>
-                                <span class="readonly-field">{{ selected_work.price }}</span>
+                                       class="inline-edit-input spravochnik-markup-input"
+                                       data-work-id="{{ selected_work.id }}"
+                                       data-field="markup_percent"
+                                       value="{{ selected_work.markup_percent }}"
+                                       step="0.01"
+                                       min="0"
+                                       style="display: none;">
                             </div>
 
                             <!-- Поле "Формула расчёта" (редактируемое) -->
@@ -372,7 +399,15 @@ index.html для приложения spravochnik_dopolnitelnyh_rabot.
                                        placeholder="2.0">
                             </div>
 
-                            <!-- Даты создания/обновления -->
+                            <!-- Поле "Метод интерполяции" (только для просмотра) -->
+                            <div class="work-field">
+                                <label>Метод интерполяции:</label>
+                                <span class="readonly-field">
+                                    {{ selected_work.interpolation_method_display|default:"Линейная" }}
+                                </span>
+                            </div>
+
+                            <!-- Даты (только для просмотра) -->
                             <div class="work-field">
                                 <label>Дата создания:</label>
                                 <span class="readonly-field">{{ selected_work.created_at|date:"d.m.Y H:i" }}</span>
