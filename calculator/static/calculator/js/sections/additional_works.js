@@ -14,6 +14,10 @@
 //     полей vich_data (item_width, item_height, list_count) в числа,
 //     чтобы избежать ошибки "toFixed is not a function" при работе со строками.
 //   - Все данные из vich_data теперь гарантированно числа перед использованием.
+//   - В функции additionalWorks_updateTotalPrice теперь используются:
+//     * work.total_price – для общей стоимости (уже умножено на quantity и формулу)
+//     * work.total_cost – для общей себестоимости (рассчитано на сервере)
+//     * общая наценка = общая стоимость - общая себестоимость
 //
 // ============================================================================
 
@@ -59,10 +63,12 @@ const additionalWorks_apiUrls = {
     getSpravochnikWorks: '/calculator/get-spravochnik-works/' // GET (справочник)
 };
 
-// DOM-элементы для блока общей стоимости
+// DOM-элементы для блока итоговых сумм
 let additionalWorks_totalContainer = null;
+let additionalWorks_totalCostElement = null;
+let additionalWorks_totalMarkupElement = null;
 let additionalWorks_totalPriceElement = null;
-let additionalWorks_totalLabelElement = null;
+let additionalWorks_totalLabelElement = null;  // может не использоваться, но оставим
 
 // ===== ПЕРЕМЕННЫЕ для хранения данных из VichisliniyaListov =====
 /**
@@ -94,59 +100,88 @@ document.addEventListener('DOMContentLoaded', function() {
 function additionalWorks_initDOMElements() {
     console.log('🔍 Инициализация DOM элементов секции "Дополнительные работы"...');
 
-    // Поиск элементов, отвечающих за отображение общей стоимости
+    // Поиск элементов, отвечающих за отображение итоговых сумм
     additionalWorks_totalContainer = document.getElementById('additional-works-total-container');
+    additionalWorks_totalCostElement = document.getElementById('additional-works-total-cost');
+    additionalWorks_totalMarkupElement = document.getElementById('additional-works-total-markup');
     additionalWorks_totalPriceElement = document.getElementById('additional-works-total-price');
-    additionalWorks_totalLabelElement = additionalWorks_totalContainer
-        ? additionalWorks_totalContainer.querySelector('.additional-works-total-label')
-        : null;
 
     // Если блок общей стоимости не найден, создаём его вручную
-    if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
+    if (!additionalWorks_totalContainer || !additionalWorks_totalCostElement || !additionalWorks_totalMarkupElement || !additionalWorks_totalPriceElement) {
         console.warn('⚠️ Некоторые DOM элементы не найдены при инициализации');
         additionalWorks_createMissingTotalElements(); // Создать их программно, если отсутствуют
     }
 }
 
 /**
- * Создаёт недостающие элементы для отображения общей стоимости.
+ * Создаёт недостающие элементы для отображения итоговых сумм.
  * Это запасной вариант, если в HTML по какой-то причине их нет.
  */
 function additionalWorks_createMissingTotalElements() {
-    console.log('🛠️ Создание отсутствующих элементов общей стоимости');
+    console.log('🛠️ Создание отсутствующих элементов итоговых сумм');
     const worksContainer = document.getElementById('additional-works-container');
     if (!worksContainer) {
         console.error('❌ Контейнер таблицы дополнительных работ не найден');
         return;
     }
-    // Создаём div-контейнер для общей стоимости
+
+    // Создаём div-контейнер для итоговых сумм
     const totalContainer = document.createElement('div');
     totalContainer.id = 'additional-works-total-container';
     totalContainer.className = 'additional-works-total-summary';
     totalContainer.style.display = 'none'; // изначально скрыт
 
-    // Создаём метку
-    const totalLabel = document.createElement('div');
-    totalLabel.className = 'additional-works-total-label';
-    totalLabel.textContent = 'Общая стоимость дополнительных работ (компонент):';
+    // Создаём строку для общей себестоимости
+    const costDiv = document.createElement('div');
+    costDiv.className = 'additional-works-total-item';
+    const costLabel = document.createElement('div');
+    costLabel.className = 'additional-works-total-label';
+    costLabel.textContent = 'Общая себестоимость:';
+    const costValue = document.createElement('div');
+    costValue.id = 'additional-works-total-cost';
+    costValue.className = 'additional-works-total-cost';
+    costValue.textContent = '0.00 ₽';
+    costDiv.appendChild(costLabel);
+    costDiv.appendChild(costValue);
 
-    // Создаём элемент для отображения суммы
-    const totalPriceElement = document.createElement('div');
-    totalPriceElement.id = 'additional-works-total-price';
-    totalPriceElement.className = 'additional-works-total-price';
-    totalPriceElement.textContent = '0.00 ₽';
+    // Создаём строку для общей наценки
+    const markupDiv = document.createElement('div');
+    markupDiv.className = 'additional-works-total-item';
+    const markupLabel = document.createElement('div');
+    markupLabel.className = 'additional-works-total-label';
+    markupLabel.textContent = 'Общая наценка:';
+    const markupValue = document.createElement('div');
+    markupValue.id = 'additional-works-total-markup';
+    markupValue.className = 'additional-works-total-markup';
+    markupValue.textContent = '0.00 ₽';
+    markupDiv.appendChild(markupLabel);
+    markupDiv.appendChild(markupValue);
 
-    // Собираем структуру
-    totalContainer.appendChild(totalLabel);
-    totalContainer.appendChild(totalPriceElement);
+    // Создаём строку для общей стоимости
+    const priceDiv = document.createElement('div');
+    priceDiv.className = 'additional-works-total-item';
+    const priceLabel = document.createElement('div');
+    priceLabel.className = 'additional-works-total-label';
+    priceLabel.textContent = 'Общая стоимость:';
+    const priceValue = document.createElement('div');
+    priceValue.id = 'additional-works-total-price';
+    priceValue.className = 'additional-works-total-price';
+    priceValue.textContent = '0.00 ₽';
+    priceDiv.appendChild(priceLabel);
+    priceDiv.appendChild(priceValue);
+
+    totalContainer.appendChild(costDiv);
+    totalContainer.appendChild(markupDiv);
+    totalContainer.appendChild(priceDiv);
     worksContainer.appendChild(totalContainer);
 
     // Сохраняем ссылки в глобальные переменные
     additionalWorks_totalContainer = totalContainer;
-    additionalWorks_totalLabelElement = totalLabel;
-    additionalWorks_totalPriceElement = totalPriceElement;
+    additionalWorks_totalCostElement = costValue;
+    additionalWorks_totalMarkupElement = markupValue;
+    additionalWorks_totalPriceElement = priceValue;
 
-    console.log('✅ Отсутствующие элементы общей стоимости созданы');
+    console.log('✅ Отсутствующие элементы итоговых сумм созданы');
 }
 
 // ----------------------------------------------------------------------------
@@ -354,13 +389,13 @@ function additionalWorks_updateInterface(works) {
     if (works.length === 0) {
         // Если работ нет – показываем сообщение "нет работ"
         additionalWorks_showNoWorksMessage();         // Показываем "нет работ"
-        additionalWorks_updateTotalPrice([]);         // Обнуляем общую сумму
+        additionalWorks_updateTotalPrice([]);         // Обнуляем общие суммы
         additionalWorks_deselectCurrentWork();        // Снимаем выделение
     } else {
         // Если работы есть – показываем таблицу и заполняем её
         additionalWorks_showTable();                   // Показываем таблицу
         additionalWorks_populateTable(works);          // Заполняем таблицу данными
-        additionalWorks_updateTotalPrice(works);       // Вычисляем и отображаем общую стоимость
+        additionalWorks_updateTotalPrice(works);       // Вычисляем и отображаем общие суммы
     }
     additionalWorks_showAddButton(true);                // Кнопка "Добавить" всегда видна при выбранном компоненте
 
@@ -434,32 +469,32 @@ function additionalWorks_createWorkRow(work, index) {
     const cutsCount = typeof vich.cuts_count === 'number' ? vich.cuts_count : parseInt(vich.cuts_count, 10) || 0;
 
     row.innerHTML = `
-        <td class="additional-works-work-number">${work.number || '—'}</td>
-        <td class="additional-works-work-title">${work.title || '—'}</td>
-        <td class="additional-works-work-cost">${work.formatted_cost || '0.00 ₽'}</td>
-        <td class="additional-works-work-markup">${work.formatted_markup_percent || '0%'}</td>
-        <td class="additional-works-work-price">${work.formatted_effective_price || '0.00 ₽'}</td>
-        <td class="additional-works-work-profit">${work.formatted_profit_per_unit || '0.00 ₽'}</td>
+        <td class="additional-works-work-number">${work.number || '—'}<\/td>
+        <td class="additional-works-work-title">${work.title || '—'}<\/td>
+        <td class="additional-works-work-cost">${work.formatted_cost || '0.00 ₽'}<\/td>
+        <td class="additional-works-work-markup">${work.formatted_markup_percent || '0%'}<\/td>
+        <td class="additional-works-work-price">${work.formatted_effective_price || '0.00 ₽'}<\/td>
+        <td class="additional-works-work-profit">${work.formatted_profit_per_unit || '0.00 ₽'}<\/td>
         <td class="additional-works-work-quantity additional-works-editable-cell"
             data-editable="true"
             data-field="quantity"
             data-original-value="${work.quantity || 1}"
             data-work-id="${work.id}">
             ${work.quantity || 1}
-        </td>
-        <td class="additional-works-component-width">${itemWidth.toFixed(2)}</td>
-        <td class="additional-works-component-height">${itemHeight.toFixed(2)}</td>
-        <td class="additional-works-component-sheet-count">${listCount.toFixed(2)}</td>
-        <td class="additional-works-component-fit-total">${fitTotal}</td>
-        <td class="additional-works-component-cuts-count">${cutsCount}</td>
-        <td class="additional-works-work-total-price">${work.formatted_total_price || '0.00 ₽'}</td>
+        <\/td>
+        <td class="additional-works-component-width">${itemWidth.toFixed(2)}<\/td>
+        <td class="additional-works-component-height">${itemHeight.toFixed(2)}<\/td>
+        <td class="additional-works-component-sheet-count">${listCount.toFixed(2)}<\/td>
+        <td class="additional-works-component-fit-total">${fitTotal}<\/td>
+        <td class="additional-works-component-cuts-count">${cutsCount}<\/td>
+        <td class="additional-works-work-total-price">${work.formatted_total_price || '0.00 ₽'}<\/td>
         <td class="additional-works-work-actions">
             <button type="button" class="additional-works-delete-work-btn" 
                     title="Удалить работу" 
                     data-work-id="${work.id}">
                 <i class="fas fa-trash-alt"></i>
             </button>
-        </td>
+        <\/td>
     `;
 
     // Обработчик клика по строке (выделение работы)
@@ -479,7 +514,7 @@ function additionalWorks_createWorkRow(work, index) {
                 workId: work.id,
                 workNumber: work.number,
                 workTitle: work.title,
-                workPrice: work.effective_price, // теперь effective_price
+                workPrice: work.effective_price,
                 formattedWorkPrice: work.formatted_effective_price,
                 componentId: additionalWorks_currentComponentId,
                 proschetId: additionalWorks_currentProschetId,
@@ -516,46 +551,63 @@ function additionalWorks_createWorkRow(work, index) {
 // ----------------------------------------------------------------------------
 
 /**
- * Обновляет отображение общей стоимости дополнительных работ.
- * Вычисляет сумму всех total_price работ, обновляет DOM и отправляет событие.
+ * Обновляет отображение итоговых сумм: общей себестоимости, общей наценки, общей стоимости.
+ * ВНИМАНИЕ:
+ *   - Общая стоимость = сумма work.total_price (итоговая стоимость каждой работы).
+ *   - Общая себестоимость = сумма work.total_cost (общая себестоимость каждой работы).
+ *   - Общая наценка = общая стоимость - общая себестоимость.
  * @param {Array} works - Массив объектов работ
  */
 function additionalWorks_updateTotalPrice(works) {
-    console.log('💰 Обновление общей стоимости дополнительных работ');
+    console.log('💰 Обновление итоговых сумм дополнительных работ');
     // Убеждаемся, что DOM-элементы существуют
-    if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
+    if (!additionalWorks_totalContainer || !additionalWorks_totalCostElement || !additionalWorks_totalMarkupElement || !additionalWorks_totalPriceElement) {
         additionalWorks_initDOMElements();
-        if (!additionalWorks_totalContainer || !additionalWorks_totalLabelElement || !additionalWorks_totalPriceElement) {
-            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Элементы для отображения общей стоимости не найдены!');
+        if (!additionalWorks_totalContainer || !additionalWorks_totalCostElement || !additionalWorks_totalMarkupElement || !additionalWorks_totalPriceElement) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Элементы для отображения итоговых сумм не найдены!');
             return;
         }
     }
 
-    // Суммируем total_price (общую стоимость каждой работы), а не цену за единицу
-    let totalPrice = 0;
-    works.forEach(work => {
-        if (work.total_price) {
-            totalPrice += parseFloat(work.total_price);
-        }
-    });
-    console.log(`📊 Рассчитана общая стоимость работ (на основе total_price): ${totalPrice.toFixed(2)} ₽`);
+    // Инициализируем суммы
+    let totalCost = 0;      // общая себестоимость (total_cost из ответа сервера)
+    let totalPrice = 0;     // общая стоимость (total_price из ответа сервера)
 
-    // Обновляем текст в блоке
+    works.forEach(work => {
+        // Общая себестоимость работы (уже рассчитана на сервере с учётом формулы)
+        const workTotalCost = parseFloat(work.total_cost) || 0;
+        // Итоговая стоимость работы (уже рассчитана на сервере)
+        const workTotalPrice = parseFloat(work.total_price) || 0;
+
+        totalCost += workTotalCost;
+        totalPrice += workTotalPrice;
+    });
+
+    // Общая наценка = общая стоимость - общая себестоимость
+    const totalMarkup = totalPrice - totalCost;
+
+    console.log(`📊 Рассчитаны итоговые суммы: себестоимость = ${totalCost.toFixed(2)} ₽, наценка = ${totalMarkup.toFixed(2)} ₽, общая стоимость = ${totalPrice.toFixed(2)} ₽`);
+
+    // Обновляем текст в блоках
+    additionalWorks_totalCostElement.textContent = `${totalCost.toFixed(2)} ₽`;
+    additionalWorks_totalMarkupElement.textContent = `${totalMarkup.toFixed(2)} ₽`;
     additionalWorks_totalPriceElement.textContent = `${totalPrice.toFixed(2)} ₽`;
-    additionalWorks_totalLabelElement.textContent = 'Общая стоимость дополнительных работ (компонент):';
+
     // Показываем блок, только если есть работы
     additionalWorks_totalContainer.style.display = works.length > 0 ? 'flex' : 'none';
 
-    console.log(`✅ Локальная сумма обновлена: ${totalPrice.toFixed(2)} ₽`);
+    console.log(`✅ Итоговые суммы обновлены`);
 
-    // Отправляем событие для обновления секции "Цена" (price.js)
+    // Отправляем событие для обновления секции "Цена" (price.js) с общей стоимостью
     if (additionalWorks_currentComponentId) {
         const event = new CustomEvent('additionalWorksUpdated', {
             detail: {
                 componentId: additionalWorks_currentComponentId,
                 proschetId: additionalWorks_currentProschetId,
                 works: works,
-                totalPrice: totalPrice
+                totalPrice: totalPrice,
+                totalCost: totalCost,
+                totalMarkup: totalMarkup
             }
         });
         document.dispatchEvent(event);
@@ -630,14 +682,14 @@ function additionalWorks_showLoadingState() {
     if (noWorksMsg) noWorksMsg.style.display = 'none';
     if (tableBody) {
         // Заменяем содержимое таблицы на строку с индикатором загрузки
-        // colspan должен быть равен количеству колонок (11)
+        // colspan должен быть равен количеству колонок (14)
         tableBody.innerHTML = `
             <tr>
-                <td colspan="11" class="additional-works-text-center" style="padding: 40px;">
+                <td colspan="14" class="additional-works-text-center" style="padding: 40px;">
                     <div class="additional-works-loading-spinner"></div>
                     <p>Загрузка дополнительных работ...</p>
-                </td>
-            </tr>
+                <\/td>
+            <\/tr>
         `;
         if (worksContainer) worksContainer.style.display = 'block';
     }
@@ -652,14 +704,14 @@ function additionalWorks_showErrorMessage(message) {
     if (tableBody) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="11" class="additional-works-text-center" style="padding: 40px; color: #e74c3c;">
+                <td colspan="14" class="additional-works-text-center" style="padding: 40px; color: #e74c3c;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
                     <p>${message}</p>
                     <button type="button" id="additional-works-retry-load-btn" class="additional-works-btn-action" style="margin-top: 10px;">
                         <i class="fas fa-redo"></i> Повторить попытку
                     </button>
-                </td>
-            </tr>
+                <\/td>
+            <\/tr>
         `;
         const retryBtn = document.getElementById('additional-works-retry-load-btn');
         if (retryBtn && additionalWorks_currentComponentId) {

@@ -109,13 +109,13 @@
             <!-- Таблица дополнительных работ -->
             <table id="additional-works-table" class="additional-works-simple-table">
                 <thead>
-                    <tr>
+                     <tr>
                         <th width="5%">№ работы</th>
                         <th width="12%">Название работы</th>
-                        <th width="6%">Себестоимость</th>       <!-- новая -->
-                        <th width="6%">Наценка %</th>           <!-- новая -->
-                        <th width="7%">Цена (ед.)</th>          <!-- старая колонка "Цена" -->
-                        <th width="6%">Прибыль (ед.)</th>       <!-- новая -->
+                        <th width="6%">Себестоимость</th>
+                        <th width="6%">Наценка %</th>
+                        <th width="7%">Цена (ед.)</th>
+                        <th width="6%">Прибыль (ед.)</th>
                         <th width="6%">Кол-во</th>
                         <th width="6%">Ширина (мм)</th>
                         <th width="6%">Высота (мм)</th>
@@ -124,20 +124,30 @@
                         <th width="7%">Резы</th>
                         <th width="10%">Общая стоимость</th>
                         <th width="5%">Действия</th>
-                    </tr>
+                     </tr>
                 </thead>
                 <tbody id="additional-works-table-body">
                     <!-- строки будут добавлены JS -->
                 </tbody>
-            </table>
+             </table>
 
             <!--
-              Блок с общей стоимостью дополнительных работ для текущего компонента.
-              Скрыт по умолчанию, показывается только если есть работы.
+              Блок с итоговыми суммами для текущего компонента.
+              Теперь отображаем три строки: общая себестоимость, общая наценка, общая стоимость.
             -->
             <div id="additional-works-total-container" class="additional-works-total-summary" style="display: none;">
-                <div class="additional-works-total-label">Общая стоимость дополнительных работ (компонент):</div>
-                <div id="additional-works-total-price" class="additional-works-total-price">0.00 ₽</div>
+                <div class="additional-works-total-item">
+                    <div class="additional-works-total-label">Общая себестоимость:</div>
+                    <div id="additional-works-total-cost" class="additional-works-total-cost">0.00 ₽</div>
+                </div>
+                <div class="additional-works-total-item">
+                    <div class="additional-works-total-label">Общая наценка:</div>
+                    <div id="additional-works-total-markup" class="additional-works-total-markup">0.00 ₽</div>
+                </div>
+                <div class="additional-works-total-item">
+                    <div class="additional-works-total-label">Общая стоимость:</div>
+                    <div id="additional-works-total-price" class="additional-works-total-price">0.00 ₽</div>
+                </div>
             </div>
         </div>
     </div>
@@ -182,13 +192,8 @@
                     <label for="spravochnik-work-select">
                         <i class="fas fa-list"></i> Выберите работу из справочника:
                     </label>
-                    <!--
-                      Выпадающий список. Опции будут подгружены через AJAX при открытии модального окна.
-                      required – обязательное поле.
-                    -->
                     <select id="spravochnik-work-select" class="additional-works-modal-select" required>
                         <option value="" disabled selected>— Загрузка списка работ... —</option>
-                        <!-- Сюда JS добавит option для каждой работы из справочника -->
                     </select>
                     <small class="additional-works-form-hint">Выберите работу, после чего поля заполнятся автоматически</small>
                 </div>
@@ -198,9 +203,6 @@
                     <label for="work-title-display">
                         <i class="fas fa-heading"></i> Название работы
                     </label>
-                    <!-- ВАЖНО: атрибут readonly не позволяет редактировать поле, оно будет заполняться из JS.
-                         Атрибут placeholder должен быть именно внутри тега, как показано, без лишних кавычек.
-                         Мы используем двойные кавычки вокруг значения, это корректно. -->
                     <input type="text"
                            id="work-title-display"
                            class="additional-works-modal-input"
@@ -213,8 +215,6 @@
                     <label for="work-price-input">
                         <i class="fas fa-ruble-sign"></i> Цена (₽) *
                     </label>
-                    <!-- ВАЖНО: атрибут step="0.01" позволяет вводить копейки, max ограничивает сумму.
-                         Все атрибуты должны быть внутри тега, без лишних пробелов и кавычек. -->
                     <input type="number"
                            id="work-price-input"
                            name="price"

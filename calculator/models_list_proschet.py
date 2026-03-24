@@ -845,8 +845,8 @@ class AdditionalWork(models.Model):
         """
         Преобразует объект в словарь для передачи в JSON (AJAX).
         Включает все необходимые поля для клиентской части,
-        в том числе cost (интерполированную себестоимость для единицы),
-        markup_percent, profit_per_unit.
+        в том числе cost (себестоимость единицы), total_cost (общая себестоимость),
+        effective_price, total_price и др.
         """
         # Получаем количество листов и тираж для вычисления effective_price
         try:
@@ -860,33 +860,69 @@ class AdditionalWork(models.Model):
             cuts_count = 0
 
         circulation = self.print_component.proschet.circulation if self.print_component and self.print_component.proschet else 0
+        qty = self.quantity if self.quantity else 1
+        items = self.items_per_sheet if self.items_per_sheet else 1
 
-        # Вычисляем effective_price в зависимости от формулы
-        if self.formula_type == 3:
-            effective_price = self._get_effective_price(circulation=circulation)
+        # ===== ВЫЧИСЛЕНИЕ В ЗАВИСИМОСТИ ОТ ФОРМУЛЫ =====
+        if self.formula_type == 1:
+            # Формула 1: фиксированная цена и статическая себестоимость
+            cost = self.cost
+            effective_price = self.price
+            # Общая себестоимость = cost * quantity
+            total_cost = cost * qty
+            # Общая стоимость = price * quantity
+            total_price = self.price * qty
         else:
-            effective_price = self._get_effective_price(sheet_count=sheet_count)
-
-        # ===== ИСПРАВЛЕНИЕ: вычисляем себестоимость для единицы (без наценки) =====
-        if self.work:
+            # Для формул 2-6: получаем себестоимость единицы через интерполяцию
             if self.formula_type in [2, 3]:
-                # Для формул 2 и 3 – по тиражу
                 try:
                     cost = calculate_price_for_work_by_circulation(self.work, circulation)
                 except Exception:
                     cost = self.cost
             else:
-                # Для остальных – по листам
                 try:
                     cost = calculate_price_for_work(self.work, sheet_count)
                 except Exception:
                     cost = self.cost
-        else:
-            # Если нет справочника, берём сохранённую себестоимость
-            cost = self.cost
-        # ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
 
-        # Прибыль на единицу
+            # Итоговая цена с наценкой
+            effective_price = self._get_effective_price(
+                sheet_count=sheet_count,
+                circulation=circulation
+            )
+
+            # Общая себестоимость работы (по формуле)
+            if self.formula_type == 2:
+                total_cost = cost * circulation * qty
+            elif self.formula_type == 3:
+                if self.work:
+                    k_lines = float(self.work.k_lines)
+                else:
+                    k_lines = 2.0
+                log_lines = math.log2(1 + cuts_count) if cuts_count > 0 else 0
+                base_cost = (cost * circulation) / 6
+                surcharge = (Decimal(str(k_lines * log_lines)) * circulation) / 4
+                total_cost = (base_cost + surcharge) * qty
+            elif self.formula_type == 4:
+                if self.work:
+                    k_lines = float(self.work.k_lines)
+                else:
+                    k_lines = 2.0
+                log_lines = math.log2(1 + cuts_count) if cuts_count > 0 else 0
+                base_cost = cost * sheet_count
+                surcharge = Decimal(str(k_lines * log_lines)) * sheet_count
+                total_cost = (base_cost + surcharge) * qty
+            elif self.formula_type == 5:
+                total_cost = cost * items * sheet_count * qty
+            elif self.formula_type == 6:
+                total_cost = cost * items * circulation * qty
+            else:
+                total_cost = cost * qty
+
+            total_cost = total_cost.quantize(Decimal('0.01'))
+            total_price = self.total_price  # уже рассчитано при сохранении
+
+        # ===== ВЫЧИСЛЕНИЕ ПРИБЫЛИ =====
         profit_per_unit = effective_price - cost
 
         return {
@@ -895,6 +931,8 @@ class AdditionalWork(models.Model):
             'title': self.title,
             'cost': str(cost),
             'formatted_cost': f"{cost:.2f} ₽",
+            'total_cost': str(total_cost),
+            'formatted_total_cost': f"{total_cost:.2f} ₽",
             'markup_percent': str(self.markup_percent),
             'formatted_markup_percent': f"{self.markup_percent}%",
             'price': str(self.price),
@@ -904,8 +942,8 @@ class AdditionalWork(models.Model):
             'effective_price': str(effective_price),
             'formatted_effective_price': f"{effective_price:.2f} ₽",
             'quantity': self.quantity,
-            'total_price': str(self.total_price),
-            'formatted_total_price': f"{self.total_price:.2f} ₽",
+            'total_price': str(total_price),
+            'formatted_total_price': f"{total_price:.2f} ₽",
             'formula_type': self.formula_type,
             'formula_display': self.get_formula_type_display(),
             'lines_count': self.lines_count,
