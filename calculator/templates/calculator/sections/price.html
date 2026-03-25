@@ -1,6 +1,11 @@
 <!--
 sections/price.html - Секция "Цена"
-ОБНОВЛЕНО: Реализация отображения суммы печатных компонентов и дополнительных работ
+ОБНОВЛЕНО:
+- В блоке итогов по печатным компонентам теперь отображаются три строки:
+  * Общая себестоимость
+  * Общая прибыль
+  * Общая стоимость
+- Структура аналогична дополнительным работам.
 -->
 
 <section class="calculator-section price-section" id="price-section">
@@ -57,6 +62,20 @@ sections/price.html - Секция "Цена"
                         <h4>Печатные компоненты</h4>
                         <span class="category-count" id="print-components-count">0 компонентов</span>
                     </div>
+                    
+                    <!-- Заголовок колонок для печатных компонентов -->
+                    <div id="print-components-headers" class="price-column-headers" style="display: none;">
+                        <div class="price-header-left">
+                            <i class="fas fa-info-circle"></i> Наименование
+                        </div>
+                        <div class="price-header-right">
+                            <div class="price-header-cost">Себестоимость</div>
+                            <div class="price-header-profit">Прибыль</div>
+                            <div class="price-header-total">Общая стоимость</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Контейнер для списка печатных компонентов -->
                     <div class="category-items" id="print-components-items">
                         <!-- Детали по каждому компоненту будут добавляться динамически -->
                         <div class="category-empty">
@@ -64,7 +83,24 @@ sections/price.html - Секция "Цена"
                             <p>В просчёте нет печатных компонентов</p>
                         </div>
                     </div>
-                    <div class="category-total">
+                    
+                    <!-- ===== НОВЫЙ БЛОК: итоги по печатным компонентам (три строки) ===== -->
+                    <div id="print-components-total-container" class="price-total-summary-inline" style="display: none;">
+                        <div class="total-value-group">
+                            <div class="total-cost-value" id="print-components-total-cost">0.00 ₽</div>
+                            <div class="total-profit-value" id="print-components-total-profit">0.00 ₽</div>
+                            <div class="total-price-value" id="print-components-total-price">0.00 ₽</div>
+                        </div>
+                        <div class="total-labels">
+                            <span>Общая себестоимость</span>
+                            <span>Общая прибыль</span>
+                            <span>Общая стоимость</span>
+                        </div>
+                    </div>
+                    <!-- ===== КОНЕЦ НОВОГО БЛОКА ===== -->
+                    
+                    <!-- Старая итоговая строка (оставлена для совместимости, но будет скрыта) -->
+                    <div class="category-total" style="display: none;">
                         <span class="total-label">Итого по печати:</span>
                         <span class="total-value" id="price-print-components-total">0.00 ₽</span>
                     </div>
@@ -77,6 +113,17 @@ sections/price.html - Секция "Цена"
                         <h4>Дополнительные работы</h4>
                         <span class="category-count" id="additional-works-count">0 работ</span>
                     </div>
+                    <!-- Заголовок колонок для дополнительных работ -->
+                    <div class="price-column-headers">
+                        <div class="price-header-left">
+                            <i class="fas fa-info-circle"></i> Наименование
+                        </div>
+                        <div class="price-header-right">
+                            <div class="price-header-cost">Себестоимость</div>
+                            <div class="price-header-profit">Прибыль</div>
+                            <div class="price-header-total">Общая стоимость</div>
+                        </div>
+                    </div>
                     <div class="category-items" id="additional-works-items">
                         <!-- Детали по каждой работе будут добавляться динамически -->
                         <div class="category-empty">
@@ -84,13 +131,23 @@ sections/price.html - Секция "Цена"
                             <p>В просчёте нет дополнительных работ</p>
                         </div>
                     </div>
-                    <div class="category-total">
-                        <span class="total-label">Итого по работам:</span>
-                        <span class="total-value" id="additional-works-total">0.00 ₽</span>
+                    
+                    <!-- Итоги по дополнительным работам (три строки) -->
+                    <div id="additional-works-total-container" class="price-total-summary-inline" style="display: none;">
+                        <div class="total-value-group">
+                            <div class="total-cost-value" id="additional-works-total-cost">0.00 ₽</div>
+                            <div class="total-profit-value" id="additional-works-total-profit">0.00 ₽</div>
+                            <div class="total-price-value" id="additional-works-total-price">0.00 ₽</div>
+                        </div>
+                        <div class="total-labels">
+                            <span>Общая себестоимость</span>
+                            <span>Общая прибыль</span>
+                            <span>Общая стоимость</span>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Общая сумма -->
+                <!-- Общая сумма заказа (остаётся как есть) -->
                 <div class="price-total-summary">
                     <div class="total-row">
                         <div class="total-label">

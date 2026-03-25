@@ -1,439 +1,236 @@
 /*
-print_price_inline_edit.js - JavaScript для in-line редактирования цен на печать
+print_price_inline_edit.js - JavaScript для in-line редактирования цен на печать (себестоимость + наценка)
 */
 
-// Ждем полной загрузки DOM
+// Ждём полной загрузки DOM (Document Object Model) перед выполнением скрипта
 document.addEventListener('DOMContentLoaded', function() {
-    
-    console.log('print_price_inline_edit.js загружен'); // Отладочное сообщение
-    
-    // ===== 1. НАСТРОЙКА ГЛОБАЛЬНЫХ ПЕРЕМЕННЫХ =====
-    
-    // Текущее редактируемое поле (для предотвращения одновременного редактирования нескольких полей)
-    let currentlyEditing = null;
-    
-    // ===== 2. ФУНКЦИЯ ДЛЯ ВКЛЮЧЕНИЯ РЕДАКТИРОВАНИЯ ПОЛЯ =====
-    
-    /**
-     * Включает режим редактирования для указанного поля
-     * @param {HTMLElement} fieldElement - Элемент поля (бейдж), которое нужно редактировать
-     */
+    // Выводим в консоль сообщение о загрузке скрипта (для отладки)
+    console.log('print_price_inline_edit.js загружен');
+
+    // Переменная для хранения информации о текущем редактируемом поле
+    let currentlyEditing = null;   // null означает, что редактирование не активно
+
+    // Функция переключения в режим редактирования
     function enableEditMode(fieldElement) {
-        console.log('enableEditMode вызван для:', fieldElement); // Отладочное сообщение
-        
-        // Если уже есть редактируемое поле, выходим
+        // Если уже идёт редактирование другого поля – показываем предупреждение и выходим
         if (currentlyEditing) {
             showNotification('Завершите редактирование текущего поля', 'warning');
             return;
         }
-        
-        // Получаем данные из атрибутов элемента
-        const fieldName = fieldElement.getAttribute('data-field'); // Название поля (copies или price_per_sheet)
-        const priceId = fieldElement.getAttribute('data-price-id'); // ID записи в базе данных
+
+        // Получаем атрибуты из элемента, по которому был двойной клик
+        const fieldName = fieldElement.getAttribute('data-field');          // Название поля (copies, cost, markup_percent)
+        const priceId = fieldElement.getAttribute('data-price-id');        // ID записи в базе данных
         const originalValue = fieldElement.getAttribute('data-original-value'); // Исходное значение
-        
-        console.log('Параметры редактирования:', { fieldName, priceId, originalValue }); // Отладочное сообщение
-        
-        // Находим соответствующий input для этого поля
-        // Ищем input с тем же data-price-id и data-field
+
+        // Если не удалось получить обязательные атрибуты – выходим
+        if (!fieldName || !priceId) return;
+
+        // Находим скрытое поле ввода, соответствующее этому элементу
+        // Селектор: элемент с классом inline-edit-input, у которого data-price-id и data-field совпадают
         const inputSelector = `.inline-edit-input[data-price-id="${priceId}"][data-field="${fieldName}"]`;
         const targetInput = document.querySelector(inputSelector);
-        
-        console.log('Ищем input по селектору:', inputSelector); // Отладочное сообщение
-        console.log('Найденный input:', targetInput); // Отладочное сообщение
-        
-        // Если input не найден, выходим
         if (!targetInput) {
-            console.error('Input для редактирования не найден для поля', fieldName, 'с ID', priceId);
+            // Если поле ввода не найдено – ошибка
+            console.error('Input not found');
             showNotification('Ошибка: поле ввода не найдено', 'error');
             return;
         }
-        
-        // Проверяем и корректируем значение originalValue для input
+
+        // Подготавливаем значение для поля ввода:
         let valueForInput = originalValue;
-        
-        if (valueForInput) {
-            // Для поля цены: заменяем запятую на точку (если есть)
-            if (fieldName === 'price_per_sheet') {
-                valueForInput = valueForInput.replace(',', '.');
-            }
-            
-            // Для поля тиража: убеждаемся, что это целое число
-            if (fieldName === 'copies') {
-                // Удаляем все нечисловые символы, кроме минуса
-                valueForInput = valueForInput.replace(/[^\d.-]/g, '');
-                
-                // Преобразуем в целое число
-                const intValue = parseInt(valueForInput);
-                if (!isNaN(intValue)) {
-                    valueForInput = intValue.toString();
-                }
-            }
-            
-            // Устанавливаем значение в input
-            targetInput.value = valueForInput;
-            console.log('Установлено значение в input:', valueForInput, 'для поля', fieldName);
-        } else {
-            console.warn('originalValue пустое для поля', fieldName);
+        // Для полей cost и markup_percent заменяем запятую на точку (если пользователь ввёл через запятую)
+        if (fieldName === 'cost' || fieldName === 'markup_percent') {
+            valueForInput = originalValue.replace(',', '.');
         }
-        
-        // Сохраняем ссылку на текущее редактируемое поле
+        // Для тиража преобразуем в целое число
+        if (fieldName === 'copies') {
+            valueForInput = parseInt(valueForInput) || 1;
+        }
+        // Устанавливаем значение в поле ввода
+        targetInput.value = valueForInput;
+
+        // Запоминаем текущее редактирование
         currentlyEditing = {
-            fieldElement: fieldElement,
-            inputElement: targetInput,
+            fieldElement: fieldElement,   // Элемент, отображающий значение (span)
+            inputElement: targetInput,    // Поле ввода
             fieldName: fieldName,
             priceId: priceId,
             originalValue: originalValue
         };
-        
-        // Скрываем бейдж и показываем input
+
+        // Прячем отображаемый элемент (span) и показываем поле ввода
         fieldElement.style.display = 'none';
         targetInput.style.display = 'inline-block';
-        targetInput.style.width = '100px'; // Фиксированная ширина для удобства
-        targetInput.focus();
-        targetInput.select(); // Выделяем весь текст для удобства редактирования
-        
-        // Добавляем визуальный эффект (подсветка)
+        targetInput.focus();              // Устанавливаем фокус
+        targetInput.select();             // Выделяем текст
+
+        // Добавляем класс 'editing' к строке таблицы для визуального выделения
         const row = fieldElement.closest('.table-row');
-        if (row) {
-            row.classList.add('editing');
-        }
-        
+        if (row) row.classList.add('editing');
+
         // Показываем подсказку
         showNotification('Введите новое значение и нажмите Enter для сохранения', 'info');
     }
-    
-    // ===== 3. ФУНКЦИЯ ДЛЯ ВЫКЛЮЧЕНИЯ РЕДАКТИРОВАНИЯ =====
-    
-    /**
-     * Выключает режим редактирования
-     * @param {boolean} saveChanges - Сохранять ли изменения (true) или отменить (false)
-     */
+
+    // Функция выхода из режима редактирования (с сохранением или без)
     function disableEditMode(saveChanges) {
-        console.log('disableEditMode вызван, saveChanges:', saveChanges); // Отладочное сообщение
-        
-        // Если нет активного редактирования, выходим
+        // Если редактирование не активно – ничего не делаем
         if (!currentlyEditing) return;
-        
-        const { fieldElement, inputElement, fieldName, priceId, originalValue } = currentlyEditing;
+
+        // Сохраняем ссылку на объект редактирования в локальную переменную,
+        // чтобы при асинхронных операциях он не изменился
+        const editing = currentlyEditing;
+        const { fieldElement, inputElement, fieldName, priceId, originalValue } = editing;
+
+        // Получаем новое значение из поля ввода
         const newValue = inputElement.value.trim();
-        
-        console.log('Текущие значения:', { newValue, originalValue, fieldName, priceId }); // Отладочное сообщение
-        
-        // Если сохраняем изменения и значение изменилось
+
+        // Если требуется сохранить и значение изменилось
         if (saveChanges && newValue !== originalValue) {
-            // Проверяем валидность значения
+            // Валидация в зависимости от типа поля
             if (fieldName === 'copies') {
-                const copiesValue = parseInt(newValue);
-                if (isNaN(copiesValue) || copiesValue < 1) {
-                    showNotification('Тираж должен быть целым числом больше 0', 'error');
+                const copies = parseInt(newValue);
+                if (isNaN(copies) || copies < 1) {
+                    showNotification('Тираж должен быть целым числом ≥ 1', 'error');
+                    cancelEdit();  // отменяем редактирование без сохранения
+                    return;
+                }
+            }
+            if (fieldName === 'cost') {
+                const cost = parseFloat(newValue);
+                if (isNaN(cost) || cost < 0) {
+                    showNotification('Себестоимость должна быть ≥ 0', 'error');
                     cancelEdit();
                     return;
                 }
             }
-            
-            if (fieldName === 'price_per_sheet') {
-                const priceValue = parseFloat(newValue);
-                if (isNaN(priceValue) || priceValue < 0.01) {
-                    showNotification('Цена должна быть числом больше 0.01', 'error');
+            if (fieldName === 'markup_percent') {
+                const markup = parseFloat(newValue);
+                if (isNaN(markup) || markup < 0) {
+                    showNotification('Наценка должна быть ≥ 0', 'error');
                     cancelEdit();
                     return;
                 }
             }
-            
-            // Отправляем AJAX-запрос для сохранения изменений
+
+            // Отправляем AJAX-запрос на сохранение
             saveFieldValue(fieldName, priceId, newValue);
         } else {
-            // Отменяем редактирование (не сохраняем изменения)
+            // Если сохранение не требуется (отмена или значение не изменилось)
             cancelEdit();
-            
-            if (!saveChanges) {
-                showNotification('Редактирование отменено', 'info');
-            }
+            if (!saveChanges) showNotification('Редактирование отменено', 'info');
         }
     }
-    
-    // ===== 4. ФУНКЦИЯ ДЛЯ ОТМЕНЫ РЕДАКТИРОВАНИЯ =====
-    
-    /**
-     * Отменяет редактирование и восстанавливает исходное значение
-     */
+
+    // Функция отмены редактирования без сохранения
     function cancelEdit() {
-        console.log('cancelEdit вызван'); // Отладочное сообщение
-        
         if (!currentlyEditing) return;
-        
-        const { fieldElement, inputElement, originalValue } = currentlyEditing;
-        
-        // Восстанавливаем исходное значение в input
-        if (inputElement && originalValue) {
-            let valueForInput = originalValue;
-            
-            // Для поля цены: заменяем запятую на точку (если есть)
-            if (currentlyEditing.fieldName === 'price_per_sheet') {
-                valueForInput = valueForInput.replace(',', '.');
-            }
-            
-            inputElement.value = valueForInput;
-        }
-        
-        // Восстанавливаем отображение
-        if (fieldElement) {
-            fieldElement.style.display = 'inline-block';
-        }
-        if (inputElement) {
-            inputElement.style.display = 'none';
-        }
-        
-        // Убираем визуальный эффект
-        if (fieldElement) {
-            const row = fieldElement.closest('.table-row');
-            if (row) {
-                row.classList.remove('editing');
-            }
-        }
-        
-        // Сбрасываем текущее редактирование
+
+        const { fieldElement, inputElement } = currentlyEditing;
+        // Прячем поле ввода, показываем отображаемый элемент
+        fieldElement.style.display = 'inline-block';
+        inputElement.style.display = 'none';
+
+        // Убираем класс 'editing' со строки таблицы
+        const row = fieldElement.closest('.table-row');
+        if (row) row.classList.remove('editing');
+
+        // Сбрасываем глобальную переменную
         currentlyEditing = null;
     }
-    
-    // ===== 5. ФУНКЦИЯ ДЛЯ СОХРАНЕНИЯ ЗНАЧЕНИЯ ПОЛЯ =====
-    
-    /**
-     * Отправляет AJAX-запрос для сохранения нового значения поля
-     * @param {string} fieldName - Название поля (copies или price_per_sheet)
-     * @param {string} priceId - ID записи в базе данных
-     * @param {string} newValue - Новое значение
-     */
+
+    // Функция отправки нового значения на сервер и обновления интерфейса
     function saveFieldValue(fieldName, priceId, newValue) {
-        console.log('saveFieldValue вызван:', { fieldName, priceId, newValue }); // Отладочное сообщение
-        
-        if (!currentlyEditing) return;
-        
-        const { fieldElement, inputElement } = currentlyEditing;
-        
-        // Показываем индикатор загрузки
-        const savingText = fieldName === 'copies' ? 'Сохранение...' : 'Сохранение...';
-        if (fieldElement) {
-            fieldElement.textContent = savingText;
-            fieldElement.style.display = 'inline-block';
-        }
-        if (inputElement) {
-            inputElement.style.display = 'none';
-        }
-        
-        // Подготавливаем данные для отправки
+        // Сохраняем ссылку на объект редактирования до того, как обнулим currentlyEditing
+        const editing = currentlyEditing;
+        if (!editing) return;
+
+        const { fieldElement, inputElement } = editing;
+
+        // Временно показываем индикатор загрузки вместо отображаемого элемента
+        fieldElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        fieldElement.style.display = 'inline-block';
+        inputElement.style.display = 'none';
+
+        // Формируем данные для отправки
         const formData = new FormData();
         formData.append('field_name', fieldName);
         formData.append('new_value', newValue);
         formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
-        
-        console.log('Отправляем данные:', { fieldName, newValue }); // Отладочное сообщение
-        
-        // Отправляем AJAX-запрос
+
+        // Отправляем POST-запрос на сервер
         fetch(`/print_price/api/update/${priceId}/`, {
             method: 'POST',
             body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => {
-            console.log('Получен ответ:', response.status); // Отладочное сообщение
-            if (!response.ok) {
-                throw new Error(`HTTP ошибка! статус: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            console.log('Данные ответа:', data); // Отладочное сообщение
             if (data.success) {
-                // Обновляем данные на странице
+                // Обновляем отображение значений в таблице
                 updateFieldDisplay(fieldName, priceId, data.print_price);
-                
-                // Показываем сообщение об успехе
                 showNotification('Значение успешно обновлено', 'success');
-                
-                // Сбрасываем текущее редактирование
+
+                // Сбрасываем состояние редактирования
                 currentlyEditing = null;
-                
-                // Убираем визуальный эффект
-                if (fieldElement) {
-                    const row = fieldElement.closest('.table-row');
-                    if (row) {
-                        row.classList.remove('editing');
-                    }
-                }
+                const row = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
+                if (row) row.classList.remove('editing');
             } else {
-                // Показываем ошибку
+                // В случае ошибки показываем сообщение и отменяем редактирование
                 showNotification(`Ошибка: ${data.error}`, 'error');
-                
-                // Восстанавливаем исходное значение
                 cancelEdit();
             }
         })
         .catch(error => {
-            console.error('Ошибка при сохранении:', error);
-            showNotification('Ошибка при сохранении. Проверьте подключение к интернету.', 'error');
-            
-            // Восстанавливаем исходное значение
+            console.error(error);
+            showNotification('Ошибка при сохранении', 'error');
             cancelEdit();
         });
     }
-    
-    // ===== 6. ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ОТОБРАЖЕНИЯ ПОСЛЕ СОХРАНЕНИЯ =====
-    
-    /**
-     * Обновляет отображение поля после успешного сохранения
-     * @param {string} fieldName - Название поля (copies или price_per_sheet)
-     * @param {string} priceId - ID записи в базе данных
-     * @param {object} priceData - Данные о цене из ответа сервера
-     */
+
+    // Функция обновления отображения строки таблицы после успешного сохранения
     function updateFieldDisplay(fieldName, priceId, priceData) {
-        console.log('updateFieldDisplay вызван:', { fieldName, priceId, priceData }); // Отладочное сообщение
-        
-        // Находим строку таблицы с данным priceId
-        const tableRow = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
-        if (!tableRow) {
-            console.error('Строка таблицы не найдена для priceId:', priceId);
-            return;
-        }
-        
+        const row = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
+        if (!row) return;
+
+        // В зависимости от поля обновляем соответствующий элемент
         if (fieldName === 'copies') {
-            // Обновляем бейдж тиража
-            const copiesBadge = tableRow.querySelector('.copies-badge');
-            if (copiesBadge && priceData.copies_display) {
-                copiesBadge.textContent = priceData.copies_display;
-                copiesBadge.setAttribute('data-original-value', priceData.copies.toString());
+            const badge = row.querySelector('.copies-badge');
+            if (badge) {
+                badge.textContent = priceData.copies_display;
+                badge.setAttribute('data-original-value', priceData.copies);
             }
-            
-            // Обновляем input тиража
-            const copiesInput = tableRow.querySelector('.copies-input');
-            if (copiesInput && priceData.copies) {
-                copiesInput.value = priceData.copies.toString();
+            const input = row.querySelector('.copies-input');
+            if (input) input.value = priceData.copies;
+            const deleteBtn = row.querySelector('.btn-delete');
+            if (deleteBtn) deleteBtn.setAttribute('data-price-copies', priceData.copies);
+        } else if (fieldName === 'cost') {
+            const badge = row.querySelector('.cost-badge');
+            if (badge) {
+                badge.textContent = priceData.cost_display;
+                badge.setAttribute('data-original-value', priceData.cost);
             }
-            
-            // Обновляем кнопку удаления (если нужно)
-            const deleteBtn = tableRow.querySelector('.btn-delete');
-            if (deleteBtn && priceData.copies) {
-                deleteBtn.setAttribute('data-price-copies', priceData.copies.toString());
+            const input = row.querySelector('.cost-input');
+            if (input) input.value = priceData.cost;
+        } else if (fieldName === 'markup_percent') {
+            const badge = row.querySelector('.markup-badge');
+            if (badge) {
+                badge.textContent = priceData.markup_percent_display;
+                badge.setAttribute('data-original-value', priceData.markup_percent);
             }
-        } else if (fieldName === 'price_per_sheet') {
-            // Обновляем бейдж цены за лист
-            const priceBadge = tableRow.querySelector('.price-per-sheet-badge');
-            if (priceBadge && priceData.price_per_sheet_display) {
-                priceBadge.textContent = priceData.price_per_sheet_display;
-                // Сохраняем значение в правильном формате (с точкой)
-                const priceValue = parseFloat(priceData.price_per_sheet).toFixed(2);
-                priceBadge.setAttribute('data-original-value', priceValue);
-            }
-            
-            // Обновляем input цены
-            const priceInput = tableRow.querySelector('.price-per-sheet-input');
-            if (priceInput && priceData.price_per_sheet) {
-                // Форматируем значение для input (с точкой)
-                const priceValue = parseFloat(priceData.price_per_sheet).toFixed(2);
-                priceInput.value = priceValue;
-            }
+            const input = row.querySelector('.markup-input');
+            if (input) input.value = priceData.markup_percent;
         }
-        
-        // Обновляем общую стоимость (она зависит от обоих полей)
-        const totalPriceBadge = tableRow.querySelector('.total-price-badge');
-        if (totalPriceBadge && priceData.total_price_display) {
-            totalPriceBadge.textContent = priceData.total_price_display;
-        }
+
+        // Обновляем отображение цены за лист и общей стоимости (они могли измениться)
+        const priceBadge = row.querySelector('.price-per-sheet-badge');
+        if (priceBadge) priceBadge.textContent = priceData.price_per_sheet_display;
+        const totalBadge = row.querySelector('.total-price-badge');
+        if (totalBadge) totalBadge.textContent = priceData.total_price_display;
     }
-    
-    // ===== 7. НАСТРОЙКА ОБРАБОТЧИКОВ СОБЫТИЙ =====
-    
-    // Обработчик двойного клика для редактируемых полей
-    document.addEventListener('dblclick', function(event) {
-        console.log('Двойной клик по:', event.target); // Отладочное сообщение
-        
-        // Проверяем, был ли клик по редактируемому полю
-        const editableField = event.target.closest('.editable-field');
-        
-        if (editableField) {
-            console.log('Найден редактируемый элемент:', editableField); // Отладочное сообщение
-            // Включаем режим редактирования
-            enableEditMode(editableField);
-            
-            // Предотвращаем дальнейшую обработку события
-            event.stopPropagation();
-            event.preventDefault();
-        }
-    });
-    
-    // Обработчик нажатия клавиш
-    document.addEventListener('keydown', function(event) {
-        // Если есть активное редактирование
-        if (currentlyEditing && currentlyEditing.inputElement) {
-            const inputElement = currentlyEditing.inputElement;
-            
-            console.log('Нажата клавиша:', event.key); // Отладочное сообщение
-            
-            // Если нажат Enter - сохраняем изменения
-            if (event.key === 'Enter') {
-                disableEditMode(true);
-                event.preventDefault();
-            }
-            
-            // Если нажат Escape - отменяем редактирование
-            if (event.key === 'Escape') {
-                disableEditMode(false);
-                event.preventDefault();
-            }
-        }
-    });
-    
-    // Обработчик потери фокуса полем ввода
-    document.addEventListener('focusout', function(event) {
-        // Проверяем, потерял ли фокус текущее поле ввода
-        if (currentlyEditing && currentlyEditing.inputElement === event.target) {
-            console.log('Поле ввода потеряло фокус'); // Отладочное сообщение
-            
-            // Используем setTimeout, чтобы дать время для обработки кликов на других элементах
-            setTimeout(() => {
-                // Проверяем, не перешел ли фокус на другое поле ввода на этой же строке
-                const isStillFocused = document.activeElement === currentlyEditing.inputElement;
-                
-                console.log('Фокус все еще на поле ввода?', isStillFocused); // Отладочное сообщение
-                
-                // Если фокус не на другом поле ввода, сохраняем изменения
-                if (!isStillFocused && currentlyEditing) {
-                    disableEditMode(true);
-                }
-            }, 100);
-        }
-    });
-    
-    // Обработчик клика вне поля редактирования
-    document.addEventListener('click', function(event) {
-        // Если есть активное редактирование и клик был вне поля ввода
-        if (currentlyEditing && currentlyEditing.inputElement) {
-            const inputElement = currentlyEditing.inputElement;
-            const fieldElement = currentlyEditing.fieldElement;
-            
-            // Проверяем, был ли клик внутри поля редактирования
-            const isClickInside = (inputElement && inputElement.contains(event.target)) || 
-                                  (fieldElement && fieldElement.contains(event.target));
-            
-            console.log('Клик внутри поля редактирования?', isClickInside); // Отладочное сообщение
-            
-            // Если клик был вне поля редактирования, сохраняем изменения
-            if (!isClickInside) {
-                disableEditMode(true);
-            }
-        }
-    });
-    
-    // ===== 8. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-    
-    /**
-     * Получает значение cookie по имени
-     * @param {string} name - Имя cookie
-     * @returns {string|null} Значение cookie или null, если не найдено
-     */
+
+    // Вспомогательная функция для получения CSRF-токена из cookie
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -448,143 +245,90 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return cookieValue;
     }
-    
-    /**
-     * Показывает уведомление на странице
-     * @param {string} message - Текст сообщения
-     * @param {string} type - Тип сообщения (success, error, warning, info)
-     */
+
+    // Функция отображения всплывающих уведомлений
     function showNotification(message, type = 'info') {
-        console.log('Показываем уведомление:', message, type); // Отладочное сообщение
-        
-        // Удаляем старые уведомления
-        const oldNotifications = document.querySelectorAll('.inline-edit-notification');
-        oldNotifications.forEach(n => {
-            if (n.parentNode) {
-                n.parentNode.removeChild(n);
-            }
-        });
-        
-        // Создаем элемент уведомления
+        // Удаляем старые уведомления, чтобы не накапливались
+        const old = document.querySelectorAll('.inline-edit-notification');
+        old.forEach(n => n.remove());
+
         const notification = document.createElement('div');
         notification.className = `inline-edit-notification notification-${type}`;
         notification.textContent = message;
+        // Стили уведомления
         notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            z-index: 10000;
+            position: fixed; top: 20px; right: 20px;
+            padding: 10px 20px; border-radius: 5px;
+            color: white; font-weight: bold; z-index: 10000;
             animation: fadeInOut 5s ease-in-out;
+            background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#F44336' : type === 'warning' ? '#FF9800' : '#2196F3'};
         `;
-        
-        // Настраиваем цвет в зависимости от типа
-        if (type === 'success') {
-            notification.style.backgroundColor = '#4CAF50'; // Зеленый
-        } else if (type === 'error') {
-            notification.style.backgroundColor = '#F44336'; // Красный
-        } else if (type === 'warning') {
-            notification.style.backgroundColor = '#FF9800'; // Оранжевый
-        } else {
-            notification.style.backgroundColor = '#2196F3'; // Синий
-        }
-        
-        // Добавляем стили для анимации
-        const styleId = 'inline-edit-notification-style';
-        if (!document.getElementById(styleId)) {
+
+        // Добавляем CSS-анимацию, если её ещё нет
+        if (!document.getElementById('inline-edit-notification-style')) {
             const style = document.createElement('style');
-            style.id = styleId;
-            style.textContent = `
-                @keyframes fadeInOut {
-                    0% { opacity: 0; transform: translateY(-20px); }
-                    10% { opacity: 1; transform: translateY(0); }
-                    90% { opacity: 1; transform: translateY(0); }
-                    100% { opacity: 0; transform: translateY(-20px); }
-                }
-            `;
+            style.id = 'inline-edit-notification-style';
+            style.textContent = `@keyframes fadeInOut {0%{opacity:0;transform:translateY(-20px)}10%{opacity:1;transform:translateY(0)}90%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-20px)}}`;
             document.head.appendChild(style);
         }
-        
-        // Добавляем уведомление на страницу
+
         document.body.appendChild(notification);
-        
-        // Удаляем уведомление через 5 секунд
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+        // Автоматическое удаление через 5 секунд
+        setTimeout(() => notification.remove(), 5000);
+    }
+
+    // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
+
+    // Обработка двойного клика по редактируемому полю
+    document.addEventListener('dblclick', function(e) {
+        // Находим ближайший элемент с классом editable-field
+        const editable = e.target.closest('.editable-field');
+        if (editable) {
+            e.stopPropagation();
+            e.preventDefault();
+            enableEditMode(editable);
+        }
+    });
+
+    // Обработка нажатия клавиш Enter и Escape во время редактирования
+    document.addEventListener('keydown', function(e) {
+        if (currentlyEditing && currentlyEditing.inputElement) {
+            if (e.key === 'Enter') {
+                disableEditMode(true);   // Сохраняем изменения
+                e.preventDefault();
+            } else if (e.key === 'Escape') {
+                disableEditMode(false);  // Отменяем редактирование
+                e.preventDefault();
             }
-        }, 5000);
-    }
-    
-    // ===== 9. ИНИЦИАЛИЗАЦИЯ =====
-    
-    // Проверяем, есть ли на странице редактируемые поля
-    const editableFields = document.querySelectorAll('.editable-field');
-    console.log('Найдено редактируемых полей:', editableFields.length); // Отладочное сообщение
-    
-    // Проверяем, есть ли поля ввода
-    const inputFields = document.querySelectorAll('.inline-edit-input');
-    console.log('Найдено полей ввода:', inputFields.length); // Отладочное сообщение
-    
-    if (editableFields.length > 0) {
-        console.log('In-line редактирование инициализировано для', editableFields.length, 'полей');
-        
-        // Добавляем курсор-указатель для редактируемых полей
-        editableFields.forEach(field => {
-            field.style.cursor = 'pointer';
-        });
-    }
-    
-    // ===== 10. ДЕБАГГИНГ =====
-    
-    // Добавляем глобальную функцию для отладки
-    window.debugInlineEdit = function() {
-        console.log('=== DEBUG INLINE EDIT ===');
-        console.log('currentlyEditing:', currentlyEditing);
-        
-        // Проверяем все редактируемые поля
-        const allFields = document.querySelectorAll('.editable-field');
-        console.log('Все редактируемые поля:', allFields.length);
-        
-        allFields.forEach((field, index) => {
-            console.log(`Поле ${index + 1}:`, {
-                field: field.getAttribute('data-field'),
-                priceId: field.getAttribute('data-price-id'),
-                originalValue: field.getAttribute('data-original-value'),
-                textContent: field.textContent
-            });
-        });
-        
-        // Проверяем все поля ввода
-        const allInputs = document.querySelectorAll('.inline-edit-input');
-        console.log('Все поля ввода:', allInputs.length);
-        
-        allInputs.forEach((input, index) => {
-            console.log(`Input ${index + 1}:`, {
-                field: input.getAttribute('data-field'),
-                priceId: input.getAttribute('data-price-id'),
-                value: input.value,
-                defaultValue: input.defaultValue
-            });
-        });
-        
-        console.log('=========================');
-    };
-    
-    // Добавляем функцию для проверки конкретного поля
-    window.checkFieldValue = function(priceId, fieldName) {
-        const field = document.querySelector(`.editable-field[data-price-id="${priceId}"][data-field="${fieldName}"]`);
-        const input = document.querySelector(`.inline-edit-input[data-price-id="${priceId}"][data-field="${fieldName}"]`);
-        
-        console.log('=== CHECK FIELD VALUE ===');
-        console.log('Field:', field);
-        console.log('Field data-original-value:', field ? field.getAttribute('data-original-value') : 'null');
-        console.log('Input:', input);
-        console.log('Input value:', input ? input.value : 'null');
-        console.log('Input defaultValue:', input ? input.defaultValue : 'null');
-        console.log('=========================');
-    };
+        }
+    });
+
+    // Обработка потери фокуса полем ввода (focusout)
+    document.addEventListener('focusout', function(e) {
+        // Сохраняем локальную копию currentlyEditing, чтобы она не изменилась до завершения таймаута
+        const editing = currentlyEditing;
+        if (editing && editing.inputElement === e.target) {
+            // Используем таймаут, чтобы дать возможность сфокусироваться на другом элементе
+            setTimeout(() => {
+                // Проверяем, что объект редактирования всё ещё тот же и активный элемент не является полем ввода
+                if (currentlyEditing === editing && editing.inputElement && document.activeElement !== editing.inputElement) {
+                    disableEditMode(true);
+                }
+            }, 100);
+        }
+    });
+
+    // Обработка клика вне поля редактирования
+    document.addEventListener('click', function(e) {
+        if (currentlyEditing && currentlyEditing.inputElement) {
+            // Проверяем, что клик произошёл внутри поля ввода или внутри отображаемого элемента
+            const isInside = currentlyEditing.inputElement.contains(e.target) ||
+                             currentlyEditing.fieldElement.contains(e.target);
+            if (!isInside) {
+                disableEditMode(true);
+            }
+        }
+    });
+
+    console.log('In-line редактирование инициализировано');
 });

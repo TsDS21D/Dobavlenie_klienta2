@@ -1,16 +1,13 @@
 <!--
 index.html для приложения print_price
-Главная страница справочника цен на печать (цена за 1 лист)
+Главная страница справочника цен на печать (себестоимость + наценка)
 -->
 
 {% extends "print_price/base.html" %}
 
-<!-- Заголовок страницы -->
 {% block title %}Справочник цен на печать{% endblock %}
 
-<!-- Основной контент страницы -->
 {% block content %}
-    <!-- Заголовок страницы с логотипом -->
     <h1>
         <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
             alt="Типография &quot;Буква А&quot;" 
@@ -18,36 +15,26 @@ index.html для приложения print_price
             width="150">
         Справочник цен на печать
     </h1>
-    
+
     <!-- Скрытый контейнер для сообщений Django -->
     <div class="django-messages" style="display: none;">
         {% if messages %}
             {% for message in messages %}
-                <div class="django-message" data-type="{{ message.tags }}">
-                    {{ message }}
-                </div>
+                <div class="django-message" data-type="{{ message.tags }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
     </div>
-    
-    <!-- Двухколоночный layout (как в sklad) -->
+
     <div class="two-column-layout">
-        
-        <!-- ЛЕВАЯ КОЛОНКА: Список принтеров -->
+
+        <!-- ЛЕВАЯ КОЛОНКА: список принтеров -->
         <div class="left-column">
-            <!-- Заголовок секции принтеров -->
             <div class="section-header">
-                <h2>
-                    <i class="fas fa-print"></i> Принтеры
-                </h2>
+                <h2><i class="fas fa-print"></i> Принтеры</h2>
             </div>
-            
-            <!-- Контейнер для списка принтеров -->
-            <div class="printers-container" id="printers-container">
-                <!-- Список принтеров -->
+            <div class="printers-container">
                 <div class="printers-list">
                     {% for printer in printers %}
-                        <!-- Элемент принтера -->
                         <a href="?printer_id={{ printer.id }}" 
                            class="printer-item {% if selected_printer and selected_printer.id == printer.id %}selected{% endif %}">
                             <div class="printer-info">
@@ -63,13 +50,10 @@ index.html для приложения print_price
                                 </div>
                             </div>
                             <div class="printer-stats">
-                                <span class="price-count">
-                                    {{ printer.print_prices.count }} цен
-                                </span>
+                                <span class="price-count">{{ printer.print_prices.count }} цен</span>
                             </div>
                         </a>
                     {% empty %}
-                        <!-- Если принтеров нет -->
                         <div class="empty-message">
                             <i class="fas fa-print"></i>
                             Принтеры не найдены. Добавьте принтеры в приложении "Устройства".
@@ -78,195 +62,165 @@ index.html для приложения print_price
                 </div>
             </div>
         </div>
-        
-        <!-- ПРАВАЯ КОЛОНКА: Цены на печать -->
+
+        <!-- ПРАВАЯ КОЛОНКА: цены на печать -->
         <div class="right-column">
-            <!-- Заголовок секции цен -->
             <div class="section-header">
                 <h2>
                     <i class="fas fa-money-bill-wave"></i> Цены на печать
                     {% if selected_printer %}
-                    <span class="selected-printer">
-                        для принтера "<strong>{{ selected_printer.name }}</strong>"
-                    </span>
+                        <span class="selected-printer">
+                            для принтера "<strong>{{ selected_printer.name }}</strong>"
+                        </span>
                     {% endif %}
                 </h2>
                 <div class="header-buttons">
-                    <!-- Кнопка сброса выбора принтера -->
                     {% if selected_printer %}
-                    <a href="/print_price/" 
-                       class="btn-action btn-reset-filter"
-                       title="Сбросить выбор принтера">
-                        <i class="fas fa-times-circle"></i> Сбросить
-                    </a>
+                        <a href="/print_price/" class="btn-action btn-reset-filter" title="Сбросить выбор принтера">
+                            <i class="fas fa-times-circle"></i> Сбросить
+                        </a>
                     {% endif %}
-                    <!-- Кнопка добавления цены -->
-                    <button type="button" 
-                            class="btn-action btn-add-price" 
-                            id="add-price-btn">
+                    <button type="button" class="btn-action btn-add-price" id="add-price-btn">
                         + Добавить цену
                     </button>
                 </div>
             </div>
-            
+
             <!-- Форма добавления цены (изначально скрыта) -->
             <div class="form-section" id="price-form-section" style="display: none;">
                 <h3>Добавить новую цену</h3>
-                
-                <!-- Форма добавления цены -->
                 <form method="post" action="{% url 'print_price:create_print_price' %}" id="price-form">
                     {% csrf_token %}
-                    
-                    <!-- Принтер (скрытое поле или выбор) -->
+
                     <div class="form-group">
                         <label for="price-printer">Принтер*</label>
-                        <select id="price-printer" 
-                                name="printer" 
-                                class="form-control" 
-                                required>
+                        <select id="price-printer" name="printer" class="form-control" required>
                             <option value="">-- Выберите принтер --</option>
                             {% for printer in printers %}
-                                <option value="{{ printer.id }}" 
-                                        {% if selected_printer and selected_printer.id == printer.id %}selected{% endif %}>
+                                <option value="{{ printer.id }}" {% if selected_printer and selected_printer.id == printer.id %}selected{% endif %}>
                                     {{ printer.name }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
-                    
-                    <!-- Тираж и цена за лист в одной строке -->
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="price-copies">Тираж (шт.)*</label>
-                            <input type="number" 
-                                   id="price-copies" 
-                                   name="copies" 
-                                   class="form-control"
-                                   min="1" 
-                                   placeholder="100"
-                                   required>
+                            <input type="number" id="price-copies" name="copies" class="form-control" min="1" placeholder="100" required>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="price-per-sheet">Цена за 1 лист (руб.)*</label>
-                            <input type="number" 
-                                   id="price-per-sheet" 
-                                   name="price_per_sheet" 
-                                   class="form-control"
-                                   step="0.01" 
-                                   min="0.01" 
-                                   placeholder="2.50"
-                                   required>
+                            <label for="price-cost">Себестоимость (руб.)*</label>
+                            <input type="number" id="price-cost" name="cost" class="form-control" step="0.01" min="0" placeholder="2.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="price-markup">Наценка (%)*</label>
+                            <input type="number" id="price-markup" name="markup_percent" class="form-control" step="0.01" min="0" placeholder="20.00" required>
                         </div>
                     </div>
-                    
-                    <!-- Автоматический расчет общей стоимости -->
+
                     <div class="total-price-preview" id="total-price-preview" style="display: none;">
                         <div class="total-price-label">
                             <i class="fas fa-calculator"></i>
-                            Общая стоимость за тираж:
+                            Итоговая цена за лист:
                         </div>
-                        <div class="total-price-value" id="total-price-value">
-                            <!-- Здесь будет рассчитанная стоимость -->
-                        </div>
+                        <div class="total-price-value" id="total-price-value"></div>
                     </div>
-                    
-                    <!-- Кнопки формы -->
+
                     <div class="button-group">
                         <button type="submit" class="btn-submit">Сохранить цену</button>
                         <button type="button" class="btn-clear" onclick="clearPriceForm()">Очистить форму</button>
                     </div>
                 </form>
             </div>
-            
-            <!-- Основной контейнер для цен с прокруткой -->
+
+            <!-- Контейнер для таблицы цен -->
             <div class="prices-container">
                 <div class="prices-section">
                     {% if not selected_printer %}
-                        <!-- Сообщение, если принтер не выбран -->
                         <div class="empty-message">
                             <i class="fas fa-hand-pointer"></i>
-                            Выберите принтер слева для просмотра цен на печать.
+                            Выберите принтер слева для просмотра цен.
                         </div>
                     {% elif not print_prices %}
-                        <!-- Сообщение, если цен нет -->
                         <div class="empty-message">
                             <i class="fas fa-money-bill-wave"></i>
-                            Для принтера "{{ selected_printer.name }}" нет сохраненных цен.
-                            <br>
-                            <small>Добавьте первую цену, используя кнопку "Добавить цену".</small>
+                            Для принтера "{{ selected_printer.name }}" нет сохранённых цен.
+                            <br><small>Добавьте первую цену, используя кнопку "Добавить цену".</small>
                         </div>
                     {% else %}
-                        <!-- Таблица со списком цен -->
+                        <!-- Таблица цен -->
                         <div class="prices-table">
-                            <!-- Заголовок таблицы -->
                             <div class="table-header">
                                 <div class="col-copies">Тираж</div>
-                                <div class="col-price-per-sheet">Цена за лист</div>
+                                <div class="col-cost">Себестоимость</div>
+                                <div class="col-markup">Наценка</div>
+                                <div class="col-price">Цена за лист</div>
                                 <div class="col-total-price">Стоимость за тираж</div>
                                 <div class="col-actions">Действия</div>
                             </div>
-                            
-                            <!-- Тело таблицы с прокруткой -->
                             <div class="table-body">
-                                <!-- Цикл по всем ценам -->
                                 {% for price in print_prices %}
-                                    <!-- Одна строка таблицы -->
                                     <div class="table-row" data-price-id="{{ price.id }}">
-                                        
-                                        <!-- Колонка: Тираж (с возможностью редактирования) -->
                                         <div class="col-copies">
-                                            <span class="copies-badge editable-field" 
-                                                  data-field="copies" 
+                                            <span class="copies-badge editable-field"
+                                                  data-field="copies"
                                                   data-price-id="{{ price.id }}"
                                                   data-original-value="{{ price.copies|stringformat:'d' }}"
                                                   title="Двойной клик для редактирования">
                                                 {{ price.get_copies_display }}
                                             </span>
-                                            <!-- Скрытое поле ввода для редактирования -->
-                                            <input type="number" 
-                                                   class="inline-edit-input copies-input" 
+                                            <input type="number"
+                                                   class="inline-edit-input copies-input"
                                                    data-price-id="{{ price.id }}"
                                                    data-field="copies"
                                                    value="{{ price.copies|stringformat:'d' }}"
                                                    min="1"
                                                    step="1"
-                                                   style="display: none;"
-                                                   placeholder="Введите тираж">
+                                                   style="display: none;">
                                         </div>
-                                        
-                                        <!-- Колонка: Цена за 1 лист (с возможностью редактирования) -->
-                                        <div class="col-price-per-sheet">
-                                            <span class="price-per-sheet-badge editable-field" 
-                                                  data-field="price_per_sheet" 
+                                        <div class="col-cost">
+                                            <span class="cost-badge editable-field"
+                                                  data-field="cost"
                                                   data-price-id="{{ price.id }}"
-                                                  data-original-value="{{ price.price_per_sheet|stringformat:'f' }}"
+                                                  data-original-value="{{ price.cost|stringformat:'f' }}"
                                                   title="Двойной клик для редактирования">
-                                                {{ price.get_price_per_sheet_display }}
+                                                {{ price.get_cost_display }}
                                             </span>
-                                            <!-- Скрытое поле ввода для редактирования -->
-                                            <input type="number" 
-                                                   class="inline-edit-input price-per-sheet-input" 
+                                            <input type="number"
+                                                   class="inline-edit-input cost-input"
                                                    data-price-id="{{ price.id }}"
-                                                   data-field="price_per_sheet"
-                                                   value="{{ price.price_per_sheet|stringformat:'f' }}"
-                                                   min="0.01"
+                                                   data-field="cost"
+                                                   value="{{ price.cost|stringformat:'f' }}"
+                                                   min="0"
                                                    step="0.01"
-                                                   style="display: none;"
-                                                   placeholder="Введите цену">
+                                                   style="display: none;">
                                         </div>
-                                        
-                                        <!-- Колонка: Общая стоимость за тираж (только для отображения) -->
-                                        <div class="col-total-price">
-                                            <span class="total-price-badge">
-                                                {{ price.get_total_price_display }}
+                                        <div class="col-markup">
+                                            <span class="markup-badge editable-field"
+                                                  data-field="markup_percent"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.markup_percent|stringformat:'f' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_markup_percent_display }}
                                             </span>
+                                            <input type="number"
+                                                   class="inline-edit-input markup-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="markup_percent"
+                                                   value="{{ price.markup_percent|stringformat:'f' }}"
+                                                   min="0"
+                                                   step="0.01"
+                                                   style="display: none;">
                                         </div>
-                                        
-                                        <!-- Колонка: Действия -->
+                                        <div class="col-price">
+                                            <span class="price-per-sheet-badge">{{ price.get_price_per_sheet_display }}</span>
+                                        </div>
+                                        <div class="col-total-price">
+                                            <span class="total-price-badge">{{ price.get_total_price_display }}</span>
+                                        </div>
                                         <div class="col-actions">
-                                            <!-- Кнопка удаления -->
-                                            <button type="button" 
+                                            <button type="button"
                                                     class="btn-action btn-delete"
                                                     data-price-id="{{ price.id }}"
                                                     data-price-copies="{{ price.copies }}">
@@ -277,128 +231,71 @@ index.html для приложения print_price
                                 {% endfor %}
                             </div>
                         </div>
-                        
-                        <!-- НОВЫЙ БЛОК: Расчет цены для произвольного тиража -->
+
+                        <!-- Блок расчёта для произвольного тиража -->
                         <div class="arbitrary-calc-section" id="arbitrary-calc-section">
                             <div class="section-header">
-                                <h3>
-                                    <i class="fas fa-calculator"></i> Расчет для произвольного тиража
-                                </h3>
+                                <h3><i class="fas fa-calculator"></i> Расчёт для произвольного тиража</h3>
                             </div>
-                            
                             <div class="arbitrary-calc-form">
-                                <!-- Форма в одну строку с использованием flexbox -->
                                 <div class="arbitrary-form-row">
-                                    <!-- 1. Выпадающее меню "Метод интерполяции" -->
                                     <div class="form-group">
                                         <label for="interpolation-method">Метод интерполяции:</label>
-                                        <select id="interpolation-method" 
-                                                class="form-control" 
-                                                data-printer-id="{{ selected_printer.id }}"
-                                                title="Метод расчета цены для произвольного тиража">
-                                            <option value="linear" 
-                                                    {% if selected_printer.devices_interpolation_method == 'linear' %}selected{% endif %}>
-                                                Линейная
-                                            </option>
-                                            <option value="logarithmic" 
-                                                    {% if selected_printer.devices_interpolation_method == 'logarithmic' %}selected{% endif %}>
-                                                Логарифмическая
-                                            </option>
+                                        <select id="interpolation-method"
+                                                class="form-control"
+                                                data-printer-id="{{ selected_printer.id }}">
+                                            <option value="linear" {% if selected_printer.devices_interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                            <option value="logarithmic" {% if selected_printer.devices_interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
                                         </select>
-                                        <small class="form-text text-muted">
-                                            Используется для расчета цены между опорными точками
-                                        </small>
+                                        <small class="form-text text-muted">Используется для расчета цены между опорными точками</small>
                                     </div>
-                                    
-                                    <!-- 2. Поле для ввода произвольного тиража -->
                                     <div class="form-group">
                                         <label for="arbitrary-copies">Произвольный тираж (шт.):</label>
-                                        <input type="number" 
-                                               id="arbitrary-copies" 
-                                               class="form-control" 
-                                               min="1" 
-                                               step="1"
-                                               placeholder="Введите тираж"
-                                               title="Введите количество копий для расчета цены">
-                                        <small class="form-text text-muted">
-                                            Введите любое количество копий
-                                        </small>
+                                        <input type="number" id="arbitrary-copies" class="form-control" min="1" step="1" placeholder="Введите тираж">
                                     </div>
-                                    
-                                    <!-- 3. Кнопка расчета -->
                                     <div class="form-group">
                                         <label>&nbsp;</label>
-                                        <button type="button" 
-                                                id="calculate-arbitrary-price" 
-                                                class="btn-submit"
-                                                style="margin-top: 1.7rem;">
+                                        <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
                                             <i class="fas fa-calculator"></i> Рассчитать
                                         </button>
                                     </div>
                                 </div>
-                                
-                                <!-- Блок для отображения результата -->
                                 <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
                                     <div class="result-header">
-                                        <h4>
-                                            <i class="fas fa-chart-line"></i> Результат расчета:
-                                        </h4>
+                                        <h4><i class="fas fa-chart-line"></i> Результат расчета:</h4>
                                     </div>
                                     <div class="result-content">
-                                        <!-- Метод интерполяции -->
                                         <div class="result-item">
                                             <span class="result-label">Метод интерполяции:</span>
-                                            <span class="result-value" id="result-interpolation-method">
-                                                {% if selected_printer.devices_interpolation_method == 'linear' %}
-                                                    Линейная
-                                                {% else %}
-                                                    Логарифмическая
-                                                {% endif %}
-                                            </span>
+                                            <span class="result-value" id="result-interpolation-method"></span>
                                         </div>
-                                        
-                                        <!-- Введенный тираж -->
                                         <div class="result-item">
                                             <span class="result-label">Тираж:</span>
                                             <span class="result-value" id="result-copies"></span>
                                         </div>
-                                        
-                                        <!-- Рассчитанная цена -->
+                                        <div class="result-item">
+                                            <span class="result-label">Себестоимость:</span>
+                                            <span class="result-value" id="result-cost"></span>
+                                        </div>
+                                        <div class="result-item">
+                                            <span class="result-label">Наценка:</span>
+                                            <span class="result-value" id="result-markup"></span>
+                                        </div>
                                         <div class="result-item">
                                             <span class="result-label">Цена за лист:</span>
                                             <span class="result-value price-value" id="result-price-per-sheet"></span>
-                                        </div>
-                                        
-                                        <!-- Информация об опорных точках -->
-                                        <div class="result-info" id="result-points-info" style="display: none;">
-                                            <small>
-                                                <i class="fas fa-info-circle"></i>
-                                                Рассчитано на основе {{ print_prices.count }} опорных точек из таблицы выше
-                                            </small>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Подсказки для пользователя -->
                         <div class="table-hint">
-                            <div class="hint-item">
-                                <span class="hint-icon">✏️</span>
-                                <span class="hint-text">Двойной клик по тиражу или цене за лист для редактирования</span>
-                            </div>
-                            <div class="hint-item">
-                                <span class="hint-icon">💾</span>
-                                <span class="hint-text">Нажмите Enter для сохранения или Esc для отмены редактирования</span>
-                            </div>
-                            <div class="hint-item">
-                                <span class="hint-icon">💰</span>
-                                <span class="hint-text">Стоимость за тираж рассчитывается автоматически (цена за лист × тираж)</span>
-                            </div>
-                            <div class="hint-item">
-                                <span class="hint-icon">📊</span>
-                                <span class="hint-text">Используйте блок "Расчет для произвольного тиража" для расчета цены любого тиража</span>
-                            </div>
+                            <div class="hint-item"><span class="hint-icon">✏️</span><span class="hint-text">Двойной клик по тиражу, себестоимости или наценке для редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💾</span><span class="hint-text">Нажмите Enter для сохранения или Esc для отмены редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💰</span><span class="hint-text">Цена за лист = себестоимость + себестоимость × наценка/100</span></div>
+                            <div class="hint-item"><span class="hint-icon">📊</span><span class="hint-text">Используйте блок "Расчёт для произвольного тиража" для интерполяции</span></div>
                         </div>
                     {% endif %}
                 </div>

@@ -1,6 +1,6 @@
 """
 utils.py для приложения print_price
-Утилиты для расчета цены на печать
+Утилиты для интерполяции себестоимости и наценки, расчёта цены.
 """
 
 from decimal import Decimal
@@ -9,115 +9,135 @@ from .models import PrintPrice
 from devices.models import Printer
 
 
-def calculate_price_for_printer_and_copies(printer, copies):
+def get_cost_and_markup_for_printer_and_copies(printer, copies):
     """
-    Расчет цены за лист для заданного принтера и тиража.
-    
+    Возвращает интерполированные себестоимость и наценку для заданного принтера и тиража.
+
     Args:
-        printer: Объект Printer или ID принтера
+        printer: объект Printer или ID принтера
         copies: int, количество копий (тираж)
-    
+
     Returns:
-        Decimal: рассчитанная цена за лист
+        tuple: (cost, markup_percent) – интерполированные значения (Decimal)
     """
     # Если передан ID, получаем объект принтера
     if isinstance(printer, int):
         try:
             printer = Printer.objects.get(id=printer)
         except Printer.DoesNotExist:
-            return Decimal('0.00')
-    
-    # Получаем все сохраненные цены для этого принтера, отсортированные по тиражу
+            return Decimal('0.00'), Decimal('0.00')
+
+    # Получаем все сохранённые опорные точки для этого принтера, отсортированные по тиражу
     price_points = PrintPrice.objects.filter(printer=printer).order_by('copies')
-    
+
     if not price_points.exists():
-        # Если нет сохраненных цен, возвращаем 0
-        return Decimal('0.00')
-    
-    # Преобразуем copies в int
+        # Если нет сохранённых точек, возвращаем нули
+        return Decimal('0.00'), Decimal('0.00')
+
     copies_int = int(copies)
-    
-    # Получаем метод интерполяции (по умолчанию линейный)
+    # Получаем метод интерполяции принтера (по умолчанию линейный)
     interpolation_method = getattr(printer, 'devices_interpolation_method', 'linear')
-    
-    # Получаем минимальную и максимальную цены
-    min_price = price_points.first()
-    max_price = price_points.last()
-    
-    # Если запрошенный тираж меньше минимального, возвращаем минимальную цену
-    if copies_int <= min_price.copies:
-        return min_price.price_per_sheet
-    
-    # Если запрошенный тираж больше максимального, возвращаем максимальную цену
-    if copies_int >= max_price.copies:
-        return max_price.price_per_sheet
-    
-    # Ищем два ближайших тиража для интерполяции
-    prev_price = None
-    next_price = None
-    
-    for price in price_points:
-        if price.copies <= copies_int:
-            prev_price = price
-        if price.copies >= copies_int:
-            next_price = price
+
+    # Минимальная и максимальная точки
+    min_point = price_points.first()
+    max_point = price_points.last()
+
+    # Если тираж меньше минимального, возвращаем значения из минимальной точки
+    if copies_int <= min_point.copies:
+        return min_point.cost, min_point.markup_percent
+
+    # Если тираж больше максимального, возвращаем значения из максимальной точки
+    if copies_int >= max_point.copies:
+        return max_point.cost, max_point.markup_percent
+
+    # Ищем две ближайшие точки для интерполяции
+    prev_point = None
+    next_point = None
+    for point in price_points:
+        if point.copies <= copies_int:
+            prev_point = point
+        if point.copies >= copies_int:
+            next_point = point
             break
-    
-    # Если нашли оба значения для интерполяции и они разные
-    if prev_price and next_price and prev_price != next_price:
-        
-        # Линейная интерполяция
+
+    # Если обе точки найдены и они разные
+    if prev_point and next_point and prev_point != next_point:
+        # Линейная интерполяция для себестоимости
         if interpolation_method == 'linear':
-            x1, y1 = float(prev_price.copies), float(prev_price.price_per_sheet)
-            x2, y2 = float(next_price.copies), float(next_price.price_per_sheet)
+            # Себестоимость
+            x1, y1 = float(prev_point.copies), float(prev_point.cost)
+            x2, y2 = float(next_point.copies), float(next_point.cost)
             x = float(copies_int)
-            
-            result = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-            calculated_price = Decimal(str(round(result, 2)))
-        
+            cost = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+
+            # Наценка
+            y1_m = float(prev_point.markup_percent)
+            y2_m = float(next_point.markup_percent)
+            markup = y1_m + (y2_m - y1_m) * (x - x1) / (x2 - x1)
+
         # Логарифмическая интерполяция
         elif interpolation_method == 'logarithmic':
             epsilon = 1e-10
-            
-            x1 = math.log(float(prev_price.copies) + epsilon)
-            y1 = math.log(float(prev_price.price_per_sheet) + epsilon)
-            x2 = math.log(float(next_price.copies) + epsilon)
-            y2 = math.log(float(next_price.price_per_sheet) + epsilon)
+            # Себестоимость
+            x1 = math.log(float(prev_point.copies) + epsilon)
+            y1 = math.log(float(prev_point.cost) + epsilon)
+            x2 = math.log(float(next_point.copies) + epsilon)
+            y2 = math.log(float(next_point.cost) + epsilon)
             x = math.log(float(copies_int) + epsilon)
-            
-            result_log = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-            result = math.exp(result_log) - epsilon
-            calculated_price = Decimal(str(round(result, 2)))
-        
+            cost_log = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+            cost = math.exp(cost_log) - epsilon
+
+            # Наценка
+            y1_m = math.log(float(prev_point.markup_percent) + epsilon)
+            y2_m = math.log(float(next_point.markup_percent) + epsilon)
+            markup_log = y1_m + (y2_m - y1_m) * (x - x1) / (x2 - x1)
+            markup = math.exp(markup_log) - epsilon
+
         else:
             # По умолчанию линейная
-            x1, y1 = float(prev_price.copies), float(prev_price.price_per_sheet)
-            x2, y2 = float(next_price.copies), float(next_price.price_per_sheet)
+            x1, y1 = float(prev_point.copies), float(prev_point.cost)
+            x2, y2 = float(next_point.copies), float(next_point.cost)
             x = float(copies_int)
-            
-            result = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-            calculated_price = Decimal(str(round(result, 2)))
-    
-    else:
-        # Если не нашли два разных значения для интерполяции
-        calculated_price = prev_price.price_per_sheet if prev_price else min_price.price_per_sheet
-    
-    return calculated_price
+            cost = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+
+            y1_m = float(prev_point.markup_percent)
+            y2_m = float(next_point.markup_percent)
+            markup = y1_m + (y2_m - y1_m) * (x - x1) / (x2 - x1)
+
+        # Округляем до двух знаков
+        cost = Decimal(str(round(cost, 2)))
+        markup = Decimal(str(round(markup, 2)))
+        return cost, markup
+
+    # Если не нашли две разные точки (например, только одна точка)
+    return prev_point.cost, prev_point.markup_percent
+
+
+def calculate_price_for_printer_and_copies(printer, copies):
+    """
+    Рассчитывает цену за лист для заданного принтера и тиража.
+    Сначала интерполирует себестоимость и наценку, затем вычисляет цену.
+
+    Args:
+        printer: объект Printer или ID принтера
+        copies: int, количество копий
+
+    Returns:
+        Decimal: цена за лист
+    """
+    cost, markup = get_cost_and_markup_for_printer_and_copies(printer, copies)
+    # Цена = себестоимость + себестоимость * наценка / 100
+    price = cost + (cost * markup / Decimal('100'))
+    return price.quantize(Decimal('0.01'))
 
 
 def get_price_info_for_printer_and_copies(printer, copies):
     """
-    Получение информации о расчете цены для заданного принтера и тиража.
-    
-    Args:
-        printer: Объект Printer или ID принтера
-        copies: int, количество копий (тираж)
-    
-    Returns:
-        dict: информация о расчете
+    Возвращает полную информацию о расчёте: себестоимость, наценка, цена.
     """
-    price = calculate_price_for_printer_and_copies(printer, copies)
-    
+    cost, markup = get_cost_and_markup_for_printer_and_copies(printer, copies)
+    price = cost + (cost * markup / Decimal('100'))
+
     if isinstance(printer, int):
         try:
             printer_obj = Printer.objects.get(id=printer)
@@ -125,9 +145,14 @@ def get_price_info_for_printer_and_copies(printer, copies):
             printer_obj = None
     else:
         printer_obj = printer
-    
+
     return {
+        'cost': cost,
+        'cost_display': f"{cost:.2f} руб.",
+        'markup_percent': markup,
+        'markup_percent_display': f"{markup}%",
         'price': price,
+        'price_display': f"{price:.2f} руб./лист",
         'printer_id': printer_obj.id if printer_obj else None,
         'printer_name': printer_obj.name if printer_obj else None,
         'copies': copies,

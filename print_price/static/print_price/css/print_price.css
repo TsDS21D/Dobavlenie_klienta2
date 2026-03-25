@@ -1,9 +1,8 @@
 /*
 print_price.css - Стили для приложения справочника цен на печать
-Основано на sklad.css с упрощением под новую функциональность
+Обновлено для поддержки себестоимости и наценки.
 */
 
-/* ===== 0. БАЗОВЫЕ НАСТРОЙКИ КОНТЕЙНЕРА ===== */
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -16,7 +15,6 @@ print_price.css - Стили для приложения справочника 
     overflow-x: hidden;
 }
 
-/* ===== 1. ДВУХКОЛОНОЧНЫЙ LAYOUT ===== */
 .two-column-layout {
     display: grid;
     grid-template-columns: minmax(300px, 1fr) minmax(350px, 2fr);
@@ -24,7 +22,6 @@ print_price.css - Стили для приложения справочника 
     margin-top: 1.5rem;
 }
 
-/* ЛЕВАЯ КОЛОНКА - список принтеров */
 .left-column {
     background: #f9f9f9;
     padding: 1rem;
@@ -36,7 +33,6 @@ print_price.css - Стили для приложения справочника 
     overflow: hidden;
 }
 
-/* ПРАВАЯ КОЛОНКА - цены на печать */
 .right-column {
     background: white;
     padding: 1rem;
@@ -45,7 +41,6 @@ print_price.css - Стили для приложения справочника 
     min-width: 0;
 }
 
-/* Заголовок секции */
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -64,7 +59,6 @@ print_price.css - Стили для приложения справочника 
     gap: 0.5rem;
 }
 
-/* ===== 2. СПИСОК ПРИНТЕРОВ (левая колонка) ===== */
 .printers-container {
     flex: 1;
     overflow-y: auto;
@@ -139,7 +133,6 @@ print_price.css - Стили для приложения справочника 
     font-weight: 600;
 }
 
-/* ===== 3. ФОРМА ДОБАВЛЕНИЯ ЦЕНЫ ===== */
 .form-section {
     background: #f9f9f9;
     padding: 1rem;
@@ -182,7 +175,7 @@ print_price.css - Стили для приложения справочника 
 
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
 }
 
@@ -222,7 +215,6 @@ print_price.css - Стили для приложения справочника 
     background: #e0e0e0;
 }
 
-/* ===== 4. ТАБЛИЦА ЦЕН С IN-LINE РЕДАКТИРОВАНИЕМ ===== */
 .prices-container {
     flex: 1;
     display: flex;
@@ -255,10 +247,9 @@ print_price.css - Стили для приложения справочника 
     max-height: 300px;
 }
 
-/* Заголовок таблицы */
 .prices-table .table-header {
     display: grid;
-    grid-template-columns: 1fr 1.2fr 1.2fr 0.8fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr;
     background: #f8f9fa;
     padding: 0.8rem;
     font-weight: 600;
@@ -267,10 +258,9 @@ print_price.css - Стили для приложения справочника 
     flex-shrink: 0;
 }
 
-/* Строка таблицы */
 .prices-table .table-row {
     display: grid;
-    grid-template-columns: 1fr 1.2fr 1.2fr 0.8fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr;
     padding: 0.8rem;
     border-bottom: 1px solid #e0e0e0;
     transition: all 0.2s ease;
@@ -281,225 +271,40 @@ print_price.css - Стили для приложения справочника 
     background: #f8f9fa;
 }
 
-/* Строка в режиме редактирования */
 .prices-table .table-row.editing {
-    background: #fffde7 !important; /* Светло-желтый фон для строки в режиме редактирования */
-    border-left: 3px solid #ffc107; /* Желтая рамка слева */
+    background: #fffde7 !important;
+    border-left: 3px solid #ffc107;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Колонки таблицы */
-.prices-table .col-copies,
-.prices-table .col-price-per-sheet,
-.prices-table .col-total-price,
-.prices-table .col-actions {
+.col-copies, .col-cost, .col-markup, .col-price, .col-total-price, .col-actions {
     display: flex;
     align-items: center;
     padding: 0 0.5rem;
     min-width: 0;
 }
 
-/* ===== 5. НОВЫЙ БЛОК: РАСЧЕТ ДЛЯ ПРОИЗВОЛЬНОГО ТИРАЖА ===== */
-.arbitrary-calc-section {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    background: #f9f9f9;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-}
-
-.arbitrary-calc-section .section-header {
-    margin-bottom: 0.8rem;
-    padding-bottom: 0.5rem;
-}
-
-.arbitrary-calc-section h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-/* Форма в одну строку */
-.arbitrary-form-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-
-/* Каждый элемент формы в строке */
-.arbitrary-form-row .form-group {
-    flex: 1;
-    min-width: 200px;
-    margin-bottom: 0;
-}
-
-/* Метка для элементов формы */
-.arbitrary-form-row label {
-    display: block;
-    margin-bottom: 0.3rem;
-    font-weight: 500;
-    color: #555;
-    font-size: 0.9rem;
-}
-
-/* Поле ввода для произвольного тиража */
-#arbitrary-copies {
-    width: 100%;
-}
-
-/* Кнопка расчета */
-#calculate-arbitrary-price {
-    height: 38px; /* Высота как у полей ввода */
-    margin-top: 1.7rem; /* Выравнивание по полям ввода */
-    white-space: nowrap;
-}
-
-/* Блок с результатом */
-.arbitrary-result {
-    background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    border: 1px solid #e0e0e0;
-    margin-top: 1rem;
-    animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Заголовок результата */
-.result-header {
-    margin-bottom: 0.8rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.result-header h4 {
-    margin: 0;
-    font-size: 0.95rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-/* Контент результата */
-.result-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-/* Элемент результата (метка + значение) */
-.result-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.3rem 0;
-}
-
-.result-label {
-    font-weight: 500;
-    color: #555;
-    font-size: 0.9rem;
-}
-
-.result-value {
-    font-weight: 600;
-    color: #333;
-    font-size: 0.95rem;
-}
-
-/* Специальное оформление для цены */
-.price-value {
-    color: #0B8661;
-    font-size: 1rem;
-    background: #e8f5e9;
-    padding: 0.3rem 0.6rem;
-    border-radius: 6px;
-    border: 1px solid #c8e6c9;
-}
-
-/* Информация об опорных точках */
-.result-info {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px dashed #e0e0e0;
-    font-size: 0.8rem;
-    color: #666;
-}
-
-.result-info i {
-    margin-right: 0.3rem;
-}
-
-/* ===== 6. СТИЛИ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
-
-/* Бейджи для значений (редактируемые) */
-.copies-badge,
-.price-per-sheet-badge {
+.copies-badge, .cost-badge, .markup-badge {
     display: inline-block;
     padding: 0.3rem 0.6rem;
     border-radius: 12px;
     font-size: 0.85rem;
     font-weight: 600;
     white-space: nowrap;
-    cursor: pointer; /* Показываем, что поле можно редактировать */
+    cursor: pointer;
     transition: all 0.2s ease;
-    border: 1px solid transparent; /* Прозрачная рамка для плавного перехода */
-    min-width: 80px; /* Минимальная ширина для красоты */
+    border: 1px solid transparent;
+    min-width: 80px;
     text-align: center;
 }
+.copies-badge { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+.cost-badge { background: #fff3e0; color: #ef6c00; border-color: #ffcc80; }
+.markup-badge { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.price-per-sheet-badge { background: #e0f2fe; color: #0284c7; border-radius: 12px; padding: 0.3rem 0.6rem; font-size: 0.85rem; font-weight: 600; }
+.total-price-badge { background: #f3e5f5; color: #7b1fa2; border-radius: 12px; padding: 0.3rem 0.6rem; font-size: 0.85rem; font-weight: 600; }
 
-/* Бейдж тиража */
-.copies-badge {
-    background: #e3f2fd;
-    color: #1565c0;
-    border-color: #bbdefb;
-}
-
-.copies-badge:hover {
-    background: #bbdefb;
-    transform: scale(1.05);
-}
-
-/* Бейдж цены за лист */
-.price-per-sheet-badge {
-    background: #e8f5e9;
-    color: #2e7d32;
-    border-color: #c8e6c9;
-}
-
-.price-per-sheet-badge:hover {
-    background: #c8e6c9;
-    transform: scale(1.05);
-}
-
-/* Бейдж общей стоимости (не редактируемый) */
-.total-price-badge {
-    display: inline-block;
-    padding: 0.3rem 0.6rem;
-    background: #fff3e0;
-    color: #ef6c00;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border: 1px solid #ffcc80;
-    white-space: nowrap;
-    min-width: 100px;
-    text-align: center;
-}
-
-/* Поле ввода для in-line редактирования */
 .inline-edit-input {
-    display: none; /* По умолчанию скрыто */
+    display: none;
     width: 100px;
     max-width: 120px;
     padding: 0.3rem 0.5rem;
@@ -520,17 +325,76 @@ print_price.css - Стили для приложения справочника 
     box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
 }
 
-/* Специфичные стили для поля тиража */
-.copies-input {
-    color: #1565c0;
+.arbitrary-calc-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
 }
 
-/* Специфичные стили для поля цены */
-.price-per-sheet-input {
-    color: #2e7d32;
+.arbitrary-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
 }
-
-/* ===== 7. ПОДСКАЗКИ ДЛЯ ТАБЛИЦЫ ===== */
+.arbitrary-form-row .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+#calculate-arbitrary-price {
+    height: 38px;
+    margin-top: 1.7rem;
+    white-space: nowrap;
+}
+.arbitrary-result {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.result-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.result-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+}
+.result-label {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+}
+.result-value {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+.price-value {
+    color: #0B8661;
+    background: #e8f5e9;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #c8e6c9;
+}
 .table-hint {
     margin-top: 1rem;
     padding: 0.8rem;
@@ -538,7 +402,6 @@ print_price.css - Стили для приложения справочника 
     border-radius: 8px;
     border: 1px solid #e0e0e0;
 }
-
 .hint-item {
     display: flex;
     align-items: center;
@@ -547,22 +410,14 @@ print_price.css - Стили для приложения справочника 
     font-size: 0.8rem;
     color: #666;
 }
-
-.hint-item:last-child {
-    margin-bottom: 0;
-}
-
 .hint-icon {
     font-size: 1rem;
 }
-
-/* ===== 8. КНОПКИ В ЗАГОЛОВКЕ ===== */
 .header-buttons {
     display: flex;
     gap: 0.4rem;
     align-items: center;
 }
-
 .btn-reset-filter {
     padding: 0.4rem 0.8rem;
     background: #ffebee;
@@ -577,13 +432,11 @@ print_price.css - Стили для приложения справочника 
     gap: 0.3rem;
     white-space: nowrap;
 }
-
 .btn-reset-filter:hover {
     background: #f44336;
     color: white;
     transform: scale(1.05);
 }
-
 .btn-add-price {
     padding: 0.4rem 0.8rem;
     background: #0B8661;
@@ -595,12 +448,9 @@ print_price.css - Стили для приложения справочника 
     transition: background-color 0.2s ease;
     white-space: nowrap;
 }
-
 .btn-add-price:hover {
     background: #097055;
 }
-
-/* Кнопка удаления */
 .btn-delete {
     padding: 0.3rem 0.6rem;
     background: #ffebee;
@@ -611,14 +461,23 @@ print_price.css - Стили для приложения справочника 
     font-size: 0.85rem;
     transition: all 0.2s ease;
 }
-
 .btn-delete:hover {
     background: #f44336;
     color: white;
 }
-
-/* ===== 9. УВЕДОМЛЕНИЯ ДЛЯ IN-LINE РЕДАКТИРОВАНИЯ ===== */
-.inline-edit-notification {
+.empty-message {
+    text-align: center;
+    color: #999;
+    padding: 2rem;
+    font-style: italic;
+}
+.empty-message i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+    display: block;
+}
+.notification {
     position: fixed;
     top: 20px;
     right: 20px;
@@ -629,224 +488,48 @@ print_price.css - Стили для приложения справочника 
     z-index: 10000;
     animation: fadeInOut 5s ease-in-out;
 }
-
+.notification-success { background-color: #4CAF50; }
+.notification-error { background-color: #F44336; }
+.notification-warning { background-color: #FF9800; }
+.notification-info { background-color: #2196F3; }
 @keyframes fadeInOut {
     0% { opacity: 0; transform: translateY(-20px); }
     10% { opacity: 1; transform: translateY(0); }
     90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-20px); }
 }
-
-/* Цвета для разных типов уведомлений */
-.notification-success {
-    background-color: #4CAF50; /* Зеленый */
-}
-
-.notification-error {
-    background-color: #F44336; /* Красный */
-}
-
-.notification-warning {
-    background-color: #FF9800; /* Оранжевый */
-}
-
-.notification-info {
-    background-color: #2196F3; /* Синий */
-}
-
-/* ===== 10. АДАПТИВНЫЕ СТИЛИ ===== */
 @media (max-width: 1137px) {
-    .container {
-        padding: 1.2rem;
-        max-width: calc(100% - 1rem);
-        margin: 0 0.5rem;
-    }
-    
-    .two-column-layout {
-        grid-template-columns: minmax(250px, 1fr) minmax(280px, 1.5fr);
-        gap: 1rem;
-    }
-    
-    .left-column,
-    .right-column {
-        padding: 0.8rem;
-        min-height: 450px;
-    }
-    
-    .section-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.8rem;
-    }
-    
-    .header-buttons {
-        flex-direction: column;
-        width: 100%;
-        gap: 0.4rem;
-    }
-    
-    .btn-reset-filter,
-    .btn-add-price {
-        width: 100%;
-        justify-content: center;
-        text-align: center;
-    }
-    
-    .prices-table .table-header,
-    .prices-table .table-row {
-        grid-template-columns: 1fr 1fr 1fr 0.7fr;
-    }
-    
-    .inline-edit-input {
-        max-width: 100px;
-    }
-    
-    /* Адаптация для блока расчета произвольного тиража */
-    .arbitrary-form-row {
-        flex-direction: column;
-        gap: 0.8rem;
-    }
-    
-    .arbitrary-form-row .form-group {
-        min-width: 100%;
-    }
-    
-    #calculate-arbitrary-price {
-        margin-top: 0;
-        width: 100%;
-    }
+    .container { padding: 1.2rem; max-width: calc(100% - 1rem); margin: 0 0.5rem; }
+    .two-column-layout { grid-template-columns: minmax(250px, 1fr) minmax(280px, 1.5fr); gap: 1rem; }
+    .left-column, .right-column { padding: 0.8rem; min-height: 450px; }
+    .section-header { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+    .header-buttons { flex-direction: column; width: 100%; gap: 0.4rem; }
+    .btn-reset-filter, .btn-add-price { width: 100%; justify-content: center; text-align: center; }
+    .prices-table .table-header, .prices-table .table-row { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr; }
+    .inline-edit-input { max-width: 100px; }
+    .arbitrary-form-row { flex-direction: column; gap: 0.8rem; }
+    .arbitrary-form-row .form-group { min-width: 100%; }
+    #calculate-arbitrary-price { margin-top: 0; width: 100%; }
 }
-
 @media (max-width: 768px) {
-    .two-column-layout {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .container {
-        padding: 0.8rem;
-        margin: 0;
-        border-radius: 10px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-    
-    .left-column,
-    .right-column {
-        padding: 0.8rem;
-        min-height: auto;
-        height: auto;
-    }
-    
-    /* На мобильных скрываем заголовок таблицы */
-    .prices-table .table-header {
-        display: none;
-    }
-    
-    /* Превращаем строки таблицы в карточки */
-    .prices-table .table-row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        padding: 0.8rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .prices-table .col-copies,
-    .prices-table .col-price-per-sheet,
-    .prices-table .col-total-price,
-    .prices-table .col-actions {
+    .two-column-layout { grid-template-columns: 1fr; gap: 1rem; }
+    .container { padding: 0.8rem; margin: 0; border-radius: 10px; }
+    .left-column, .right-column { padding: 0.8rem; min-height: auto; }
+    .prices-table .table-header { display: none; }
+    .prices-table .table-row { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; }
+    .col-copies, .col-cost, .col-markup, .col-price, .col-total-price, .col-actions {
         display: flex;
         justify-content: space-between;
         align-items: center;
         width: 100%;
         padding: 0.3rem 0;
     }
-    
-    /* Добавляем подписи для мобильной версии */
-    .prices-table .col-copies::before {
-        content: "Тираж: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        display: inline-block;
-        min-width: 100px;
-    }
-    
-    .prices-table .col-price-per-sheet::before {
-        content: "Цена за лист: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        display: inline-block;
-        min-width: 100px;
-    }
-    
-    .prices-table .col-total-price::before {
-        content: "Общая стоимость: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        display: inline-block;
-        min-width: 100px;
-    }
-    
-    .prices-table .col-actions {
-        justify-content: flex-start;
-        border-top: 1px solid #f0f0f0;
-        padding-top: 0.5rem;
-        margin-top: 0.5rem;
-    }
-    
-    .prices-table .col-actions::before {
-        content: "Действия: ";
-        font-weight: 600;
-        color: #555;
-        margin-right: 0.5rem;
-        display: inline-block;
-        min-width: 100px;
-    }
-    
-    /* Увеличиваем поле ввода для мобильных */
-    .inline-edit-input {
-        max-width: 100%;
-        width: 150px;
-        font-size: 1rem;
-        padding: 0.5rem;
-    }
-    
-    .copies-badge,
-    .price-per-sheet-badge,
-    .total-price-badge {
-        min-width: auto;
-        max-width: 150px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    /* Адаптация для блока расчета произвольного тиража на мобильных */
-    .arbitrary-result .result-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.3rem;
-    }
-    
-    .arbitrary-result .result-label,
-    .arbitrary-result .result-value {
-        width: 100%;
-    }
-}
-
-/* ===== 11. СООБЩЕНИЯ ===== */
-.empty-message {
-    text-align: center;
-    color: #999;
-    padding: 2rem;
-    font-style: italic;
-}
-
-.empty-message i {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: #ddd;
-    display: block;
+    .col-copies::before { content: "Тираж: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-cost::before { content: "Себестоимость: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-markup::before { content: "Наценка: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-price::before { content: "Цена за лист: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-total-price::before { content: "Общая стоимость: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-actions::before { content: "Действия: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .inline-edit-input { max-width: 100%; width: 150px; font-size: 1rem; padding: 0.5rem; }
+    .arbitrary-result .result-item { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
 }

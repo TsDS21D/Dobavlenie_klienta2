@@ -18,7 +18,8 @@
 //     * work.total_price – для общей стоимости (уже умножено на quantity и формулу)
 //     * work.total_cost – для общей себестоимости (рассчитано на сервере)
 //     * общая наценка = общая стоимость - общая себестоимость
-//
+//   - В функции additionalWorks_updateInterface добавлено поле component_id
+//     в каждый объект работы перед отправкой события additionalWorksUpdated.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -399,12 +400,20 @@ function additionalWorks_updateInterface(works) {
     }
     additionalWorks_showAddButton(true);                // Кнопка "Добавить" всегда видна при выбранном компоненте
 
+    // ===== ДОБАВЛЯЕМ ПОЛЕ component_id КАЖДОМУ ОБЪЕКТУ РАБОТЫ =====
+    // Это необходимо, чтобы секция "Цена" могла идентифицировать, к какому компоненту относится работа.
+    const worksWithComponentId = works.map(work => ({
+        ...work,
+        component_id: additionalWorks_currentComponentId  // добавляем ID компонента
+    }));
+    // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
+
     // Отправляем событие, что список работ обновлён (для других секций, например "Цена")
     const event = new CustomEvent('additionalWorksUpdated', {
         detail: {
             componentId: additionalWorks_currentComponentId,
             proschetId: additionalWorks_currentProschetId,
-            works: works
+            works: worksWithComponentId  // отправляем работы с добавленным component_id
         }
     });
     document.dispatchEvent(event);
@@ -684,7 +693,7 @@ function additionalWorks_showLoadingState() {
         // Заменяем содержимое таблицы на строку с индикатором загрузки
         // colspan должен быть равен количеству колонок (14)
         tableBody.innerHTML = `
-            <tr>
+             <tr>
                 <td colspan="14" class="additional-works-text-center" style="padding: 40px;">
                     <div class="additional-works-loading-spinner"></div>
                     <p>Загрузка дополнительных работ...</p>

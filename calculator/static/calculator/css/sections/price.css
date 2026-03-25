@@ -1,15 +1,10 @@
 /*
 calculator/static/calculator/css/sections/price.css
-ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - В стиле секции печатных компонентов
-Тонкие рамки по всему периметру, компактный и элегантный дизайн
+ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН
 
-Основные изменения:
-1. Добавлен эффект при наведении на секцию Цена
-2. При наведении появляется тонкая зеленая рамка и легкая тень (в цвет секции)
-3. Все элементы сделаны компактными с минималистичным дизайном
-4. Уменьшены размеры шрифтов, отступы и элементы интерфейса
-5. Добавлены плавные переходы для всех интерактивных элементов
-6. Стили приведены в соответствие с секцией печатных компонентов
+ДОПОЛНЕНИЯ:
+- Добавлены стили для элементов .price-column-headers и .total-value-group
+- Исправлено выравнивание колонок с помощью фиксированной ширины
 */
 
 /* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ЦЕНЫ ===== */
@@ -307,7 +302,7 @@ calculator/static/calculator/css/sections/price.css
 /* Отдельный элемент в категории */
 .category-item {
     display: flex;                          /* Используем flexbox для расположения */
-    justify-content: space-between;         /* Распределяем пространство между названием и ценой */
+    justify-content: space-between;         /* Распределяем пространство между левой и правой частями */
     align-items: center;                    /* Выравниваем по вертикали */
     padding: 0.3rem 0.4rem;                 /* Внутренние отступы (компактно) */
     margin-bottom: 0.2rem;                  /* Отступ снизу между элементами */
@@ -322,49 +317,94 @@ calculator/static/calculator/css/sections/price.css
     background-color: #e9ecef;              /* Более темный серый фон при наведении */
 }
 
-/* Контейнер для названия элемента */
-.item-name {
+/* Левая часть элемента (название, иконка) */
+.item-left {
     display: flex;                          /* Используем flexbox для выравнивания */
     align-items: center;                    /* Выравниваем по вертикали */
     gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
     color: #2c3e50;                         /* Темно-синий цвет текста */
     font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    flex: 1;                                /* Занимает всё доступное пространство */
 }
 
-/* Иконка в названии элемента */
-.item-name i {
+/* Иконка в левой части */
+.item-left i {
     color: #7f8c8d;                         /* Серый цвет иконки */
     font-size: 0.7rem;                      /* Размер иконки (компактно) */
 }
 
-/* Цена элемента */
+/* Правая часть элемента (три значения) */
+.item-right {
+    display: flex;                          /* Используем flexbox для расположения */
+    gap: 0.6rem;                            /* Расстояние между колонками */
+    font-size: 0.7rem;                      /* Мелкий шрифт для компактности */
+    font-weight: 500;                       /* Полужирное начертание для лучшей читаемости */
+    text-align: right;                      /* Выравнивание текста по правому краю */
+}
+
+/* Общий стиль для правых блоков */
+.item-cost, .item-profit, .item-price {
+    min-width: 85px;                        /* Фиксированная минимальная ширина для выравнивания */
+    white-space: nowrap;                    /* Запрещаем перенос текста */
+    text-align: right;                      /* Выравнивание по правому краю */
+}
+
+/* Стиль для себестоимости */
+.item-cost {
+    color: #e67e22;                         /* Оранжевый цвет для себестоимости */
+}
+
+/* Стиль для наценки (прибыли) */
+.item-profit {
+    color: #2ecc71;                         /* Зеленый цвет для прибыли */
+}
+
+/* Стиль для общей стоимости (оставляем прежний) */
 .item-price {
     font-weight: 600;                       /* Полужирное начертание для выделения цены */
     color: #27ae60;                         /* Зеленый цвет для цены */
     font-size: 0.8rem;                      /* Размер шрифта (компактно) */
 }
 
-/* Состояние пустой категории */
-.category-empty {
-    text-align: center;                     /* Центрируем текст и иконку */
-    padding: 1rem 0.5rem;                   /* Внутренние отступы (компактно) */
-    color: #95a5a6;                         /* Светло-серый цвет для неактивного состояния */
+/* ===== 10. ЗАГОЛОВКИ КОЛОНОК ДЛЯ ДОПОЛНИТЕЛЬНЫХ РАБОТ ===== */
+.price-column-headers {
+    display: flex;                          /* Горизонтальное расположение */
+    justify-content: space-between;         /* Распределяем пространство между левой и правой частями */
+    align-items: center;                    /* Выравниваем по вертикали */
+    padding: 0.3rem 0.4rem;                 /* Отступы, как у элементов */
+    margin-bottom: 0.2rem;                  /* Отступ снизу */
+    background-color: #f1f3f5;              /* Светло-серый фон для отделения */
+    border-radius: 3px;                     /* Скругление углов */
+    font-size: 0.7rem;                      /* Мелкий шрифт */
+    font-weight: 600;                       /* Полужирный */
+    color: #495057;                         /* Тёмно-серый цвет */
+    border-left: 2px solid #adb5bd;         /* Серая линия слева, чтобы соответствовать элементам */
 }
 
-/* Иконка в пустой категории */
-.category-empty i {
-    font-size: 1rem;                        /* Размер иконки (компактно) */
-    margin-bottom: 0.4rem;                  /* Отступ снизу от иконки */
-    color: #bdc3c7;                         /* Светло-серый цвет иконки */
+/* Левая часть заголовка */
+.price-header-left {
+    flex: 1;                                /* Занимает всё доступное пространство */
+    text-align: left;                       /* Выравнивание по левому краю */
+    padding-left: 0.2rem;                   /* Небольшой отступ слева */
 }
 
-/* Текст в пустой категории */
-.category-empty p {
-    font-size: 0.7rem;                      /* Мелкий шрифт (компактно) */
-    margin: 0;                              /* Убираем стандартные отступы */
+/* Правая часть заголовка (три колонки) */
+.price-header-right {
+    display: flex;                          /* Flex для трёх колонок */
+    gap: 0.6rem;                            /* Такое же расстояние, как у элементов */
+    text-align: right;                      /* Выравнивание текста по правому краю */
 }
 
-/* ===== 10. ИТОГИ КАТЕГОРИИ ===== */
+/* Каждая колонка в заголовке */
+.price-header-cost,
+.price-header-profit,
+.price-header-total {
+    min-width: 85px;                        /* Такая же минимальная ширина, как у данных */
+    white-space: nowrap;                    /* Запрет переноса */
+    text-align: right;                      /* Выравнивание по правому краю */
+}
+
+/* ===== 11. ИТОГИ КАТЕГОРИИ ===== */
 
 /* Итоговая строка категории */
 .category-total {
@@ -382,14 +422,42 @@ calculator/static/calculator/css/sections/price.css
     font-size: 0.8rem;                      /* Размер шрифта (компактно) */
 }
 
-/* Значение итоговой суммы категории */
+/* Группа значений итоговой строки (для дополнительных работ) */
+.total-value-group {
+    display: flex;                          /* Горизонтальное расположение трёх сумм */
+    gap: 0.6rem;                            /* Такое же расстояние, как у элементов */
+    font-size: 0.8rem;                      /* Размер шрифта */
+    font-weight: 700;                       /* Жирное начертание */
+}
+
+/* Стили для отдельных сумм в итоговой строке */
+.total-cost-value,
+.total-profit-value,
+.total-price-value {
+    min-width: 85px;                        /* Фиксированная минимальная ширина для выравнивания */
+    text-align: right;                      /* Выравнивание по правому краю */
+}
+
+.total-cost-value {
+    color: #e67e22;                         /* Оранжевый для себестоимости */
+}
+
+.total-profit-value {
+    color: #2ecc71;                         /* Зелёный для прибыли */
+}
+
+.total-price-value {
+    color: #27ae60;                         /* Зелёный для общей стоимости */
+}
+
+/* Для обратной совместимости оставляем класс total-value (используется в печатных компонентах) */
 .category-total .total-value {
     color: #27ae60;                         /* Зеленый цвет для суммы */
     font-size: 0.9rem;                      /* Размер шрифта (компактно) */
     font-weight: 700;                       /* Жирное начертание для выделения */
 }
 
-/* ===== 11. ОБЩАЯ СУММА ЗАКАЗА ===== */
+/* ===== 12. ОБЩАЯ СУММА ЗАКАЗА ===== */
 
 /* Контейнер для общей суммы заказа */
 .price-total-summary {
@@ -434,7 +502,7 @@ calculator/static/calculator/css/sections/price.css
     padding-top: 0.3rem;                    /* Отступ сверху (компактно) */
 }
 
-/* ===== 12. КНОПКИ ДЕЙСТВИЙ ===== */
+/* ===== 13. КНОПКИ ДЕЙСТВИЙ ===== */
 
 /* Контейнер для кнопок действий */
 .price-actions {
@@ -484,7 +552,7 @@ calculator/static/calculator/css/sections/price.css
     background-color: #097055;              /* Более темный зеленый фон при наведении */
 }
 
-/* ===== 13. УВЕДОМЛЕНИЯ ===== */
+/* ===== 14. УВЕДОМЛЕНИЯ ===== */
 
 /* Уведомления в секции Цена */
 .price-notification {
@@ -567,7 +635,7 @@ calculator/static/calculator/css/sections/price.css
     color: #333;                            /* Темно-серый цвет иконки при наведении */
 }
 
-/* ===== 14. СООБЩЕНИЕ ОБ ОШИБКЕ ===== */
+/* ===== 15. СООБЩЕНИЕ ОБ ОШИБКЕ ===== */
 
 /* Сообщение об ошибке в секции Цена */
 .price-error {
@@ -588,7 +656,7 @@ calculator/static/calculator/css/sections/price.css
     margin: 0;                              /* Убираем стандартные отступы */
 }
 
-/* ===== 15. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
+/* ===== 16. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
 
 /* Для планшетов и небольших ноутбуков (до 1137px) */
 @media (max-width: 1137px) {
@@ -614,7 +682,7 @@ calculator/static/calculator/css/sections/price.css
     }
 }
 
-/* ===== 16. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+/* ===== 17. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
 
 /* Для мобильных устройств (до 768px) */
 @media (max-width: 768px) {
@@ -665,8 +733,45 @@ calculator/static/calculator/css/sections/price.css
         gap: 0.2rem;                        /* Расстояние между элементами */
     }
     
-    .item-price {
-        align-self: flex-end;               /* Цену выравниваем по правому краю */
+    /* Левая и правая части становятся блочными */
+    .item-left {
+        width: 100%;                        /* Ширина 100% */
+    }
+    
+    .item-right {
+        width: 100%;                        /* Ширина 100% */
+        justify-content: space-between;     /* Распределяем три значения по ширине */
+        gap: 0.3rem;                        /* Уменьшаем расстояние между колонками */
+    }
+    
+    /* Убираем фиксированную ширину у правых блоков на мобильных */
+    .item-cost, .item-profit, .item-price {
+        min-width: auto;                    /* Автоматическая ширина */
+    }
+    
+    /* Адаптируем заголовки колонок */
+    .price-column-headers {
+        flex-direction: column;             /* Вертикальное расположение */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.3rem;                        /* Расстояние между элементами */
+    }
+    
+    .price-header-right {
+        justify-content: space-between;     /* Распределяем три колонки по ширине */
+        width: 100%;                        /* На всю ширину */
+    }
+    
+    /* Адаптируем итоговую строку */
+    .total-value-group {
+        flex-direction: column;             /* Вертикальное расположение сумм */
+        align-items: flex-end;              /* Выравнивание по правому краю */
+        gap: 0.2rem;                        /* Уменьшаем расстояние */
+    }
+    
+    .total-cost-value,
+    .total-profit-value,
+    .total-price-value {
+        min-width: auto;                    /* Автоматическая ширина */
     }
     
     /* Адаптируем общую сумму */
@@ -688,7 +793,7 @@ calculator/static/calculator/css/sections/price.css
     }
 }
 
-/* ===== 17. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
+/* ===== 18. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
 
 /* Анимация плавного появления секции */
 @keyframes fadeInPrice {
@@ -707,7 +812,7 @@ calculator/static/calculator/css/sections/price.css
     animation: fadeInPrice 0.15s ease-out;  /* Анимация появления снизу */
 }
 
-/* ===== 18. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
+/* ===== 19. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
 
 /* Свёрнутая секция Цена */
 #price-section.collapsed .section-body {
@@ -727,7 +832,7 @@ calculator/static/calculator/css/sections/price.css
     transform-origin: center;               /* Вращение вокруг центра иконки */
 }
 
-/* ===== 19. ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ СТИЛИ ===== */
+/* ===== 20. ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ СТИЛИ ===== */
 
 /* Стили для состояния загрузки */
 .category-loading {
@@ -762,4 +867,75 @@ calculator/static/calculator/css/sections/price.css
 .price-category:hover {
     border-color: #2ecc71;                  /* Зеленая рамка при наведении на категорию */
     box-shadow: 0 2px 8px rgba(46, 204, 113, 0.1);  /* Легкая зеленая тень */
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ТРЁХСТРОЧНЫХ ИТОГОВ ===== */
+
+/* Контейнер для трёх итоговых значений (себестоимость, прибыль, стоимость) */
+.price-total-summary-inline {
+    margin-top: 0.8rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #dee2e6;
+    text-align: center;
+}
+
+/* Группа трёх значений (числа) */
+.total-value-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+/* Каждое значение */
+.total-cost-value,
+.total-profit-value,
+.total-price-value {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.total-cost-value {
+    color: #e67e22;   /* оранжевый */
+}
+
+.total-profit-value {
+    color: #2ecc71;   /* зелёный */
+}
+
+.total-price-value {
+    color: #27ae60;   /* тёмно-зелёный */
+}
+
+/* Группа подписей (текст) */
+.total-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.total-labels span {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    .total-value-group,
+    .total-labels {
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+    .total-cost-value,
+    .total-profit-value,
+    .total-price-value,
+    .total-labels span {
+        text-align: right;
+    }
 }

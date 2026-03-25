@@ -1,15 +1,15 @@
 /**
- * ФАЙЛ: print_components.js
- * НАЗНАЧЕНИЕ: JavaScript для секции "Печатные компоненты"
+ * print_components.js - JavaScript для секции "Печатные компоненты"
+ * 
+ * ИСПРАВЛЕНИЕ (26.03.2026):
+ * - Добавлены проверки на активное inline-редактирование перед перерисовкой таблицы.
+ *   Если редактирование активно, обновление таблицы пропускается, чтобы не удалить
+ *   выпадающий список (select) во время редактирования.
+ * - В функции updateComponentInTable, populateTable, updateInterface добавлены
+ *   проверки window.printComponentsInlineEditState?.isEditing().
  * 
  * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист × количество прогонов) + (Цена бумаги за лист × Количество листов)
  * где количество прогонов = количество листов * (2 если двусторонняя печать, иначе 1)
- * 
- * ИЗМЕНЕНИЯ:
- * - Добавлена поддержка поля printing_mode (режим печати).
- * - В таблице добавлена новая колонка "Режим".
- * - При создании строки учитывается runs_count для отображения.
- * - Событие 'vichisliniyaListovUpdated' обрабатывается для обновления количества листов.
  */
 
 "use strict";
@@ -351,6 +351,12 @@ function updateInterface(components) {
     console.log('🎨 Обновление интерфейса с компонентами:', components);
     hideAllMessages();
 
+    // ===== ИСПРАВЛЕНИЕ: проверка на активное редактирование =====
+    if (window.printComponentsInlineEditState?.isEditing && window.printComponentsInlineEditState.isEditing()) {
+        console.warn('🛑 Пропускаем обновление интерфейса, так как идёт inline-редактирование компонента');
+        return;
+    }
+
     if (components.length === 0) {
         showNoComponentsMessage();
     } else {
@@ -372,6 +378,13 @@ function populateTable(components) {
         console.error('❌ Элемент #print-components-table-body не найден');
         return;
     }
+
+    // ===== ИСПРАВЛЕНИЕ: проверка на активное редактирование =====
+    if (window.printComponentsInlineEditState?.isEditing && window.printComponentsInlineEditState.isEditing()) {
+        console.warn('🛑 Пропускаем заполнение таблицы, так как идёт inline-редактирование');
+        return;
+    }
+
     tableBody.innerHTML = ''; // Очищаем текущее содержимое
     components.forEach((component, index) => {
         const row = createComponentRow(component, index);
@@ -423,26 +436,28 @@ function createComponentRow(component, index) {
 
     // Заполняем HTML-содержимое строки с учётом новой колонки "Режим"
     row.innerHTML = `
-        <td class="component-number" title="Уникальный номер компонента">${component.number || '—'}</td>
-        <td class="component-printer" title="Выбранное печатное оборудование">${component.printer_name || 'Принтер не выбран'}</td>
+        <td class="component-number" title="Уникальный номер компонента">${component.number || '—'}<\/td>
+        <td class="component-printer" title="Выбранное печатное оборудование">${component.printer_name || 'Принтер не выбран'}<\/td>
         <td class="component-paper" title="Выбранный материал (бумага)">
             ${component.paper_name || 'Бумага не выбрана'}
             ${paperPrice ? `<br><small>${paperPrice.toFixed(2)} ₽/лист</small>` : ''}
-        </td>
-        <td class="component-sheet-count" title="Количество листов из секции 'Вычисления листов'">${sheetCountDisplay}</td>
-        <td class="component-price" title="Цена печати одного листа (рассчитана интерполяцией)">${pricePerSheet.toFixed(2)} ₽</td>
-        <!-- НОВАЯ ЯЧЕЙКА: Режим печати -->
+        <\/td>
+        <td class="component-sheet-count" title="Количество листов из секции 'Вычисления листов'">${sheetCountDisplay}<\/td>
+        <td class="component-cost" title="Себестоимость печати одного листа">${component.formatted_cost || '0.00 ₽'}<\/td>
+        <td class="component-markup" title="Наценка от себестоимости">${component.formatted_markup_percent || '0%'}<\/td>
+        <td class="component-price" title="Цена печати одного листа (рассчитана интерполяцией)">${pricePerSheet.toFixed(2)} ₽<\/td>
+        <td class="component-profit" title="Прибыль на один лист">${component.formatted_profit_per_unit || '0.00 ₽'}<\/td>
         <td class="component-mode" title="Режим печати: ${component.printing_mode_display || (component.printing_mode === 'duplex' ? 'двусторонняя' : 'односторонняя')}">
             ${modeDisplay}
-        </td>
-        <td class="component-total" title="${formulaTooltip}">${parseFloat(component.total_circulation_price).toFixed(2)} ₽</td>
+        <\/td>
+        <td class="component-total" title="${formulaTooltip}">${parseFloat(component.total_circulation_price).toFixed(2)} ₽<\/td>
         <td class="component-actions">
             <button type="button" class="delete-component-btn" 
                     title="Удалить компонент" 
                     data-component-id="${component.id}">
                 <i class="fas fa-trash-alt"></i>
             </button>
-        </td>
+        <\/td>
     `;
 
     // Обработчик клика по строке – выбор компонента
@@ -534,9 +549,8 @@ function updateSheetCountDisplayForComponent(componentId, sheetCount) {
  * @param {Object} componentData - обновлённые данные компонента (с сервера)
  */
 function updateComponentInTable(componentId, componentData) {
-    // Если идёт inline-редактирование, пропускаем обновление, чтобы не сбивать интерфейс
-    if (window.printComponentsInlineEditState?.isEditing() && 
-        window.printComponentsInlineEditState.getEditingComponentId() === componentId) {
+    // ===== ИСПРАВЛЕНИЕ: проверка на активное редактирование =====
+    if (window.printComponentsInlineEditState?.isEditing && window.printComponentsInlineEditState.isEditing()) {
         console.log(`🛑 Пропускаем обновление таблицы для компонента ${componentId}, так как идёт редактирование`);
         return;
     }
@@ -556,6 +570,9 @@ function updateComponentInTable(componentId, componentData) {
     const runsCount = componentData.runs_count || (sheetCount * (componentData.printing_mode === 'duplex' ? 2 : 1));
     const printingMode = componentData.printing_mode || 'single';
     const modeDisplay = (printingMode === 'duplex') ? 'Двуст.' : 'Одност.';
+    const cost = parseFloat(componentData.cost) || 0;
+    const markup = parseFloat(componentData.markup_percent) || 0;
+    const profit = parseFloat(componentData.profit_per_unit) || 0;
 
     // Обновляем ячейку с названием бумаги и ценой за лист
     const paperCell = componentRow.querySelector('.component-paper');
@@ -580,6 +597,24 @@ function updateComponentInTable(componentId, componentData) {
         const formattedPrice = pricePerSheet.toFixed(2) + ' ₽';
         priceCell.textContent = formattedPrice;
         priceCell.title = `Цена печати одного листа: ${formattedPrice}`;
+    }
+
+    // Обновляем ячейку с себестоимостью
+    const costCell = componentRow.querySelector('.component-cost');
+    if (costCell) {
+        costCell.textContent = componentData.formatted_cost || '0.00 ₽';
+    }
+
+    // Обновляем ячейку с наценкой
+    const markupCell = componentRow.querySelector('.component-markup');
+    if (markupCell) {
+        markupCell.textContent = componentData.formatted_markup_percent || '0%';
+    }
+
+    // Обновляем ячейку с прибылью
+    const profitCell = componentRow.querySelector('.component-profit');
+    if (profitCell) {
+        profitCell.textContent = componentData.formatted_profit_per_unit || '0.00 ₽';
     }
 
     // Обновляем ячейку с режимом печати
@@ -848,12 +883,12 @@ function showLoadingState() {
     if (elements.tableBody) {
         elements.tableBody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; padding: 40px;">
+                <td colspan="11" style="text-align: center; padding: 40px;">
                     <div class="loading-spinner"></div>
                     <p>Загрузка компонентов печати...</p>
                     <p class="loading-note">Используется "Количество листов" из секции "Вычисления листов"</p>
-                </td>
-            </tr>
+                <\/td>
+            <\/tr>
         `;
     }
 }
@@ -864,11 +899,11 @@ function showErrorMessage(message) {
     if (tableBody) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: #e74c3c;">
+                <td colspan="11" style="text-align: center; padding: 40px; color: #e74c3c;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
                     <p>${message}</p>
-                </td>
-            </tr>
+                <\/td>
+            <\/tr>
         `;
     }
 }
@@ -929,7 +964,6 @@ function resetSection() {
 // ============================================================================
 function deleteComponent(componentId) {
     console.log(`🗑️ Удаление компонента ${componentId}`);
-    // TODO: Реализовать удаление через API
     showNotification(`Удаление компонента ${componentId} (в разработке)`, 'info');
 }
 

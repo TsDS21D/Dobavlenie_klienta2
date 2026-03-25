@@ -960,3 +960,21 @@ label[for*="price-per-sheet"]::after {
         background-color: #e8f4fc !important;  /* Чуть более темный голубой на мобильных */
     }
 }
+
+.component-cost, .component-markup, .component-profit, .component-price {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+.component-cost { color: #666; }
+.component-markup { color: #0B8661; }
+.component-profit { color: #2ecc71; }
+.component-price { color: #e74c3c; font-weight: 600; }
+
+/* Для мобильной адаптации добавляем метки */
+@media (max-width: 768px) {
+    .component-cost::before { content: "Себест.: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-markup::before { content: "Наценка: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-profit::before { content: "Прибыль: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-price::before { content: "Цена: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+}

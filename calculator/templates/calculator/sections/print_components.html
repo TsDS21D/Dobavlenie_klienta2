@@ -1,94 +1,42 @@
 <!--
 ФАЙЛ: sections/print_components.html - Секция "Печатные компоненты"
-ВАЖНОЕ ОБНОВЛЕНИЕ: Теперь система использует правильную формулу расчета стоимости
-
-ФОРМУЛА РАСЧЁТА:
-(Цена печати за лист + Цена материала за лист) × Количество листов
-
-ПОЯСНЕНИЕ ДЛЯ НОВИЧКОВ:
-1. Цена печати за лист - рассчитывается методом интерполяции в приложении print_price
-   на основе количества листов (чем больше листов, тем дешевле печать за лист)
-2. Цена материала за лист - берется из выбранной бумаги в приложении sklad
-3. Количество листов - берется из приложения vichisliniya_listov (вычисления листов)
-4. Общая стоимость = (Пункт 1 + Пункт 2) × Пункт 3
-
-ПРОЦЕСС РАБОТЫ:
-1. Пользователь выбирает просчёт в секции "Список просчётов"
-2. В этой секции загружаются все печатные компоненты выбранного просчёта
-3. Пользователь выбирает компонент (кликает на строку)
-4. В секции "Вычисления листов" рассчитывается количество листов
-5. При изменении количества листов автоматически пересчитывается стоимость
-6. Система показывает подробную формулу расчета
-
-СТРУКТУРА ТАБЛИЦЫ:
-- № компонента: Уникальный идентификатор (KP-1, KP-2...)
-- Принтер: Оборудование для печати
-- Бумага: Материал + цена за лист
-- Кол-во листов: Из vichisliniya_listov
-- Цена за лист: Рассчитана интерполяцией
-- Стоимость: Итог по формуле
-- Действия: Управление компонентом
+Теперь в таблице отображаются себестоимость, наценка, цена и прибыль.
 -->
 
 <section class="calculator-section print-components-section" id="print-components-section">
-    <!-- ===== ЗАГОЛОВОК СЕКЦИИ ===== -->
     <div class="section-header">
         <h2>
-            <!-- Иконка принтера для визуального обозначения -->
             <i class="fas fa-print"></i>
-            <!-- Номер секции в общем списке -->
             <span class="section-number">5.</span>
-            <!-- Название секции -->
             Печатные компоненты
-            <!-- Контейнер для названия выбранного просчёта -->
             <span id="print-components-proschet-title" class="proschet-title-placeholder">
-                <!-- Текст-заполнитель пока не выбран просчёт -->
                 <span class="placeholder-text">(просчёт не выбран)</span>
             </span>
-            <!-- Подсказка с формулой расчета -->
-            <small class="formula-hint" title="Формула расчёта: (Цена печати за лист + Цена бумаги за лист) × Количество листов">
-                <i class="fas fa-calculator"></i> (печать + бумага) × листы
+            <small class="formula-hint" title="Формула расчёта: (Цена печати за лист × количество прогонов) + (Цена бумаги за лист × Количество листов)">
+                <i class="fas fa-calculator"></i> (печать × прогоны) + (бумага × листы)
             </small>
         </h2>
-        
-        <!-- ===== КНОПКИ УПРАВЛЕНИЯ В ЗАГОЛОВКЕ ===== -->
         <div class="header-buttons">
-            <!-- Кнопка добавления нового компонента -->
-            <button type="button" 
-                    id="add-print-component-btn" 
-                    class="btn-action btn-add"
-                    title="Добавить новый компонент печати"
-                    style="display: none;">
-                <!-- Иконка "плюс" -->
-                <i class="fas fa-plus"></i> 
-                <!-- Текст на кнопке -->
-                Добавить
+            <button type="button" id="add-print-component-btn" class="btn-action btn-add" title="Добавить новый компонент печати" style="display: none;">
+                <i class="fas fa-plus"></i> Добавить
             </button>
-            
-            <!-- Кнопка сворачивания/разворачивания секции -->
-            <button type="button" 
-                    class="btn-action btn-collapse-section" 
-                    data-section="print-components-section"
-                    title="Свернуть/развернуть секцию">
+            <button type="button" class="btn-action btn-collapse-section" data-section="print-components-section" title="Свернуть/развернуть секцию">
                 <i class="fas fa-chevron-down"></i>
             </button>
         </div>
     </div>
-    
-    <!-- ===== ТЕЛО СЕКЦИИ ===== -->
+
     <div class="section-body">
-        <!-- ===== СООБЩЕНИЕ: ПРОСЧЁТ НЕ ВЫБРАН ===== -->
         <div id="no-proschet-selected-print" class="empty-state-message" style="display: none;">
             <i class="fas fa-hand-pointer fa-3x"></i>
             <h3>Выберите просчёт</h3>
             <p>Для работы с печатными компонентами выберите просчёт в секции "Список просчётов"</p>
             <p class="formula-reminder">
                 <i class="fas fa-info-circle"></i>
-                Формула расчета: (Цена печати + Цена бумаги) × Количество листов
+                Формула расчета: (Цена печати × прогоны) + (Цена бумаги × листы)
             </p>
         </div>
-        
-        <!-- ===== СООБЩЕНИЕ: НЕТ КОМПОНЕНТОВ ПЕЧАТИ ===== -->
+
         <div id="no-components-message" class="empty-state-message" style="display: none;">
             <i class="fas fa-print fa-3x"></i>
             <h3>Нет компонентов печати</h3>
@@ -98,45 +46,32 @@
                 После добавления стоимость будет рассчитана по формуле
             </p>
             <button type="button" id="add-first-component-btn" class="btn-action">
-                <i class="fas fa-plus"></i> 
-                Добавить первый компонент
+                <i class="fas fa-plus"></i> Добавить первый компонент
             </button>
         </div>
-        
-        <!-- ===== КОНТЕЙНЕР ДЛЯ ТАБЛИЦЫ КОМПОНЕНТОВ ===== -->
+
         <div id="print-components-container" class="table-container" style="display: none;">
-            <!-- ===== ТАБЛИЦА КОМПОНЕНТОВ ПЕЧАТИ ===== -->
             <table id="print-components-table" class="simple-table print-components-table">
-                <!-- Заголовок таблицы -->
                 <thead>
                     <tr>
-                        <th width="10%">№ компонента</th>
-                        <th width="18%">Принтер</th>
-                        <th width="18%">Бумага</th>
-                        <th width="10%">Кол-во листов</th>
-                        <th width="12%">Цена за лист</th>
-                        <!-- НОВАЯ КОЛОНКА: Режим печати -->
-                        <th width="8%">
-                            Режим
-                            <span class="column-help" title="Односторонняя (1 прогон на лист) или двусторонняя (2 прогона на лист)">
-                                <i class="fas fa-question-circle"></i>
-                            </span>
-                        </th>
-                        <th width="14%">Стоимость</th>
-                        <th width="10%">Действия</th>
+                        <th width="5%">№</th>
+                        <th width="12%">Принтер</th>
+                        <th width="12%">Бумага</th>
+                        <th width="8%">Листов</th>
+                        <th width="8%">Себест.</th>
+                        <th width="8%">Наценка</th>
+                        <th width="8%">Цена</th>
+                        <th width="8%">Прибыль</th>
+                        <th width="8%">Режим</th>
+                        <th width="13%">Стоимость</th>
+                        <th width="8%">Действия</th>
                     </tr>
                 </thead>
-                
-                <!-- Тело таблицы -->
                 <tbody id="print-components-table-body">
-                    <!-- 
-                        JavaScript заполняет эту область динамически
-                        Каждая строка = один печатный компонент
-                    -->
+                    <!-- строки будут добавлены JS -->
                 </tbody>
             </table>
-            
-            <!-- ===== БЛОК ОБЩЕЙ СТОИМОСТИ ===== -->
+
             <div id="print-components-total" class="total-summary" style="display: none;">
                 <div class="total-label">
                     Общая стоимость компонентов печати:
@@ -153,97 +88,21 @@
     </div>
 </section>
 
-<!-- ===== МЕТА-ТЕГ ДЛЯ CSRF-ТОКЕНА ===== -->
 <meta name="csrf-token" content="{{ csrf_token }}">
 
-<!-- ===== СТИЛИ ДЛЯ ПОДСКАЗОК И ФОРМУЛ ===== -->
 <style>
-    /* Стили для иконок подсказок */
-    .column-help {
-        margin-left: 5px;
-        color: #666;
-        cursor: help;
-        font-size: 0.9em;
-    }
-    
-    .column-help:hover {
-        color: #007bff;
-    }
-    
-    /* Стили для подсказки в блоке общей стоимости */
-    .total-help {
-        margin-left: 5px;
-        color: #666;
-        cursor: help;
-        font-size: 0.9em;
-    }
-    
-    .total-help:hover {
-        color: #28a745;
-    }
-    
-    /* Стили для подсказки с формулой в заголовке */
-    .formula-hint {
-        margin-left: 10px;
-        font-size: 0.8em;
-        color: #6c757d;
-        cursor: help;
-        font-weight: normal;
-    }
-    
-    .formula-hint:hover {
-        color: #007bff;
-    }
-    
-    /* Стили для напоминания о формуле в сообщениях */
-    .formula-reminder {
-        margin-top: 10px;
-        padding: 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
-        font-size: 0.9em;
-        color: #495057;
-        border-left: 3px solid #17a2b8;
-    }
-    
-    /* Стили для формулы в итоговом блоке */
-    .formula-summary {
-        display: block;
-        margin-top: 5px;
-        font-size: 0.8em;
-        color: #6c757d;
-        font-style: italic;
-    }
-    
-    /* Стили для строки с выбранным компонентом */
-    .selectable-row {
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    
-    .selectable-row:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .selectable-row.selected {
-        background-color: #e3f2fd;
-        border-left: 3px solid #2196f3;
-    }
-    
-    /* Стили для четных/нечетных строк */
-    .even-row {
-        background-color: #fafafa;
-    }
-    
-    .odd-row {
-        background-color: #ffffff;
-    }
-    
-    /* Стили для маленького текста в ячейке с бумагой */
-    .component-paper small {
-        font-size: 0.8em;
-        color: #6c757d;
-        display: block;
-        margin-top: 2px;
-    }
+    .column-help { margin-left: 5px; color: #666; cursor: help; font-size: 0.9em; }
+    .column-help:hover { color: #007bff; }
+    .total-help { margin-left: 5px; color: #666; cursor: help; font-size: 0.9em; }
+    .total-help:hover { color: #28a745; }
+    .formula-hint { margin-left: 10px; font-size: 0.8em; color: #6c757d; cursor: help; font-weight: normal; }
+    .formula-hint:hover { color: #007bff; }
+    .formula-reminder { margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 0.9em; color: #495057; border-left: 3px solid #17a2b8; }
+    .formula-summary { display: block; margin-top: 5px; font-size: 0.8em; color: #6c757d; font-style: italic; }
+    .selectable-row { cursor: pointer; transition: background-color 0.2s; }
+    .selectable-row:hover { background-color: #f8f9fa; }
+    .selectable-row.selected { background-color: #e3f2fd; border-left: 3px solid #2196f3; }
+    .even-row { background-color: #fafafa; }
+    .odd-row { background-color: #ffffff; }
+    .component-paper small { font-size: 0.8em; color: #6c757d; display: block; margin-top: 2px; }
 </style>
