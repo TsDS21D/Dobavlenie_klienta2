@@ -91,4 +91,7 @@ urlpatterns = [
     path('recalculate-components/<int:proschet_id>/', views.recalculate_components_for_circulation, name='recalculate_components'),
     # НОВЫЙ МАРШРУТ для получения работ из справочника
     path('get-spravochnik-works/', views.get_spravochnik_works, name='get_spravochnik_works'),
+    # === Ламинация ===
+    path('get-lamination/<int:component_id>/', views.get_lamination_data, name='get_lamination_data'),
+    path('update-lamination/', views.update_lamination, name='update_lamination'),
 ]

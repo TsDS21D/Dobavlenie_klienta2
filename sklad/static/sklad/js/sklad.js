@@ -1,42 +1,53 @@
 /*
-sklad.js
-JavaScript для приложения sklad (управление складом материалов)
-Содержит логику для:
-    - Загрузки и отображения древовидной структуры категорий
-    - Управления формами добавления категорий и материалов
-    - Взаимодействия с элементами интерфейса
-    - Отображения уведомлений и сообщений
-*/
+ * sklad.js
+ * Полный JavaScript-файл для приложения sklad (управление складом материалов).
+ *
+ * Основные функции:
+ * - Загрузка и отображение древовидной структуры категорий (с поддержкой бумаги/плёнки)
+ * - Управление формами добавления категорий и материалов (AJAX-отправка)
+ * - Inline-редактирование любых полей (двойной клик) – включая плотность (density)
+ * - Удаление материалов и категорий
+ * - Переключение между типами материалов (бумага/плёнка)
+ * - Вспомогательные функции (уведомления, CSRF-токен, экранирование HTML)
+ *
+ * Все функции доступны глобально через объект window.sklad.
+ *
+ * Автор: разработчик
+ * Дата: 2025
+ */
 
-// ================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНСТАНТЫ ==================
+// ================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==================
+// Хранит ID выбранной в данный момент категории (для подсветки в дереве и фильтрации)
+let sklad_currentSelectedCategoryId = null;
 
-// Текущая выбранная категория (для выделения в дереве)
-let currentSelectedCategoryId = null;
+// Хранит DOM-элемент, который сейчас находится в режиме inline-редактирования (чтобы не открывать два редактора одновременно)
+let sklad_currentEditingElement = null;
 
-// Текущий редактируемый элемент (для inline-редактирования)
-let currentEditingElement = null;
+// Текущий тип материала: 'paper' (бумага) или 'film' (плёнка). Определяется из URL или переключателя.
+let sklad_currentMaterialType = 'paper';
 
-// Состояние форм (открыты/закрыты)
-let isMaterialFormOpen = false;
-let isCategoryFormOpen = false;
+// Флаг, открыта ли форма добавления материала (используется для синхронизации состояния кнопки)
+let sklad_isMaterialFormOpen = false;
 
 // ================== ФУНКЦИИ ДЛЯ РАБОТЫ С ДЕРЕВОМ КАТЕГОРИЙ ==================
 
 /**
- * Загружает дерево категорий с сервера и отображает его
- * @returns {Promise} Promise, который разрешается при успешной загрузке дерева
+ * Загружает дерево категорий с сервера и отображает его.
+ * Учитывает текущий тип материала (sklad_currentMaterialType).
+ * @returns {Promise} Promise, который разрешается при успешной загрузке.
  */
 function loadCategoryTree() {
-    console.log('[SKLAD] Начало загрузки дерева категорий...');
+    // Выводим в консоль отладочную информацию (тип материала)
+    console.log('[SKLAD] Загрузка дерева категорий, тип:', sklad_currentMaterialType);
     
-    // Получаем контейнер для дерева
+    // Находим контейнер, куда будем вставлять дерево
     const treeContainer = document.getElementById('category-tree-container');
+    // Если контейнер не найден – возвращаем отклонённый Promise с ошибкой
     if (!treeContainer) {
-        console.error('[SKLAD] Контейнер для дерева не найден');
         return Promise.reject('Контейнер для дерева не найден');
     }
     
-    // Показываем индикатор загрузки
+    // Показываем индикатор загрузки (спиннер)
     treeContainer.innerHTML = `
         <div class="tree-loading">
             <div class="spinner"></div>
@@ -44,64 +55,57 @@ function loadCategoryTree() {
         </div>
     `;
     
-    // Возвращаем Promise для асинхронной работы
-    return new Promise((resolve, reject) => {
-        // Отправляем запрос на сервер для получения дерева категорий
-        fetch('/sklad/category/tree/')
-            .then(response => {
-                // Проверяем статус ответа
-                if (!response.ok) {
-                    throw new Error(`Ошибка HTTP: ${response.status} ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('[SKLAD] Дерево категорий загружено успешно:', data);
-                
-                // Проверяем наличие данных
-                if (!data || !data.tree) {
-                    throw new Error('Некорректные данные дерева категорий');
-                }
-                
-                // Отображаем дерево категорий
-                renderCategoryTree(data.tree);
-                
-                // Выделяем текущую выбранную категорию (если есть)
-                if (currentSelectedCategoryId) {
-                    highlightSelectedCategory(currentSelectedCategoryId);
-                }
-                
-                // Разрешаем Promise
-                resolve(data);
-            })
-            .catch(error => {
-                console.error('[SKLAD] Ошибка загрузки дерева категорий:', error);
-                
-                // Показываем сообщение об ошибке
-                treeContainer.innerHTML = `
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>Ошибка загрузки дерева категорий</p>
-                        <p class="error-details">${error.message}</p>
-                        <button class="btn-retry" onclick="loadCategoryTree()">
-                            <i class="fas fa-redo"></i> Повторить попытку
-                        </button>
-                    </div>
-                `;
-                
-                // Отклоняем Promise
-                reject(error);
-            });
-    });
+    // Выполняем GET-запрос к API /sklad/category/tree/ с параметром type (текущий тип)
+    return fetch(`/sklad/category/tree/?type=${sklad_currentMaterialType}`)
+        .then(response => {
+            // Если ответ не успешный (статус не 2xx), выбрасываем ошибку
+            if (!response.ok) {
+                throw new Error(`Ошибка HTTP: ${response.status} ${response.statusText}`);
+            }
+            // Парсим ответ как JSON
+            return response.json();
+        })
+        .then(data => {
+            // Логируем полученные данные
+            console.log('[SKLAD] Дерево категорий загружено успешно:', data);
+            // Проверяем, что данные содержат поле tree (массив корневых категорий)
+            if (!data || !data.tree) {
+                throw new Error('Некорректные данные дерева категорий');
+            }
+            // Вызываем функцию отрисовки дерева
+            renderCategoryTree(data.tree);
+            // Если ранее была выбрана категория – выделяем её заново (после обновления дерева)
+            if (sklad_currentSelectedCategoryId) {
+                highlightSelectedCategory(sklad_currentSelectedCategoryId);
+            }
+            return data; // Возвращаем данные для возможной дальнейшей обработки
+        })
+        .catch(error => {
+            // Логируем ошибку в консоль
+            console.error('[SKLAD] Ошибка загрузки дерева категорий:', error);
+            // Показываем в контейнере сообщение об ошибке и кнопку повторной попытки
+            treeContainer.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Ошибка загрузки дерева категорий</p>
+                    <p class="error-details">${error.message}</p>
+                    <button class="btn-retry" onclick="loadCategoryTree()">
+                        <i class="fas fa-redo"></i> Повторить попытку
+                    </button>
+                </div>
+            `;
+            // Пробрасываем ошибку дальше
+            return Promise.reject(error);
+        });
 }
 
 /**
- * Отображает дерево категорий в контейнере с ПЕРЕРАБОТАННОЙ визуализацией
- * Теперь используется подход с соединительными линиями и компактным дизайном
- * @param {Array} treeData - Массив данных категорий
+ * Отрисовывает дерево категорий в контейнере.
+ * Использует рекурсивную функцию для создания HTML-структуры.
+ * @param {Array} treeData - Массив данных корневых категорий (каждая категория имеет id, name, children, materials_count)
  */
 function renderCategoryTree(treeData) {
-    console.log('[SKLAD] Отрисовка дерева с новым дизайном...');
+    console.log('[SKLAD] Отрисовка дерева категорий...');
     
     const treeContainer = document.getElementById('category-tree-container');
     if (!treeContainer) {
@@ -109,7 +113,7 @@ function renderCategoryTree(treeData) {
         return;
     }
     
-    // Проверяем, есть ли данные
+    // Если данных нет (пустой массив) – показываем сообщение о пустом дереве
     if (!treeData || treeData.length === 0) {
         treeContainer.innerHTML = `
             <div class="empty-tree">
@@ -121,19 +125,18 @@ function renderCategoryTree(treeData) {
         return;
     }
     
-    // Создаем HTML для дерева
+    // Начинаем формировать HTML-код дерева
     let html = '<div class="tree">';
     
     /**
-     * Рекурсивная функция для создания HTML узла категории
-     * с новым дизайном и соединительными линиями
-     * @param {Object} category - Объект категории
-     * @param {number} level - Уровень вложенности (0 для корневых)
-     * @param {boolean} isLast - Последний ли элемент в группе
-     * @returns {string} HTML строка для узла категории
+     * Рекурсивная функция для создания HTML-узла одной категории.
+     * @param {Object} category - Объект категории (id, name, children, materials_count)
+     * @param {number} level - Уровень вложенности (0 – корневая)
+     * @param {boolean} isLast - Является ли этот узел последним в своей группе (для CSS-стилей)
+     * @returns {string} HTML-строка узла
      */
     function createCategoryNode(category, level = 0, isLast = false) {
-        // Проверяем наличие необходимых данных
+        // Проверяем, что категория имеет необходимые поля
         if (!category || !category.id || !category.name) {
             console.warn('[SKLAD] Некорректные данные категории:', category);
             return '';
@@ -142,23 +145,17 @@ function renderCategoryTree(treeData) {
         // Определяем, есть ли у категории дочерние элементы
         const hasChildren = category.children && category.children.length > 0;
         
-        // Определяем классы для элемента категории
+        // Формируем классы для элемента .tree-item
         let categoryClass = 'tree-item';
+        categoryClass += ` level-${Math.min(level, 3)}`; // level-0, level-1, level-2, level-3 (не более 3)
+        if (isLast) categoryClass += ' last-child';      // добавляем класс, если последний в группе
         
-        // Добавляем класс для уровня вложенности
-        categoryClass += ` level-${Math.min(level, 3)}`;
-        
-        // Если это последний элемент, добавляем специальный класс
-        if (isLast) {
-            categoryClass += ' last-child';
-        }
-        
-        // Если это выбранная категория, добавляем класс selected
-        if (parseInt(currentSelectedCategoryId) === parseInt(category.id)) {
+        // Если ID категории совпадает с текущей выбранной – добавляем класс selected
+        if (parseInt(sklad_currentSelectedCategoryId) === parseInt(category.id)) {
             categoryClass += ' selected';
         }
         
-        // Создаем HTML для элемента категории с НОВЫМ ДИЗАЙНОМ
+        // Начинаем формировать HTML узла
         let nodeHtml = `
             <div class="${categoryClass}" 
                  data-category-id="${category.id}"
@@ -167,34 +164,27 @@ function renderCategoryTree(treeData) {
                  data-has-children="${hasChildren}">
                 
                 <div class="tree-item-content">
-                    <!-- Иконка категории - разная для папок и листьев -->
+                    <!-- Иконка: папка для родительских, файл для листьев -->
                     <div class="tree-icon ${hasChildren ? 'folder' : 'leaf'}">
-                        ${hasChildren ? 
-                            '<i class="fas fa-folder"></i>' : 
-                            '<i class="fas fa-file"></i>'}
+                        ${hasChildren ? '<i class="fas fa-folder"></i>' : '<i class="fas fa-file"></i>'}
                     </div>
                     
-                    <!-- Название категории и количество материалов -->
+                    <!-- Название категории и счётчик материалов -->
                     <div class="tree-name">
-                        <a href="/sklad/?category_id=${category.id}" 
-                           class="category-link"
+                        <a href="#" class="category-link" 
                            title="Показать материалы в категории: ${escapeHtml(category.name)}">
-                           <!-- УБРАЛИ onclick="showLoadingIndicator()" -->
                             ${escapeHtml(category.name)}
                         </a>
-                        
-                        <!-- Счетчик материалов - показываем только если есть материалы -->
                         ${category.materials_count > 0 ? 
                             `<span class="material-count" 
                                    title="${category.materials_count} материалов в этой категории">
                                 ${category.materials_count}
-                            </span>` : 
-                            ''}
+                            </span>` : ''}
                     </div>
                     
-                    <!-- Кнопки действий - КОМПАКТНЫЕ -->
+                    <!-- Кнопки действий (добавить подкатегорию, удалить) -->
                     <div class="tree-actions">
-                        <!-- Кнопка добавления подкатегории -->
+                        <!-- Кнопка добавления подкатегории (всегда активна) -->
                         <button class="btn-tree-action btn-add-subcategory" 
                                 data-category-id="${category.id}"
                                 title="Добавить подкатегорию в '${escapeHtml(category.name)}'"
@@ -202,7 +192,7 @@ function renderCategoryTree(treeData) {
                             <i class="fas fa-plus-circle"></i>
                         </button>
                         
-                        <!-- Кнопка удаления категории (только если нет материалов и детей) -->
+                        <!-- Кнопка удаления: показываем только если нет материалов и нет подкатегорий -->
                         ${category.materials_count === 0 && (!hasChildren || category.children.length === 0) ?
                             `<a href="/sklad/category/delete/${category.id}/" 
                                class="btn-tree-action btn-delete-category"
@@ -219,236 +209,134 @@ function renderCategoryTree(treeData) {
                 </div>
         `;
         
-        // Добавляем дочерние элементы с улучшенной визуализацией
+        // Если есть дочерние категории – рекурсивно добавляем их в блок .tree-children
         if (hasChildren) {
-            // Для вложенных элементов добавляем контейнер
             nodeHtml += '<div class="tree-children">';
-            
-            // Рекурсивно обрабатываем дочерние категории
             const childrenCount = category.children.length;
             category.children.forEach((child, index) => {
                 const isChildLast = index === childrenCount - 1;
                 nodeHtml += createCategoryNode(child, level + 1, isChildLast);
             });
-            
             nodeHtml += '</div>';
         }
         
-        nodeHtml += '</div>';
+        nodeHtml += '</div>'; // закрываем .tree-item
         return nodeHtml;
     }
     
-    // Создаем корневые узлы дерева
+    // Проходим по всем корневым категориям и добавляем их в HTML
     const rootCount = treeData.length;
     treeData.forEach((category, index) => {
         const isLast = index === rootCount - 1;
         html += createCategoryNode(category, 0, isLast);
     });
     
-    html += '</div>';
+    html += '</div>'; // закрываем .tree
     
-    // Обновляем содержимое контейнера
+    // Вставляем готовый HTML в контейнер
     treeContainer.innerHTML = html;
+    console.log('[SKLAD] Дерево категорий отрисовано успешно');
     
-    console.log('[SKLAD] Дерево с новым дизайном отрисовано успешно');
+    // Добавляем обработчики событий для кликов по категориям и кнопкам
+    attachTreeEventListeners();
     
-    // Добавляем обработчики событий для дерева
-    addTreeEventListeners();
-    
-    // Прокручиваем к выбранной категории (если есть)
-    if (currentSelectedCategoryId) {
+    // Если есть выбранная категория – прокручиваем к ней и подсвечиваем
+    if (sklad_currentSelectedCategoryId) {
         setTimeout(() => {
-            highlightSelectedCategory(currentSelectedCategoryId);
+            highlightSelectedCategory(sklad_currentSelectedCategoryId);
         }, 100);
     }
 }
 
 /**
- * Добавляет обработчики событий для элементов дерева категорий
- * Теперь с улучшенной логикой для нового дизайна
+ * Добавляет обработчики событий для элементов дерева категорий.
+ * Обрабатывает клики по ссылкам категорий (загрузка материалов) и по области содержимого.
  */
-function addTreeEventListeners() {
-    console.log('[SKLAD] Добавление обработчиков событий для нового дизайна дерева...');
+function attachTreeEventListeners() {
+    console.log('[SKLAD] Добавление обработчиков событий для дерева');
     
-    // 1. Обработчики для кликов по элементам дерева (для выделения)
+    // 1. Обработчики для ссылок .category-link (клик по названию категории)
+    document.querySelectorAll('.category-link').forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault(); // отменяем переход по ссылке (href="#")
+            // Находим родительский элемент .tree-item и извлекаем data-category-id
+            const treeItem = this.closest('.tree-item');
+            const categoryId = treeItem.getAttribute('data-category-id');
+            // Вызываем функцию выбора категории
+            selectCategory(categoryId);
+        });
+    });
+    
+    // 2. Обработчики для .tree-item-content (клик по области, кроме кнопок)
     document.querySelectorAll('.tree-item-content').forEach(content => {
         content.addEventListener('click', function(event) {
-            // Игнорируем клики по кнопкам действий и ссылкам
+            // Если клик был по кнопке действия или по ссылке – игнорируем (они уже обработаны)
             if (event.target.closest('.btn-tree-action') || 
                 event.target.closest('.category-link')) {
                 return;
             }
-            
             const treeItem = this.closest('.tree-item');
             const categoryId = treeItem.getAttribute('data-category-id');
-            const categoryName = treeItem.getAttribute('data-category-name');
-            
-            console.log(`[SKLAD] Выбор категории ID: ${categoryId}, Name: ${categoryName}`);
-            
-            // Выделяем выбранную категорию
             selectCategory(categoryId);
-            
-            // Плавный скролл к выбранному элементу
-            treeItem.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-                inline: 'nearest'
-            });
         });
     });
-    
-    // 2. Обработчики для ссылок категорий (предотвращаем стандартное поведение)
-    document.querySelectorAll('.category-link').forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault(); // Предотвращаем переход по ссылке
-            
-            const treeItem = this.closest('.tree-item');
-            const categoryId = treeItem.getAttribute('data-category-id');
-            const categoryName = treeItem.getAttribute('data-category-name');
-            
-            console.log(`[SKLAD] Клик по ссылке категории ID: ${categoryId}, Name: ${categoryName}`);
-            
-            // Выделяем категорию и загружаем материалы через AJAX
-            selectCategory(categoryId);
-            
-            // Добавляем небольшой визуальный feedback для пользователя
-            this.style.backgroundColor = 'rgba(11, 134, 97, 0.1)';
-            this.style.transition = 'background-color 0.3s ease';
-            
-            // Убираем подсветку через короткое время
-            setTimeout(() => {
-                this.style.backgroundColor = '';
-            }, 300);
-        });
-    });
-    
-    // 3. Обработчики для кнопок добавления подкатегорий (уже есть в HTML)
-    // Они работают через inline onclick для предотвращения всплытия событий
-    
-    // 4. Добавляем эффект наведения на весь элемент
-    document.querySelectorAll('.tree-item').forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            this.style.backgroundColor = 'rgba(240, 248, 255, 0.3)';
-        });
-        
-        item.addEventListener('mouseleave', function() {
-            if (!this.classList.contains('selected')) {
-                this.style.backgroundColor = '';
-            }
-        });
-    });
-    
-    console.log('[SKLAD] Обработчики событий для нового дерева добавлены');
 }
 
-// В файле sklad.js, НАЙТИ функцию selectCategory (примерно строка 340)
-// и ЗАМЕНИТЬ её полностью на эту версию:
-
 /**
- * Выделяет указанную категорию в дереве и загружает её материалы через AJAX
- * @param {string} categoryId - ID категории для выделения
+ * Программно выбирает категорию: обновляет глобальную переменную, выделяет элемент в дереве,
+ * обновляет URL и загружает материалы через AJAX.
+ * @param {string} categoryId - ID категории (может быть null или пустая строка для сброса)
  */
 function selectCategory(categoryId) {
     console.log(`[SKLAD] Программный выбор категории ID: ${categoryId}`);
     
-    // Обновляем глобальную переменную
-    currentSelectedCategoryId = categoryId;
+    // Сохраняем ID выбранной категории в глобальную переменную
+    sklad_currentSelectedCategoryId = categoryId;
     
-    // Снимаем выделение со всех категорий
+    // Снимаем выделение со всех категорий (убираем класс selected и фон)
     document.querySelectorAll('.tree-item.selected').forEach(item => {
         item.classList.remove('selected');
         item.style.backgroundColor = '';
     });
     
-    // Если categoryId не задан, просто очищаем выделение
+    // Если categoryId не задан (null, undefined или 0) – сбрасываем фильтр
     if (!categoryId && categoryId !== 0) {
         console.log('[SKLAD] Очистка выделения категории');
-        
-        // Обновляем URL без категории через AJAX
-        if (typeof window.skladAJAX?.updateUrlWithoutCategoryFilter === 'function') {
-            window.skladAJAX.updateUrlWithoutCategoryFilter();
-        }
-        
-        // Загружаем все материалы через AJAX
+        // Обновляем URL, удаляя параметр category_id
+        updateUrlWithoutCategoryFilter();
+        // Загружаем все материалы (без фильтра) через AJAX-модуль
         if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
             window.skladAJAX.loadCategoryMaterials(null);
         }
         return;
     }
     
-    // Находим и выделяем выбранную категорию
+    // Находим элемент категории в дереве и выделяем его
     const selectedItem = document.querySelector(`.tree-item[data-category-id="${categoryId}"]`);
     if (selectedItem) {
         selectedItem.classList.add('selected');
-        
-        // Плавное изменение фона
-        selectedItem.style.transition = 'background-color 0.3s ease';
         selectedItem.style.backgroundColor = '#e8f5e9';
-        
         console.log(`[SKLAD] Категория ID: ${categoryId} выделена`);
-        
-        // Обновляем URL с фильтром через AJAX
-        if (typeof window.skladAJAX?.updateUrlWithCategoryFilter === 'function') {
-            window.skladAJAX.updateUrlWithCategoryFilter(categoryId);
-        }
-        
-        // Загружаем материалы через AJAX
-        if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
-            window.skladAJAX.loadCategoryMaterials(categoryId);
-        } else {
-            console.error('[SKLAD] Функция loadCategoryMaterials не найдена');
-        }
     } else {
-        console.log(`[SKLAD] Категория ID: ${categoryId} не найдена в дереве, но все равно загружаем материалы`);
-        
-        // Если категория не найдена в дереве (например, оно еще не загружено),
-        // все равно загружаем материалы по этой категории
-        if (typeof window.skladAJAX?.updateUrlWithCategoryFilter === 'function') {
-            window.skladAJAX.updateUrlWithCategoryFilter(categoryId);
-        }
-        
-        if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
-            window.skladAJAX.loadCategoryMaterials(categoryId);
-        }
+        console.log(`[SKLAD] Категория ID: ${categoryId} не найдена в дереве`);
+    }
+    
+    // Обновляем URL, добавляя параметр category_id (для сохранения состояния при перезагрузке)
+    updateUrlWithCategoryFilter(categoryId);
+    // Загружаем материалы выбранной категории через AJAX
+    if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
+        window.skladAJAX.loadCategoryMaterials(categoryId);
+    } else {
+        console.error('[SKLAD] Функция loadCategoryMaterials не найдена');
     }
 }
 
 /**
- * Обновляет URL страницы с фильтром по категории
- * @param {string} categoryId - ID категории для фильтрации
- */
-function updateUrlWithCategoryFilter(categoryId) {
-    // Создаем объект URL
-    const url = new URL(window.location.href);
-    
-    // Устанавливаем параметр category_id
-    url.searchParams.set('category_id', categoryId);
-    
-    // Обновляем URL без перезагрузки страницы
-    window.history.pushState({}, '', url);
-    
-    console.log(`[SKLAD] URL обновлен с фильтром category_id=${categoryId}`);
-    
-    // Показываем уведомление о применении фильтра
-    showNotification('info', 'Фильтр применен: показаны материалы выбранной категории и всех её подкатегорий');
-    
-    // Перезагружаем страницу для обновления списка материалов
-    setTimeout(() => {
-        window.location.href = url.toString();
-    }, 300);
-}
-
-/**
- * Подсвечивает выбранную категорию в дереве с анимацией
+ * Подсвечивает выбранную категорию в дереве и плавно прокручивает к ней.
  * @param {string} categoryId - ID категории для подсветки
  */
 function highlightSelectedCategory(categoryId) {
     console.log(`[SKLAD] Подсветка категории ID: ${categoryId}`);
-    
-    // Снимаем подсветку со всех категорий
-    document.querySelectorAll('.tree-item.highlighted').forEach(item => {
-        item.classList.remove('highlighted');
-    });
     
     // Снимаем выделение со всех категорий
     document.querySelectorAll('.tree-item.selected').forEach(item => {
@@ -456,23 +344,15 @@ function highlightSelectedCategory(categoryId) {
         item.style.backgroundColor = '';
     });
     
-    // Если categoryId равен null, undefined или пустой строке, просто выходим
     if (!categoryId && categoryId !== 0) {
-        console.log('[SKLAD] Category ID is null/undefined, only clearing selection');
         return;
     }
     
-    // Находим и подсвечиваем категорию
     const categoryItem = document.querySelector(`.tree-item[data-category-id="${categoryId}"]`);
     if (categoryItem) {
-        // Добавляем классы выделения
-        categoryItem.classList.add('selected', 'highlighted');
-        
-        // Анимация плавного появления фона
-        categoryItem.style.transition = 'background-color 0.5s ease';
+        categoryItem.classList.add('selected');
         categoryItem.style.backgroundColor = '#e8f5e9';
-        
-        // Прокручиваем к выбранной категории с плавной анимацией
+        // Прокручиваем к элементу с плавной анимацией
         setTimeout(() => {
             categoryItem.scrollIntoView({ 
                 behavior: 'smooth', 
@@ -480,80 +360,69 @@ function highlightSelectedCategory(categoryId) {
                 inline: 'nearest' 
             });
         }, 100);
-        
-        console.log(`[SKLAD] Категория ID: ${categoryId} выделена и подсвечена`);
+        console.log(`[SKLAD] Категория ID: ${categoryId} подсвечена и прокручена`);
     } else {
-        console.log(`[SKLAD] Категория ID: ${categoryId} не найдена в дереве (может быть скрыта или не загружена)`);
+        console.log(`[SKLAD] Категория ID: ${categoryId} не найдена`);
     }
 }
 
-// ================== ФУНКЦИИ ДЛЯ РАБОТЫ С ПОДКАТЕГОРИЯМИ ==================
-
 /**
- * Добавляет новую подкатегорию
+ * Добавляет новую подкатегорию (вызывается по клику на кнопку "+").
+ * Запрашивает название через prompt и отправляет AJAX-запрос на создание.
  * @param {string} parentCategoryId - ID родительской категории
- * @param {string} parentCategoryName - Название родительской категории
+ * @param {string} parentCategoryName - Название родительской категории (для сообщения)
  */
 function addSubcategory(parentCategoryId, parentCategoryName) {
-    console.log(`[SKLAD] Начало добавления подкатегории для родительской категории: ${parentCategoryName}`);
+    console.log(`[SKLAD] Добавление подкатегории для: ${parentCategoryName}`);
     
-    // Запрашиваем название новой подкатегории
+    // Запрашиваем название у пользователя
     const subcategoryName = prompt(
         `Введите название подкатегории для "${parentCategoryName}":\n` +
         `(Минимум 2 символа, максимум 100 символов)`,
         ''
     );
     
-    // Проверяем введенное название
+    // Если пользователь отменил или ввел пустую строку – выходим
     if (!subcategoryName || subcategoryName.trim() === '') {
         console.log('[SKLAD] Добавление подкатегории отменено: пустое название');
         return;
     }
     
     const trimmedName = subcategoryName.trim();
-    
-    // Валидация названия
     if (trimmedName.length < 2) {
         showNotification('error', 'Название подкатегории должно содержать минимум 2 символа');
         return;
     }
     
-    if (trimmedName.length > 100) {
-        showNotification('error', 'Название подкатегории не может превышать 100 символов');
-        return;
-    }
-    
-    // Получаем CSRF токен
+    // Получаем CSRF-токен для защиты от межсайтовой подделки запросов
     const csrfToken = getCsrfToken();
     if (!csrfToken) {
         showNotification('error', 'Ошибка безопасности. Обновите страницу.');
         return;
     }
     
-    // Подготавливаем данные для отправки
+    // Формируем данные для отправки (multipart/form-data)
     const formData = new FormData();
     formData.append('name', trimmedName);
     formData.append('parent', parentCategoryId);
+    formData.append('type', sklad_currentMaterialType); // тип категории совпадает с текущим типом материала
     formData.append('csrfmiddlewaretoken', csrfToken);
     
-    // Показываем уведомление о начале процесса
     showNotification('info', `Создание подкатегории "${trimmedName}"...`);
     
-    // Отправляем запрос на сервер
+    // Отправляем POST-запрос на создание категории
     fetch('/sklad/category/create/', {
         method: 'POST',
         body: formData,
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest' // пометка, что это AJAX-запрос
         }
     })
     .then(response => {
-        // Проверяем статус ответа
         if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status} ${response.statusText}`);
+            throw new Error(`Ошибка HTTP: ${response.status}`);
         }
-        
-        // Перенаправляем на ту же страницу для обновления данных
+        // При успешном создании перезагружаем страницу, чтобы обновить дерево категорий
         console.log('[SKLAD] Подкатегория создана успешно, обновление страницы...');
         window.location.reload();
     })
@@ -564,10 +433,10 @@ function addSubcategory(parentCategoryId, parentCategoryName) {
 }
 
 /**
- * Подтверждение удаления категории
+ * Подтверждение удаления категории (вызывается из onclick ссылки удаления).
  * @param {string} categoryId - ID категории
  * @param {string} categoryName - Название категории
- * @returns {boolean} Результат подтверждения
+ * @returns {boolean} true – удалить, false – отмена
  */
 function confirmDeleteCategory(categoryId, categoryName) {
     const confirmed = confirm(
@@ -575,20 +444,54 @@ function confirmDeleteCategory(categoryId, categoryName) {
         `Внимание: Если в категории есть подкатегории или материалы, удаление будет невозможно.\n` +
         `Удаление необратимо.`
     );
-    
     if (confirmed) {
-        console.log(`[SKLAD] Подтверждено удаление категории ID: ${categoryId}, Name: ${categoryName}`);
+        console.log(`[SKLAD] Подтверждено удаление категории ID: ${categoryId}`);
         return true;
     } else {
-        console.log(`[SKLAD] Удаление категории ID: ${categoryId} отменено пользователем`);
+        console.log(`[SKLAD] Удаление категории ID: ${categoryId} отменено`);
         return false;
+    }
+}
+
+// ================== ПЕРЕКЛЮЧЕНИЕ ТИПА МАТЕРИАЛА ==================
+
+/**
+ * Устанавливает текущий тип материала (paper/film) и перезагружает все данные.
+ * @param {string} type - 'paper' или 'film'
+ */
+function setMaterialType(type) {
+    console.log('[SKLAD] Переключение типа на:', type);
+    sklad_currentMaterialType = type;
+    // Синхронизируем с глобальным объектом window.sklad (для доступа из sklad_ajax.js)
+    if (window.sklad) window.sklad.currentMaterialType = type;
+    
+    // Обновляем активный класс у кнопок переключателя
+    document.querySelectorAll('.type-switcher-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.type-switcher-btn[data-type="${type}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    // Сбрасываем выбранную категорию (так как типы разные)
+    sklad_currentSelectedCategoryId = null;
+    
+    // Обновляем URL: меняем параметр type, убираем category_id
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', type);
+    url.searchParams.delete('category_id');
+    window.history.pushState({}, '', url);
+    
+    // Перезагружаем дерево категорий и материалы
+    loadCategoryTree();
+    if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
+        window.skladAJAX.loadCategoryMaterials(null);
     }
 }
 
 // ================== ФУНКЦИИ ДЛЯ РАБОТЫ С ФОРМАМИ ==================
 
 /**
- * Переключает отображение формы добавления материала
+ * Переключает отображение формы добавления материала (показать/скрыть).
  */
 function toggleMaterialForm() {
     console.log('[SKLAD] Переключение формы добавления материала');
@@ -601,41 +504,40 @@ function toggleMaterialForm() {
         return;
     }
     
-    if (formSection.style.display === 'none' || !formSection.style.display) {
+    if (formSection.style.display === 'none') {
         // Показываем форму
         formSection.style.display = 'block';
         toggleButton.textContent = 'Скрыть форму';
         toggleButton.classList.add('active');
-        isMaterialFormOpen = true;
+        sklad_isMaterialFormOpen = true;
         
-        // Прокручиваем к форме
-        formSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-        });
+        // Обновляем список категорий в выпадающем списке (AJAX)
+        if (typeof window.skladAJAX?.loadCategoriesForForm === 'function') {
+            window.skladAJAX.loadCategoriesForForm();
+        }
+        // Приводим видимость полей в соответствие с выбранным типом материала
+        updateFormFieldsByType();
         
-        // Устанавливаем фокус на первое поле
+        // Прокручиваем страницу к форме
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Устанавливаем фокус на поле "Название"
         setTimeout(() => {
             const nameInput = document.getElementById('material-name');
-            if (nameInput) {
-                nameInput.focus();
-            }
+            if (nameInput) nameInput.focus();
         }, 300);
-        
         console.log('[SKLAD] Форма добавления материала открыта');
     } else {
         // Скрываем форму
         formSection.style.display = 'none';
-        toggleButton.textContent = '+ Добавить материал';
+        toggleButton.textContent = '+ Добавить';
         toggleButton.classList.remove('active');
-        isMaterialFormOpen = false;
-        
+        sklad_isMaterialFormOpen = false;
         console.log('[SKLAD] Форма добавления материала закрыта');
     }
 }
 
 /**
- * Показывает форму добавления категории
+ * Показывает форму добавления категории.
  */
 function showCategoryForm() {
     console.log('[SKLAD] Показ формы добавления категории');
@@ -646,347 +548,383 @@ function showCategoryForm() {
         return;
     }
     
-    // Показываем форму
+    // Устанавливаем тип категории в соответствии с текущим типом материала
+    const typeSelect = document.getElementById('category-type');
+    if (typeSelect) typeSelect.value = sklad_currentMaterialType;
+    
     formSection.style.display = 'block';
-    isCategoryFormOpen = true;
-    
-    // Прокручиваем к форме
-    formSection.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-    });
-    
-    // Устанавливаем фокус на поле ввода
+    formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(() => {
         const nameInput = document.getElementById('category-name');
-        if (nameInput) {
-            nameInput.focus();
-        }
+        if (nameInput) nameInput.focus();
     }, 300);
-    
     console.log('[SKLAD] Форма добавления категории открыта');
 }
 
 /**
- * Скрывает форму добавления категории
+ * Скрывает форму добавления категории.
  */
 function hideCategoryForm() {
     console.log('[SKLAD] Скрытие формы добавления категории');
-    
     const formSection = document.getElementById('category-form-section');
-    if (formSection) {
-        formSection.style.display = 'none';
-        isCategoryFormOpen = false;
-        console.log('[SKLAD] Форма добавления категории закрыта');
-    }
+    if (formSection) formSection.style.display = 'none';
 }
 
 /**
- * Очищает форму добавления материала
+ * Очищает форму добавления материала (сбрасывает все поля).
  */
 function clearMaterialForm() {
     console.log('[SKLAD] Очистка формы материала');
-    
     const form = document.getElementById('material-form');
-    if (form) {
-        form.reset();
-        
-        // Устанавливаем значение по умолчанию для единицы измерения
-        const unitInput = document.getElementById('material-unit');
-        if (unitInput && !unitInput.value) {
-            unitInput.value = 'лист';
-        }
-        
-        // Устанавливаем фокус на название
-        const nameInput = document.getElementById('material-name');
-        if (nameInput) {
-            nameInput.focus();
-        }
-        
-        console.log('[SKLAD] Форма материала очищена');
+    if (form) form.reset();
+    const unitInput = document.getElementById('material-unit');
+    if (unitInput) unitInput.value = 'лист';
+    const quantityInput = document.getElementById('material-quantity');
+    if (quantityInput) quantityInput.value = '0';
+    const minQuantityInput = document.getElementById('material-min-quantity');
+    if (minQuantityInput) minQuantityInput.value = '10';
+    updateFormFieldsByType();
+    const nameInput = document.getElementById('material-name');
+    if (nameInput) nameInput.focus();
+}
+
+/**
+ * Обновляет отображение полей формы в зависимости от выбранного типа материала.
+ * Для бумаги показываем поля цены, единицы измерения, плотности, толщины бумаги.
+ * Для плёнки – себестоимость, наценку, толщину.
+ */
+function updateFormFieldsByType() {
+    const typeSelect = document.getElementById('material-type');
+    const paperFields = document.getElementById('paper-fields');
+    const filmFields = document.getElementById('film-fields');
+    if (!typeSelect) return;
+    
+    if (typeSelect.value === 'paper') {
+        paperFields.style.display = 'block';
+        filmFields.style.display = 'none';
+        // Делаем цену обязательной
+        document.getElementById('material-price')?.setAttribute('required', 'required');
+        // Убираем обязательность полей плёнки
+        document.getElementById('material-cost')?.removeAttribute('required');
+        document.getElementById('material-markup')?.removeAttribute('required');
+        document.getElementById('material-thickness')?.removeAttribute('required');
+    } else {
+        paperFields.style.display = 'none';
+        filmFields.style.display = 'block';
+        // Убираем обязательность цены
+        document.getElementById('material-price')?.removeAttribute('required');
+        // Делаем обязательными поля плёнки
+        document.getElementById('material-cost')?.setAttribute('required', 'required');
+        document.getElementById('material-markup')?.setAttribute('required', 'required');
+        document.getElementById('material-thickness')?.setAttribute('required', 'required');
     }
 }
 
-// ================== ФУНКЦИИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ ==================
+// ================== AJAX-ОТПРАВКА ФОРМЫ ДОБАВЛЕНИЯ МАТЕРИАЛА ==================
 
 /**
- * Начинает inline-редактирование элемента при двойном клике
- * @param {HTMLElement} element - DOM элемент, который нужно редактировать
+ * Отправляет форму добавления материала через AJAX (без перезагрузки страницы).
+ * @param {Event} event - событие отправки формы
  */
-function startInlineEdit(element) {
-    console.log('[SKLAD] Начало inline-редактирования элемента:', element);
+function submitMaterialForm(event) {
+    event.preventDefault(); // отменяем стандартную отправку формы
     
-    // 1. Проверяем, разрешено ли редактирование этого элемента
-    if (element.getAttribute('data-editable') !== 'true') {
-        console.warn('[SKLAD] Элемент не предназначен для редактирования');
+    const form = document.getElementById('material-form');
+    if (!form) return;
+    
+    // Проверяем, что категория выбрана
+    const categorySelect = document.getElementById('material-category');
+    if (!categorySelect || !categorySelect.value) {
+        showNotification('warning', 'Выберите категорию для материала');
         return;
     }
     
-    // 2. Если уже есть редактируемый элемент, отменяем предыдущее редактирование
-    if (currentEditingElement && currentEditingElement !== element) {
-        console.log('[SKLAD] Отменяем предыдущее редактирование элемента:', currentEditingElement);
-        cancelInlineEdit(currentEditingElement);
+    const formData = new FormData(form);
+    const csrfToken = getCsrfToken();
+    
+    // Логируем отправляемые данные для отладки
+    console.log('[SKLAD] Отправляемые данные:', [...formData.entries()]);
+    
+    const submitBtn = form.querySelector('.btn-submit');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Сохранение...';
+    
+    fetch('/sklad/material/create/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification('success', data.message);
+            // Очищаем форму и закрываем её
+            clearMaterialForm();
+            const formSection = document.getElementById('material-form-section');
+            const toggleButton = document.getElementById('add-material-btn');
+            if (formSection && toggleButton) {
+                formSection.style.display = 'none';
+                toggleButton.textContent = '+ Добавить';
+                toggleButton.classList.remove('active');
+                sklad_isMaterialFormOpen = false;
+            }
+            // Обновляем список материалов и дерево категорий
+            if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
+                window.skladAJAX.loadCategoryMaterials(sklad_currentSelectedCategoryId);
+            }
+            loadCategoryTree(); // обновляем счётчики материалов в дереве
+        } else {
+            throw new Error(data.error || 'Ошибка при создании материала');
+        }
+    })
+    .catch(error => {
+        console.error('[SKLAD] Ошибка при создании материала:', error);
+        showNotification('error', error.message || 'Не удалось создать материал');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    });
+}
+
+/**
+ * Инициализирует обработчик отправки формы материала.
+ * Удаляет предыдущий обработчик, чтобы не было дублирования, и добавляет новый.
+ */
+function initMaterialFormSubmit() {
+    const form = document.getElementById('material-form');
+    if (form) {
+        form.removeEventListener('submit', submitMaterialForm);
+        form.addEventListener('submit', submitMaterialForm);
+    }
+}
+
+// ================== INLINE-РЕДАКТИРОВАНИЕ (ГЛАВНАЯ ЧАСТЬ) ==================
+
+/**
+ * Начинает inline-редактирование элемента при двойном клике.
+ * @param {HTMLElement} element - DOM элемент, который нужно редактировать (должен иметь data-editable="true")
+ */
+function startInlineEdit(element) {
+    // Защита от повторного вызова на том же элементе (если уже редактируется)
+    if (sklad_currentEditingElement === element) return;
+    // Если есть другой редактируемый элемент – отменяем его редактирование
+    if (sklad_currentEditingElement) cancelInlineEdit(sklad_currentEditingElement);
+    
+    // Запоминаем текущий редактируемый элемент
+    sklad_currentEditingElement = element;
+    
+    // Определяем ID материала.
+    // Сначала пытаемся взять из атрибута data-material-id самого элемента,
+    // если нет – ищем ближайшую строку таблицы .table-row и берём её data-material-id.
+    let materialId = element.getAttribute('data-material-id');
+    if (!materialId) {
+        const row = element.closest('.table-row');
+        if (row) materialId = row.getAttribute('data-material-id');
+    }
+    if (!materialId) {
+        console.error('[SKLAD] Не удалось определить ID материала для редактирования');
+        showNotification('error', 'Ошибка: не найден ID материала');
+        cancelInlineEdit(element);
+        return;
     }
     
-    // 3. Сохраняем ссылку на текущий редактируемый элемент
-    currentEditingElement = element;
-    
-    // 4. Получаем данные из data-атрибутов элемента
-    const materialId = element.getAttribute('data-material-id');
     const fieldName = element.getAttribute('data-field');
+    // Получаем исходное значение из data-original-value (если есть)
     let originalValue = element.getAttribute('data-original-value');
+    // Нормализуем десятичный разделитель (запятую заменяем на точку)
+    if (originalValue) originalValue = originalValue.replace(',', '.');
     
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Нормализуем значение - заменяем запятую на точку
-    if (originalValue) {
-        originalValue = originalValue.replace(',', '.');
-    }
-    
-    // Извлекаем текущее отображаемое значение из текста
-    let displayValue = '';
-    
-    if (fieldName === 'price' && element.textContent) {
-        // Для цены: извлекаем числовое значение из текста "300.00 руб./лист"
-        const priceMatch = element.textContent.match(/(\d+[.,]?\d*)/);
-        if (priceMatch) {
-            displayValue = priceMatch[1].replace(',', '.');
-            console.log(`[SKLAD] Извлекли значение цены из текста: ${displayValue}`);
+    // Для полей, которые могут быть NULL (плёнка и толщина бумаги), если значение равно "None" или "null", делаем пустую строку
+    if (fieldName === 'cost' || fieldName === 'markup_percent' || fieldName === 'thickness' || fieldName === 'paper_thickness' || fieldName === 'density') {
+        if (originalValue === 'None' || originalValue === 'null' || originalValue === 'undefined' || originalValue === '') {
+            originalValue = '';
+            element.setAttribute('data-original-value', '');
         }
-    } else if (fieldName === 'quantity' && element.textContent) {
-        // Для количества: извлекаем числовое значение из текста "100 лист"
-        const quantityMatch = element.textContent.match(/(\d+[.,]?\d*)/);
-        if (quantityMatch) {
-            displayValue = quantityMatch[1].replace(',', '.');
-            console.log(`[SKLAD] Извлекли значение количества из текста: ${displayValue}`);
+    }
+    
+    // Если data-original-value не задан, пытаемся извлечь значение из текста элемента (для старых данных)
+    if (!originalValue || originalValue === 'null' || originalValue === 'undefined') {
+        if (fieldName === 'price' && element.textContent) {
+            const match = element.textContent.match(/(\d+[.,]?\d*)/);
+            if (match) originalValue = match[1].replace(',', '.');
+        } else if (fieldName === 'quantity' && element.textContent) {
+            const match = element.textContent.match(/(\d+)/);
+            if (match) originalValue = match[1];
+        } else if (fieldName === 'name') {
+            originalValue = element.textContent.trim();
+        } else if (fieldName === 'density' && element.textContent) {
+            const match = element.textContent.match(/(\d+)/);
+            originalValue = match ? match[1] : '';
+        } else if (fieldName === 'paper_thickness' && element.textContent) {
+            const match = element.textContent.match(/(\d+[.,]?\d*)/);
+            originalValue = match ? match[1].replace(',', '.') : '';
+        } else if (fieldName === 'cost' && element.textContent) {
+            const match = element.textContent.match(/(\d+[.,]?\d*)/);
+            originalValue = match ? match[1].replace(',', '.') : '';
+        } else if (fieldName === 'markup_percent' && element.textContent) {
+            const match = element.textContent.match(/(\d+[.,]?\d*)/);
+            originalValue = match ? match[1].replace(',', '.') : '';
+        } else if (fieldName === 'thickness' && element.textContent) {
+            const match = element.textContent.match(/(\d+)/);
+            originalValue = match ? match[1] : '';
         }
-    } else if (fieldName === 'name') {
-        // Для названия: берем текст напрямую
-        displayValue = element.textContent.trim();
+        if (originalValue) element.setAttribute('data-original-value', originalValue);
     }
     
-    // Если удалось извлечь значение из текста, используем его как основное
-    if (displayValue) {
-        // Обновляем data-original-value нормализованным значением
-        element.setAttribute('data-original-value', displayValue);
-        originalValue = displayValue;
-    } else if (!originalValue || originalValue === 'null' || originalValue === 'undefined') {
-        // Если значение отсутствует, устанавливаем пустую строку
-        originalValue = '';
-        element.setAttribute('data-original-value', '');
-    }
-    
-    console.log(`[SKLAD] Данные для редактирования: 
-        materialId=${materialId}, 
-        fieldName=${fieldName}, 
-        originalValue=${originalValue},
-        displayValue=${displayValue}`);
-    
-    // 5. Сохраняем оригинальное содержимое элемента
+    // Сохраняем оригинальный HTML элемента (чтобы потом восстановить при отмене)
     const originalHtml = element.innerHTML;
     element.setAttribute('data-original-html', originalHtml);
     
-    // 6. Определяем тип поля для создания соответствующего input
+    // Определяем тип и атрибуты input в зависимости от поля
     let inputType = 'text';
-    let inputStep = 'any';
-    let inputMin = '';
-    
-    switch(fieldName) {
-        case 'price':
-            inputType = 'number';
-            inputStep = '0.01';
-            inputMin = '0.01';
-            break;
-            
-        case 'quantity':
-            inputType = 'number';
-            inputStep = '1';  // Только целые числа
-            inputMin = '0';
-            
-            // Получаем минимальное количество для валидации
-            const minQuantity = element.getAttribute('data-min-quantity');
-            if (minQuantity) {
-                element.setAttribute('title', `Минимальное количество: ${minQuantity}`);
-            }
-            break;
-            
-        case 'name':
-            inputType = 'text';
-            break;
-            
-        default:
-            inputType = 'text';
+    let step = '';
+    let min = '';
+    if (fieldName === 'price') {
+        inputType = 'number';
+        step = '0.01';
+        min = '0.01';
+    } else if (fieldName === 'quantity') {
+        inputType = 'number';
+        step = '1';
+        min = '0';
+    } else if (fieldName === 'cost') {
+        inputType = 'number';
+        step = '0.01';
+        min = '0';
+    } else if (fieldName === 'markup_percent') {
+        inputType = 'number';
+        step = '0.01';
+        min = '0';
+    } else if (fieldName === 'thickness') {
+        inputType = 'number';
+        step = '1';
+        min = '1';
+    } else if (fieldName === 'density') {
+        inputType = 'number';
+        step = '1';
+        min = '1';
+    } else if (fieldName === 'paper_thickness') {
+        inputType = 'number';
+        step = '0.001';
+        min = '0.001';
     }
     
-    // 7. Создаем input элемент для редактирования
+    // Создаём элемент input
     const input = document.createElement('input');
     input.type = inputType;
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Устанавливаем значение input
-    // Используем нормализованное значение (с точкой)
-    const valueToSet = originalValue || '';
-    console.log(`[SKLAD] Устанавливаем значение в input: "${valueToSet}"`);
-    
-    // Для числовых полей преобразуем в число
-    if (inputType === 'number') {
-        // Убеждаемся, что значение корректное число
-        const numValue = parseFloat(valueToSet);
-        input.value = isNaN(numValue) ? '' : numValue;
-    } else {
-        input.value = valueToSet;
-    }
-    
-    // Устанавливаем атрибуты в зависимости от типа поля
-    if (inputStep) input.step = inputStep;
-    if (inputMin) input.min = inputMin;
-    
-    // Добавляем CSS классы для стилизации
+    if (step) input.step = step;
+    if (min) input.min = min;
     input.className = 'inline-edit-input';
+    // Устанавливаем значение (предзаполнение текущим значением)
+    input.value = originalValue || '';
     
-    // 8. Заменяем содержимое элемента на input
+    // Очищаем элемент и помещаем в него input
     element.innerHTML = '';
     element.appendChild(input);
     
-    // 9. Добавляем кнопки действий (сохранить/отмена)
-    const actionButtons = document.createElement('div');
-    actionButtons.className = 'inline-edit-buttons';
+    // Создаём контейнер для кнопок сохранения и отмены
+    const btnDiv = document.createElement('div');
+    btnDiv.className = 'inline-edit-buttons';
     
-    const saveButton = document.createElement('button');
-    saveButton.type = 'button';
-    saveButton.className = 'btn-inline-save';
-    saveButton.innerHTML = '<i class="fas fa-check"></i>';
-    saveButton.title = 'Сохранить изменения';
-    
-    saveButton.onclick = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    // Кнопка сохранения (галочка)
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn-inline-save';
+    saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+    saveBtn.title = 'Сохранить';
+    saveBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         saveInlineEdit(element, input.value);
     };
     
-    const cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'btn-inline-cancel';
-    cancelButton.innerHTML = '<i class="fas fa-times"></i>';
-    cancelButton.title = 'Отменить редактирование';
-    
-    cancelButton.onclick = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    // Кнопка отмены (крестик)
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn-inline-cancel';
+    cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+    cancelBtn.title = 'Отмена';
+    cancelBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         cancelInlineEdit(element);
     };
     
-    actionButtons.appendChild(saveButton);
-    actionButtons.appendChild(cancelButton);
-    element.appendChild(actionButtons);
+    btnDiv.appendChild(saveBtn);
+    btnDiv.appendChild(cancelBtn);
+    element.appendChild(btnDiv);
     
-    // 10. Устанавливаем фокус на input и выделяем весь текст
+    // Устанавливаем фокус и выделяем текст
     input.focus();
     input.select();
     
-    // 11. Добавляем обработчики клавиш
-    input.addEventListener('keydown', function(event) {
-        // Enter - сохранить изменения
-        if (event.key === 'Enter') {
-            event.preventDefault();
+    // Обработчики клавиш: Enter – сохранить, Escape – отменить
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
             saveInlineEdit(element, input.value);
-        }
-        
-        // Escape - отменить редактирование
-        if (event.key === 'Escape') {
-            event.preventDefault();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
             cancelInlineEdit(element);
         }
     });
     
-    // 12. Обработчик потери фокуса с защитой от двойного сохранения
-    let saveInProgress = false;
+    // ВАЖНО: обработчик blur УБРАН, чтобы не было автоматического сохранения при потере фокуса.
+    // Это предотвращает зацикливание и конфликты.
     
-    input.addEventListener('blur', function() {
-        // Даем время для обработки клика по кнопкам
-        setTimeout(() => {
-            if (!saveInProgress && currentEditingElement === element) {
-                console.log('[SKLAD] Input потерял фокус, сохраняем изменения');
-                saveInlineEdit(element, input.value);
-            }
-        }, 200);
-    });
-    
-    // Отмечаем, что началось сохранение
-    saveButton.addEventListener('mousedown', () => {
-        saveInProgress = true;
-    });
-    
-    cancelButton.addEventListener('mousedown', () => {
-        saveInProgress = true;
-    });
-    
-    console.log(`[SKLAD] Начато редактирование поля "${fieldName}" материала ID: ${materialId}, значение: ${input.value}`);
+    console.log(`[SKLAD] Редактирование поля "${fieldName}" материала ${materialId} начато`);
 }
 
 /**
- * Сохраняет изменения после inline-редактирования
+ * Сохраняет изменения после inline-редактирования (отправляет AJAX-запрос на сервер).
  * @param {HTMLElement} element - DOM элемент, который редактировался
- * @param {string} newValue - Новое значение
+ * @param {string} newValue - новое значение, введённое пользователем
  */
 function saveInlineEdit(element, newValue) {
-    console.log(`[SKLAD] Попытка сохранения inline-редактирования. newValue="${newValue}"`);
-    
-    // 1. Получаем данные из data-атрибутов
-    const materialId = element.getAttribute('data-material-id');
-    const fieldName = element.getAttribute('data-field');
-    let originalValue = element.getAttribute('data-original-value');
-    
-    // Нормализуем значения для сравнения
-    if (originalValue) {
-        originalValue = originalValue.replace(',', '.');
+    // Определяем ID материала (аналогично startInlineEdit)
+    let materialId = element.getAttribute('data-material-id');
+    if (!materialId) {
+        const row = element.closest('.table-row');
+        if (row) materialId = row.getAttribute('data-material-id');
     }
-    
-    // Нормализуем новое значение (заменяем запятую на точку)
-    const normalizedNewValue = newValue.toString().replace(',', '.');
-    
-    console.log(`[SKLAD] Данные для сохранения: 
-        materialId=${materialId}, 
-        fieldName=${fieldName}, 
-        originalValue="${originalValue}", 
-        newValue="${newValue}",
-        normalizedNewValue="${normalizedNewValue}"`);
-    
-    // 2. Проверяем, изменилось ли значение (сравниваем нормализованные значения)
-    if (normalizedNewValue === originalValue) {
-        console.log('[SKLAD] Значение не изменилось, отмена редактирования');
+    if (!materialId) {
+        console.error('[SKLAD] Не удалось определить ID материала для сохранения');
+        showNotification('error', 'Ошибка: не найден ID материала');
         cancelInlineEdit(element);
         return;
     }
     
-    // 3. Проверяем, что newValue не пустое
-    if (!newValue && newValue !== 0) {
-        console.warn('[SKLAD] Пустое значение, отмена редактирования');
-        showNotification('warning', 'Значение не может быть пустым');
-        
-        // Возвращаем фокус на input
-        const input = element.querySelector('input');
-        if (input) {
-            input.focus();
-            input.select();
-        }
+    const fieldName = element.getAttribute('data-field');
+    let originalValue = element.getAttribute('data-original-value');
+    if (originalValue) originalValue = originalValue.replace(',', '.');
+    const normalizedNewValue = newValue.toString().replace(',', '.');
+    
+    // Если значение не изменилось – просто отменяем редактирование
+    if (normalizedNewValue === originalValue) {
+        cancelInlineEdit(element);
         return;
     }
     
-    // 4. Валидация введенного значения
+    // Валидация введённого значения
     if (!validateInlineInput(fieldName, normalizedNewValue)) {
-        console.warn('[SKLAD] Валидация не пройдена');
-        
-        // Возвращаем фокус на input
         const input = element.querySelector('input');
-        if (input) {
-            input.focus();
-            input.select();
-        }
+        if (input) input.focus();
         return;
     }
     
-    // 5. Показываем индикатор загрузки
+    // Показываем индикатор сохранения (например, изменение opacity)
     element.classList.add('saving');
     
-    // 6. Получаем CSRF токен
     const csrfToken = getCsrfToken();
     if (!csrfToken) {
         showNotification('error', 'Ошибка безопасности. Обновите страницу.');
@@ -994,15 +932,7 @@ function saveInlineEdit(element, newValue) {
         return;
     }
     
-    // 7. Подготавливаем данные для отправки
-    const requestData = {
-        field: fieldName,
-        value: normalizedNewValue // Отправляем нормализованное значение
-    };
-    
-    console.log(`[SKLAD] Отправка AJAX запроса:`, requestData);
-    
-    // 8. Отправляем AJAX запрос на сервер
+    // Отправляем AJAX-запрос на сервер
     fetch(`/sklad/material/update/${materialId}/`, {
         method: 'POST',
         headers: {
@@ -1010,484 +940,260 @@ function saveInlineEdit(element, newValue) {
             'X-CSRFToken': csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify({ field: fieldName, value: normalizedNewValue })
     })
     .then(response => {
-        // Проверяем статус ответа
-        if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
     })
     .then(data => {
-        console.log('[SKLAD] Ответ сервера:', data);
-        
         if (data.success) {
-            // Успешное сохранение
-            
-            // Обновляем data-атрибуты элемента с нормализованным значением
+            // Обновляем data-атрибут оригинального значения
             element.setAttribute('data-original-value', normalizedNewValue);
-            
-            // Форматируем и отображаем новое значение
+            // Обновляем отображение элемента
             updateElementDisplay(element, fieldName, normalizedNewValue, data.material);
             
-            // Показываем уведомление об успехе
+            // Если обновляли себестоимость или наценку (для плёнки) – нужно пересчитать и обновить цену
+            if (fieldName === 'cost' || fieldName === 'markup_percent') {
+                const row = element.closest('.table-row');
+                if (row) {
+                    const priceSpan = row.querySelector('.price-badge');
+                    if (priceSpan && data.material && data.material.price_display) {
+                        priceSpan.innerHTML = data.material.price_display;
+                        if (priceSpan.getAttribute('data-field') === 'price') {
+                            priceSpan.setAttribute('data-original-value', data.material.price);
+                        }
+                    }
+                }
+            }
+            
             showNotification('success', data.message || 'Изменения сохранены');
-            
-            // Сбрасываем текущий редактируемый элемент
-            currentEditingElement = null;
-            
-            console.log(`[SKLAD] Поле "${fieldName}" успешно обновлено`);
+            sklad_currentEditingElement = null; // сбрасываем флаг редактирования
         } else {
-            // Ошибка от сервера
-            throw new Error(data.error || 'Неизвестная ошибка сервера');
+            throw new Error(data.error || 'Неизвестная ошибка');
         }
     })
     .catch(error => {
-        console.error('[SKLAD] Ошибка при сохранении:', error);
-        
-        // Показываем уведомление об ошибке
-        showNotification('error', `Ошибка сохранения: ${error.message}`);
-        
-        // Откатываем изменения
+        console.error('[SKLAD] Ошибка сохранения:', error);
+        showNotification('error', `Ошибка: ${error.message}`);
         cancelInlineEdit(element);
     })
     .finally(() => {
-        // Убираем индикатор загрузки
         element.classList.remove('saving');
     });
 }
 
 /**
- * Отменяет inline-редактирование и возвращает исходное состояние
+ * Отменяет inline-редактирование и возвращает исходное состояние элемента.
  * @param {HTMLElement} element - DOM элемент, который редактировался
  */
 function cancelInlineEdit(element) {
     console.log('[SKLAD] Отмена inline-редактирования');
-    
-    // 1. Восстанавливаем оригинальное содержимое элемента
     const originalHtml = element.getAttribute('data-original-html');
     if (originalHtml) {
         element.innerHTML = originalHtml;
+        // Восстанавливаем атрибут ondblclick (на случай, если он был удалён)
+        element.setAttribute('ondblclick', 'startInlineEdit(this)');
     }
-    
-    // 2. Восстанавливаем обработчик двойного клика
-    element.setAttribute('ondblclick', 'startInlineEdit(this)');
-    
-    // 3. Сбрасываем текущий редактируемый элемент
-    if (currentEditingElement === element) {
-        currentEditingElement = null;
-    }
-    
-    console.log('[SKLAD] Редактирование отменено, восстановлено исходное состояние');
+    if (sklad_currentEditingElement === element) sklad_currentEditingElement = null;
 }
 
 /**
- * Валидирует введенное значение в зависимости от типа поля
- * @param {string} fieldName - Название поля
- * @param {string} value - Введенное значение
- * @returns {boolean} true если значение валидно, false если нет
+ * Валидирует введённое значение в зависимости от поля.
+ * @param {string} fieldName - название поля (name, price, quantity, cost, markup_percent, thickness, density, paper_thickness)
+ * @param {string} value - нормализованное значение (с точкой в качестве разделителя)
+ * @returns {boolean} true – если значение валидно, иначе false
  */
 function validateInlineInput(fieldName, value) {
-    // Нормализуем значение (заменяем запятую на точку)
-    const normalizedValue = value.toString().replace(',', '.');
-    
-    // Проверка на пустое значение
-    if (!normalizedValue && normalizedValue !== '0') {
+    // Для полей, которые могут быть NULL, пустая строка разрешена
+    if ((fieldName === 'cost' || fieldName === 'markup_percent' || fieldName === 'thickness' || fieldName === 'paper_thickness' || fieldName === 'density') && value === '') {
+        return true;
+    }
+    // Для всех остальных полей пустое значение не допускается (кроме 0)
+    if (!value && value !== '0') {
         showNotification('warning', 'Значение не может быть пустым');
         return false;
     }
     
-    switch(fieldName) {
-        case 'name':
-            // Название должно быть не менее 2 символов
-            if (normalizedValue.length < 2) {
-                showNotification('warning', 'Название должно содержать минимум 2 символа');
-                return false;
-            }
-            if (normalizedValue.length > 100) {
-                showNotification('warning', 'Название не может превышать 100 символов');
-                return false;
-            }
-            return true;
-            
-        case 'price':
-            // Цена должна быть положительным числом
-            const price = parseFloat(normalizedValue);
-            if (isNaN(price) || price <= 0) {
-                showNotification('warning', 'Цена должна быть положительным числом');
-                return false;
-            }
-            if (price > 999999.99) {
-                showNotification('warning', 'Цена не может превышать 999 999.99');
-                return false;
-            }
-            return true;
-            
-        case 'quantity':
-            // Количество должно быть целым неотрицательным числом
-            const quantity = parseFloat(normalizedValue);
-            if (isNaN(quantity) || quantity < 0) {
-                showNotification('warning', 'Количество не может быть отрицательным');
-                return false;
-            }
-            
-            // Проверяем, что это целое число
-            if (!Number.isInteger(quantity)) {
-                showNotification('warning', 'Количество должно быть целым числом');
-                return false;
-            }
-            
-            return true;
-            
-        default:
-            // Для остальных полей минимальная валидация
-            return true;
+    if (fieldName === 'name') {
+        if (value.length < 2) {
+            showNotification('warning', 'Название должно содержать минимум 2 символа');
+            return false;
+        }
+        if (value.length > 100) {
+            showNotification('warning', 'Название не может превышать 100 символов');
+            return false;
+        }
+    } else if (fieldName === 'price') {
+        const price = parseFloat(value);
+        if (isNaN(price) || price <= 0) {
+            showNotification('warning', 'Цена должна быть положительным числом');
+            return false;
+        }
+        if (price > 999999.99) {
+            showNotification('warning', 'Цена не может превышать 999 999.99');
+            return false;
+        }
+    } else if (fieldName === 'quantity') {
+        const qty = parseFloat(value);
+        if (isNaN(qty) || qty < 0) {
+            showNotification('warning', 'Количество должно быть неотрицательным числом');
+            return false;
+        }
+        if (!Number.isInteger(qty)) {
+            showNotification('warning', 'Количество должно быть целым числом');
+            return false;
+        }
+    } else if (fieldName === 'cost') {
+        const cost = parseFloat(value);
+        if (isNaN(cost) || cost < 0) {
+            showNotification('warning', 'Себестоимость должна быть неотрицательным числом');
+            return false;
+        }
+        if (cost > 999999.99) {
+            showNotification('warning', 'Себестоимость не может превышать 999 999.99');
+            return false;
+        }
+    } else if (fieldName === 'markup_percent') {
+        const markup = parseFloat(value);
+        if (isNaN(markup) || markup < 0) {
+            showNotification('warning', 'Наценка должна быть неотрицательным числом');
+            return false;
+        }
+        if (markup > 1000) {
+            showNotification('warning', 'Наценка не может превышать 1000%');
+            return false;
+        }
+    } else if (fieldName === 'thickness') {
+        const thickness = parseInt(value, 10);
+        if (isNaN(thickness) || thickness <= 0) {
+            showNotification('warning', 'Толщина должна быть положительным целым числом');
+            return false;
+        }
+        if (thickness > 10000) {
+            showNotification('warning', 'Толщина не может превышать 10000 мкм');
+            return false;
+        }
+    } else if (fieldName === 'density') {
+        const density = parseInt(value, 10);
+        if (isNaN(density) || density <= 0) {
+            showNotification('warning', 'Плотность должна быть положительным целым числом');
+            return false;
+        }
+        if (density > 2000) {
+            showNotification('warning', 'Плотность не может превышать 2000 г/м²');
+            return false;
+        }
+    } else if (fieldName === 'paper_thickness') {
+        const thickness = parseFloat(value);
+        if (isNaN(thickness) || thickness <= 0) {
+            showNotification('warning', 'Толщина бумаги должна быть положительным числом');
+            return false;
+        }
+        if (thickness > 100) {
+            showNotification('warning', 'Толщина бумаги не может превышать 100 мм');
+            return false;
+        }
     }
+    return true;
 }
 
 /**
- * Обновляет отображение элемента после успешного сохранения
- * @param {HTMLElement} element - DOM элемент для обновления
- * @param {string} fieldName - Название поля
- * @param {string} value - Новое значение
- * @param {Object} materialData - Данные материала от сервера
+ * Обновляет отображение элемента после успешного сохранения.
+ * @param {HTMLElement} element - DOM элемент
+ * @param {string} fieldName - название поля
+ * @param {string} value - новое значение
+ * @param {Object} materialData - данные материала от сервера (содержит price_display, unit и т.д.)
  */
 function updateElementDisplay(element, fieldName, value, materialData) {
-    console.log(`[SKLAD] Обновление отображения для поля "${fieldName}"`);
-    
-    // ВАЖНО: Сохраняем текущее состояние элемента для возможного отката
-    const currentHtml = element.innerHTML;
-    
-    switch(fieldName) {
-        case 'name':
-            // Просто устанавливаем текст
-            element.innerHTML = escapeHtml(value);
-            break;
-            
-        case 'price':
-            // Форматируем цену с помощью данных от сервера
-            if (materialData && materialData.price_display) {
-                element.innerHTML = escapeHtml(materialData.price_display);
-            } else {
-                const price = parseFloat(value);
-                const unit = materialData?.unit || 'лист';
-                // Форматируем цену с точкой как разделителем
-                element.innerHTML = `${price.toFixed(2).replace('.', ',')} руб./${unit}`;
-            }
-            break;
-            
-        case 'quantity':
-            // Обновляем количество с учетом единицы измерения
-            const quantity = parseInt(value, 10);  // Используем parseInt для целых чисел
-            const unit = materialData?.unit || 'лист';
-            
-            // Формируем HTML для количества (без дробной части)
-            let quantityHtml = `${quantity} ${unit}`;
-            
-            // Обновляем классы в зависимости от значения
-            element.className = 'quantity-badge'; // Сбрасываем классы
-            
-            if (quantity <= 0) {
-                element.classList.add('quantity-zero');
-            } else if (materialData?.min_quantity && quantity <= parseInt(materialData.min_quantity, 10)) {
-                element.classList.add('quantity-low');
-            }
-            
-            element.innerHTML = quantityHtml;
-            break;
-    }
-    
-    // Восстанавливаем обработчик двойного клика
-    element.setAttribute('ondblclick', 'startInlineEdit(this)');
-    
-    // Обновляем data-атрибуты с нормализованным значением (с точкой)
-    element.setAttribute('data-original-value', value);
-    
-    // Сохраняем новый HTML как оригинальный для будущих редактирований
-    element.setAttribute('data-original-html', element.innerHTML);
-    
-    console.log(`[SKLAD] Отображение для поля "${fieldName}" обновлено. Новое значение: ${value}`);
-}
-
-// ================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================
-
-/**
- * Получает CSRF токен со страницы
- * @returns {string|null} CSRF токен или null, если не найден
- */
-function getCsrfToken() {
-    // Ищем токен в скрытом поле формы
-    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    if (csrfInput) {
-        return csrfInput.value;
-    }
-    
-    // Ищем токен в meta-теге
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        return csrfMeta.content;
-    }
-    
-    console.warn('[SKLAD] CSRF токен не найден');
-    return null;
-}
-
-/**
- * Экранирует HTML-символы в строке
- * @param {string} text - Текст для экранирования
- * @returns {string} Экранированный текст
- */
-function escapeHtml(text) {
-    if (!text) return '';
-    
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-
-
-/**
- * Показывает уведомление
- * @param {string} type - Тип уведомления (success, error, info, warning)
- * @param {string} message - Текст сообщения
- */
-function showNotification(type, message) {
-    // Создаем элемент уведомления
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    // Добавляем на страницу
-    document.body.appendChild(notification);
-    
-    // Удаляем через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 5000);
-    
-    console.log(`[SKLAD] Показано уведомление типа "${type}": ${message}`);
-}
-
-/**
- * Преобразует сообщения Django в уведомления
- */
-function convertDjangoMessagesToNotifications() {
-    const djangoMessages = document.querySelectorAll('.django-message');
-    
-    djangoMessages.forEach(msg => {
-        const type = msg.dataset.type || 'info';
-        const message = msg.textContent.trim();
-        
-        // Показываем как уведомление
-        showNotification(type, message);
-        
-        // Удаляем элемент из DOM
-        msg.remove();
-    });
-    
-    // Удаляем контейнер, если он пуст
-    const container = document.querySelector('.django-messages');
-    if (container && container.children.length === 0) {
-        container.remove();
-    }
-    
-    console.log(`[SKLAD] Преобразовано ${djangoMessages.length} сообщений Django в уведомления`);
-}
-
-// ================== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ ==================
-
-/**
- * Инициализация приложения при загрузке DOM
- * ТЕПЕРЬ: Добавлена отладочная информация
- */
-function initializeSkladApp() {
-    console.log('[SKLAD] Инициализация приложения управления складом...');
-    
-    try {
-        // 1. Конвертируем сообщения Django в уведомления
-        convertDjangoMessagesToNotifications();
-        
-        // 2. Устанавливаем текущую выбранную категорию из URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const categoryId = urlParams.get('category_id');
-
-        if (categoryId && categoryId !== 'null' && categoryId !== 'undefined') {
-            currentSelectedCategoryId = categoryId;
-            console.log(`[SKLAD] Текущая выбранная категория из URL: ${categoryId}`);
+    if (fieldName === 'name') {
+        element.innerHTML = escapeHtml(value);
+    } else if (fieldName === 'price') {
+        if (materialData && materialData.price_display) {
+            element.innerHTML = escapeHtml(materialData.price_display);
         } else {
-            console.log('[SKLAD] Категория не выбрана');
+            const price = parseFloat(value);
+            const unit = materialData?.unit || 'лист';
+            element.innerHTML = `${price.toFixed(2).replace('.', ',')} руб./${unit}`;
         }
-        
-        // 3. Загружаем дерево категорий
-        loadCategoryTree()
-            .then(() => {
-                console.log('[SKLAD] Дерево категорий загружено успешно');
-                
-                // 4. Подсвечиваем выбранную категорию (если есть)
-                if (currentSelectedCategoryId) {
-                    // Небольшая задержка для гарантии, что дерево отрисовано
-                    setTimeout(() => {
-                        highlightSelectedCategory(currentSelectedCategoryId);
-                    }, 100);
-                }
-                
-                // 5. ВАЖНО: После загрузки дерева обновляем data-атрибуты у всех редактируемых элементов
-                setTimeout(() => {
-                    updateAllEditableElements();
-                }, 500);
-            })
-            .catch(error => {
-                console.error('[SKLAD] Ошибка при загрузке дерева категорий:', error);
-            });
-        
-        // 4. Назначаем обработчики на кнопки
-        const addMaterialBtn = document.getElementById('add-material-btn');
-        if (addMaterialBtn) {
-            addMaterialBtn.addEventListener('click', toggleMaterialForm);
-            console.log('[SKLAD] Обработчик для кнопки добавления материала назначен');
+    } else if (fieldName === 'quantity') {
+        const qty = parseInt(value, 10);
+        const unit = materialData?.unit || 'лист';
+        element.innerHTML = `${qty} ${unit}`;
+        // Обновляем CSS-классы в зависимости от остатка
+        element.className = 'quantity-badge';
+        if (qty <= 0) element.classList.add('quantity-zero');
+        else if (materialData?.min_quantity && qty <= materialData.min_quantity) {
+            element.classList.add('quantity-low');
         }
-        
-        const addCategoryBtn = document.getElementById('add-category-btn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', showCategoryForm);
-            console.log('[SKLAD] Обработчик для кнопки добавления категории назначен');
+    } else if (fieldName === 'cost') {
+        if (!value || value === '' || isNaN(parseFloat(value))) {
+            element.innerHTML = '<i class="fas fa-ruble-sign"></i> — руб.';
+            element.setAttribute('data-original-value', '');
+        } else {
+            const cost = parseFloat(value).toFixed(2).replace('.', ',');
+            element.innerHTML = `<i class="fas fa-ruble-sign"></i> ${cost} руб.`;
+            element.setAttribute('data-original-value', value);
         }
-        
-        // 5. Если есть сообщения об ошибках в форме, показываем соответствующую форму
-        const errorMessages = document.querySelectorAll('.errorlist');
-        if (errorMessages.length > 0) {
-            console.log('[SKLAD] Обнаружены сообщения об ошибках');
-            
-            // Определяем, какая форма содержит ошибки
-            const materialFormErrors = document.querySelectorAll('#material-form .errorlist');
-            const categoryFormErrors = document.querySelectorAll('#category-form .errorlist');
-            
-            if (materialFormErrors.length > 0 && !isMaterialFormOpen) {
-                console.log('[SKLAD] Показываем форму материала из-за ошибок');
-                toggleMaterialForm();
-            } else if (categoryFormErrors.length > 0 && !isCategoryFormOpen) {
-                console.log('[SKLAD] Показываем форму категории из-за ошибок');
-                showCategoryForm();
-            }
+    } else if (fieldName === 'markup_percent') {
+        if (!value || value === '' || isNaN(parseFloat(value))) {
+            element.innerHTML = '<i class="fas fa-percent"></i> —%';
+            element.setAttribute('data-original-value', '');
+        } else {
+            const markup = parseFloat(value).toFixed(2).replace('.', ',');
+            element.innerHTML = `<i class="fas fa-percent"></i> ${markup}%`;
+            element.setAttribute('data-original-value', value);
         }
-        
-        // 6. Показываем подсказку при первом посещении страницы
-        if (!localStorage.getItem('sklad_hint_shown')) {
-            setTimeout(() => {
-                showNotification('info', 
-                    '💡 Подсказка: кликните по категории слева, чтобы увидеть материалы в ней. ' +
-                    'Для добавления подкатегории нажмите "+" рядом с категорией. ' +
-                    'Двойной клик по названию, цене или количеству для быстрого редактирования.'
-                );
-                localStorage.setItem('sklad_hint_shown', 'true');
-                console.log('[SKLAD] Подсказка для первого посещения показана');
-            }, 3000);
+    } else if (fieldName === 'thickness') {
+        if (!value || value === '' || isNaN(parseInt(value,10))) {
+            element.innerHTML = '<i class="fas fa-ruler"></i> — мкм';
+            element.setAttribute('data-original-value', '');
+        } else {
+            element.innerHTML = `<i class="fas fa-ruler"></i> ${value} мкм`;
+            element.setAttribute('data-original-value', value);
         }
-        
-        // 7. Добавляем обработчик для удаления материалов через AJAX
-        document.addEventListener('click', function(event) {
-            if (event.target.classList.contains('btn-delete') && 
-                event.target.tagName === 'BUTTON') {
-                
-                const materialId = event.target.getAttribute('data-material-id');
-                const materialName = event.target.getAttribute('data-material-name');
-                
-                if (materialId && materialName) {
-                    deleteMaterial(event, event.target);
-                }
-            }
-        });
-        
-        console.log('[SKLAD] Приложение успешно инициализировано');
-        
-    } catch (error) {
-        console.error('[SKLAD] Критическая ошибка при инициализации приложения:', error);
-        showNotification('error', 'Ошибка инициализации приложения. Пожалуйста, обновите страницу.');
+    } else if (fieldName === 'density') {
+        if (!value || value === '' || isNaN(parseInt(value,10))) {
+            element.innerHTML = '<i class="fas fa-weight-hanging"></i> — г/м²';
+            element.setAttribute('data-original-value', '');
+        } else {
+            element.innerHTML = `<i class="fas fa-weight-hanging"></i> ${parseInt(value,10)} г/м²`;
+            element.setAttribute('data-original-value', value);
+        }
+    } else if (fieldName === 'paper_thickness') {
+        if (!value || value === '' || isNaN(parseFloat(value))) {
+            element.innerHTML = '<i class="fas fa-ruler"></i> — мм';
+            element.setAttribute('data-original-value', '');
+        } else {
+            const thickness = parseFloat(value).toFixed(3).replace('.', ',');
+            element.innerHTML = `<i class="fas fa-ruler"></i> ${thickness} мм`;
+            element.setAttribute('data-original-value', value);
+        }
     }
+    // Обновляем сохранённый оригинальный HTML и атрибут ondblclick
+    element.setAttribute('data-original-html', element.innerHTML);
+    element.setAttribute('ondblclick', 'startInlineEdit(this)');
 }
 
-/**
- * НОВАЯ ФУНКЦИЯ: Обновляет data-атрибуты у всех редактируемых элементов
- * Чтобы гарантировать, что data-original-value содержит актуальные значения
- */
-function updateAllEditableElements() {
-    console.log('[SKLAD] Обновление data-атрибутов у редактируемых элементов...');
-    
-    // Для всех элементов с data-editable="true"
-    document.querySelectorAll('[data-editable="true"]').forEach(element => {
-        const fieldName = element.getAttribute('data-field');
-        let currentValue = element.getAttribute('data-original-value');
-        
-        // Нормализуем существующее значение
-        if (currentValue) {
-            const normalizedValue = currentValue.replace(',', '.');
-            if (normalizedValue !== currentValue) {
-                element.setAttribute('data-original-value', normalizedValue);
-                console.log(`[SKLAD] Нормализован data-original-value для ${fieldName}: ${currentValue} -> ${normalizedValue}`);
-            }
-        }
-        
-        // Если значение не установлено, пытаемся извлечь его из текста
-        if (!currentValue || currentValue === 'undefined' || currentValue === 'null') {
-            if (fieldName === 'price' && element.textContent) {
-                const priceMatch = element.textContent.match(/(\d+[.,]?\d*)/);
-                if (priceMatch) {
-                    const normalizedPrice = priceMatch[1].replace(',', '.');
-                    element.setAttribute('data-original-value', normalizedPrice);
-                    console.log(`[SKLAD] Обновлен data-original-value для цены: ${normalizedPrice}`);
-                }
-            } else if (fieldName === 'quantity' && element.textContent) {
-                const quantityMatch = element.textContent.match(/(\d+[.,]?\d*)/);
-                if (quantityMatch) {
-                    const normalizedQuantity = quantityMatch[1].replace(',', '.');
-                    element.setAttribute('data-original-value', normalizedQuantity);
-                    console.log(`[SKLAD] Обновлен data-original-value для количества: ${normalizedQuantity}`);
-                }
-            }
-        }
-    });
-    
-    console.log('[SKLAD] Data-атрибуты обновлены и нормализованы');
-}
-
+// ================== УДАЛЕНИЕ МАТЕРИАЛА ==================
 
 /**
- * Удаляет материал через AJAX
- * @param {Event} event - Событие клика
- * @param {HTMLElement} element - Элемент кнопки удаления
+ * Удаляет материал через AJAX.
+ * @param {HTMLElement} btn - кнопка удаления (будет заменена на спиннер)
+ * @param {string} materialId - ID материала
  */
-function deleteMaterial(event, element) {
-    event.preventDefault();
-    event.stopPropagation();
+function deleteMaterial(btn, materialId) {
+    console.log(`[SKLAD] Удаление материала ID: ${materialId}`);
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     
-    const materialId = element.getAttribute('data-material-id');
-    const materialName = element.getAttribute('data-material-name');
-    
-    if (!confirm(`Вы уверены, что хотите удалить материал "${materialName}"?`)) {
-        return false;
-    }
-    
-    // Показываем индикатор загрузки
-    element.classList.add('deleting');
-    element.disabled = true;
-    element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Удаление...';
-    
-    // Получаем CSRF токен
     const csrfToken = getCsrfToken();
-    
     if (!csrfToken) {
         showNotification('error', 'Ошибка безопасности. Обновите страницу.');
-        element.classList.remove('deleting');
-        element.disabled = false;
-        element.innerHTML = 'Удалить';
+        btn.remove(); // убираем кнопку
         return;
     }
     
-    // Отправляем AJAX запрос на удаление
     fetch(`/sklad/material/delete/${materialId}/`, {
         method: 'POST',
         headers: {
@@ -1496,82 +1202,234 @@ function deleteMaterial(event, element) {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
-        }
+        if (!response.ok) throw new Error('Ошибка сети');
         return response.json();
     })
     .then(data => {
         if (data.success) {
-            // Удаляем строку из таблицы
-            const row = element.closest('.table-row');
+            // Удаляем строку таблицы с плавным исчезновением
+            const row = btn.closest('.table-row');
             if (row) {
                 row.style.opacity = '0';
-                setTimeout(() => {
-                    row.remove();
-                    showNotification('success', data.message || `Материал "${materialName}" удален.`);
-                    
-                    // Обновляем дерево категорий, если нужно
-                    if (typeof loadCategoryTree === 'function') {
-                        loadCategoryTree();
-                    }
-                }, 300);
+                setTimeout(() => row.remove(), 300);
             }
+            showNotification('success', data.message || 'Материал удалён');
+            // Обновляем дерево категорий (счётчики материалов могли измениться)
+            loadCategoryTree();
         } else {
             throw new Error(data.error || 'Неизвестная ошибка');
         }
     })
     .catch(error => {
-        console.error('[SKLAD] Ошибка при удалении материала:', error);
-        showNotification('error', `Не удалось удалить материал: ${error.message}`);
-    })
-    .finally(() => {
-        element.classList.remove('deleting');
-        element.disabled = false;
-        element.innerHTML = 'Удалить';
+        console.error('[SKLAD] Ошибка удаления:', error);
+        showNotification('error', `Не удалось удалить: ${error.message}`);
+        btn.disabled = false;
+        btn.innerHTML = 'Удалить';
     });
 }
 
-/**
- * Очищает форму добавления материала
- * Используется глобально для обработчиков onclick
- */
-window.clearMaterialForm = function() {
-    if (typeof window.sklad?.clearMaterialForm === 'function') {
-        window.sklad.clearMaterialForm();
-    } else if (typeof window.skladAJAX?.clearMaterialForm === 'function') {
-        window.skladAJAX.clearMaterialForm();
-    }
-};
+// ================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================
 
+/**
+ * Получает CSRF-токен из cookie или из DOM.
+ * @returns {string|null} CSRF-токен или null, если не найден
+ */
+function getCsrfToken() {
+    // Пытаемся получить из cookie
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+    if (cookie) return cookie.split('=')[1];
+    // Пытаемся получить из скрытого поля формы
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (input) return input.value;
+    // Пытаемся получить из meta-тега
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.content;
+    console.warn('[SKLAD] CSRF-токен не найден');
+    return null;
+}
+
+/**
+ * Экранирует HTML-символы в строке (защита от XSS).
+ * @param {string} text - исходный текст
+ * @returns {string} экранированный текст
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Показывает всплывающее уведомление (toast).
+ * @param {string} type - тип уведомления: 'success', 'error', 'warning', 'info'
+ * @param {string} message - текст сообщения
+ */
+function showNotification(type, message) {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    // Автоматически удаляем через 5 секунд
+    setTimeout(() => notification.remove(), 5000);
+    console.log(`[SKLAD] Уведомление (${type}): ${message}`);
+}
+
+/**
+ * Обновляет URL, добавляя параметр category_id (фильтр по категории).
+ * @param {string} categoryId - ID категории
+ */
+function updateUrlWithCategoryFilter(categoryId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('category_id', categoryId);
+    window.history.pushState({}, '', url);
+    console.log(`[SKLAD] URL обновлён с фильтром category_id=${categoryId}`);
+}
+
+/**
+ * Обновляет URL, удаляя параметр category_id (сброс фильтра).
+ */
+function updateUrlWithoutCategoryFilter() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('category_id');
+    window.history.pushState({}, '', url);
+    console.log('[SKLAD] URL обновлён без фильтра категории');
+}
+
+/**
+ * Преобразует сообщения Django (из скрытого контейнера .django-messages) в уведомления.
+ */
+function convertDjangoMessagesToNotifications() {
+    const djangoMessages = document.querySelectorAll('.django-message');
+    djangoMessages.forEach(msg => {
+        const type = msg.dataset.type || 'info';
+        const message = msg.textContent.trim();
+        showNotification(type, message);
+        msg.remove();
+    });
+    const container = document.querySelector('.django-messages');
+    if (container && container.children.length === 0) container.remove();
+    console.log(`[SKLAD] Преобразовано ${djangoMessages.length} сообщений Django`);
+}
+
+// ================== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ==================
+
+/**
+ * Инициализирует всё приложение при загрузке страницы.
+ * Определяет текущий тип из URL, загружает дерево, навешивает обработчики.
+ */
+function initializeSkladApp() {
+    console.log('[SKLAD] Инициализация приложения...');
+    
+    // Определяем текущий тип материала из URL (параметр type)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlType = urlParams.get('type');
+    if (urlType === 'film') sklad_currentMaterialType = 'film';
+    else sklad_currentMaterialType = 'paper';
+    
+    // Синхронизируем глобальный объект
+    if (window.sklad) window.sklad.currentMaterialType = sklad_currentMaterialType;
+    
+    // Настройка переключателя типа (кнопки "Бумага" / "Плёнка")
+    const switcher = document.getElementById('type-switcher');
+    if (switcher) {
+        const activeBtn = switcher.querySelector(`.type-switcher-btn[data-type="${sklad_currentMaterialType}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+        switcher.querySelectorAll('.type-switcher-btn').forEach(btn => {
+            btn.addEventListener('click', () => setMaterialType(btn.getAttribute('data-type')));
+        });
+    }
+    
+    // Преобразуем сообщения Django в уведомления
+    convertDjangoMessagesToNotifications();
+    
+    // Загружаем дерево категорий
+    loadCategoryTree();
+    
+    // Кнопка "Добавить категорию"
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    if (addCategoryBtn) addCategoryBtn.addEventListener('click', showCategoryForm);
+    
+    // Кнопка "Добавить материал"
+    const addMaterialBtn = document.getElementById('add-material-btn');
+    if (addMaterialBtn) addMaterialBtn.addEventListener('click', toggleMaterialForm);
+    
+    // Обработчик изменения типа в форме добавления материала (для динамического переключения полей)
+    const materialTypeSelect = document.getElementById('material-type');
+    if (materialTypeSelect) materialTypeSelect.addEventListener('change', updateFormFieldsByType);
+    
+    // Глобальный обработчик двойного клика для inline-редактирования
+    document.addEventListener('dblclick', (e) => {
+        const target = e.target.closest('[data-editable="true"]');
+        if (target && !sklad_currentEditingElement) startInlineEdit(target);
+    });
+    
+    // Обработчик удаления материалов (делегирование, так как кнопки могут быть динамическими)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-delete');
+        if (btn && !btn.disabled) {
+            e.preventDefault();
+            const materialId = btn.getAttribute('data-material-id');
+            const materialName = btn.getAttribute('data-material-name');
+            if (confirm(`Удалить материал "${materialName}"?`)) {
+                deleteMaterial(btn, materialId);
+            }
+        }
+    });
+    
+    // Инициализируем AJAX-отправку формы материала
+    initMaterialFormSubmit();
+    
+    // Если в URL есть параметр category_id – загружаем материалы этой категории
+    const initialCategoryId = urlParams.get('category_id');
+    if (initialCategoryId) {
+        selectCategory(initialCategoryId);
+    } else if (typeof window.skladAJAX?.loadCategoryMaterials === 'function') {
+        window.skladAJAX.loadCategoryMaterials(null);
+    }
+    
+    // Показываем подсказку при первом посещении
+    if (!localStorage.getItem('sklad_hint_shown')) {
+        setTimeout(() => {
+            showNotification('info', 
+                '💡 Подсказка: кликните по категории слева, чтобы увидеть материалы. ' +
+                'Двойной клик по любому полю (название, цена, количество, плотность, толщина) для быстрого редактирования.'
+            );
+            localStorage.setItem('sklad_hint_shown', 'true');
+        }, 3000);
+    }
+    
+    console.log('[SKLAD] Инициализация завершена');
+}
 
 // ================== ГЛОБАЛЬНЫЙ ЭКСПОРТ ФУНКЦИЙ ==================
 
-// Делаем функции доступными глобально для отладки
+// Делаем функции доступными глобально для вызова из HTML и из модуля sklad_ajax.js
 window.sklad = {
     loadCategoryTree,
-    renderCategoryTree,
     addSubcategory,
     toggleMaterialForm,
     showCategoryForm,
     hideCategoryForm,
     clearMaterialForm,
-    showNotification,
-    initializeSkladApp,
-    // НОВЫЕ ФУНКЦИИ ДЛЯ INLINE-РЕДАКТИРОВАНИЯ
     startInlineEdit,
     saveInlineEdit,
     cancelInlineEdit,
-    validateInlineInput,
-    updateElementDisplay,
-    highlightSelectedCategory,
-    selectCategory,
     deleteMaterial,
+    setMaterialType,
+    selectCategory,
+    highlightSelectedCategory,
+    showNotification,
+    getCsrfToken,
+    updateFormFieldsByType,
+    submitMaterialForm,
+    initMaterialFormSubmit,
+    currentMaterialType: sklad_currentMaterialType
 };
 
 // ================== ЗАПУСК ИНИЦИАЛИЗАЦИИ ==================
 
-// Запускаем инициализацию при полной загрузке DOM
+// Запускаем инициализацию после полной загрузки DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeSkladApp);
 } else {

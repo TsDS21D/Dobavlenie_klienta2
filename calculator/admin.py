@@ -9,6 +9,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models_list_proschet import Proschet, PrintComponent, AdditionalWork
+from .models_lamination import Laminate
 
 
 class PrintComponentInline(admin.TabularInline):
@@ -140,6 +141,24 @@ class ProschetAdmin(admin.ModelAdmin):
         return "Будет рассчитано после сохранения"
     formatted_total_price_display.short_description = 'Общая стоимость'
 
+class LaminateInline(admin.TabularInline):
+    """Inline-форма для редактирования ламинации внутри печатного компонента."""
+    model = Laminate
+    can_delete = False          # запись ламинации удалять нельзя (только отключать)
+    extra = 0                   # не показывать пустые формы
+    verbose_name = 'Ламинация'
+    verbose_name_plural = 'Ламинация'
+    fields = [
+        'is_enabled', 'laminator', 'film',
+        'laminator_cost', 'laminator_markup', 'laminator_price',
+        'film_price', 'total_price'
+    ]
+    readonly_fields = [
+        'laminator_cost', 'laminator_markup', 'laminator_price',
+        'film_price', 'total_price'
+    ]
+    autocomplete_fields = ['laminator', 'film']
+
 
 @admin.register(PrintComponent)
 class PrintComponentAdmin(admin.ModelAdmin):
@@ -194,7 +213,7 @@ class PrintComponentAdmin(admin.ModelAdmin):
     autocomplete_fields = ['proschet', 'printer', 'paper']
 
     # Добавляем inline для дополнительных работ прямо внутри компонента
-    inlines = [AdditionalWorkInline]
+    inlines = [AdditionalWorkInline, LaminateInline]
 
     fieldsets = [
         ('Основная информация', {
@@ -333,3 +352,4 @@ class AdditionalWorkAdmin(admin.ModelAdmin):
         updated = queryset.update(is_deleted=False)
         self.message_user(request, f"Восстановлено: {updated} работ", level='success')
     restore_deleted.short_description = "Восстановить удалённые"
+

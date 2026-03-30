@@ -24,6 +24,11 @@ from spravochnik_dopolnitelnyh_rabot.models import Work
 from spravochnik_dopolnitelnyh_rabot.utils import calculate_price_for_work
 from print_price.utils import get_cost_and_markup_for_printer_and_copies, calculate_price_for_printer_and_copies
 
+from .models_lamination import Laminate
+from .forms_lamination import LaminateForm
+from devices.models import Laminator          # для работы с ламинаторами
+from sklad.models import Material             # для работы с плёнками (материалами типа film)
+
 
 @login_required(login_url='/login/')
 @never_cache
@@ -578,8 +583,8 @@ def get_clients(request):
 def get_print_components(request, proschet_id):
     """
     API для получения компонентов печати для указанного просчёта.
-    Теперь для каждого компонента вычисляем себестоимость (cost), наценку (markup_percent)
-    и цену за лист (price_per_sheet) на основе интерполяции опорных точек PrintPrice.
+    ИСПРАВЛЕНИЕ: возвращаем корректную total_circulation_price,
+    вычисленную на лету, а не из БД.
     """
     try:
         components = PrintComponent.objects.filter(
@@ -602,76 +607,55 @@ def get_print_components(request, proschet_id):
             sheet_count = vich_data_dict.get(component.id, Decimal('0.00'))
             sheet_count_float = float(sheet_count)
 
-            # Форматируем количество листов
-            formatted_sheet_count = f"{sheet_count_float:,.2f}".replace(',', ' ') if sheet_count_float > 0 else "0.00"
-
-            # Инициализируем переменные для себестоимости, наценки и цены
+            # Инициализируем переменные
             cost = Decimal('0.00')
             markup = Decimal('0.00')
             price_per_sheet = Decimal('0.00')
 
             # Если есть принтер и количество листов > 0, получаем интерполированные значения
             if component.printer and sheet_count_float > 0:
-                # Преобразуем количество листов в целое число (тираж для интерполяции)
-                # ВНИМАНИЕ: в PrintPrice тираж (copies) – это количество копий, но в компоненте печати
-                # количество листов может не совпадать с тиражом просчёта. Однако для расчёта цены за лист
-                # используется именно количество листов (sheet_count), а не тираж просчёта.
-                # В приложении print_price интерполяция идёт по тиражу (copies), но здесь мы используем
-                # количество листов как аргумент для интерполяции. Это логично, потому что цена печати
-                # зависит от объёма печати (количества листов).
-                # Если в вашей бизнес-логике требуется другой параметр (например, тираж просчёта),
-                # то нужно передавать proschet.circulation. Но по заданию мы используем количество листов.
                 copies_int = int(sheet_count_float)
-
-                # Получаем интерполированные себестоимость и наценку
                 cost, markup = get_cost_and_markup_for_printer_and_copies(component.printer, copies_int)
-                # Рассчитываем цену за лист
                 price_per_sheet = cost + (cost * markup / Decimal('100'))
-                # Округляем
                 cost = cost.quantize(Decimal('0.01'))
                 markup = markup.quantize(Decimal('0.01'))
                 price_per_sheet = price_per_sheet.quantize(Decimal('0.01'))
-
-                # Сохраняем эти значения в компонент (опционально, если нужно в БД)
-                # Но в модели PrintComponent этих полей нет, так что просто передаём в JSON.
-                # Если нужно сохранять, придётся добавлять поля в модель.
             else:
-                # Если нет принтера или листов, цены нулевые
                 cost = Decimal('0.00')
                 markup = Decimal('0.00')
                 price_per_sheet = Decimal('0.00')
 
-            # Обновляем поля компонента (если они есть) для последующего пересчёта общей стоимости
-            component.sheet_count = sheet_count
-            component.price_per_sheet = price_per_sheet
-            # Сохранять component не нужно, так как эти поля не в БД (кроме price_per_sheet),
-            # но price_per_sheet есть в модели, поэтому его можно обновить.
-            # Для корректного расчёта общей стоимости нужно также обновить total_circulation_price.
-            # Вызовем refresh_total_price, который использует sheet_count и price_per_sheet
-            component.refresh_total_price()
-            # Сохраняем обновлённые значения в БД (только price_per_sheet и total_circulation_price)
-            component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
+            # Количество прогонов принтера
+            runs_count = int(sheet_count_float) * (2 if component.printing_mode == 'duplex' else 1)
+            # Цена бумаги за лист
+            paper_price = component.material_price_per_unit
 
-            runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
+            # ===== ГЛАВНОЕ ИСПРАВЛЕНИЕ: вычисляем total_circulation_price по формуле =====
+            total_circulation_price = price_per_sheet * runs_count + paper_price * sheet_count
+            total_circulation_price = total_circulation_price.quantize(Decimal('0.01'))
+
+            # Прибыль на лист
             profit = price_per_sheet - cost
+
+            # Форматируем количество листов
+            formatted_sheet_count = f"{sheet_count_float:,.2f}".replace(',', ' ') if sheet_count_float > 0 else "0.00"
 
             component_data = {
                 'id': component.id,
                 'number': component.number,
                 'printer_name': component.printer.name if component.printer else None,
                 'paper_name': component.paper.name if component.paper else None,
-                'sheet_count': float(sheet_count),
+                'sheet_count': sheet_count_float,
                 'formatted_sheet_count_display': formatted_sheet_count,
                 'price_per_sheet': str(price_per_sheet),
                 'formatted_price_per_sheet': f"{price_per_sheet:.2f} ₽",
-                'total_circulation_price': str(component.total_circulation_price),
-                'formatted_total_circulation_price': component.formatted_total_circulation_price,
+                'total_circulation_price': str(total_circulation_price),
+                'formatted_total_circulation_price': f"{total_circulation_price:.2f} ₽",
                 'has_vich_data': component.id in vich_data_dict,
-                'paper_price': float(component.material_price_per_unit) if component.paper else 0,
+                'paper_price': float(paper_price),
                 'printing_mode': component.printing_mode,
                 'printing_mode_display': component.printing_mode_display_name,
                 'runs_count': runs_count,
-                # НОВЫЕ ПОЛЯ:
                 'cost': str(cost),
                 'formatted_cost': f"{cost:.2f} ₽",
                 'markup_percent': str(markup),
@@ -680,6 +664,11 @@ def get_print_components(request, proschet_id):
                 'formatted_profit_per_unit': f"{profit:.2f} ₽",
             }
             components_data.append(component_data)
+
+            # Опционально: обновляем поля в БД, чтобы синхронизировать
+            component.price_per_sheet = price_per_sheet
+            component.total_circulation_price = total_circulation_price
+            component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
 
         return JsonResponse({
             'success': True,
@@ -754,94 +743,52 @@ def get_printers(request):
 @login_required
 def get_papers(request):
     """
-    API для получения списка материалов (бумаги) для выпадающего списка.
-    Возвращает JSON с массивом материалов.
+    Возвращает список материалов (только БУМАГА) для выпадающего списка.
+    ИСПРАВЛЕНИЕ: фильтруем материалы по type='paper', чтобы исключить плёнку.
     """
     try:
-        # Пытаемся импортировать модель Material
-        try:
-            from sklad.models import Material
-        except ImportError:
-            # Если приложение не установлено, возвращаем пустой список
-            return JsonResponse({
-                'success': True,
-                'papers': [],
-                'count': 0,
-                'message': 'Приложение sklad не установлено'
-            })
-        
-        # Получаем все материалы (без фильтрации по is_deleted, так как поле может не существовать)
-        papers = Material.objects.all().order_by('name')
-        
-        # Формируем данные для ответа
-        papers_data = []
-        for paper in papers:
-            paper_data = {
-                'id': paper.id,
-                'name': paper.name,
-            }
-            
-            # Добавляем дополнительные поля, если они существуют
-            if hasattr(paper, 'price'):
-                paper_data['price'] = str(paper.price) if paper.price else '0.00'
-            if hasattr(paper, 'unit'):
-                paper_data['unit'] = paper.unit
-            if hasattr(paper, 'stock_quantity'):
-                paper_data['stock_quantity'] = paper.stock_quantity
-            
-            papers_data.append(paper_data)
-        
-        return JsonResponse({
-            'success': True,
-            'papers': papers_data,
-            'count': len(papers_data)
-        })
-        
-    except Exception as e:
-        # В случае любой ошибки возвращаем пустой список
-        print(f"❌ Ошибка в get_papers: {str(e)}")
-        return JsonResponse({
-            'success': True,
-            'papers': [],
-            'count': 0,
-            'message': f'Ошибка: {str(e)}'
-        })
+        from sklad.models import Material
+    except ImportError:
+        return JsonResponse({'success': True, 'papers': [], 'count': 0, 'message': 'Приложение sklad не установлено'})
+    
+    # ===== ИСПРАВЛЕНИЕ: получаем только бумагу (type='paper') =====
+    papers = Material.objects.filter(type='paper').order_by('name')
+    
+    papers_data = []
+    for paper in papers:
+        paper_data = {'id': paper.id, 'name': paper.name}
+        if hasattr(paper, 'price'):
+            paper_data['price'] = str(paper.price) if paper.price is not None else '0.00'
+        if hasattr(paper, 'unit'):
+            paper_data['unit'] = paper.unit
+        if hasattr(paper, 'stock_quantity'):
+            paper_data['stock_quantity'] = paper.stock_quantity
+        papers_data.append(paper_data)
+    
+    return JsonResponse({'success': True, 'papers': papers_data, 'count': len(papers_data)})
+
 
 @login_required
 @require_POST
 def add_print_component(request):
     """
-    API для добавления нового компонента печати.
-    ТЕПЕРЬ:
-    - Создаётся запись VichisliniyaListovModel с параметрами по умолчанию.
-    - Если выбран принтер, вызывается calculate_fitting() для расчёта размещения.
-    - Рассчитывается количество листов на основе тиража просчёта.
-    - Пересчитывается цена за лист (интерполяция) и общая стоимость компонента.
-    - НОВОЕ: режим печати (printing_mode) устанавливается по умолчанию 'single'.
-    - Возвращаются все данные для отображения в таблице, включая printing_mode.
+    Добавление нового печатного компонента.
+    ИСПРАВЛЕНИЕ: проверяем, что выбранная бумага имеет type='paper'.
     """
     try:
-        # Получаем данные из POST-запроса
         proschet_id = request.POST.get('proschet_id')
         printer_id = request.POST.get('printer_id')
         paper_id = request.POST.get('paper_id')
-
-        # Проверка обязательных полей
+        
         if not proschet_id or not paper_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Не указаны обязательные поля: просчёт и бумага'
-            }, status=400)
-
+            return JsonResponse({'success': False, 'message': 'Не указаны обязательные поля: просчёт и бумага'}, status=400)
+        
         # Получаем просчёт
         try:
             proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
         except Proschet.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'message': 'Просчёт не найден'
-            }, status=404)
-
+            return JsonResponse({'success': False, 'message': 'Просчёт не найден'}, status=404)
+        
         # Получаем принтер (если указан)
         printer = None
         if printer_id:
@@ -849,31 +796,31 @@ def add_print_component(request):
                 from devices.models import Printer
                 printer = Printer.objects.get(id=printer_id)
             except (ImportError, Printer.DoesNotExist):
-                # Если принтер не найден, просто оставляем None
                 pass
-
-        # Получаем бумагу
+        
+        # ===== ИСПРАВЛЕНИЕ: получаем бумагу и проверяем тип =====
         try:
             from sklad.models import Material
             paper = Material.objects.get(id=paper_id)
+            if paper.type != 'paper':
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Материал "{paper.name}" не является бумагой (тип: {paper.type}). Выберите бумагу.'
+                }, status=400)
         except (ImportError, Material.DoesNotExist):
-            return JsonResponse({
-                'success': False,
-                'message': 'Бумага не найдена'
-            }, status=404)
-
-        # ===== 1. СОЗДАЁМ КОМПОНЕНТ ПЕЧАТИ =====
+            return JsonResponse({'success': False, 'message': 'Бумага не найдена'}, status=404)
+        
+        # Создаём компонент печати
         component = PrintComponent(
             proschet=proschet,
             printer=printer,
             paper=paper,
-            price_per_sheet=Decimal('0.00'),  # временно, потом пересчитаем
-            printing_mode='single'  # НОВОЕ: по умолчанию односторонняя печать
+            price_per_sheet=Decimal('0.00'),
+            printing_mode='single'
         )
         component.save()
-
-        # ===== 2. СОЗДАЁМ ЗАПИСЬ ВЫЧИСЛЕНИЙ ЛИСТОВ С ПАРАМЕТРАМИ ПО УМОЛЧАНИЮ =====
-        from vichisliniya_listov.models import VichisliniyaListovModel
+        
+        # Создаём запись вычислений листов с параметрами по умолчанию
         vich_data = VichisliniyaListovModel(
             vichisliniya_listov_print_component=component,
             vichisliniya_listov_vyleta=1,
@@ -889,47 +836,38 @@ def add_print_component(request):
             vichisliniya_listov_fit_selected_orientation='auto',
             vichisliniya_listov_list_count=Decimal('0.00')
         )
-
-        # ===== 3. ЕСЛИ ЕСТЬ ПРИНТЕР, РАССЧИТЫВАЕМ РАЗМЕЩЕНИЕ =====
+        
+        # Если есть принтер и данные о листе – рассчитываем размещение
         if printer and printer.sheet_format and printer.margin_mm is not None:
             sheet_width = printer.sheet_format.width_mm
             sheet_height = printer.sheet_format.height_mm
             margin = printer.margin_mm
             vich_data.calculate_fitting(sheet_width, sheet_height, margin)
-        # Если принтера нет, fit_* остаются нулевыми – это корректно
-
-        # Сохраняем vich_data (после возможного вызова calculate_fitting)
         vich_data.save()
-
-        # ===== 4. РАССЧИТЫВАЕМ КОЛИЧЕСТВО ЛИСТОВ НА ОСНОВЕ ТИРАЖА =====
+        
+        # Рассчитываем количество листов на основе тиража просчёта
         circulation = proschet.circulation or 1
         new_list_count = vich_data.vichisliniya_listov_calculate_list_count(circulation)
         vich_data.vichisliniya_listov_list_count = new_list_count
         vich_data.save()
         sheet_count = new_list_count
-
-        # ===== 5. ЕСЛИ ЕСТЬ ПРИНТЕР И ЛИСТЫ > 0, РАССЧИТЫВАЕМ ЦЕНУ ЗА ЛИСТ =====
+        
+        # Рассчитываем цену за лист
         if component.printer and sheet_count > 0:
             sheet_count_int = int(float(sheet_count))
             new_price = component.calculate_price_for_printer_and_copies(component.printer, sheet_count_int)
             component.price_per_sheet = new_price
         else:
             component.price_per_sheet = Decimal('0.00')
-
-        # ===== 6. ПЕРЕСЧИТЫВАЕМ ОБЩУЮ СТОИМОСТЬ КОМПОНЕНТА (с учётом printing_mode) =====
+        
         component.refresh_total_price()
         component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
-
-        # ===== 7. ФОРМИРУЕМ ДАННЫЕ ДЛЯ ОТВЕТА =====
-        def format_price(p):
-            return f"{float(p):.2f} ₽"
-
-        def format_sheet_count(c):
-            return f"{float(c):,.2f}".replace(',', ' ')
-
-        # Количество прогонов для отображения (не обязательно, но полезно)
+        
+        # Формируем данные для ответа
+        def format_price(p): return f"{float(p):.2f} ₽"
+        def format_sheet_count(c): return f"{float(c):,.2f}".replace(',', ' ')
         runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
-
+        
         component_data = {
             'id': component.id,
             'number': component.number,
@@ -943,53 +881,166 @@ def add_print_component(request):
             'formatted_total_circulation_price': format_price(component.total_circulation_price),
             'paper_price': float(component.material_price_per_unit),
             'formatted_paper_price': format_price(component.material_price_per_unit),
-            # НОВЫЕ ПОЛЯ:
             'printing_mode': component.printing_mode,
             'printing_mode_display': component.printing_mode_display_name,
             'runs_count': runs_count,
         }
-
-        return JsonResponse({
-            'success': True,
-            'message': 'Компонент печати успешно добавлен',
-            'component': component_data
-        })
-
+        
+        return JsonResponse({'success': True, 'message': 'Компонент печати успешно добавлен', 'component': component_data})
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({
-            'success': False,
-            'message': f'Ошибка при добавлении компонента: {str(e)}'
-        }, status=500)
+        return JsonResponse({'success': False, 'message': f'Ошибка при добавлении компонента: {str(e)}'}, status=500)
+    
+@login_required
+@require_POST
+def add_print_component(request):
+    """
+    Добавление нового печатного компонента.
+    ИСПРАВЛЕНИЕ: проверяем, что выбранная бумага имеет type='paper'.
+    """
+    try:
+        proschet_id = request.POST.get('proschet_id')
+        printer_id = request.POST.get('printer_id')
+        paper_id = request.POST.get('paper_id')
+        
+        if not proschet_id or not paper_id:
+            return JsonResponse({'success': False, 'message': 'Не указаны обязательные поля: просчёт и бумага'}, status=400)
+        
+        # Получаем просчёт
+        try:
+            proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
+        except Proschet.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Просчёт не найден'}, status=404)
+        
+        # Получаем принтер (если указан)
+        printer = None
+        if printer_id:
+            try:
+                from devices.models import Printer
+                printer = Printer.objects.get(id=printer_id)
+            except (ImportError, Printer.DoesNotExist):
+                pass
+        
+        # ===== ИСПРАВЛЕНИЕ: получаем бумагу и проверяем тип =====
+        try:
+            from sklad.models import Material
+            paper = Material.objects.get(id=paper_id)
+            if paper.type != 'paper':
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Материал "{paper.name}" не является бумагой (тип: {paper.type}). Выберите бумагу.'
+                }, status=400)
+        except (ImportError, Material.DoesNotExist):
+            return JsonResponse({'success': False, 'message': 'Бумага не найдена'}, status=404)
+        
+        # Создаём компонент печати
+        component = PrintComponent(
+            proschet=proschet,
+            printer=printer,
+            paper=paper,
+            price_per_sheet=Decimal('0.00'),
+            printing_mode='single'
+        )
+        component.save()
+        
+        # Создаём запись вычислений листов с параметрами по умолчанию
+        vich_data = VichisliniyaListovModel(
+            vichisliniya_listov_print_component=component,
+            vichisliniya_listov_vyleta=1,
+            vichisliniya_listov_polosa_count=1,
+            vichisliniya_listov_color='4+0',
+            vichisliniya_listov_item_width=Decimal('90.00'),
+            vichisliniya_listov_item_height=Decimal('50.00'),
+            vichisliniya_listov_fit_horizontal=0,
+            vichisliniya_listov_fit_vertical=0,
+            vichisliniya_listov_fit_total=0,
+            vichisliniya_listov_fit_landscape_total=0,
+            vichisliniya_listov_fit_portrait_total=0,
+            vichisliniya_listov_fit_selected_orientation='auto',
+            vichisliniya_listov_list_count=Decimal('0.00')
+        )
+        
+        # Если есть принтер и данные о листе – рассчитываем размещение
+        if printer and printer.sheet_format and printer.margin_mm is not None:
+            sheet_width = printer.sheet_format.width_mm
+            sheet_height = printer.sheet_format.height_mm
+            margin = printer.margin_mm
+            vich_data.calculate_fitting(sheet_width, sheet_height, margin)
+        vich_data.save()
+        
+        # Рассчитываем количество листов на основе тиража просчёта
+        circulation = proschet.circulation or 1
+        new_list_count = vich_data.vichisliniya_listov_calculate_list_count(circulation)
+        vich_data.vichisliniya_listov_list_count = new_list_count
+        vich_data.save()
+        sheet_count = new_list_count
+        
+        # Рассчитываем цену за лист
+        if component.printer and sheet_count > 0:
+            sheet_count_int = int(float(sheet_count))
+            new_price = component.calculate_price_for_printer_and_copies(component.printer, sheet_count_int)
+            component.price_per_sheet = new_price
+        else:
+            component.price_per_sheet = Decimal('0.00')
+        
+        component.refresh_total_price()
+        component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
+        
+        # Формируем данные для ответа
+        def format_price(p): return f"{float(p):.2f} ₽"
+        def format_sheet_count(c): return f"{float(c):,.2f}".replace(',', ' ')
+        runs_count = int(sheet_count) * (2 if component.printing_mode == 'duplex' else 1)
+        
+        component_data = {
+            'id': component.id,
+            'number': component.number,
+            'printer_name': component.printer.name if component.printer else 'Принтер не выбран',
+            'paper_name': component.paper.name if component.paper else 'Бумага не выбрана',
+            'sheet_count': float(sheet_count),
+            'formatted_sheet_count_display': format_sheet_count(sheet_count),
+            'price_per_sheet': str(component.price_per_sheet),
+            'formatted_price_per_sheet': format_price(component.price_per_sheet),
+            'total_circulation_price': str(component.total_circulation_price),
+            'formatted_total_circulation_price': format_price(component.total_circulation_price),
+            'paper_price': float(component.material_price_per_unit),
+            'formatted_paper_price': format_price(component.material_price_per_unit),
+            'printing_mode': component.printing_mode,
+            'printing_mode_display': component.printing_mode_display_name,
+            'runs_count': runs_count,
+        }
+        
+        return JsonResponse({'success': True, 'message': 'Компонент печати успешно добавлен', 'component': component_data})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'message': f'Ошибка при добавлении компонента: {str(e)}'}, status=500)
+
 
 @login_required
 @require_POST
 def update_print_component(request):
     """
-    API для обновления печатного компонента.
-    ПОЛНОСТЬЮ ИСПРАВЛЕНО: теперь при изменении принтера, бумаги или режима печати
-    корректно пересчитывается и СОХРАНЯЕТСЯ количество листов (в VichisliniyaListovModel)
-    и обновляется поле sheet_count компонента, как это происходит при изменении тиража.
+    Обновление печатного компонента (принтер, бумага, цена, режим печати).
+    ИСПРАВЛЕНИЕ: при обновлении бумаги проверяем, что она имеет type='paper'.
     """
     try:
         component_id = request.POST.get('component_id')
         field_name = request.POST.get('field_name')
         field_value = request.POST.get('field_value')
-
+        
         print(f"🔄 Обновление компонента: ID={component_id}, поле={field_name}, значение={field_value}")
-
-        # Валидация входных данных
+        
         if not component_id or not field_name:
             return JsonResponse({'success': False, 'message': 'Не указаны обязательные поля'}, status=400)
-
-        # Получаем компонент печати (убеждаемся, что не удалён)
+        
+        # Получаем компонент
         try:
             component = PrintComponent.objects.get(id=component_id, is_deleted=False)
         except PrintComponent.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Компонент не найден'}, status=404)
-
-        # Получаем или создаём запись вычислений листов для этого компонента
+        
+        # Получаем или создаём запись вычислений листов
         vich_data, created = VichisliniyaListovModel.objects.get_or_create(
             vichisliniya_listov_print_component=component,
             defaults={
@@ -1001,72 +1052,58 @@ def update_print_component(request):
                 'vichisliniya_listov_fit_selected_orientation': 'auto',
             }
         )
-
+        
         # ===== ОБРАБОТКА ИЗМЕНЕНИЯ ПРИНТЕРА =====
         if field_name == 'printer':
             if field_value == '' or field_value == 'null':
                 # Принтер снимается – сбрасываем все расчёты
                 component.printer = None
                 component.price_per_sheet = Decimal('0.00')
-
                 # Обнуляем поля размещения
                 vich_data.vichisliniya_listov_fit_landscape_total = 0
                 vich_data.vichisliniya_listov_fit_portrait_total = 0
                 vich_data.vichisliniya_listov_fit_horizontal = 0
                 vich_data.vichisliniya_listov_fit_vertical = 0
                 vich_data.vichisliniya_listov_fit_total = 0
-                vich_data.save()  # <-- СОХРАНЯЕМ
-
+                vich_data.save()
                 # Пересчитываем количество листов (станет 0)
                 circulation = component.proschet.circulation or 1
                 new_list_count = vich_data.vichisliniya_listov_calculate_list_count(circulation)
                 vich_data.vichisliniya_listov_list_count = new_list_count
-                vich_data.save()  # <-- СОХРАНЯЕМ
-
+                vich_data.save()
             else:
                 # Выбран новый принтер
                 try:
                     from devices.models import Printer
                     printer = Printer.objects.get(id=field_value)
                     component.printer = printer
-
-                    # Если у принтера есть данные о листе – пересчитываем размещение
                     if printer.sheet_format and printer.margin_mm is not None:
                         sheet_width = printer.sheet_format.width_mm
                         sheet_height = printer.sheet_format.height_mm
                         margin = printer.margin_mm
-                        # Метод calculate_fitting обновит fit_* поля и вызовет update_cuts_count()
                         vich_data.calculate_fitting(sheet_width, sheet_height, margin)
                     else:
-                        # Нет данных о листе – размещение невозможно
                         vich_data.vichisliniya_listov_fit_landscape_total = 0
                         vich_data.vichisliniya_listov_fit_portrait_total = 0
                         vich_data.vichisliniya_listov_fit_horizontal = 0
                         vich_data.vichisliniya_listov_fit_vertical = 0
                         vich_data.vichisliniya_listov_fit_total = 0
-
-                    vich_data.save()  # <-- СОХРАНЯЕМ fit_* поля
-
-                    # Пересчитываем количество листов с новыми параметрами размещения и тиражом
+                    vich_data.save()
+                    # Пересчитываем количество листов
                     circulation = component.proschet.circulation or 1
                     new_list_count = vich_data.vichisliniya_listov_calculate_list_count(circulation)
                     vich_data.vichisliniya_listov_list_count = new_list_count
-                    vich_data.save()  # <-- СОХРАНЯЕМ новое количество листов
-
+                    vich_data.save()
                     sheet_count = new_list_count
-
-                    # Пересчитываем цену за лист на основе нового количества листов
                     if sheet_count > 0:
                         sheet_count_int = int(float(sheet_count))
                         new_price = component.calculate_price_for_printer_and_copies(printer, sheet_count_int)
                         component.price_per_sheet = new_price
                     else:
                         component.price_per_sheet = Decimal('0.00')
-
                 except Exception as e:
-                    print(f"❌ Ошибка при поиске принтера: {e}")
                     return JsonResponse({'success': False, 'message': f'Принтер не найден: {str(e)}'}, status=404)
-
+        
         # ===== ОБРАБОТКА ИЗМЕНЕНИЯ БУМАГИ =====
         elif field_name == 'paper':
             if not field_value:
@@ -1074,11 +1111,17 @@ def update_print_component(request):
             try:
                 from sklad.models import Material
                 paper = Material.objects.get(id=field_value)
+                # ===== ИСПРАВЛЕНИЕ: проверяем, что это бумага, а не плёнка =====
+                if paper.type != 'paper':
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'Материал "{paper.name}" не является бумагой (тип: {paper.type}). Выберите бумагу.'
+                    }, status=400)
                 component.paper = paper
             except Exception as e:
                 return JsonResponse({'success': False, 'message': f'Бумага не найдена: {str(e)}'}, status=404)
-
-        # ===== ОБРАБОТКА ИЗМЕНЕНИЯ ЦЕНЫ ЗА ЛИСТ =====
+        
+        # ===== ОБРАБОТКА ИЗМЕНЕНИЯ ЦЕНЫ =====
         elif field_name == 'price_per_sheet':
             try:
                 price = Decimal(field_value)
@@ -1087,28 +1130,23 @@ def update_print_component(request):
                 component.price_per_sheet = price
             except (ValueError, InvalidOperation):
                 return JsonResponse({'success': False, 'message': 'Некорректный формат цены'}, status=400)
-
+        
         # ===== ОБРАБОТКА ИЗМЕНЕНИЯ РЕЖИМА ПЕЧАТИ =====
         elif field_name == 'printing_mode':
             if field_value not in ['single', 'duplex']:
                 return JsonResponse({'success': False, 'message': 'Некорректное значение режима печати'}, status=400)
             component.printing_mode = field_value
-
+        
         else:
             return JsonResponse({'success': False, 'message': f'Поле "{field_name}" не поддерживается'}, status=400)
-
-        # ===== ОБЯЗАТЕЛЬНО: после всех изменений обновляем поле sheet_count компонента =====
-        # Берём актуальное количество листов из vich_data
+        
+        # Обновляем количество листов в компоненте из vich_data
         component.sheet_count = vich_data.vichisliniya_listov_list_count
-
-        # Пересчитываем общую стоимость компонента (с учётом режима печати)
         component.refresh_total_price()
-        # Сохраняем компонент (обновляем все поля, включая sheet_count, price_per_sheet, total_circulation_price)
         component.save()
-
+        
         print(f"✅ Компонент обновлён и сохранён: ID={component.id}, новое количество листов={component.sheet_count}")
-
-        # ===== ФОРМИРУЕМ ОБНОВЛЁННЫЕ ДАННЫЕ ДЛЯ КЛИЕНТА =====
+        
         updated_data = {
             'id': component.id,
             'number': component.number,
@@ -1126,18 +1164,32 @@ def update_print_component(request):
             'runs_count': int(vich_data.vichisliniya_listov_list_count) * (2 if component.printing_mode == 'duplex' else 1),
             'cuts_count': vich_data.vichisliniya_listov_cuts_count,
         }
-
-        return JsonResponse({
-            'success': True,
-            'message': 'Компонент успешно обновлён',
-            'updated_data': updated_data
-        })
-
+        
+        return JsonResponse({'success': True, 'message': 'Компонент успешно обновлён', 'updated_data': updated_data})
     except Exception as e:
         print(f"🔥 Критическая ошибка в update_print_component: {str(e)}")
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Внутренняя ошибка: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+def delete_print_component(request):
+    """Мягкое удаление печатного компонента (устанавливает is_deleted=True)."""
+    try:
+        component_id = request.POST.get('component_id')
+        if not component_id:
+            return JsonResponse({'success': False, 'message': 'Не указан ID компонента'}, status=400)
+        try:
+            component = PrintComponent.objects.get(id=component_id, is_deleted=False)
+        except PrintComponent.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Компонент печати не найден или уже удален'}, status=404)
+        component.is_deleted = True
+        component.save()
+        return JsonResponse({'success': True, 'message': 'Компонент печати успешно удален', 'component_id': component_id})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Ошибка при удалении компонента: {str(e)}'}, status=500)
 
     
 @login_required
@@ -1909,3 +1961,97 @@ def get_spravochnik_works(request):
         'default_items_per_sheet': w.default_items_per_sheet,
     } for w in works]
     return JsonResponse({'success': True, 'works': works_data})
+
+@login_required
+@require_GET
+def get_lamination_data(request, component_id):
+    """
+    Возвращает данные о ламинации для печатного компонента.
+    Если записи Laminate не существует – создаёт её (с is_enabled=False).
+    """
+    component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
+    lamination, created = Laminate.objects.get_or_create(print_component=component)
+    # Получаем актуальное количество листов
+    try:
+        vich_data = VichisliniyaListovModel.objects.get(
+            vichisliniya_listov_print_component=component
+        )
+        sheet_count = vich_data.vichisliniya_listov_list_count
+    except VichisliniyaListovModel.DoesNotExist:
+        sheet_count = Decimal('0.00')
+    # Пересчитываем цену на основе текущих настроек и количества листов
+    lamination.recalculate_price(sheet_count)
+    lamination.save(update_fields=['laminator_cost', 'laminator_markup', 'laminator_price',
+                                   'film_price', 'total_price'])
+    return JsonResponse({
+        'success': True,
+        'lamination': lamination.to_dict()
+    })
+
+
+@login_required
+@require_POST
+def update_lamination(request):
+    """
+    Обновляет параметры ламинации (включение/выключение, ламинатор, плёнка).
+    Ожидает JSON с полями: print_component_id, field_name, field_value.
+    """
+    try:
+        data = json.loads(request.body)
+        component_id = data.get('print_component_id')
+        field_name = data.get('field_name')      # 'is_enabled', 'laminator', 'film'
+        field_value = data.get('field_value')
+
+        if not component_id or not field_name:
+            return JsonResponse({'success': False, 'error': 'Не указаны обязательные поля'}, status=400)
+
+        component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
+        lamination, created = Laminate.objects.get_or_create(print_component=component)
+
+        # Обработка значений
+        if field_name == 'is_enabled':
+            # Преобразуем строку 'true'/'false' или число 1/0 в bool
+            if isinstance(field_value, str):
+                lamination.is_enabled = field_value.lower() in ('true', '1', 'yes', 'да')
+            else:
+                lamination.is_enabled = bool(field_value)
+        elif field_name == 'laminator':
+            if field_value and field_value != 'null' and field_value != '':
+                try:
+                    laminator = Laminator.objects.get(id=field_value)
+                    lamination.laminator = laminator
+                except Laminator.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': 'Ламинатор не найден'}, status=400)
+            else:
+                lamination.laminator = None
+        elif field_name == 'film':
+            if field_value and field_value != 'null' and field_value != '':
+                try:
+                    film = Material.objects.get(id=field_value, type='film')
+                    lamination.film = film
+                except Material.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': 'Плёнка не найдена'}, status=400)
+            else:
+                lamination.film = None
+        else:
+            return JsonResponse({'success': False, 'error': f'Недопустимое поле: {field_name}'}, status=400)
+
+        # Получаем количество листов
+        try:
+            vich_data = VichisliniyaListovModel.objects.get(
+                vichisliniya_listov_print_component=component
+            )
+            sheet_count = vich_data.vichisliniya_listov_list_count
+        except VichisliniyaListovModel.DoesNotExist:
+            sheet_count = Decimal('0.00')
+
+        # Пересчитываем стоимость
+        lamination.recalculate_price(sheet_count)
+        lamination.save()
+
+        return JsonResponse({
+            'success': True,
+            'lamination': lamination.to_dict()
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

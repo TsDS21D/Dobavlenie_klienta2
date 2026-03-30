@@ -18,6 +18,7 @@ sections/price.js - JavaScript для секции "Цена"
     let priceCurrentProschetId = null;          // ID текущего выбранного просчёта
     let priceCurrentPrintComponents = [];       // Массив данных печатных компонентов (с сервера)
     let priceCurrentAdditionalWorks = [];       // Массив данных дополнительных работ (с сервера)
+    let priceCurrentLamination = []; 
 
     // ============================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
@@ -162,6 +163,15 @@ sections/price.js - JavaScript для секции "Цена"
             }
         });
 
+        document.addEventListener('laminationUpdated', function(event) {
+            console.log('📥 Получено событие laminationUpdated:', event.detail);
+            if (event.detail && event.detail.proschetId === priceCurrentProschetId) {
+                // Сохраняем данные ламинации в глобальную переменную (например, priceCurrentLamination)
+                priceCurrentLamination = event.detail;
+                updatePriceDisplay(); // перерисовываем секцию цены
+            }
+        });
+
         console.log('✅ Подписки на события настроены');
     }
 
@@ -255,16 +265,18 @@ sections/price.js - JavaScript для секции "Цена"
         }
         updatePrintComponentsDetails();
         updateAdditionalWorksDetails();
+        updateLaminationDetails();        // <-- добавить эту строку
         calculateAndDisplayTotals();
         showCalculateButton(true);
         
-        // Генерируем событие об обновлении цены (может использоваться другими модулями)
+        // Генерируем событие об обновлении цены
         const event = new CustomEvent('priceUpdated', {
             detail: {
                 proschetId: priceCurrentProschetId,
                 printComponentsTotal: calculatePrintComponentsTotal(),
                 additionalWorksTotal: calculateAdditionalWorksTotal(),
-                totalPrice: calculateTotalPrice()
+                laminationTotal: priceCurrentLamination?.total_price || 0,   // добавить
+                totalPrice: calculateTotalPrice() + (priceCurrentLamination?.total_price || 0)
             }
         });
         document.dispatchEvent(event);
@@ -364,18 +376,51 @@ sections/price.js - JavaScript для секции "Цена"
         
         // Обновляем отображение итоговых сумм для печатных компонентов
         updatePrintComponentsTotalsDisplay(totalCostSum, totalProfitSum, totalPriceSum);
+
+        // Принудительно показываем контейнер итогов печати, если есть компоненты
+        const printTotalContainer = document.getElementById('print-components-total-container');
+        if (printTotalContainer && componentCount > 0) {
+            printTotalContainer.style.display = 'block';
+            printTotalContainer.classList.remove('collapsed', 'hidden');
+            console.log('🔓 Контейнер печатных компонентов принудительно показан');
+        }
         
         console.log(`💰 Итоги печатных компонентов: себестоимость=${totalCostSum.toFixed(2)} ₽, прибыль=${totalProfitSum.toFixed(2)} ₽, общая стоимость=${totalPriceSum.toFixed(2)} ₽`);
     }
 
     function updatePrintComponentsTotalsDisplay(totalCost, totalProfit, totalPrice) {
-        const totalCostEl = document.getElementById('print-components-total-cost');
-        const totalProfitEl = document.getElementById('print-components-total-profit');
-        const totalPriceEl = document.getElementById('print-components-total-price');
+        console.log('updatePrintComponentsTotalsDisplay вызвана, аргументы:', totalCost, totalProfit, totalPrice);
         
-        if (totalCostEl) totalCostEl.textContent = `${totalCost.toFixed(2)} ₽`;
-        if (totalProfitEl) totalProfitEl.textContent = `${totalProfit.toFixed(2)} ₽`;
-        if (totalPriceEl) totalPriceEl.textContent = `${totalPrice.toFixed(2)} ₽`;
+        const container = document.getElementById('print-components-total-container');
+        if (!container) {
+            console.error('❌ Контейнер #print-components-total-container не найден');
+            return;
+        }
+        
+        // Принудительно показываем контейнер
+        container.style.display = 'block';
+        container.classList.remove('collapsed', 'hidden');
+        
+        // Обновляем ВСЕ элементы с классом .total-price-value внутри контейнера
+        const priceElements = container.querySelectorAll('.total-price-value');
+        console.log(`Найдено элементов .total-price-value: ${priceElements.length}`);
+        priceElements.forEach(el => {
+            el.textContent = `${Number(totalPrice).toFixed(2)} ₽`;
+        });
+        
+        // Обновляем себестоимость
+        const costElements = container.querySelectorAll('.total-cost-value');
+        costElements.forEach(el => {
+            el.textContent = `${Number(totalCost).toFixed(2)} ₽`;
+        });
+        
+        // Обновляем прибыль
+        const profitElements = container.querySelectorAll('.total-profit-value');
+        profitElements.forEach(el => {
+            el.textContent = `${Number(totalProfit).toFixed(2)} ₽`;
+        });
+        
+        console.log(`✅ Итоги печати обновлены: себестоимость=${totalCost}, прибыль=${totalProfit}, стоимость=${totalPrice}`);
     }
 
     // ============================================================================
@@ -456,14 +501,34 @@ sections/price.js - JavaScript для секции "Цена"
         console.log(`💰 Итоги дополнительных работ: себестоимость=${totalCostSum.toFixed(2)} ₽, прибыль=${totalProfitSum.toFixed(2)} ₽, общая стоимость=${totalPriceSum.toFixed(2)} ₽`);
     }
 
+
+
+
+
+
     function updateAdditionalWorksTotalsDisplay(totalCost, totalProfit, totalPrice) {
         const totalCostEl = document.getElementById('additional-works-total-cost');
         const totalProfitEl = document.getElementById('additional-works-total-profit');
         const totalPriceEl = document.getElementById('additional-works-total-price');
         
-        if (totalCostEl) totalCostEl.textContent = `${totalCost.toFixed(2)} ₽`;
-        if (totalProfitEl) totalProfitEl.textContent = `${totalProfit.toFixed(2)} ₽`;
-        if (totalPriceEl) totalPriceEl.textContent = `${totalPrice.toFixed(2)} ₽`;
+        const setValues = () => {
+            if (totalCostEl) totalCostEl.textContent = `${totalCost.toFixed(2)} ₽`;
+            if (totalProfitEl) totalProfitEl.textContent = `${totalProfit.toFixed(2)} ₽`;
+            if (totalPriceEl) totalPriceEl.textContent = `${totalPrice.toFixed(2)} ₽`;
+            console.log('✅ Обновлены итоги доп. работ:', { totalCost, totalProfit, totalPrice });
+        };
+        
+        setValues();
+        
+        if (totalPriceEl) {
+            const expected = `${totalPrice.toFixed(2)} ₽`;
+            setTimeout(() => {
+                if (totalPriceEl.textContent !== expected) totalPriceEl.textContent = expected;
+            }, 150);
+            requestAnimationFrame(() => {
+                if (totalPriceEl.textContent !== expected) totalPriceEl.textContent = expected;
+            });
+        }
     }
 
     // ============================================================================
@@ -487,19 +552,30 @@ sections/price.js - JavaScript для секции "Цена"
     }
 
     function calculateTotalPrice() {
-        return calculatePrintComponentsTotal() + calculateAdditionalWorksTotal();
+        let total = calculatePrintComponentsTotal() + calculateAdditionalWorksTotal();
+        if (priceCurrentLamination && priceCurrentLamination.enabled) {
+            total += parseFloat(priceCurrentLamination.total_price) || 0;
+        }
+        return total;
     }
 
     function calculateAndDisplayTotals() {
-        console.log('🧮 Начало расчета и отображения итоговых сумм...');
         const printTotal = calculatePrintComponentsTotal();
         const worksTotal = calculateAdditionalWorksTotal();
-        const total = calculateTotalPrice();
-
+        const total = printTotal + worksTotal;
+        
         const totalPriceElement = document.getElementById('total-order-price');
-        if (totalPriceElement) totalPriceElement.textContent = `${total.toFixed(2)} ₽`;
-
-        console.log(`✅ Расчет стоимости завершен: печать=${printTotal.toFixed(2)} ₽, работы=${worksTotal.toFixed(2)} ₽, общая=${total.toFixed(2)} ₽`);
+        if (totalPriceElement) {
+            const expected = `${total.toFixed(2)} ₽`;
+            totalPriceElement.textContent = expected;
+            setTimeout(() => {
+                if (totalPriceElement.textContent !== expected) totalPriceElement.textContent = expected;
+            }, 150);
+            requestAnimationFrame(() => {
+                if (totalPriceElement.textContent !== expected) totalPriceElement.textContent = expected;
+            });
+        }
+        console.log(`💰 Общая стоимость заказа: ${total.toFixed(2)} ₽`);
     }
 
     function updateCalculationDate() {
@@ -511,6 +587,95 @@ sections/price.js - JavaScript для секции "Цена"
             console.log(`📅 Дата расчета установлена: ${formattedDate}`);
         }
     }
+
+
+    // ============================================================================
+    // 5.9. ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ ЛАМИНАЦИИ
+    // ============================================================================
+
+    function updateLaminationDetails() {
+        const itemsContainer = document.getElementById('lamination-items');
+        const statusSpan = document.getElementById('lamination-status');
+        const totalContainer = document.getElementById('lamination-total-container');
+
+        if (!itemsContainer || !statusSpan) {
+            console.warn('❌ Элементы для отображения ламинации не найдены');
+            return;
+        }
+
+        // Если ламинация не включена или нет данных
+        if (!priceCurrentLamination || !priceCurrentLamination.enabled) {
+            statusSpan.textContent = 'Выключена';
+            itemsContainer.innerHTML = `
+                <div class="category-empty">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Ламинация не используется</p>
+                </div>
+            `;
+            if (totalContainer) totalContainer.style.display = 'none';
+            // Обнуляем итоги ламинации
+            updateLaminationTotalsDisplay(0, 0, 0);
+            return;
+        }
+
+        // Ламинация включена – отображаем детали
+        statusSpan.textContent = 'Включена';
+        
+        // Извлекаем данные
+        const laminatorName = priceCurrentLamination.laminator_name || 'Не выбран';
+        const filmName = priceCurrentLamination.film_name || 'Не выбрана';
+        const sheetCount = parseFloat(priceCurrentLamination.sheet_count) || 0;
+        const laminatorPrice = parseFloat(priceCurrentLamination.laminator_price) || 0;
+        const filmPrice = parseFloat(priceCurrentLamination.film_price) || 0;
+        const totalPrice = parseFloat(priceCurrentLamination.total_price) || 0;
+        
+        // Для ламинации себестоимость = laminator_cost (берём из priceCurrentLamination, если есть)
+        // Но в событие laminationUpdated не передаются cost и markup. Нужно расширить событие.
+        // Пока используем приблизительные значения:
+        const laminatorCost = parseFloat(priceCurrentLamination.laminator_cost) || 0;
+        const laminatorMarkup = parseFloat(priceCurrentLamination.laminator_markup) || 0;
+        
+        // Общая себестоимость ламинации = (laminator_cost + film_price) * sheet_count
+        const totalCost = (laminatorCost + filmPrice) * sheetCount;
+        const totalProfit = totalPrice - totalCost;
+        
+        // Формируем HTML строки
+        const itemHtml = `
+            <div class="category-item">
+                <div class="item-left">
+                    <i class="fas fa-layer-group"></i>
+                    <span class="item-name-text">
+                        Ламинатор: ${laminatorName}<br>
+                        Плёнка: ${filmName}<br>
+                        Кол-во листов: ${sheetCount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                    </span>
+                </div>
+                <div class="item-right">
+                    <div class="item-cost">${totalCost.toFixed(2)} ₽</div>
+                    <div class="item-profit">${totalProfit.toFixed(2)} ₽</div>
+                    <div class="item-price">${totalPrice.toFixed(2)} ₽</div>
+                </div>
+            </div>
+        `;
+        itemsContainer.innerHTML = itemHtml;
+        
+        // Показываем блок итогов
+        if (totalContainer) {
+            totalContainer.style.display = 'block';
+            updateLaminationTotalsDisplay(totalCost, totalProfit, totalPrice);
+        }
+    }
+
+    function updateLaminationTotalsDisplay(totalCost, totalProfit, totalPrice) {
+        const totalCostEl = document.getElementById('lamination-total-cost');
+        const totalProfitEl = document.getElementById('lamination-total-profit');
+        const totalPriceEl = document.getElementById('lamination-total-price');
+        
+        if (totalCostEl) totalCostEl.textContent = `${totalCost.toFixed(2)} ₽`;
+        if (totalProfitEl) totalProfitEl.textContent = `${totalProfit.toFixed(2)} ₽`;
+        if (totalPriceEl) totalPriceEl.textContent = `${totalPrice.toFixed(2)} ₽`;
+    }
+
 
     // ============================================================================
     // 6. ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЯМИ ИНТЕРФЕЙСА

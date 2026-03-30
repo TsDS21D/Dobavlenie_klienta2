@@ -1,0 +1,607 @@
+<!--
+laminators.html – страница управления ценами на ламинирование (ламинаторы)
+Полная копия шаблона для принтеров, но с адаптацией под модель Laminator.
+-->
+
+{% extends "print_price/base.html" %}
+
+{% block title %}Справочник цен на ламинирование{% endblock %}
+
+{% block content %}
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" width="150" alt="Типография Буква А">
+        Справочник цен на ламинирование
+    </h1>
+
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="two-column-layout">
+        <!-- Левая колонка: список ламинаторов -->
+        <div class="left-column">
+            <div class="section-header">
+                <h2><i class="fas fa-layer-group"></i> Ламинаторы</h2>
+                <a href="/print_price/" class="btn-action btn-reset-filter" title="Перейти к принтерам">
+                    <i class="fas fa-print"></i> Принтеры
+                </a>
+            </div>
+            <div class="printers-container">
+                <div class="printers-list">
+                    {% for laminator in laminators %}
+                        <a href="?laminator_id={{ laminator.id }}" 
+                           class="printer-item {% if selected_laminator and selected_laminator.id == laminator.id %}selected{% endif %}">
+                            <div class="printer-info">
+                                <div class="printer-name">
+                                    <i class="fas fa-layer-group"></i>
+                                    {{ laminator.name }}
+                                </div>
+                                <div class="printer-details">
+                                    <span class="printer-format">
+                                        <i class="fas fa-ruler"></i>
+                                        {{ laminator.sheet_format.name }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="printer-stats">
+                                <span class="price-count">{{ laminator.laminator_prices.count }} цен</span>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <div class="empty-message">
+                            <i class="fas fa-layer-group"></i>
+                            Ламинаторы не найдены. Добавьте ламинаторы в приложении "Устройства".
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: цены на ламинирование -->
+        <div class="right-column">
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-money-bill-wave"></i> Цены на ламинирование
+                    {% if selected_laminator %}
+                        <span class="selected-printer">
+                            для ламинатора "<strong>{{ selected_laminator.name }}</strong>"
+                        </span>
+                    {% endif %}
+                </h2>
+                <div class="header-buttons">
+                    {% if selected_laminator %}
+                        <a href="/print_price/laminators/" class="btn-action btn-reset-filter" title="Сбросить выбор">
+                            <i class="fas fa-times-circle"></i> Сбросить
+                        </a>
+                    {% endif %}
+                    <button type="button" class="btn-action btn-add-price" id="add-price-btn">
+                        + Добавить цену
+                    </button>
+                </div>
+            </div>
+
+            <!-- Форма добавления цены (скрыта) -->
+            <div class="form-section" id="price-form-section" style="display: none;">
+                <h3>Добавить новую цену</h3>
+                <form method="post" action="{% url 'print_price:create_laminator_price' %}" id="price-form">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label for="laminator-price-laminator">Ламинатор*</label>
+                        <select id="laminator-price-laminator" name="laminator" class="form-control" required>
+                            <option value="">-- Выберите ламинатор --</option>
+                            {% for laminator in laminators %}
+                                <option value="{{ laminator.id }}" {% if selected_laminator and selected_laminator.id == laminator.id %}selected{% endif %}>
+                                    {{ laminator.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="laminator-price-copies">Тираж (шт.)*</label>
+                            <input type="number" id="laminator-price-copies" name="copies" class="form-control" min="1" placeholder="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="laminator-price-cost">Себестоимость (руб.)*</label>
+                            <input type="number" id="laminator-price-cost" name="cost" class="form-control" step="0.01" min="0" placeholder="2.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="laminator-price-markup">Наценка (%)*</label>
+                            <input type="number" id="laminator-price-markup" name="markup_percent" class="form-control" step="0.01" min="0" placeholder="20.00" required>
+                        </div>
+                    </div>
+
+                    <div class="total-price-preview" id="total-price-preview" style="display: none;">
+                        <div class="total-price-label">
+                            <i class="fas fa-calculator"></i> Итоговая цена за лист:
+                        </div>
+                        <div class="total-price-value" id="total-price-value"></div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-submit">Сохранить цену</button>
+                        <button type="button" class="btn-clear" onclick="clearPriceForm()">Очистить форму</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Таблица цен -->
+            <div class="prices-container">
+                <div class="prices-section">
+                    {% if not selected_laminator %}
+                        <div class="empty-message">
+                            <i class="fas fa-hand-pointer"></i>
+                            Выберите ламинатор слева для просмотра цен.
+                        </div>
+                    {% elif not laminator_prices %}
+                        <div class="empty-message">
+                            <i class="fas fa-money-bill-wave"></i>
+                            Для ламинатора "{{ selected_laminator.name }}" нет сохранённых цен.
+                            <br><small>Добавьте первую цену, используя кнопку "Добавить цену".</small>
+                        </div>
+                    {% else %}
+                        <div class="prices-table">
+                            <div class="table-header">
+                                <div class="col-copies">Тираж</div>
+                                <div class="col-cost">Себестоимость</div>
+                                <div class="col-markup">Наценка</div>
+                                <div class="col-price">Цена за лист</div>
+                                <div class="col-total-price">Стоимость за тираж</div>
+                                <div class="col-actions">Действия</div>
+                            </div>
+                            <div class="table-body">
+                                {% for price in laminator_prices %}
+                                    <div class="table-row" data-price-id="{{ price.id }}">
+                                        <div class="col-copies">
+                                            <span class="copies-badge editable-field"
+                                                  data-field="copies"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.copies|stringformat:'d' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_copies_display }}
+                                            </span>
+                                            <input type="number"
+                                                   class="inline-edit-input copies-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="copies"
+                                                   value="{{ price.copies|stringformat:'d' }}"
+                                                   min="1" step="1"
+                                                   style="display: none;">
+                                        </div>
+                                        <div class="col-cost">
+                                            <span class="cost-badge editable-field"
+                                                  data-field="cost"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.cost|stringformat:'f' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_cost_display }}
+                                            </span>
+                                            <input type="number"
+                                                   class="inline-edit-input cost-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="cost"
+                                                   value="{{ price.cost|stringformat:'f' }}"
+                                                   min="0" step="0.01"
+                                                   style="display: none;">
+                                        </div>
+                                        <div class="col-markup">
+                                            <span class="markup-badge editable-field"
+                                                  data-field="markup_percent"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.markup_percent|stringformat:'f' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_markup_percent_display }}
+                                            </span>
+                                            <input type="number"
+                                                   class="inline-edit-input markup-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="markup_percent"
+                                                   value="{{ price.markup_percent|stringformat:'f' }}"
+                                                   min="0" step="0.01"
+                                                   style="display: none;">
+                                        </div>
+                                        <div class="col-price">
+                                            <span class="price-per-sheet-badge">{{ price.get_price_per_sheet_display }}</span>
+                                        </div>
+                                        <div class="col-total-price">
+                                            <span class="total-price-badge">{{ price.get_total_price_display }}</span>
+                                        </div>
+                                        <div class="col-actions">
+                                            <button type="button"
+                                                    class="btn-action btn-delete"
+                                                    data-price-id="{{ price.id }}"
+                                                    data-price-copies="{{ price.copies }}">
+                                                Удалить
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Блок расчёта произвольного тиража -->
+                        <div class="arbitrary-calc-section" id="arbitrary-calc-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-calculator"></i> Расчёт для произвольного тиража</h3>
+                            </div>
+                            <div class="arbitrary-calc-form">
+                                <div class="arbitrary-form-row">
+                                    <div class="form-group">
+                                        <label for="interpolation-method">Метод интерполяции:</label>
+                                        <select id="interpolation-method"
+                                                class="form-control"
+                                                data-laminator-id="{{ selected_laminator.id }}">
+                                            <option value="linear" {% if selected_laminator.laminator_interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                            <option value="logarithmic" {% if selected_laminator.laminator_interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="arbitrary-copies">Произвольный тираж (шт.):</label>
+                                        <input type="number" id="arbitrary-copies" class="form-control" min="1" step="1" placeholder="Введите тираж">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>&nbsp;</label>
+                                        <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
+                                            <i class="fas fa-calculator"></i> Рассчитать
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
+                                    <div class="result-header">
+                                        <h4><i class="fas fa-chart-line"></i> Результат расчета:</h4>
+                                    </div>
+                                    <div class="result-content">
+                                        <div class="result-item"><span class="result-label">Метод интерполяции:</span><span class="result-value" id="result-interpolation-method"></span></div>
+                                        <div class="result-item"><span class="result-label">Тираж:</span><span class="result-value" id="result-copies"></span></div>
+                                        <div class="result-item"><span class="result-label">Себестоимость:</span><span class="result-value" id="result-cost"></span></div>
+                                        <div class="result-item"><span class="result-label">Наценка:</span><span class="result-value" id="result-markup"></span></div>
+                                        <div class="result-item"><span class="result-label">Цена за лист:</span><span class="result-value price-value" id="result-price-per-sheet"></span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-hint">
+                            <div class="hint-item"><span class="hint-icon">✏️</span><span class="hint-text">Двойной клик по тиражу, себестоимости или наценке для редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💾</span><span class="hint-text">Нажмите Enter для сохранения или Esc для отмены редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💰</span><span class="hint-text">Цена за лист = себестоимость + себестоимость × наценка/100</span></div>
+                            <div class="hint-item"><span class="hint-icon">📊</span><span class="hint-text">Используйте блок "Расчёт для произвольного тиража" для интерполяции</span></div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Полностью повторяем логику из print_price.js, но с заменой URL на laminator-версии
+    document.addEventListener('DOMContentLoaded', function() {
+        const addPriceBtn = document.getElementById('add-price-btn');
+        const priceFormSection = document.getElementById('price-form-section');
+        if (addPriceBtn && priceFormSection) {
+            addPriceBtn.addEventListener('click', function() {
+                if (priceFormSection.style.display === 'none') {
+                    priceFormSection.style.display = 'block';
+                    addPriceBtn.textContent = '− Скрыть форму';
+                } else {
+                    priceFormSection.style.display = 'none';
+                    addPriceBtn.textContent = '+ Добавить цену';
+                }
+            });
+        }
+
+        // Предпросмотр цены
+        const costInput = document.getElementById('laminator-price-cost');
+        const markupInput = document.getElementById('laminator-price-markup');
+        const totalPricePreview = document.getElementById('total-price-preview');
+        const totalPriceValue = document.getElementById('total-price-value');
+        function updateTotalPrice() {
+            const cost = parseFloat(costInput?.value) || 0;
+            const markup = parseFloat(markupInput?.value) || 0;
+            if (cost > 0 && markup >= 0) {
+                const price = cost + (cost * markup / 100);
+                totalPricePreview.style.display = 'block';
+                totalPriceValue.textContent = `${price.toFixed(2)} руб./лист`;
+            } else {
+                totalPricePreview.style.display = 'none';
+            }
+        }
+        if (costInput && markupInput) {
+            costInput.addEventListener('input', updateTotalPrice);
+            markupInput.addEventListener('input', updateTotalPrice);
+            updateTotalPrice();
+        }
+
+        window.clearPriceForm = function() {
+            if (costInput) costInput.value = '';
+            if (markupInput) markupInput.value = '';
+            if (totalPricePreview) totalPricePreview.style.display = 'none';
+        };
+
+        // AJAX отправка формы
+        const priceForm = document.getElementById('price-form');
+        if (priceForm) {
+            priceForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(priceForm);
+                fetch("{% url 'print_price:create_laminator_price' %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Цена успешно добавлена!', 'success');
+                        window.location.reload();
+                    } else {
+                        let errorMsg = 'Ошибка: ';
+                        for (let field in data.errors) errorMsg += data.errors[field].join(', ');
+                        showNotification(errorMsg, 'error');
+                    }
+                })
+                .catch(() => showNotification('Ошибка соединения', 'error'));
+            });
+        }
+
+        // Удаление
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const priceId = this.dataset.priceId;
+                if (confirm('Удалить цену?')) {
+                    fetch(`/print_price/laminators/delete/${priceId}/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) window.location.reload();
+                        else showNotification('Ошибка удаления', 'error');
+                    });
+                }
+            });
+        });
+
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie) {
+                const parts = document.cookie.split(';');
+                for (let part of parts) {
+                    const [key, val] = part.trim().split('=');
+                    if (key === name) { value = decodeURIComponent(val); break; }
+                }
+            }
+            return value;
+        }
+
+        function showNotification(msg, type) {
+            const notif = document.createElement('div');
+            notif.className = `notification notification-${type}`;
+            notif.textContent = msg;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 5000);
+        }
+
+        // Обработка сообщений Django
+        const msgs = document.querySelectorAll('.django-message');
+        msgs.forEach(m => showNotification(m.textContent, m.dataset.type));
+    });
+</script>
+<!-- Подключаем скрипты для inline-редактирования и расчёта произвольного тиража (они работают и для ламинаторов, но нужно переопределить URL) -->
+<script>
+    // Адаптация inline-редактирования для ламинаторов
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentlyEditing = null;
+
+        function enableEditMode(fieldElement) {
+            if (currentlyEditing) return;
+            const fieldName = fieldElement.dataset.field;
+            const priceId = fieldElement.dataset.priceId;
+            const originalValue = fieldElement.dataset.originalValue;
+            if (!fieldName || !priceId) return;
+            const targetInput = document.querySelector(`.inline-edit-input[data-price-id="${priceId}"][data-field="${fieldName}"]`);
+            if (!targetInput) return;
+            targetInput.value = (fieldName === 'copies') ? parseInt(originalValue) : originalValue.replace(',', '.');
+            currentlyEditing = { fieldElement, inputElement: targetInput, fieldName, priceId, originalValue };
+            fieldElement.style.display = 'none';
+            targetInput.style.display = 'inline-block';
+            targetInput.focus();
+            targetInput.select();
+            const row = fieldElement.closest('.table-row');
+            if (row) row.classList.add('editing');
+        }
+
+        function cancelEdit() {
+            if (!currentlyEditing) return;
+            const { fieldElement, inputElement } = currentlyEditing;
+            fieldElement.style.display = 'inline-block';
+            inputElement.style.display = 'none';
+            const row = fieldElement.closest('.table-row');
+            if (row) row.classList.remove('editing');
+            currentlyEditing = null;
+        }
+
+        function saveEdit() {
+            if (!currentlyEditing) return;
+            const { fieldElement, inputElement, fieldName, priceId, originalValue } = currentlyEditing;
+            const newValue = inputElement.value.trim();
+            if (newValue === originalValue) {
+                cancelEdit();
+                return;
+            }
+            // валидация
+            if (fieldName === 'copies' && (parseInt(newValue) < 1 || isNaN(parseInt(newValue)))) {
+                showNotification('Тираж должен быть ≥ 1', 'error');
+                cancelEdit();
+                return;
+            }
+            if ((fieldName === 'cost' || fieldName === 'markup_percent') && (parseFloat(newValue) < 0 || isNaN(parseFloat(newValue)))) {
+                showNotification('Значение не может быть отрицательным', 'error');
+                cancelEdit();
+                return;
+            }
+            const formData = new FormData();
+            formData.append('field_name', fieldName);
+            formData.append('new_value', newValue);
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            fetch(`/print_price/laminators/api/update/${priceId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const priceData = data.laminator_price;
+                    const row = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
+                    if (row) {
+                        if (fieldName === 'copies') {
+                            row.querySelector('.copies-badge').textContent = priceData.copies_display;
+                            row.querySelector('.copies-badge').dataset.originalValue = priceData.copies;
+                            row.querySelector('.copies-input').value = priceData.copies;
+                        } else if (fieldName === 'cost') {
+                            row.querySelector('.cost-badge').textContent = priceData.cost_display;
+                            row.querySelector('.cost-badge').dataset.originalValue = priceData.cost;
+                            row.querySelector('.cost-input').value = priceData.cost;
+                        } else if (fieldName === 'markup_percent') {
+                            row.querySelector('.markup-badge').textContent = priceData.markup_percent_display;
+                            row.querySelector('.markup-badge').dataset.originalValue = priceData.markup_percent;
+                            row.querySelector('.markup-input').value = priceData.markup_percent;
+                        }
+                        row.querySelector('.price-per-sheet-badge').textContent = priceData.price_per_sheet_display;
+                        row.querySelector('.total-price-badge').textContent = priceData.total_price_display;
+                    }
+                    cancelEdit();
+                    showNotification('Сохранено', 'success');
+                } else {
+                    showNotification(data.error || 'Ошибка сохранения', 'error');
+                    cancelEdit();
+                }
+            })
+            .catch(() => { showNotification('Ошибка соединения', 'error'); cancelEdit(); });
+        }
+
+        document.addEventListener('dblclick', e => {
+            const editable = e.target.closest('.editable-field');
+            if (editable) enableEditMode(editable);
+        });
+        document.addEventListener('keydown', e => {
+            if (currentlyEditing) {
+                if (e.key === 'Enter') { saveEdit(); e.preventDefault(); }
+                else if (e.key === 'Escape') { cancelEdit(); e.preventDefault(); }
+            }
+        });
+        document.addEventListener('click', e => {
+            if (currentlyEditing && !currentlyEditing.inputElement.contains(e.target) && !currentlyEditing.fieldElement.contains(e.target))
+                saveEdit();
+        });
+
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie) {
+                const parts = document.cookie.split(';');
+                for (let part of parts) {
+                    const [key, val] = part.trim().split('=');
+                    if (key === name) { value = decodeURIComponent(val); break; }
+                }
+            }
+            return value;
+        }
+        function showNotification(msg, type) {
+            const n = document.createElement('div');
+            n.className = `notification notification-${type}`;
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 5000);
+        }
+    });
+
+    // Расчёт произвольного тиража для ламинатора
+    document.addEventListener('DOMContentLoaded', function() {
+        const interpolationSelect = document.getElementById('interpolation-method');
+        const arbitraryInput = document.getElementById('arbitrary-copies');
+        const calcBtn = document.getElementById('calculate-arbitrary-price');
+        const resultDiv = document.getElementById('arbitrary-result');
+
+        if (calcBtn && arbitraryInput) {
+            calcBtn.addEventListener('click', function() {
+                const laminatorId = interpolationSelect?.dataset.laminatorId;
+                if (!laminatorId) { showNotification('Выберите ламинатор', 'error'); return; }
+                const copies = arbitraryInput.value.trim();
+                if (!copies || parseInt(copies) < 1) { showNotification('Введите корректный тираж', 'error'); return; }
+                const formData = new FormData();
+                formData.append('arbitrary_copies', copies);
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                fetch(`/print_price/laminators/api/calculate_arbitrary_price/${laminatorId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('result-interpolation-method').textContent = data.interpolation_method_display;
+                        document.getElementById('result-copies').textContent = data.arbitrary_copies + ' шт.';
+                        document.getElementById('result-cost').textContent = data.cost_display;
+                        document.getElementById('result-markup').textContent = data.markup_percent_display;
+                        document.getElementById('result-price-per-sheet').textContent = data.calculated_price_display;
+                        resultDiv.style.display = 'block';
+                    } else {
+                        showNotification(data.error, 'error');
+                        resultDiv.style.display = 'none';
+                    }
+                })
+                .catch(() => showNotification('Ошибка расчёта', 'error'));
+            });
+        }
+
+        // Сохранение метода интерполяции при изменении
+        if (interpolationSelect) {
+            interpolationSelect.addEventListener('change', function() {
+                const laminatorId = this.dataset.laminatorId;
+                if (!laminatorId) return;
+                const formData = new FormData();
+                formData.append('interpolation_method', this.value);
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                fetch(`/print_price/laminators/api/update_interpolation_method/${laminatorId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) showNotification('Метод интерполяции обновлён', 'success');
+                    else showNotification(data.error, 'error');
+                });
+            });
+        }
+
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie) {
+                const parts = document.cookie.split(';');
+                for (let part of parts) {
+                    const [key, val] = part.trim().split('=');
+                    if (key === name) { value = decodeURIComponent(val); break; }
+                }
+            }
+            return value;
+        }
+        function showNotification(msg, type) {
+            const n = document.createElement('div');
+            n.className = `notification notification-${type}`;
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 5000);
+        }
+    });
+</script>
+{% endblock %}

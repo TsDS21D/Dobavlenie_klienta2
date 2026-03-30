@@ -1,12 +1,12 @@
 /**
  * print_components.js - JavaScript для секции "Печатные компоненты"
  * 
- * ИСПРАВЛЕНИЕ (26.03.2026):
- * - Добавлены проверки на активное inline-редактирование перед перерисовкой таблицы.
- *   Если редактирование активно, обновление таблицы пропускается, чтобы не удалить
- *   выпадающий список (select) во время редактирования.
- * - В функции updateComponentInTable, populateTable, updateInterface добавлены
- *   проверки window.printComponentsInlineEditState?.isEditing().
+ * ИСПРАВЛЕНИЕ (27.03.2026):
+ * - Удалена функция deleteComponent, которая просто показывала сообщение "в разработке".
+ * - Убран обработчик клика на кнопку удаления в createComponentRow, чтобы не конфликтовать
+ *   с глобальным делегированным обработчиком из print_components_inline_edit.js.
+ * - Теперь удаление компонентов происходит через глобальный обработчик,
+ *   который отправляет запрос на сервер и обновляет интерфейс.
  * 
  * ОСНОВНАЯ ФОРМУЛА: (Цена печати за лист × количество прогонов) + (Цена бумаги за лист × Количество листов)
  * где количество прогонов = количество листов * (2 если двусторонняя печать, иначе 1)
@@ -492,17 +492,11 @@ function createComponentRow(component, index) {
         }
     });
 
-    // Обработчик для кнопки удаления
-    const deleteBtn = row.querySelector('.delete-component-btn');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', function(event) {
-            event.stopPropagation(); // предотвращаем всплытие клика на строку
-            const componentId = this.dataset.componentId;
-            if (confirm(`Удалить компонент ${component.number || componentId}?`)) {
-                deleteComponent(componentId);
-            }
-        });
-    }
+    // ВАЖНО: УДАЛЯЕМ ОБРАБОТЧИК КЛИКА НА КНОПКУ УДАЛЕНИЯ,
+    // ПОТОМУ ЧТО УДАЛЕНИЕ ОБРАБАТЫВАЕТСЯ ГЛОБАЛЬНЫМ ОБРАБОТЧИКОМ
+    // (print_components_inline_edit.js). Это предотвращает конфликт
+    // и позволяет удалять компоненты через реальное API.
+    // Кнопка удаления остаётся в DOM, но обработчик на неё не вешается.
 
     return row;
 }
@@ -887,8 +881,8 @@ function showLoadingState() {
                     <div class="loading-spinner"></div>
                     <p>Загрузка компонентов печати...</p>
                     <p class="loading-note">Используется "Количество листов" из секции "Вычисления листов"</p>
-                <\/td>
-            <\/tr>
+                </td>
+            </tr>
         `;
     }
 }
@@ -902,8 +896,8 @@ function showErrorMessage(message) {
                 <td colspan="11" style="text-align: center; padding: 40px; color: #e74c3c;">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
                     <p>${message}</p>
-                <\/td>
-            <\/tr>
+                </td>
+            </tr>
         `;
     }
 }
@@ -960,12 +954,11 @@ function resetSection() {
 }
 
 // ============================================================================
-// 9. ФУНКЦИИ ДЛЯ УДАЛЕНИЯ КОМПОНЕНТОВ
+// 9. УДАЛЕНИЕ КОМПОНЕНТОВ (реализовано в inline_edit.js)
 // ============================================================================
-function deleteComponent(componentId) {
-    console.log(`🗑️ Удаление компонента ${componentId}`);
-    showNotification(`Удаление компонента ${componentId} (в разработке)`, 'info');
-}
+// Функция deleteComponent удалена, так как удаление обрабатывается глобальным
+// обработчиком из print_components_inline_edit.js.
+// Вместо неё используется print_components_delete_component из другого файла.
 
 // ============================================================================
 // 10. ЭКСПОРТ ФУНКЦИЙ И ИНИЦИАЛИЗАЦИЯ

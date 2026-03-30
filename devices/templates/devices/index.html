@@ -1,945 +1,689 @@
 <!--
 index.html для приложения devices
-Главная страница управления принтерами с inline-редактированием
-Наследуется от базового шаблона base.html
+Главная страница управления принтерами и ламинаторами.
+Содержит два независимых раздела: "Принтеры" и "Ламинаторы".
+Каждый раздел имеет:
+- кнопку показа/скрытия формы добавления
+- форму добавления (скрыта по умолчанию)
+- таблицу со списком устройств
+- inline-редактирование (двойной клик по ячейке)
+- удаление через подтверждение
 -->
 
 {% extends "devices/base.html" %}
 
-<!-- Заголовок страницы -->
-{% block title %}Управление принтерами{% endblock %}
+{% block title %}Управление принтерами и ламинаторами{% endblock %}
 
-<!-- Дополнительные CSS стили для выравнивания таблицы -->
 {% block extra_css %}
 <style>
-    /* Специфичные стили для таблицы принтеров */
-    /* Обновляем: добавляем 7 колонку для метода интерполяции */
-    .printers-table .table-header {
-        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 1fr 2fr;
+    /* Общие стили для двух разделов */
+    .device-section {
+        margin-bottom: 3rem;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 2rem;
     }
-    
-    .printers-table .table-row {
-        grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr 1fr 2fr;
+    .device-section:last-child {
+        border-bottom: none;
     }
-    
-    /* Фиксированная высота строк для выравнивания */
-    .table-row {
-        min-height: 70px;
+    .section-header {
+        display: flex;
+        justify-content: space-between;
         align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
-    
-    /* Выравнивание содержимого ячеек по вертикали */
-    .col-name, 
-    .col-format, 
-    .col-dimensions, 
-    .col-margin, 
-    .col-duplex,
-    .col-interpolation, 
-    .col-actions {
+    /* Стили таблиц – одинаковые для принтеров и ламинаторов */
+    .printers-table .table-header,
+    .laminators-table .table-header {
+        display: grid;
+        grid-template-columns: 2fr 1.1fr 1.5fr 1fr 1fr 1.5fr 2fr;
+        background: #f8f9fa;
+        padding: 1rem;
+        font-weight: 600;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    .printers-table .table-row,
+    .laminators-table .table-row {
+        display: grid;
+        grid-template-columns: 2fr 1.1fr 1.5fr 1fr 1fr 1.5fr 2fr;
+        padding: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+        transition: background 0.3s;
+        position: relative;
+    }
+    .printers-table .table-row:hover,
+    .laminators-table .table-row:hover {
+        background: #f8f9fa;
+    }
+    .col-name, .col-format, .col-dimensions, .col-margin, .col-duplex, .col-interpolation, .col-actions {
         display: flex;
         align-items: center;
-        min-height: 70px;
-        padding: 0.5rem;
+        padding: 0 0.5rem;
     }
-    
-    /* Для мобильных устройств */
+    /* Адаптив для мобильных устройств */
     @media (max-width: 768px) {
-        .printers-table .table-header {
-            display: none;
-        }
-        
-        .printers-table .table-row {
+        .printers-table .table-header, .laminators-table .table-header { display: none; }
+        .printers-table .table-row, .laminators-table .table-row {
             display: flex;
             flex-direction: column;
-            min-height: auto;
-            align-items: stretch;
         }
-        
-        .col-name, 
-        .col-format, 
-        .col-dimensions, 
-        .col-margin, 
-        .col-duplex,
-        .col-interpolation,
-        .col-actions {
-            min-height: auto;
-            padding: 0.75rem 0.5rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        /* Подписи для мобильной версии */
-        .col-name::before {
-            content: "Название: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-format::before {
-            content: "Формат: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-dimensions::before {
-            content: "Размеры: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-margin::before {
-            content: "Поля: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-duplex::before {
-            content: "Коэффициент: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-interpolation::before {
-            content: "Интерполяция: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-actions::before {
-            content: "Действия: ";
-            font-weight: 600;
-            color: #555;
-            min-width: 120px;
-        }
-        
-        .col-actions {
-            border-bottom: none;
-            justify-content: flex-start;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
+        .col-name::before { content: "Название: "; font-weight: 600; min-width: 120px; }
+        .col-format::before { content: "Формат: "; font-weight: 600; min-width: 120px; }
+        .col-dimensions::before { content: "Размеры: "; font-weight: 600; min-width: 120px; }
+        .col-margin::before { content: "Поля: "; font-weight: 600; min-width: 120px; }
+        .col-duplex::before { content: "Коэфф.: "; font-weight: 600; min-width: 120px; }
+        .col-interpolation::before { content: "Интерполяция: "; font-weight: 600; min-width: 120px; }
+        .col-actions::before { content: "Действия: "; font-weight: 600; min-width: 120px; }
     }
-</style>
-{% endblock %}
-
-<!-- Основной контент страницы -->
-{% block content %}
-    <!-- Заголовок страницы с логотипом -->
-    <h1>
-        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
-            alt="Типография &quot;Буква А&quot;" 
-            title="Типография &quot;Буква А&quot;"
-            width="150">
-        Управление принтерами типографии
-    </h1>
-    
-    <!-- Скрытый контейнер для сообщений Django (как в sheet_formats) -->
-    <div class="django-messages" style="display: none;">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="django-message" data-type="{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-    
-    <!-- Кнопка для показа/скрытия формы добавления принтера -->
-    <div class="form-toggle-section">
-        <button type="button" id="toggle-form-btn" class="btn-toggle-form">
-            ✚ Добавить новый принтер
-        </button>
-    </div>
-    
-    <!-- Секция с формой для добавления нового принтера (изначально скрыта) -->
-    <div class="form-section" id="printer-form-section" style="display: none;">
-        <h2>Добавить новый принтер</h2>
-        
-        <!-- Форма добавления принтера (отправляется на сервер) -->
-        <form method="post" action="{% url 'devices:index' %}" id="printer-form">
-            <!-- CSRF токен для защиты от межсайтовых запросов -->
-            {% csrf_token %}
-            
-            <!-- Поле: Название принтера -->
-            <div class="form-group">
-                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                    <div class="errorlist">{{ form.name.errors }}</div>
-                {% endif %}
-                <div class="help-text">{{ form.name.help_text }}</div>
-            </div>
-            
-            <!-- Поле: Формат листа (выпадающий список) -->
-            <div class="form-group">
-                <label for="{{ form.sheet_format.id_for_label }}">{{ form.sheet_format.label }}</label>
-                {{ form.sheet_format }}
-                {% if form.sheet_format.errors %}
-                    <div class="errorlist">{{ form.sheet_format.errors }}</div>
-                {% endif %}
-                <div class="help-text">{{ form.sheet_format.help_text }}</div>
-            </div>
-            
-            <!-- Двухколоночный контейнер для полей и коэффициента -->
-            <div class="additional-params-container">
-                <!-- Поле: Размер полей (в миллиметрах) -->
-                <div class="form-group param-group">
-                    <label for="{{ form.margin_mm.id_for_label }}">{{ form.margin_mm.label }}</label>
-                    {{ form.margin_mm }}
-                    {% if form.margin_mm.errors %}
-                        <div class="errorlist">{{ form.margin_mm.errors }}</div>
-                    {% endif %}
-                    <div class="help-text">{{ form.margin_mm.help_text }}</div>
-                </div>
-                
-                <!-- Поле: Коэффициент двусторонней печати -->
-                <div class="form-group param-group">
-                    <label for="{{ form.duplex_coefficient.id_for_label }}">{{ form.duplex_coefficient.label }}</label>
-                    {{ form.duplex_coefficient }}
-                    {% if form.duplex_coefficient.errors %}
-                        <div class="errorlist">{{ form.duplex_coefficient.errors }}</div>
-                    {% endif %}
-                    <div class="help-text">{{ form.duplex_coefficient.help_text }}</div>
-                </div>
-            </div>
-            
-            <!-- Поле: Метод интерполяции (выпадающий список) - НОВОЕ ПОЛЕ -->
-            <div class="form-group">
-                <label for="{{ form.devices_interpolation_method.id_for_label }}">{{ form.devices_interpolation_method.label }}</label>
-                {{ form.devices_interpolation_method }}
-                {% if form.devices_interpolation_method.errors %}
-                    <div class="errorlist">{{ form.devices_interpolation_method.errors }}</div>
-                {% endif %}
-                <div class="help-text">{{ form.devices_interpolation_method.help_text }}</div>
-            </div>
-            
-            <!-- Кнопки формы -->
-            <div class="button-group">
-                <button type="submit" class="btn-submit">💾 Сохранить принтер</button>
-                <button type="reset" class="btn-clear">🗑️ Очистить форму</button>
-            </div>
-        </form>
-    </div>
-    
-    <!-- Секция со списком принтеров -->
-    <div class="printers-section">
-        <h2>Список принтеров ({{ printers|length }})</h2>
-        
-        <!-- Сообщение, если принтеров нет в базе -->
-        {% if not printers %}
-            <div class="empty-message">
-                📭 В базе данных нет принтеров. Нажмите кнопку "Добавить новый принтер" выше.
-            </div>
-        {% else %}
-            <!-- Таблица со списком принтеров -->
-            <div class="printers-table">
-                <!-- Заголовок таблицы -->
-                <div class="table-header">
-                    <div class="col-name">Название принтера</div>
-                    <div class="col-format">Формат листа</div>
-                    <div class="col-dimensions">Размеры</div>
-                    <div class="col-margin">Поля</div>
-                    <div class="col-duplex">Коэфф.</div>
-                    <!-- НОВАЯ КОЛОНКА: Метод интерполяции -->
-                    <div class="col-interpolation">Интерполяция</div>
-                    <div class="col-actions">Действия</div>
-                </div>
-                
-                <!-- Цикл по всем принтерам в базе данных -->
-                {% for printer in printers %}
-                    <!-- Строка таблицы с двумя состояниями: просмотр и редактирование -->
-                    <div class="table-row" 
-                         data-printer-id="{{ printer.id }}" 
-                         id="printer-row-{{ printer.id }}">
-                        
-                        <!-- Колонка: Название принтера -->
-                        <div class="col-name">
-                            <!-- Режим просмотра (видно по умолчанию) -->
-                            <div class="view-mode editable-field" data-field="name">
-                                <div class="printer-name">{{ printer.name }}</div>
-                            </div>
-                            
-                            <!-- Режим редактирования (скрыт по умолчанию) -->
-                            <div class="edit-mode" style="display: none;">
-                                <input type="text" 
-                                       name="name" 
-                                       value="{{ printer.name }}" 
-                                       class="edit-input"
-                                       data-field="name"
-                                       placeholder="Название принтера">
-                            </div>
-                        </div>
-                        
-                        <!-- Колонка: Формат листа -->
-                        <div class="col-format">
-                            <!-- Режим просмотра -->
-                            <div class="view-mode editable-field" data-field="sheet_format">
-                                <span class="param-badge">{{ printer.sheet_format.name }}</span>
-                            </div>
-                            
-                            <!-- Режим редактирования -->
-                            <div class="edit-mode" style="display: none;">
-                                <select name="sheet_format" 
-                                        class="edit-input"
-                                        data-field="sheet_format"
-                                        style="width: 100%;">
-                                    {% for format in formats %}
-                                        <option value="{{ format.id }}" 
-                                                {% if format.id == printer.sheet_format.id %}selected{% endif %}>
-                                            {{ format.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Колонка: Размеры листа (только для просмотра) -->
-                        <div class="col-dimensions">
-                            <span class="param-badge">{{ printer.get_dimensions_display }}</span>
-                        </div>
-                        
-                        <!-- Колонка: Поля (незапечатываемые области) -->
-                        <div class="col-margin">
-                            <!-- Режим просмотра -->
-                            <div class="view-mode editable-field" data-field="margin_mm">
-                                <span class="param-badge">{{ printer.get_margin_display }}</span>
-                            </div>
-                            
-                            <!-- Режим редактирования -->
-                            <div class="edit-mode" style="display: none;">
-                                <input type="number" 
-                                       name="margin_mm" 
-                                       value="{{ printer.margin_mm }}" 
-                                       class="edit-input edit-number"
-                                       data-field="margin_mm"
-                                       placeholder="0"
-                                       min="0"
-                                       max="50"
-                                       step="1"
-                                       style="width: 70px;">
-                                <span class="margin-unit">мм</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Колонка: Коэффициент двусторонней печати -->
-                        <div class="col-duplex">
-                            <!-- Режим просмотра -->
-                            <div class="view-mode editable-field" data-field="duplex_coefficient">
-                                <span class="param-badge">{{ printer.get_duplex_display }}</span>
-                            </div>
-                            
-                            <!-- Режим редактирования -->
-                            <div class="edit-mode" style="display: none;">
-                                <!-- 
-                                ВАЖНОЕ ИСПРАВЛЕНИЕ:
-                                Используем метод get_duplex_coefficient_formatted() для получения
-                                корректно отформатированного значения с одним знаком после запятой.
-                                Это решает проблему с пустым полем при первом редактировании.
-                                -->
-                                <input type="number" 
-                                       name="duplex_coefficient" 
-                                       value="{{ printer.get_duplex_coefficient_formatted }}" 
-                                       class="edit-input edit-number"
-                                       data-field="duplex_coefficient"
-                                       placeholder="2.0"
-                                       min="1.0"
-                                       max="10.0"
-                                       step="0.1"
-                                       style="width: 70px;">
-                            </div>
-                        </div>
-                        
-                        <!-- НОВАЯ КОЛОНКА: Метод интерполяции -->
-                        <div class="col-interpolation">
-                            <!-- Режим просмотра -->
-                            <div class="view-mode editable-field" data-field="devices_interpolation_method">
-                                <span class="param-badge">{{ printer.get_interpolation_method_display_short }}</span>
-                            </div>
-                            
-                            <!-- Режим редактирования -->
-                            <div class="edit-mode" style="display: none;">
-                                <select name="devices_interpolation_method" 
-                                        class="edit-input edit-select"
-                                        data-field="devices_interpolation_method"
-                                        style="width: 100%;">
-                                    {% for method_value, method_name in INTERPOLATION_CHOICES %}
-                                        <option value="{{ method_value }}" 
-                                                {% if printer.devices_interpolation_method == method_value %}selected{% endif %}>
-                                            {{ method_name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Колонка: Действия -->
-                        <div class="col-actions">
-                            <!-- Режим просмотра -->
-                            <div class="view-mode">
-                                <!-- Кнопка удаления с подтверждением через JavaScript -->
-                                <a href="{% url 'devices:delete_printer' printer.id %}" 
-                                   class="btn-action btn-delete"
-                                   onclick="return confirm('Вы уверены, что хотите удалить принтер \"{{ printer.name }}\" ({{ printer.sheet_format.name }})?');">
-                                    🗑️ Удалить
-                                </a>
-                            </div>
-                            
-                            <!-- Режим редактирования (скрыт по умолчанию) -->
-                            <div class="edit-mode edit-actions" style="display: none;">
-                                <button type="button" 
-                                        class="btn-action btn-save"
-                                        onclick="savePrinterRow({{ printer.id }})">
-                                    💾 Сохранить
-                                </button>
-                                <button type="button" 
-                                        class="btn-action btn-cancel"
-                                        onclick="cancelEditRow({{ printer.id }})">
-                                    ❌ Отмена
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-            
-            <!-- Подсказки для пользователя -->
-            <div class="table-hint">
-                <div class="hint-item">
-                    <span class="hint-icon">🖱️</span>
-                    <span class="hint-text">Двойной клик по ячейке для редактирования</span>
-                </div>
-                <div class="hint-item">
-                    <span class="hint-icon">💾</span>
-                    <span class="hint-text">Enter - сохранить, Esc - отменить редактирование</span>
-                </div>
-                <div class="hint-item">
-                    <span class="hint-icon">⚠️</span>
-                    <span class="hint-text">Формат листа выбирается из созданных форматов</span>
-                </div>
-            </div>
-        {% endif %}
-    </div>
-{% endblock %}
-
-<!-- Дополнительный JavaScript для страницы -->
-{% block extra_js %}
-<script>
-// Глобальные переменные для управления состоянием редактирования
-let currentEditRow = null;     // Текущая редактируемая строка
-let originalData = {};         // Исходные данные для отмены изменений
-
-/**
- * Преобразует сообщения Django в notification (как в sheet_formats)
- */
-function convertDjangoMessagesToNotifications() {
-    const djangoMessages = document.querySelectorAll('.django-message');
-    
-    djangoMessages.forEach(msg => {
-        const type = msg.dataset.type || 'info';
-        const message = msg.textContent.trim();
-        
-        // Показываем как notification
-        showNotification(type, message);
-        
-        // Удаляем элемент из DOM
-        msg.remove();
-    });
-    
-    // Удаляем контейнер, если он пуст
-    const container = document.querySelector('.django-messages');
-    if (container && container.children.length === 0) {
-        container.remove();
+    /* Стили для кнопок и форм */
+    .form-toggle-section { text-align: center; margin: 1rem 0; }
+    .btn-toggle-form {
+        background: #0B8661;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.8rem 1.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
-}
-
-/**
- * Показывает уведомление в правом верхнем углу (как в sheet_formats)
- * @param {string} type - Тип уведомления (success, error, info, warning)
- * @param {string} message - Текст сообщения
- */
-function showNotification(type, message) {
-    // Создаем элемент уведомления
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    // Добавляем на страницу
-    document.body.appendChild(notification);
-    
-    // Автоматически удаляем через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 5000);
-}
-
-/**
- * Функция для показа/скрытия формы добавления принтера
- * Вызывается при клике на кнопку "Добавить новый принтер"
- */
-function toggleForm() {
-    const formSection = document.getElementById('printer-form-section');
-    const toggleButton = document.getElementById('toggle-form-btn');
-    
-    if (formSection.style.display === 'none') {
-        // Показываем форму
-        formSection.style.display = 'block';
-        toggleButton.textContent = '✖ Скрыть форму';
-        toggleButton.classList.add('active');
-        
-        // Плавная прокрутка к форме
-        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Устанавливаем фокус на первое поле
-        const firstInput = formSection.querySelector('input, select');
-        if (firstInput) {
-            setTimeout(() => firstInput.focus(), 300);
-        }
-    } else {
-        // Скрываем форму
-        formSection.style.display = 'none';
-        toggleButton.textContent = '✚ Добавить новый принтер';
-        toggleButton.classList.remove('active');
+    .btn-toggle-form:hover { transform: translateY(-2px); background: #096c4f; }
+    .btn-toggle-form.active { background: #e0e0e0; color: #333; }
+    .form-section {
+        background: #f9f9f9;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        border: 1px solid #e0e0e0;
     }
-}
-
-/**
- * Включает режим редактирования для строки таблицы
- * @param {number} printerId - ID принтера
- * @param {string} fieldName - Имя поля для установки фокуса
- */
-function enableEditMode(printerId, fieldName = null) {
-    // Если уже редактируем другую строку, сначала отменяем
-    if (currentEditRow && currentEditRow !== printerId) {
-        cancelEditRow(currentEditRow);
+    .additional-params-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
     }
-    
-    const row = document.getElementById(`printer-row-${printerId}`);
-    if (!row) return;
-    
-    // Сохраняем текущую редактируемую строку
-    currentEditRow = printerId;
-    
-    // Сохраняем исходные данные
-    saveOriginalData(row);
-    
-    // Переключаем режимы отображения
-    row.querySelectorAll('.view-mode').forEach(el => {
-        el.style.display = 'none';
-    });
-    
-    row.querySelectorAll('.edit-mode').forEach(el => {
-        el.style.display = 'flex';  // Используем flex для выравнивания
-        el.style.alignItems = 'center';
-    });
-    
-    // Добавляем класс для стилизации
-    row.classList.add('edit-mode-active');
-    
-    // Устанавливаем фокус на указанное поле
-    if (fieldName) {
-        const input = row.querySelector(`[data-field="${fieldName}"]`);
-        if (input) {
-            setTimeout(() => {
-                input.focus();
-                if (input.select) input.select();
-            }, 50);
-        }
+    .param-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        font-weight: 600;
+        background: #e8f5e9;
+        border-radius: 20px;
     }
-}
-
-/**
- * Сохраняет исходные данные строки для возможности отмены
- * @param {HTMLElement} row - Строка таблицы
- */
-function saveOriginalData(row) {
-    originalData = {};
-    
-    // Сохраняем значения всех полей ввода
-    const inputs = row.querySelectorAll('.edit-mode input, .edit-mode select');
-    inputs.forEach(input => {
-        originalData[input.dataset.field] = input.value;
-    });
-}
-
-/**
- * Отменяет редактирование строки
- * @param {number} printerId - ID принтера
- */
-function cancelEditRow(printerId) {
-    const row = document.getElementById(`printer-row-${printerId}`);
-    if (!row) return;
-    
-    // Восстанавливаем исходные значения
-    Object.keys(originalData).forEach(fieldName => {
-        const input = row.querySelector(`[data-field="${fieldName}"]`);
-        if (input) {
-            input.value = originalData[fieldName];
-        }
-    });
-    
-    // Переключаем обратно в режим просмотра
-    row.querySelectorAll('.view-mode').forEach(el => {
-        el.style.display = 'flex';  // Используем flex для выравнивания
-        el.style.alignItems = 'center';
-    });
-    
-    row.querySelectorAll('.edit-mode').forEach(el => {
-        el.style.display = 'none';
-    });
-    
-    // Убираем класс редактирования
-    row.classList.remove('edit-mode-active');
-    
-    // Сбрасываем состояние
-    currentEditRow = null;
-    originalData = {};
-}
-
-/**
- * Сохраняет изменения принтера на сервере через AJAX
- * @param {number} printerId - ID принтера
- */
-function savePrinterRow(printerId) {
-    const row = document.getElementById(`printer-row-${printerId}`);
-    if (!row) return;
-    
-    // Собираем данные из формы
-    const data = {};
-    const inputs = row.querySelectorAll('.edit-mode input, .edit-mode select');
-    
-    inputs.forEach(input => {
-        // Для поля duplex_coefficient преобразуем значение в число с плавающей точкой
-        if (input.name === 'duplex_coefficient') {
-            data[input.name] = parseFloat(input.value) || 2.0;
-        } else {
-            data[input.name] = input.value;
-        }
-    });
-    
-    // Валидация на клиенте
-    if (!validatePrinterData(data)) {
-        return;
+    /* Уведомления (как в sheet_formats) */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem;
+        border-radius: 8px;
+        color: white;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
     }
-    
-    // Получаем CSRF токен
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    if (!csrfToken) {
-        showNotification('error', 'Ошибка безопасности. Обновите страницу.');
-        return;
+    .notification-success { background: #4caf50; }
+    .notification-error { background: #f44336; }
+    .notification-info { background: #2196f3; }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
-    // Показываем индикатор загрузки в строке
-    showRowLoadingIndicator(row);
-    
-    // Отправляем AJAX-запрос
-    fetch(`/devices/update/${printerId}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        // Скрываем индикатор загрузки
-        hideRowLoadingIndicator(row);
-        
-        if (result.success) {
-            // Обновляем данные в строке
-            updateViewRow(printerId, result.printer);
-            
-            // Выходим из режима редактирования
-            cancelEditRow(printerId);
-            
-            // Показываем уведомление об успехе
-            showNotification('success', result.message);
-        } else {
-            // Показываем ошибки валидации
-            showValidationErrors(row, result.errors || {});
-            showNotification('error', result.message || 'Ошибка при сохранении');
-        }
-    })
-    .catch(error => {
-        hideRowLoadingIndicator(row);
-        console.error('Ошибка при сохранении:', error);
-        showNotification('error', 'Ошибка соединения с сервером');
-    });
-}
-
-/**
- * Валидирует данные принтера на клиенте
- * @param {Object} data - Данные принтера
- * @returns {boolean} - true если данные валидны
- */
-function validatePrinterData(data) {
-    // Проверка названия
-    if (!data.name || data.name.trim().length < 2) {
-        showNotification('error', 'Название принтера должно содержать минимум 2 символа');
-        return false;
-    }
-    
-    // Проверка формата
-    if (!data.sheet_format) {
-        showNotification('error', 'Выберите формат листа');
-        return false;
-    }
-    
-    // Проверка полей
-    const margin = parseInt(data.margin_mm);
-    if (isNaN(margin) || margin < 0 || margin > 50) {
-        showNotification('error', 'Поля должны быть в диапазоне 0-50 мм');
-        return false;
-    }
-    
-    // Проверка коэффициента
-    const coefficient = parseFloat(data.duplex_coefficient);
-    if (isNaN(coefficient) || coefficient < 1.0 || coefficient > 10.0) {
-        showNotification('error', 'Коэффициент должен быть в диапазоне 1.0-10.0');
-        return false;
-    }
-    
-    // Проверка метода интерполяции - НОВАЯ ВАЛИДАЦИЯ
-    if (!data.devices_interpolation_method) {
-        showNotification('error', 'Выберите метод интерполяции');
-        return false;
-    }
-    
-    return true;
-}
-
-/**
- * Обновляет строку в режиме просмотра с новыми данными
- * @param {number} printerId - ID принтера
- * @param {Object} printerData - Данные принтера
- */
-function updateViewRow(printerId, printerData) {
-    const row = document.getElementById(`printer-row-${printerId}`);
-    if (!row) return;
-    
-    // Обновляем название
-    const nameElement = row.querySelector('.col-name .printer-name');
-    if (nameElement) {
-        nameElement.textContent = printerData.name;
-    }
-    
-    // Обновляем формат
-    const formatElement = row.querySelector('.col-format .param-badge');
-    if (formatElement) {
-        formatElement.textContent = printerData.sheet_format;
-    }
-    
-    // Обновляем размеры
-    const dimensionsElement = row.querySelector('.col-dimensions .param-badge');
-    if (dimensionsElement) {
-        dimensionsElement.textContent = printerData.sheet_format_dimensions;
-    }
-    
-    // Обновляем поля
-    const marginElement = row.querySelector('.col-margin .param-badge');
-    if (marginElement) {
-        marginElement.textContent = printerData.margin_display;
-    }
-    
-    // Обновляем коэффициент
-    const duplexElement = row.querySelector('.col-duplex .param-badge');
-    if (duplexElement) {
-        duplexElement.textContent = printerData.duplex_display;
-    }
-    
-    // Обновляем метод интерполяции - НОВОЕ ОБНОВЛЕНИЕ
-    const interpolationElement = row.querySelector('.col-interpolation .param-badge');
-    if (interpolationElement) {
-        interpolationElement.textContent = printerData.devices_interpolation_method_display;
-    }
-    
-    // Важно: обновляем значение в поле ввода для будущих редактирований
-    const duplexInput = row.querySelector('input[name="duplex_coefficient"]');
-    if (duplexInput) {
-        // Используем отформатированное значение из ответа сервера
-        duplexInput.value = printerData.duplex_coefficient_formatted || printerData.duplex_coefficient;
-    }
-    
-    // Обновляем выпадающий список метода интерполяции
-    const interpolationSelect = row.querySelector('select[name="devices_interpolation_method"]');
-    if (interpolationSelect) {
-        interpolationSelect.value = printerData.devices_interpolation_method;
-    }
-    
-    // Обновляем ссылку удаления
-    const deleteLink = row.querySelector('.btn-delete');
-    if (deleteLink) {
-        deleteLink.onclick = function() {
-            return confirm(`Вы уверены, что хотите удалить принтер "${printerData.name}" (${printerData.sheet_format})?`);
-        };
-    }
-}
-
-/**
- * Показывает ошибки валидации в строке
- * @param {HTMLElement} row - Строка таблицы
- * @param {Object} errors - Объект с ошибками
- */
-function showValidationErrors(row, errors) {
-    // Сначала очищаем предыдущие ошибки
-    row.querySelectorAll('.error-message').forEach(el => el.remove());
-    row.querySelectorAll('.edit-input').forEach(input => {
-        input.classList.remove('error');
-    });
-    
-    // Показываем новые ошибки
-    if (errors) {
-        Object.keys(errors).forEach(fieldName => {
-            const input = row.querySelector(`[data-field="${fieldName}"]`);
-            if (input) {
-                input.classList.add('error');
-                
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.textContent = Array.isArray(errors[fieldName]) ? 
-                    errors[fieldName].join(', ') : errors[fieldName];
-                
-                input.parentNode.appendChild(errorDiv);
-            }
-        });
-    }
-}
-
-/**
- * Показывает индикатор загрузки в строке
- * @param {HTMLElement} row - Строка таблицы
- */
-function showRowLoadingIndicator(row) {
-    // Создаем элемент индикатора
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'row-loading-indicator';
-    loadingDiv.style.cssText = `
+    /* Индикатор загрузки в строке */
+    .row-loading {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255,255,255,0.8);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 10;
-        border-radius: 4px;
-    `;
-    
-    loadingDiv.innerHTML = `
-        <div style="
-            width: 30px;
-            height: 30px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #0B8661;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        "></div>
-    `;
-    
-    // Добавляем в строку
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    /* Режим редактирования */
+    .edit-mode-active { background-color: #f8fff8 !important; border-left: 3px solid #0B8661; }
+    .edit-input { width: 100%; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 4px; }
+    .edit-input:focus { border-color: #0B8661; outline: none; }
+    .edit-number { width: 80px; text-align: center; }
+    .edit-actions { display: flex; gap: 0.5rem; }
+    .btn-save { background: #0B8661; color: white; }
+    .btn-cancel { background: #6c757d; color: white; }
+    .btn-delete { background: #f44336; color: white; text-decoration: none; padding: 0.4rem 0.8rem; border-radius: 4px; }
+    .btn-action { border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+    .table-hint { margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .hint-item { display: flex; align-items: center; gap: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" width="150" alt="Типография Буква А">
+        Управление устройствами типографии
+    </h1>
+
+    <!-- Контейнер для системных сообщений Django (преобразуются в уведомления) -->
+    <div class="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="django-message" data-type="{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- ==================== РАЗДЕЛ 1: ПРИНТЕРЫ ==================== -->
+    <div class="device-section" id="printers-section">
+        <div class="section-header">
+            <h2>🖨️ Принтеры ({{ printers|length }})</h2>
+            <button type="button" class="btn-toggle-form" id="toggle-printer-form-btn">✚ Добавить принтер</button>
+        </div>
+
+        <!-- Форма добавления принтера (скрыта по умолчанию) -->
+        <div class="form-section" id="printer-form-section" style="display: none;">
+            <h3>Новый принтер</h3>
+            <form method="post" action="{% url 'devices:index' %}" id="printer-form">
+                {% csrf_token %}
+                <!-- Скрытое поле, указывающее тип устройства -->
+                <input type="hidden" name="device_type" value="printer">
+                
+                <div class="form-group">
+                    <label>{{ printer_form.name.label }}</label>
+                    {{ printer_form.name }}
+                    <div class="help-text">{{ printer_form.name.help_text }}</div>
+                </div>
+                <div class="form-group">
+                    <label>{{ printer_form.sheet_format.label }}</label>
+                    {{ printer_form.sheet_format }}
+                    <div class="help-text">{{ printer_form.sheet_format.help_text }}</div>
+                </div>
+                <div class="additional-params-container">
+                    <div class="form-group">
+                        <label>{{ printer_form.margin_mm.label }}</label>
+                        {{ printer_form.margin_mm }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ printer_form.duplex_coefficient.label }}</label>
+                        {{ printer_form.duplex_coefficient }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{ printer_form.devices_interpolation_method.label }}</label>
+                    {{ printer_form.devices_interpolation_method }}
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn-submit">💾 Сохранить принтер</button>
+                    <button type="reset" class="btn-clear">🗑️ Очистить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Таблица принтеров -->
+        {% if printers %}
+            <div class="printers-table">
+                <div class="table-header">
+                    <div>Название</div><div>Формат</div><div>Размеры</div><div>Поля</div><div>Коэфф.</div><div>Интерполяция</div><div>Действия</div>
+                </div>
+                {% for printer in printers %}
+                    <div class="table-row" data-printer-id="{{ printer.id }}" id="printer-row-{{ printer.id }}">
+                        <!-- Название -->
+                        <div class="col-name">
+                            <div class="view-mode editable-field" data-field="name">{{ printer.name }}</div>
+                            <div class="edit-mode" style="display:none;"><input type="text" name="name" value="{{ printer.name }}" class="edit-input" data-field="name"></div>
+                        </div>
+                        <!-- Формат -->
+                        <div class="col-format">
+                            <div class="view-mode editable-field" data-field="sheet_format"><span class="param-badge">{{ printer.sheet_format.name }}</span></div>
+                            <div class="edit-mode" style="display:none;">
+                                <select name="sheet_format" class="edit-input" data-field="sheet_format">
+                                    {% for f in formats %}<option value="{{ f.id }}" {% if f.id == printer.sheet_format.id %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Размеры (только просмотр) -->
+                        <div class="col-dimensions"><span class="param-badge">{{ printer.get_dimensions_display }}</span></div>
+                        <!-- Поля -->
+                        <div class="col-margin">
+                            <div class="view-mode editable-field" data-field="margin_mm"><span class="param-badge">{{ printer.get_margin_display }}</span></div>
+                            <div class="edit-mode" style="display:none;"><input type="number" name="margin_mm" value="{{ printer.margin_mm }}" class="edit-input edit-number" data-field="margin_mm" min="0" max="50" step="1"> мм</div>
+                        </div>
+                        <!-- Коэффициент -->
+                        <div class="col-duplex">
+                            <div class="view-mode editable-field" data-field="duplex_coefficient"><span class="param-badge">{{ printer.get_duplex_display }}</span></div>
+                            <div class="edit-mode" style="display:none;"><input type="number" name="duplex_coefficient" value="{{ printer.get_duplex_coefficient_formatted }}" class="edit-input edit-number" data-field="duplex_coefficient" min="1.0" max="10.0" step="0.1"></div>
+                        </div>
+                        <!-- Метод интерполяции -->
+                        <div class="col-interpolation">
+                            <div class="view-mode editable-field" data-field="devices_interpolation_method"><span class="param-badge">{{ printer.get_interpolation_method_display_short }}</span></div>
+                            <div class="edit-mode" style="display:none;">
+                                <select name="devices_interpolation_method" class="edit-input" data-field="devices_interpolation_method">
+                                    {% for val, label in PRINTER_INTERPOLATION_CHOICES %}
+                                        <option value="{{ val }}" {% if printer.devices_interpolation_method == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Действия -->
+                        <div class="col-actions">
+                            <div class="view-mode">
+                                <a href="{% url 'devices:delete_printer' printer.id %}" class="btn-action btn-delete" onclick="return confirm('Удалить принтер &quot;{{ printer.name }}&quot;?');">🗑️ Удалить</a>
+                            </div>
+                            <div class="edit-mode edit-actions" style="display:none;">
+                                <button type="button" class="btn-action btn-save" onclick="savePrinterRow({{ printer.id }})">💾 Сохранить</button>
+                                <button type="button" class="btn-action btn-cancel" onclick="cancelEditPrinterRow({{ printer.id }})">❌ Отмена</button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-message">Нет принтеров. Добавьте первый.</div>
+        {% endif %}
+    </div>
+
+    <!-- ==================== РАЗДЕЛ 2: ЛАМИНАТОРЫ ==================== -->
+    <div class="device-section" id="laminators-section">
+        <div class="section-header">
+            <h2>📀 Ламинаторы ({{ laminators|length }})</h2>
+            <button type="button" class="btn-toggle-form" id="toggle-laminator-form-btn">✚ Добавить ламинатор</button>
+        </div>
+
+        <!-- Форма добавления ламинатора (скрыта по умолчанию) -->
+        <div class="form-section" id="laminator-form-section" style="display: none;">
+            <h3>Новый ламинатор</h3>
+            <form method="post" action="{% url 'devices:index' %}" id="laminator-form">
+                {% csrf_token %}
+                <input type="hidden" name="device_type" value="laminator">
+                
+                <div class="form-group">
+                    <label>{{ laminator_form.name.label }}</label>
+                    {{ laminator_form.name }}
+                    <div class="help-text">{{ laminator_form.name.help_text }}</div>
+                </div>
+                <div class="form-group">
+                    <label>{{ laminator_form.sheet_format.label }}</label>
+                    {{ laminator_form.sheet_format }}
+                </div>
+                <div class="additional-params-container">
+                    <div class="form-group">
+                        <label>{{ laminator_form.margin_mm.label }}</label>
+                        {{ laminator_form.margin_mm }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ laminator_form.duplex_coefficient.label }}</label>
+                        {{ laminator_form.duplex_coefficient }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{ laminator_form.laminator_interpolation_method.label }}</label>
+                    {{ laminator_form.laminator_interpolation_method }}
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn-submit">💾 Сохранить ламинатор</button>
+                    <button type="reset" class="btn-clear">🗑️ Очистить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Таблица ламинаторов -->
+        {% if laminators %}
+            <div class="laminators-table">
+                <div class="table-header">
+                    <div>Название</div><div>Формат</div><div>Размеры</div><div>Поля</div><div>Коэфф.</div><div>Интерполяция</div><div>Действия</div>
+                </div>
+                {% for laminator in laminators %}
+                    <div class="table-row" data-laminator-id="{{ laminator.id }}" id="laminator-row-{{ laminator.id }}">
+                        <!-- Название -->
+                        <div class="col-name">
+                            <div class="view-mode editable-field" data-field="name">{{ laminator.name }}</div>
+                            <div class="edit-mode" style="display:none;"><input type="text" name="name" value="{{ laminator.name }}" class="edit-input" data-field="name"></div>
+                        </div>
+                        <!-- Формат -->
+                        <div class="col-format">
+                            <div class="view-mode editable-field" data-field="sheet_format"><span class="param-badge">{{ laminator.sheet_format.name }}</span></div>
+                            <div class="edit-mode" style="display:none;">
+                                <select name="sheet_format" class="edit-input" data-field="sheet_format">
+                                    {% for f in formats %}<option value="{{ f.id }}" {% if f.id == laminator.sheet_format.id %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Размеры -->
+                        <div class="col-dimensions"><span class="param-badge">{{ laminator.get_dimensions_display }}</span></div>
+                        <!-- Поля -->
+                        <div class="col-margin">
+                            <div class="view-mode editable-field" data-field="margin_mm"><span class="param-badge">{{ laminator.get_margin_display }}</span></div>
+                            <div class="edit-mode" style="display:none;"><input type="number" name="margin_mm" value="{{ laminator.margin_mm }}" class="edit-input edit-number" data-field="margin_mm" min="0" max="50" step="1"> мм</div>
+                        </div>
+                        <!-- Коэффициент -->
+                        <div class="col-duplex">
+                            <div class="view-mode editable-field" data-field="duplex_coefficient"><span class="param-badge">{{ laminator.get_duplex_display }}</span></div>
+                            <div class="edit-mode" style="display:none;"><input type="number" name="duplex_coefficient" value="{{ laminator.get_duplex_coefficient_formatted }}" class="edit-input edit-number" data-field="duplex_coefficient" min="1.0" max="10.0" step="0.1"></div>
+                        </div>
+                        <!-- Метод интерполяции -->
+                        <div class="col-interpolation">
+                            <div class="view-mode editable-field" data-field="laminator_interpolation_method"><span class="param-badge">{{ laminator.get_interpolation_method_display_short }}</span></div>
+                            <div class="edit-mode" style="display:none;">
+                                <select name="laminator_interpolation_method" class="edit-input" data-field="laminator_interpolation_method">
+                                    {% for val, label in LAMINATOR_INTERPOLATION_CHOICES %}
+                                        <option value="{{ val }}" {% if laminator.laminator_interpolation_method == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Действия -->
+                        <div class="col-actions">
+                            <div class="view-mode">
+                                <a href="{% url 'devices:delete_laminator' laminator.id %}" class="btn-action btn-delete" onclick="return confirm('Удалить ламинатор &quot;{{ laminator.name }}&quot;?');">🗑️ Удалить</a>
+                            </div>
+                            <div class="edit-mode edit-actions" style="display:none;">
+                                <button type="button" class="btn-action btn-save" onclick="saveLaminatorRow({{ laminator.id }})">💾 Сохранить</button>
+                                <button type="button" class="btn-action btn-cancel" onclick="cancelEditLaminatorRow({{ laminator.id }})">❌ Отмена</button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-message">Нет ламинаторов. Добавьте первый.</div>
+        {% endif %}
+    </div>
+
+    <div class="table-hint">
+        <div class="hint-item"><span class="hint-icon">🖱️</span> Двойной клик по ячейке для редактирования</div>
+        <div class="hint-item"><span class="hint-icon">💾</span> Enter – сохранить, Esc – отменить</div>
+        <div class="hint-item"><span class="hint-icon">⚠️</span> Формат листа выбирается из созданных форматов</div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ------------------ ОБЩИЕ ФУНКЦИИ (уведомления, загрузка) ------------------
+function showNotification(type, message) {
+    const notif = document.createElement('div');
+    notif.className = `notification notification-${type}`;
+    notif.textContent = message;
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 5000);
+}
+
+function convertDjangoMessages() {
+    document.querySelectorAll('.django-message').forEach(msg => {
+        showNotification(msg.dataset.type, msg.textContent);
+        msg.remove();
+    });
+    const container = document.querySelector('.django-messages');
+    if (container && !container.children.length) container.remove();
+}
+
+function showRowLoading(row) {
+    const div = document.createElement('div');
+    div.className = 'row-loading';
+    div.innerHTML = '<div style="border:3px solid #f3f3f3; border-top:3px solid #0B8661; border-radius:50%; width:30px; height:30px; animation: spin 1s linear infinite;"></div>';
     row.style.position = 'relative';
-    row.appendChild(loadingDiv);
-    
-    // Блокируем кнопки
-    row.querySelectorAll('button').forEach(btn => {
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-    });
+    row.appendChild(div);
 }
 
-/**
- * Убирает индикатор загрузки из строки
- * @param {HTMLElement} row - Строка таблицы
- */
-function hideRowLoadingIndicator(row) {
-    const indicator = row.querySelector('.row-loading-indicator');
-    if (indicator) {
-        indicator.remove();
+function hideRowLoading(row) {
+    const loader = row.querySelector('.row-loading');
+    if (loader) loader.remove();
+}
+
+// ------------------ ПРИНТЕРЫ: редактирование, сохранение, отмена ------------------
+let currentPrinterEdit = null;
+let originalPrinterData = {};
+
+function enableEditPrinter(printerId, fieldName = null) {
+    if (currentPrinterEdit && currentPrinterEdit !== printerId) cancelEditPrinterRow(currentPrinterEdit);
+    const row = document.getElementById(`printer-row-${printerId}`);
+    if (!row) return;
+    currentPrinterEdit = printerId;
+    // Сохраняем оригинальные значения
+    originalPrinterData = {};
+    row.querySelectorAll('.edit-mode input, .edit-mode select').forEach(inp => { originalPrinterData[inp.dataset.field] = inp.value; });
+    // Переключаем видимость
+    row.querySelectorAll('.view-mode').forEach(el => el.style.display = 'none');
+    row.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'flex');
+    row.classList.add('edit-mode-active');
+    if (fieldName) {
+        const inp = row.querySelector(`[data-field="${fieldName}"]`);
+        if (inp) setTimeout(() => { inp.focus(); if (inp.select) inp.select(); }, 50);
     }
-    
-    // Разблокируем кнопки
-    row.querySelectorAll('button').forEach(btn => {
-        btn.disabled = false;
-        btn.style.opacity = '';
-    });
 }
 
-/**
- * Инициализация при загрузке страницы
- */
+function cancelEditPrinterRow(printerId) {
+    const row = document.getElementById(`printer-row-${printerId}`);
+    if (!row) return;
+    // Восстанавливаем значения
+    Object.keys(originalPrinterData).forEach(field => {
+        const inp = row.querySelector(`[data-field="${field}"]`);
+        if (inp) inp.value = originalPrinterData[field];
+    });
+    row.querySelectorAll('.view-mode').forEach(el => el.style.display = 'flex');
+    row.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'none');
+    row.classList.remove('edit-mode-active');
+    currentPrinterEdit = null;
+    originalPrinterData = {};
+}
+
+function savePrinterRow(printerId) {
+    const row = document.getElementById(`printer-row-${printerId}`);
+    if (!row) return;
+    const data = {};
+    row.querySelectorAll('.edit-mode input, .edit-mode select').forEach(inp => {
+        data[inp.name] = inp.type === 'number' ? parseFloat(inp.value) : inp.value;
+    });
+    // Простая валидация
+    if (!data.name || data.name.trim().length < 2) {
+        showNotification('error', 'Название принтера должно быть не менее 2 символов');
+        return;
+    }
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    showRowLoading(row);
+    fetch(`/devices/printer/update/${printerId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        hideRowLoading(row);
+        if (res.success) {
+            updatePrinterRowView(printerId, res.printer);
+            cancelEditPrinterRow(printerId);
+            showNotification('success', res.message);
+        } else {
+            showNotification('error', res.message || 'Ошибка сохранения');
+        }
+    })
+    .catch(() => { hideRowLoading(row); showNotification('error', 'Ошибка соединения'); });
+}
+
+function updatePrinterRowView(printerId, data) {
+    const row = document.getElementById(`printer-row-${printerId}`);
+    if (!row) return;
+    row.querySelector('.col-name .view-mode').innerHTML = `<div class="printer-name">${data.name}</div>`;
+    row.querySelector('.col-format .view-mode .param-badge').textContent = data.sheet_format;
+    row.querySelector('.col-dimensions .param-badge').textContent = data.sheet_format_dimensions;
+    row.querySelector('.col-margin .view-mode .param-badge').textContent = data.margin_display;
+    row.querySelector('.col-duplex .view-mode .param-badge').textContent = data.duplex_display;
+    row.querySelector('.col-interpolation .view-mode .param-badge').textContent = data.devices_interpolation_method_display;
+    // Обновляем значения в скрытых полях редактирования
+    const duplexInput = row.querySelector('input[name="duplex_coefficient"]');
+    if (duplexInput) duplexInput.value = data.duplex_coefficient_formatted;
+    const methodSelect = row.querySelector('select[name="devices_interpolation_method"]');
+    if (methodSelect) methodSelect.value = data.devices_interpolation_method;
+}
+
+// ------------------ ЛАМИНАТОРЫ: редактирование, сохранение, отмена ------------------
+let currentLaminatorEdit = null;
+let originalLaminatorData = {};
+
+function enableEditLaminator(laminatorId, fieldName = null) {
+    if (currentLaminatorEdit && currentLaminatorEdit !== laminatorId) cancelEditLaminatorRow(currentLaminatorEdit);
+    const row = document.getElementById(`laminator-row-${laminatorId}`);
+    if (!row) return;
+    currentLaminatorEdit = laminatorId;
+    originalLaminatorData = {};
+    row.querySelectorAll('.edit-mode input, .edit-mode select').forEach(inp => { originalLaminatorData[inp.dataset.field] = inp.value; });
+    row.querySelectorAll('.view-mode').forEach(el => el.style.display = 'none');
+    row.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'flex');
+    row.classList.add('edit-mode-active');
+    if (fieldName) {
+        const inp = row.querySelector(`[data-field="${fieldName}"]`);
+        if (inp) setTimeout(() => { inp.focus(); if (inp.select) inp.select(); }, 50);
+    }
+}
+
+function cancelEditLaminatorRow(laminatorId) {
+    const row = document.getElementById(`laminator-row-${laminatorId}`);
+    if (!row) return;
+    Object.keys(originalLaminatorData).forEach(field => {
+        const inp = row.querySelector(`[data-field="${field}"]`);
+        if (inp) inp.value = originalLaminatorData[field];
+    });
+    row.querySelectorAll('.view-mode').forEach(el => el.style.display = 'flex');
+    row.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'none');
+    row.classList.remove('edit-mode-active');
+    currentLaminatorEdit = null;
+    originalLaminatorData = {};
+}
+
+function saveLaminatorRow(laminatorId) {
+    const row = document.getElementById(`laminator-row-${laminatorId}`);
+    if (!row) return;
+    const data = {};
+    row.querySelectorAll('.edit-mode input, .edit-mode select').forEach(inp => {
+        data[inp.name] = inp.type === 'number' ? parseFloat(inp.value) : inp.value;
+    });
+    if (!data.name || data.name.trim().length < 2) {
+        showNotification('error', 'Название ламинатора должно быть не менее 2 символов');
+        return;
+    }
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    showRowLoading(row);
+    fetch(`/devices/laminator/update/${laminatorId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        hideRowLoading(row);
+        if (res.success) {
+            updateLaminatorRowView(laminatorId, res.laminator);
+            cancelEditLaminatorRow(laminatorId);
+            showNotification('success', res.message);
+        } else {
+            showNotification('error', res.message || 'Ошибка сохранения');
+        }
+    })
+    .catch(() => { hideRowLoading(row); showNotification('error', 'Ошибка соединения'); });
+}
+
+function updateLaminatorRowView(laminatorId, data) {
+    const row = document.getElementById(`laminator-row-${laminatorId}`);
+    if (!row) return;
+    row.querySelector('.col-name .view-mode').innerHTML = `<div class="laminator-name">${data.name}</div>`;
+    row.querySelector('.col-format .view-mode .param-badge').textContent = data.sheet_format;
+    row.querySelector('.col-dimensions .param-badge').textContent = data.sheet_format_dimensions;
+    row.querySelector('.col-margin .view-mode .param-badge').textContent = data.margin_display;
+    row.querySelector('.col-duplex .view-mode .param-badge').textContent = data.duplex_display;
+    row.querySelector('.col-interpolation .view-mode .param-badge').textContent = data.laminator_interpolation_method_display;
+    const duplexInput = row.querySelector('input[name="duplex_coefficient"]');
+    if (duplexInput) duplexInput.value = data.duplex_coefficient_formatted;
+    const methodSelect = row.querySelector('select[name="laminator_interpolation_method"]');
+    if (methodSelect) methodSelect.value = data.laminator_interpolation_method;
+}
+
+// ------------------ ИНИЦИАЛИЗАЦИЯ ------------------
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Страница управления принтерами загружена');
-    
-    // Конвертируем сообщения Django в notification
-    convertDjangoMessagesToNotifications();
-    
-    // Назначаем обработчик кнопки показа/скрытия формы
-    const toggleButton = document.getElementById('toggle-form-btn');
-    if (toggleButton) {
-        toggleButton.addEventListener('click', toggleForm);
-    }
-    
-    // Назначаем обработчики двойного клика на редактируемые поля
-    document.querySelectorAll('.editable-field').forEach(field => {
-        field.addEventListener('dblclick', function(e) {
-            // Не обрабатываем, если уже в режиме редактирования
-            if (currentEditRow) return;
-            
-            const row = this.closest('.table-row');
-            const printerId = row?.dataset.printerId;
-            const fieldName = this.dataset.field;
-            
-            if (printerId) {
-                enableEditMode(printerId, fieldName);
+    convertDjangoMessages();
+
+    // Переключение формы принтеров
+    const togglePrinterBtn = document.getElementById('toggle-printer-form-btn');
+    const printerFormSection = document.getElementById('printer-form-section');
+    if (togglePrinterBtn) {
+        togglePrinterBtn.addEventListener('click', () => {
+            if (printerFormSection.style.display === 'none') {
+                printerFormSection.style.display = 'block';
+                togglePrinterBtn.textContent = '✖ Скрыть форму';
+                togglePrinterBtn.classList.add('active');
+            } else {
+                printerFormSection.style.display = 'none';
+                togglePrinterBtn.textContent = '✚ Добавить принтер';
+                togglePrinterBtn.classList.remove('active');
             }
         });
+    }
+
+    // Переключение формы ламинаторов
+    const toggleLaminatorBtn = document.getElementById('toggle-laminator-form-btn');
+    const laminatorFormSection = document.getElementById('laminator-form-section');
+    if (toggleLaminatorBtn) {
+        toggleLaminatorBtn.addEventListener('click', () => {
+            if (laminatorFormSection.style.display === 'none') {
+                laminatorFormSection.style.display = 'block';
+                toggleLaminatorBtn.textContent = '✖ Скрыть форму';
+                toggleLaminatorBtn.classList.add('active');
+            } else {
+                laminatorFormSection.style.display = 'none';
+                toggleLaminatorBtn.textContent = '✚ Добавить ламинатор';
+                toggleLaminatorBtn.classList.remove('active');
+            }
+        });
+    }
+
+    // Двойной клик для редактирования принтеров
+    document.querySelectorAll('#printers-section .editable-field').forEach(field => {
+        field.addEventListener('dblclick', (e) => {
+            if (currentPrinterEdit) return;
+            const row = field.closest('.table-row');
+            const printerId = row.dataset.printerId;
+            if (printerId) enableEditPrinter(printerId, field.dataset.field);
+        });
     });
-    
-    // Обработка клавиши Escape для отмены редактирования
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && currentEditRow) {
-            cancelEditRow(currentEditRow);
-        }
-        
-        // Сохранение по Ctrl+Enter
-        if (e.key === 'Enter' && e.ctrlKey && currentEditRow) {
-            savePrinterRow(currentEditRow);
-        }
+
+    // Двойной клик для редактирования ламинаторов
+    document.querySelectorAll('#laminators-section .editable-field').forEach(field => {
+        field.addEventListener('dblclick', (e) => {
+            if (currentLaminatorEdit) return;
+            const row = field.closest('.table-row');
+            const laminatorId = row.dataset.laminatorId;
+            if (laminatorId) enableEditLaminator(laminatorId, field.dataset.field);
+        });
     });
-    
-    // Обработка Enter в полях ввода
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.ctrlKey && currentEditRow) {
-            const activeElement = document.activeElement;
-            if (activeElement && activeElement.classList.contains('edit-input')) {
+
+    // Глобальные клавиши
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (currentPrinterEdit) cancelEditPrinterRow(currentPrinterEdit);
+            if (currentLaminatorEdit) cancelEditLaminatorRow(currentLaminatorEdit);
+        }
+        if (e.key === 'Enter' && !e.ctrlKey) {
+            if (currentPrinterEdit && document.activeElement?.classList.contains('edit-input')) {
                 e.preventDefault();
-                savePrinterRow(currentEditRow);
+                savePrinterRow(currentPrinterEdit);
+            }
+            if (currentLaminatorEdit && document.activeElement?.classList.contains('edit-input')) {
+                e.preventDefault();
+                saveLaminatorRow(currentLaminatorEdit);
             }
         }
     });
-    
-    // Автоматически показываем форму, если есть ошибки
-    const errorMessages = document.querySelectorAll('.errorlist');
-    if (errorMessages.length > 0) {
-        toggleForm();
+
+    // Если при загрузке есть ошибки в формах – показать соответствующую форму
+    if (document.querySelector('#printer-form .errorlist')) {
+        printerFormSection.style.display = 'block';
+        togglePrinterBtn.textContent = '✖ Скрыть форму';
+        togglePrinterBtn.classList.add('active');
     }
-    
-    // Показываем подсказку при первом посещении
-    if (!localStorage.getItem('devices_hint_shown')) {
-        setTimeout(() => {
-            showNotification('info', '💡 Подсказка: для редактирования принтера сделайте двойной клик по любой ячейке в таблице');
-            localStorage.setItem('devices_hint_shown', 'true');
-        }, 2000);
+    if (document.querySelector('#laminator-form .errorlist')) {
+        laminatorFormSection.style.display = 'block';
+        toggleLaminatorBtn.textContent = '✖ Скрыть форму';
+        toggleLaminatorBtn.classList.add('active');
     }
 });
 </script>

@@ -24,6 +24,7 @@ calculator/templates/calculator/index.html
 <link rel="stylesheet" href="{% static 'calculator/css/sections/print_components.css' %}">
 <link rel="stylesheet" href="{% static 'calculator/css/sections/additional_works.css' %}">
 <link rel="stylesheet" href="{% static 'calculator/css/sections/price.css' %}">
+<link rel="stylesheet" href="{% static 'calculator/css/sections/lamination.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -90,6 +91,12 @@ calculator/templates/calculator/index.html
                             {% include "calculator/sections/print_components.html" %}
                         </div>
                     </div>
+
+                    <div class="nested-row">
+                        <div class="nested-col" data-col-size="full">
+                            {% include "calculator/sections/lamination.html" %}
+                        </div>
+                    </div>
                     
                     <!-- ===== НОВАЯ СЕКЦИЯ: ВЫЧИСЛЕНИЯ ЛИСТОВ ===== -->
                     <div class="nested-row">
@@ -146,4 +153,5 @@ calculator/templates/calculator/index.html
 <script src="{% static 'calculator/js/sections/print_components_inline_edit.js' %}"></script>
 <script src="{% static 'calculator/js/sections/additional_works.js' %}"></script>
 <script src="{% static 'calculator/js/sections/price.js' %}"></script>
+<script src="{% static 'calculator/js/sections/lamination.js' %}"></script>
 {% endblock %}

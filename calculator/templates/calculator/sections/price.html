@@ -1,26 +1,53 @@
 <!--
-sections/price.html - Секция "Цена"
-ОБНОВЛЕНО:
-- В блоке итогов по печатным компонентам теперь отображаются три строки:
-  * Общая себестоимость
-  * Общая прибыль
-  * Общая стоимость
-- Структура аналогична дополнительным работам.
+  ============================================================================
+  Файл: calculator/templates/calculator/sections/price.html
+  Назначение: Секция "Цена" – итоговая стоимость заказа.
+  ОТВЕЧАЕТ ЗА:
+  1. Отображение итоговой стоимости печатных компонентов.
+  2. Отображение итоговой стоимости дополнительных работ.
+  3. Отображение итоговой стоимости ламинации (новая функциональность).
+  4. Суммирование всех составляющих и показ общей стоимости заказа.
+  5. Кнопки для экспорта, печати и создания счёта (заглушки).
+
+  ДОПОЛНЕНИЯ:
+  - Добавлена категория "Ламинация" с тремя итоговыми строками:
+    общая себестоимость, общая прибыль, общая стоимость.
+  - Адаптивный дизайн с горизонтальной прокруткой на мобильных устройствах.
+  - Все стили вынесены в отдельный CSS-файл (price.css).
+  - JavaScript-логика находится в price.js.
+
+  Подробные комментарии к каждой строке помогут новичкам разобраться в структуре.
+  ============================================================================
 -->
 
+<!--
+  Секция "Цена". Класс "calculator-section" – общий для всех секций калькулятора.
+  ID "price-section" используется для сворачивания/разворачивания и для стилизации.
+-->
 <section class="calculator-section price-section" id="price-section">
+    <!--
+      ЗАГОЛОВОК СЕКЦИИ
+      Содержит номер секции, название, имя текущего просчёта и кнопки управления.
+    -->
     <div class="section-header">
         <h2>
+            <!-- Иконка денежной купюры из Font Awesome -->
             <i class="fas fa-money-bill-wave"></i>
+            <!-- Номер секции (7) – для наглядности в интерфейсе -->
             <span class="section-number">7.</span>
             Цена
-            <!-- Элемент для отображения названия выбранного просчёта -->
+            <!--
+              Элемент для отображения названия выбранного просчёта.
+              По умолчанию показывает текст-заполнитель.
+              При выборе просчёта JavaScript заменит содержимое.
+            -->
             <span id="price-proschet-title" class="proschet-title-placeholder">
                 <span class="placeholder-text">(просчёт не выбран)</span>
             </span>
         </h2>
+        <!-- Контейнер для кнопок в правой части заголовка -->
         <div class="header-buttons">
-            <!-- Кнопка расчета (будет активна при выборе просчёта) -->
+            <!-- Кнопка "Рассчитать" – активна только когда выбран просчёт -->
             <button type="button" 
                     class="btn-action btn-calculate-price" 
                     id="calculate-price-btn"
@@ -28,6 +55,7 @@ sections/price.html - Секция "Цена"
                     style="display: none;">
                 <i class="fas fa-calculator"></i> Рассчитать
             </button>
+            <!-- Кнопка сворачивания/разворачивания секции -->
             <button type="button" 
                     class="btn-action btn-collapse-section" 
                     data-section="price-section"
@@ -37,16 +65,27 @@ sections/price.html - Секция "Цена"
         </div>
     </div>
     
+    <!--
+      ТЕЛО СЕКЦИИ
+      Содержимое, которое сворачивается/разворачивается.
+    -->
     <div class="section-body">
-        <!-- Сообщение при отсутствии выбранного просчёта -->
+        <!--
+          СООБЩЕНИЕ, КОГДА ПРОСЧЁТ НЕ ВЫБРАН
+          Показывается вместо итоговой стоимости, если не выбран ни один просчёт.
+        -->
         <div id="no-proschet-selected-price" class="empty-state-message" style="display: none;">
             <i class="fas fa-hand-pointer fa-3x"></i>
             <h3>Выберите просчёт</h3>
             <p>Выберите просчёт в секции "Список просчётов" для отображения итоговой стоимости</p>
         </div>
         
-        <!-- Контейнер для итоговой стоимости -->
+        <!--
+          КОНТЕЙНЕР ИТОГОВОЙ СТОИМОСТИ
+          Показывается, когда просчёт выбран.
+        -->
         <div id="price-summary-container" class="price-summary-container" style="display: none;">
+            <!-- Верхняя часть контейнера: заголовок и дата расчёта -->
             <div class="price-summary-header">
                 <h3><i class="fas fa-file-invoice-dollar"></i> Итоговая стоимость заказа</h3>
                 <div class="price-summary-date" id="price-summary-date">
@@ -54,16 +93,25 @@ sections/price.html - Секция "Цена"
                 </div>
             </div>
             
+            <!-- Детали стоимости (разбивка по категориям) -->
             <div class="price-details">
-                <!-- Детали по печатным компонентам -->
+                <!--
+                  ========================================================
+                  КАТЕГОРИЯ 1: ПЕЧАТНЫЕ КОМПОНЕНТЫ
+                  ========================================================
+                -->
                 <div class="price-category">
                     <div class="category-header">
                         <i class="fas fa-print"></i>
                         <h4>Печатные компоненты</h4>
+                        <!-- Счётчик количества компонентов (заполняется через JS) -->
                         <span class="category-count" id="print-components-count">0 компонентов</span>
                     </div>
                     
-                    <!-- Заголовок колонок для печатных компонентов -->
+                    <!--
+                      ЗАГОЛОВКИ КОЛОНОК ДЛЯ ПЕЧАТНЫХ КОМПОНЕНТОВ
+                      Скрыты по умолчанию, показываются, когда есть хотя бы один компонент.
+                    -->
                     <div id="print-components-headers" class="price-column-headers" style="display: none;">
                         <div class="price-header-left">
                             <i class="fas fa-info-circle"></i> Наименование
@@ -75,16 +123,20 @@ sections/price.html - Секция "Цена"
                         </div>
                     </div>
                     
-                    <!-- Контейнер для списка печатных компонентов -->
+                    <!-- Контейнер для списка печатных компонентов (заполняется динамически) -->
                     <div class="category-items" id="print-components-items">
-                        <!-- Детали по каждому компоненту будут добавляться динамически -->
+                        <!-- Сообщение, если компонентов нет -->
                         <div class="category-empty">
                             <i class="fas fa-info-circle"></i>
                             <p>В просчёте нет печатных компонентов</p>
                         </div>
                     </div>
                     
-                    <!-- ===== НОВЫЙ БЛОК: итоги по печатным компонентам (три строки) ===== -->
+                    <!--
+                      БЛОК ИТОГОВ ПО ПЕЧАТНЫМ КОМПОНЕНТАМ
+                      Три строки: общая себестоимость, общая прибыль, общая стоимость.
+                      Скрыт по умолчанию, показывается, когда есть компоненты.
+                    -->
                     <div id="print-components-total-container" class="price-total-summary-inline" style="display: none;">
                         <div class="total-value-group">
                             <div class="total-cost-value" id="print-components-total-cost">0.00 ₽</div>
@@ -97,23 +149,20 @@ sections/price.html - Секция "Цена"
                             <span>Общая стоимость</span>
                         </div>
                     </div>
-                    <!-- ===== КОНЕЦ НОВОГО БЛОКА ===== -->
-                    
-                    <!-- Старая итоговая строка (оставлена для совместимости, но будет скрыта) -->
-                    <div class="category-total" style="display: none;">
-                        <span class="total-label">Итого по печати:</span>
-                        <span class="total-value" id="price-print-components-total">0.00 ₽</span>
-                    </div>
                 </div>
                 
-                <!-- Детали по дополнительным работам -->
+                <!--
+                  ========================================================
+                  КАТЕГОРИЯ 2: ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ
+                  ========================================================
+                -->
                 <div class="price-category">
                     <div class="category-header">
                         <i class="fas fa-tools"></i>
                         <h4>Дополнительные работы</h4>
                         <span class="category-count" id="additional-works-count">0 работ</span>
                     </div>
-                    <!-- Заголовок колонок для дополнительных работ -->
+                    <!-- Заголовки колонок (аналогично печатным компонентам) -->
                     <div class="price-column-headers">
                         <div class="price-header-left">
                             <i class="fas fa-info-circle"></i> Наименование
@@ -124,14 +173,13 @@ sections/price.html - Секция "Цена"
                             <div class="price-header-total">Общая стоимость</div>
                         </div>
                     </div>
+                    <!-- Контейнер для списка дополнительных работ -->
                     <div class="category-items" id="additional-works-items">
-                        <!-- Детали по каждой работе будут добавляться динамически -->
                         <div class="category-empty">
                             <i class="fas fa-info-circle"></i>
                             <p>В просчёте нет дополнительных работ</p>
                         </div>
                     </div>
-                    
                     <!-- Итоги по дополнительным работам (три строки) -->
                     <div id="additional-works-total-container" class="price-total-summary-inline" style="display: none;">
                         <div class="total-value-group">
@@ -147,13 +195,64 @@ sections/price.html - Секция "Цена"
                     </div>
                 </div>
                 
-                <!-- Общая сумма заказа (остаётся как есть) -->
+                <!--
+                  ========================================================
+                  КАТЕГОРИЯ 3: ЛАМИНАЦИЯ (НОВАЯ)
+                  ========================================================
+                -->
+                <div class="price-category">
+                    <div class="category-header">
+                        <i class="fas fa-layer-group"></i>
+                        <h4>Ламинация</h4>
+                        <!-- Отображает статус: "Включена" или "Выключена" -->
+                        <span class="category-count" id="lamination-status">Выключена</span>
+                    </div>
+                    <!-- Заголовки колонок для ламинации (аналогично) -->
+                    <div class="price-column-headers">
+                        <div class="price-header-left">
+                            <i class="fas fa-info-circle"></i> Параметры
+                        </div>
+                        <div class="price-header-right">
+                            <div class="price-header-cost">Себестоимость</div>
+                            <div class="price-header-profit">Прибыль</div>
+                            <div class="price-header-total">Общая стоимость</div>
+                        </div>
+                    </div>
+                    <!-- Контейнер для отображения деталей ламинации -->
+                    <div class="category-items" id="lamination-items">
+                        <!-- Сообщение по умолчанию (ламинация не используется) -->
+                        <div class="category-empty">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Ламинация не используется</p>
+                        </div>
+                    </div>
+                    <!-- Итоги по ламинации (три строки) -->
+                    <div id="lamination-total-container" class="price-total-summary-inline" style="display: none;">
+                        <div class="total-value-group">
+                            <div class="total-cost-value" id="lamination-total-cost">0.00 ₽</div>
+                            <div class="total-profit-value" id="lamination-total-profit">0.00 ₽</div>
+                            <div class="total-price-value" id="lamination-total-price">0.00 ₽</div>
+                        </div>
+                        <div class="total-labels">
+                            <span>Общая себестоимость</span>
+                            <span>Общая прибыль</span>
+                            <span>Общая стоимость</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!--
+                  ========================================================
+                  ОБЩАЯ СУММА ЗАКАЗА (СУММИРУЕТ ВСЕ КАТЕГОРИИ)
+                  ========================================================
+                -->
                 <div class="price-total-summary">
                     <div class="total-row">
                         <div class="total-label">
                             <i class="fas fa-calculator"></i>
                             <strong>Общая стоимость заказа:</strong>
                         </div>
+                        <!-- Значение общей стоимости (заполняется через JS) -->
                         <div class="total-value" id="total-order-price">0.00 ₽</div>
                     </div>
                     <div class="total-breakdown">
@@ -164,14 +263,21 @@ sections/price.html - Секция "Цена"
                     </div>
                 </div>
                 
-                <!-- Кнопки действий -->
+                <!--
+                  ========================================================
+                  КНОПКИ ДЕЙСТВИЙ
+                  ========================================================
+                -->
                 <div class="price-actions">
+                    <!-- Кнопка экспорта в PDF (заглушка) -->
                     <button type="button" class="btn-action btn-secondary" id="export-price-btn" title="Экспорт в PDF">
                         <i class="fas fa-file-pdf"></i> Экспорт в PDF
                     </button>
+                    <!-- Кнопка печати (заглушка) -->
                     <button type="button" class="btn-action btn-secondary" id="print-price-btn" title="Распечатать">
                         <i class="fas fa-print"></i> Распечатать
                     </button>
+                    <!-- Кнопка создания счёта (заглушка) -->
                     <button type="button" class="btn-action btn-primary" id="create-invoice-btn" title="Создать счёт">
                         <i class="fas fa-file-invoice"></i> Создать счёт
                     </button>

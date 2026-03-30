@@ -1,0 +1,99 @@
+<!--
+calculator/templates/calculator/sections/lamination.html
+Секция "Ламинация" – отображается после печатных компонентов.
+Содержит:
+- Переключатель "Включена/Выключена"
+- Выбор ламинатора (из print_price)
+- Выбор плёнки (из sklad, тип film)
+- Отображение рассчитанной цены
+-->
+<section class="calculator-section lamination-section" id="lamination-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-layer-group"></i>
+            <span class="section-number">6.</span>
+            Ламинация
+            <span id="lamination-component-title" class="lamination-component-title-placeholder">
+                <span class="placeholder-text">(компонент не выбран)</span>
+            </span>
+        </h2>
+        <div class="header-buttons">
+            <button type="button" class="btn-action btn-collapse-section" data-section="lamination-section" title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <!-- Сообщение, когда печатный компонент не выбран -->
+        <div id="lamination-no-component-message" class="empty-state-message" style="display: none;">
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите печатный компонент</h3>
+            <p>Для работы с ламинацией сначала выберите компонент в секции "Печатные компоненты".</p>
+        </div>
+
+        <!-- Основное содержимое (показывается, когда компонент выбран) -->
+        <div id="lamination-content" style="display: none;">
+            <!-- Переключатель включения/выключения -->
+            <div class="lamination-toggle-container">
+                <label class="lamination-switch">
+                    <input type="checkbox" id="lamination-enabled-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <span id="lamination-toggle-label" class="lamination-toggle-label">Выключена</span>
+            </div>
+
+            <!-- Блок настроек (виден только когда включена) -->
+            <div id="lamination-settings" style="display: none;">
+                <div class="lamination-form-row">
+                    <div class="form-group">
+                        <label for="lamination-laminator-select">
+                            <i class="fas fa-print"></i> Ламинатор
+                        </label>
+                        <select id="lamination-laminator-select" class="form-control">
+                            <option value="">-- Выберите ламинатор --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lamination-film-select">
+                            <i class="fas fa-film"></i> Плёнка
+                        </label>
+                        <select id="lamination-film-select" class="form-control">
+                            <option value="">-- Выберите плёнку --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Блок с расчётом стоимости -->
+                <div class="lamination-price-block">
+                    <div class="price-details-grid">
+                        <div class="price-item">
+                            <span class="price-label">Себестоимость ламинации:</span>
+                            <span id="lamination-laminator-cost" class="price-value">0.00 руб.</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">Наценка ламинатора:</span>
+                            <span id="lamination-laminator-markup" class="price-value">0%</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">Цена ламинации за лист:</span>
+                            <span id="lamination-laminator-price" class="price-value">0.00 руб./лист</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">Цена плёнки за лист:</span>
+                            <span id="lamination-film-price" class="price-value">0.00 руб./лист</span>
+                        </div>
+                        <div class="price-item total">
+                            <span class="price-label">Общая стоимость ламинации:</span>
+                            <span id="lamination-total-price" class="price-value total-price">0.00 ₽</span>
+                        </div>
+                    </div>
+                    <div class="lamination-note">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Количество листов: <strong id="lamination-sheet-count-display">0</strong> (из секции "Вычисления листов")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
