@@ -1,0 +1,280 @@
+/*
+directories/static/directories/css/index.css
+Стили для приложения "Справочники".
+Содержит специфичные стили для карточек и элементов directories.
+ДОБАВЛЕНА задержка анимации для шестой карточки (.directory-card:nth-child(6)).
+*/
+
+/* ===== 1. СТИЛИ ДЛЯ ПРИВЕТСТВЕННОГО ТЕКСТА ===== */
+
+/* Контейнер для приветственного текста */
+.welcome-text {
+    text-align: center;
+    margin-bottom: 2rem;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Стили для текста приветствия */
+.welcome-text p {
+    color: #666;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+/* ===== 2. СТИЛИ ДЛЯ КОНТЕЙНЕРА КАРТОЧЕК ===== */
+
+/* Основной контейнер для карточек */
+.directories-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+/* ===== 3. СТИЛИ ДЛЯ КАРТОЧЕК-ССЫЛОК ===== */
+
+/* Базовая карточка */
+.directory-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 2px solid #e0e0e0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 200px;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Эффект при наведении на карточку */
+.directory-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: #0B8661;
+}
+
+/* Отключенная карточка */
+.directory-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    border-color: #ccc;
+}
+
+.directory-card.disabled:hover {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border-color: #ccc;
+}
+
+/* ===== 4. СТИЛИ ДЛЯ ИКОНОК КАРТОЧЕК ===== */
+
+/* Иконка в карточке */
+.directory-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+}
+
+/* Анимация иконки при наведении */
+.directory-card:hover .directory-icon {
+    transform: scale(1.1);
+}
+
+/* ===== 5. СТИЛИ ДЛЯ НАЗВАНИЯ КАРТОЧКИ ===== */
+
+/* Название справочника */
+.directory-name {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.8rem;
+}
+
+/* ===== 6. СТИЛИ ДЛЯ ОПИСАНИЯ КАРТОЧКИ ===== */
+
+/* Описание справочника */
+.directory-description {
+    font-size: 0.95rem;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+
+/* ===== 7. СТИЛИ ДЛЯ СТАТУСА КАРТОЧКИ ===== */
+
+/* Статус доступности */
+.directory-status {
+    display: inline-block;
+    background: #0B8661;
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+/* Неактивный статус */
+.directory-status.inactive {
+    background: #ff9800;
+}
+
+/* ===== 8. СТИЛИ ДЛЯ ПОДСКАЗКИ КАРТОЧКИ ===== */
+
+/* Подсказка внизу карточки */
+.directory-hint {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 1rem;
+    font-style: italic;
+}
+
+/* ===== 9. СТИЛИ ДЛЯ СЕКЦИИ "СКОРО ПОЯВИТСЯ" ===== */
+
+/* Контейнер секции */
+.coming-soon-section {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e0e0e0;
+    width: 100%;
+    text-align: center;
+}
+
+/* Заголовок секции */
+.coming-soon-title {
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+/* Сетка элементов */
+.coming-soon-grid {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Отдельный элемент */
+.coming-soon-item {
+    background: #f5f5f5;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #888;
+}
+
+/* ===== 10. АДАПТИВНЫЕ СТИЛИ ===== */
+
+/* Для планшетов и маленьких ноутбуков */
+@media (max-width: 1024px) {
+    .directories-container {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+/* Для планшетов и больших телефонов */
+@media (max-width: 768px) {
+    .directories-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .directory-card {
+        padding: 1.5rem;
+        min-height: 180px;
+    }
+    
+    .directory-icon {
+        font-size: 2.5rem;
+    }
+    
+    .directory-name {
+        font-size: 1.2rem;
+    }
+    
+    .coming-soon-section {
+        margin-top: 3rem;
+    }
+    
+    .coming-soon-grid {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Для маленьких телефонов */
+@media (max-width: 480px) {
+    .directory-card {
+        padding: 1.2rem;
+        min-height: 160px;
+    }
+    
+    .directory-icon {
+        font-size: 2.2rem;
+    }
+    
+    .directory-name {
+        font-size: 1.1rem;
+    }
+    
+    .directory-description {
+        font-size: 0.9rem;
+    }
+    
+    .coming-soon-item {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Для очень маленьких телефонов */
+@media (max-width: 360px) {
+    .directory-card {
+        padding: 1rem;
+    }
+    
+    .directory-name {
+        font-size: 1rem;
+    }
+}
+
+/* ===== 11. АНИМАЦИИ ===== */
+
+/* Анимация появления карточек */
+@keyframes cardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Применяем анимацию к карточкам */
+.directory-card {
+    animation: cardAppear 0.5s ease forwards;
+}
+
+/* Задержки для последовательного появления карточек */
+.directory-card:nth-child(1) { animation-delay: 0.1s; }
+.directory-card:nth-child(2) { animation-delay: 0.2s; }
+.directory-card:nth-child(3) { animation-delay: 0.3s; }
+.directory-card:nth-child(4) { animation-delay: 0.4s; }
+.directory-card:nth-child(5) { animation-delay: 0.5s; }
+/* ===== ДОБАВЛЕНО для шестой карточки ===== */
+.directory-card:nth-child(6) { animation-delay: 0.6s; }

@@ -1,0 +1,96 @@
+<!--
+calculator/templates/calculator/sections/massa_i_obyom.html
+Секция "Масса и объём" – отображает суммарную массу и объём бумаги и ламинации
+для выбранного просчёта, рассчитанные по размерам изделия и тиражу.
+
+ИСПОЛЬЗУЕТСЯ: для быстрой оценки веса и объёма заказа.
+-->
+
+<section class="calculator-section massa-i-obyom-section" id="massa-i-obyom-section">
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-weight-hanging"></i>
+            <span class="section-number">7.</span>
+            Масса и объём
+            <span id="massa-i-obyom-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <div class="header-buttons">
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="massa-i-obyom-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="section-body">
+        <!-- Сообщение, когда просчёт не выбран -->
+        <div id="massa-i-obyom-no-proschet-message" class="empty-state-message" style="display: none;">
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Для расчёта массы и объёма сначала выберите просчёт в секции "Список просчётов".</p>
+        </div>
+
+        <!-- Контейнер с результатами (скрыт по умолчанию) -->
+        <div id="massa-i-obyom-results-container" class="massa-i-obyom-results" style="display: none;">
+            <!-- Карточка массы -->
+            <div class="massa-i-obyom-card">
+                <div class="card-header">
+                    <i class="fas fa-weight-hanging"></i>
+                    <h3>Масса заказа</h3>
+                </div>
+                <div class="card-body">
+                    <div class="result-row">
+                        <span class="result-label">Бумага:</span>
+                        <span class="result-value" id="massa-i-obyom-paper-mass">0.00 г</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Плёнка (ламинация):</span>
+                        <span class="result-value" id="massa-i-obyom-film-mass">0.00 г</span>
+                    </div>
+                    <div class="result-row total-row">
+                        <span class="result-label">Общая масса:</span>
+                        <span class="result-value" id="massa-i-obyom-total-mass">0.00 г</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Карточка объёма -->
+            <div class="massa-i-obyom-card">
+                <div class="card-header">
+                    <i class="fas fa-cube"></i>
+                    <h3>Объём заказа</h3>
+                </div>
+                <div class="card-body">
+                    <div class="result-row">
+                        <span class="result-label">Бумага:</span>
+                        <span class="result-value" id="massa-i-obyom-paper-volume">0.00 см³</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Плёнка (ламинация):</span>
+                        <span class="result-value" id="massa-i-obyom-film-volume">0.00 см³</span>
+                    </div>
+                    <div class="result-row total-row">
+                        <span class="result-label">Общий объём:</span>
+                        <span class="result-value" id="massa-i-obyom-total-volume">0.00 см³</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Подсказки -->
+        <div class="massa-i-obyom-note">
+            <i class="fas fa-info-circle"></i>
+            <p>
+                <strong>Расчёт:</strong> масса бумаги = (ширина×высота изделия / 1_000_000) × тираж × плотность бумаги (г/м²).<br>
+                Масса плёнки = (ширина×высота / 1_000_000) × тираж × толщина плёнки (мкм) × 0.1 × (1 или 2 для двусторонней).<br>
+                Объём бумаги = (ширина×высота×толщина бумаги×тираж) / 1000 (см³).<br>
+                Объём плёнки = (ширина×высота×толщина плёнки×тираж) / 1_000_000 (см³).<br>
+                <strong>Примечание:</strong> если материал не выбран или нет данных, соответствующие показатели равны 0.
+            </p>
+        </div>
+    </div>
+</section>

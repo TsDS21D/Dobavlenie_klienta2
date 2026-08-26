@@ -1,0 +1,807 @@
+/*
+calculator/static/calculator/css/base.css
+ПОЛНЫЙ ОБНОВЛЕННЫЙ ДИЗАЙН - Компактный и минималистичный
+ДОБАВЛЕН ЭФФЕКТ ПРИ НАВЕДЕНИИ НА СЕКЦИИ
+
+=== ВАЖНОЕ ИЗМЕНЕНИЕ: СТИЛИ ПАНЕЛИ НАВИГАЦИИ ===
+Все стили для панели навигации (.app-nav-container, .nav-panel, .nav-btn и т.д.)
+были полностью заменены на идентичные тем, что в приложении counter.
+Теперь панель навигации в калькуляторе выглядит точно так же, как в списке заказов.
+*/
+
+/* ===== 1. БАЗОВЫЕ НАСТРОЙКИ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ (ИЗ SHEET_FORMATS) ===== */
+
+/* Всегда показываем скроллбар для избежания смещения контента */
+html {
+    overflow-y: scroll;  /* Всегда показываем вертикальный скроллбар */
+}
+
+/* Сбрасываем стандартные отступы и устанавливаем border-box модель */
+* {
+    margin: 0;           /* Убираем все внешние отступы */
+    padding: 0;          /* Убираем все внутренние отступы */
+    box-sizing: border-box;  /* Размеры элемента включают padding и border */
+}
+
+/* ===== 2. ОСНОВНЫЕ СТИЛИ ТЕЛА СТРАНИЦЫ (ИЗ SHEET_FORMATS) ===== */
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;  /* Современные системные шрифты */
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);  /* Фоновое изображение */
+    min-height: 100vh;   /* Минимальная высота - вся высота окна браузера */
+    padding: 0.8rem;     /* Внутренний отступ вокруг тела (уменьшено с 2rem → 0.8rem) */
+    font-size: 13px;     /* Уменьшен базовый размер шрифта (было 16px по умолчанию) */
+}
+
+/* ===== 3. ОСНОВНОЙ КОНТЕЙНЕР СТРАНИЦЫ (ИЗ SHEET_FORMATS) ===== */
+
+.container {
+    max-width: 1200px;   /* Максимальная ширина контейнера */
+    margin: 0 auto;      /* Центрирование по горизонтали */
+    background: white;   /* Белый фон контейнера */
+    border-radius: 10px; /* Скругление углов (уменьшено с 20px → 10px) */
+    padding: 1.2rem;     /* Внутренние отступы (уменьшено с 3rem → 1.2rem) */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);  /* Более легкая тень (было 0 20px 60px) */
+    width: 100%;         /* Ширина 100% от родителя */
+    box-sizing: border-box;  /* Учитываем padding в ширине */
+    overflow-x: hidden;  /* Скрываем горизонтальный скролл */
+}
+
+/* ===== 4. ЗАГОЛОВКИ СТРАНИЦЫ (ИЗ SHEET_FORMATS) ===== */
+
+h1 {
+    color: #333;         /* Темно-серый цвет текста */
+    margin-bottom: 1rem; /* Отступ снизу (уменьшено с 2rem → 1rem) */
+    text-align: center;  /* Выравнивание по центру */
+    font-size: 1.4rem;   /* Размер шрифта (уменьшено с 2rem → 1.4rem) */
+    display: flex;       /* Flexbox для выравнивания элементов */
+    align-items: center; /* Выравнивание по вертикали */
+    justify-content: center;  /* Выравнивание по горизонтали */
+    gap: 0.6rem;         /* Расстояние между элементами (уменьшено с 1rem → 0.6rem) */
+}
+
+h2 {
+    color: #333;         /* Темно-серый цвет текста */
+    margin-bottom: 0.8rem; /* Отступ снизу (уменьшено с 1.5rem → 0.8rem) */
+    font-size: 1rem;     /* Размер шрифта (уменьшено с 1.5rem → 1rem) */
+}
+
+/* ===== 5. ПАНЕЛИ НАВИГАЦИИ (ПОЛНОСТЬЮ ПЕРЕРАБОТАНЫ - ТЕПЕРЬ КАК В COUNTER) ===== */
+
+/* === КОНТЕЙНЕР ДЛЯ ВСЕХ ПАНЕЛЕЙ === */
+.app-nav-container {
+    position: fixed;     /* Фиксированное позиционирование, чтобы панели всегда были на виду */
+    top: 20px;           /* Отступ сверху 20px (как в counter) */
+    right: 20px;         /* Отступ справа 20px (как в counter) */
+    z-index: 1000;       /* Высокий z-index, чтобы панели были поверх других элементов */
+    display: flex;       /* Используем flexbox для расположения панелей */
+    flex-direction: column; /* Располагаем панели вертикально */
+    gap: 10px;           /* Расстояние между панелями 10px (как в counter) */
+    width: 280px;        /* Ширина контейнера 280px (как в counter, было 240px) */
+}
+
+/* === ОБЩИЙ СТИЛЬ ДЛЯ КАЖДОЙ ПАНЕЛИ НАВИГАЦИИ === */
+.nav-panel {
+    background: white;   /* Белый фон панели */
+    padding: 12px 16px;  /* Внутренние отступы: 12px сверху/снизу, 16px слева/справа (как в counter) */
+    border-radius: 10px; /* Скругление углов 10px (как в counter) */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);  /* Легкая тень для эффекта "поднятости" */
+    display: flex;       /* Flexbox для выравнивания элементов внутри панели */
+    align-items: center; /* Вертикальное выравнивание элементов по центру */
+    justify-content: space-between;  /* Распределение пространства между элементами */
+    width: 100%;         /* Ширина 100% от родительского контейнера */
+    box-sizing: border-box;  /* Учитываем padding в общей ширине элемента */
+    min-height: 60px;    /* Минимальная высота панели 60px (как в counter, было 48px) */
+}
+
+/* === КОНТЕЙНЕР ДЛЯ ТЕКСТОВОЙ ИНФОРМАЦИИ В ПАНЕЛИ === */
+.nav-info {
+    font-size: 0.9rem;   /* Размер шрифта информации 0.9rem (как в counter) */
+    flex: 1;             /* Элемент занимает всё доступное пространство */
+    min-width: 0;        /* Позволяет тексту обрезаться с помощью text-overflow */
+    margin-right: 10px;  /* Отступ справа 10px для отделения от кнопки */
+}
+
+/* === НАЗВАНИЕ ПРИЛОЖЕНИЯ В ПАНЕЛИ === */
+.nav-info strong {
+    color: #333;         /* Темно-серый цвет текста */
+    display: block;      /* Блочный элемент для переноса на новую строку */
+    white-space: nowrap; /* Запрещаем перенос строк, текст в одну строку */
+    overflow: hidden;    /* Скрываем текст, который выходит за границы */
+    text-overflow: ellipsis;  /* Добавляем многоточие (...) при обрезании текста */
+    font-size: 0.95rem;  /* Размер шрифта 0.95rem (как в counter, было 0.85rem) */
+}
+
+/* === ОПИСАНИЕ ПРИЛОЖЕНИЯ В ПАНЕЛИ === */
+.nav-info div {
+    font-size: 0.8rem;   /* Размер шрифта описания 0.8rem (как в counter) */
+    color: #666;         /* Серый цвет для второстепенного текста */
+    white-space: nowrap; /* Запрещаем перенос строк */
+    overflow: hidden;    /* Скрываем переполнение текста */
+    text-overflow: ellipsis;  /* Добавляем многоточие при обрезании текста */
+}
+
+/* ===== 6. КНОПКИ НАВИГАЦИИ (ПОЛНОСТЬЮ ПЕРЕРАБОТАНЫ - ТЕПЕРЬ КАК В COUNTER) ===== */
+
+/* === ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ КНОПОК НАВИГАЦИИ === */
+.nav-btn {
+    padding: 8px 15px !important;  /* Внутренние отступы: 8px сверху/снизу, 15px слева/справа (как в counter) */
+    border: none !important;       /* Убираем стандартную рамку браузера */
+    border-radius: 5px !important; /* Скругление углов 5px (как в counter) */
+    cursor: pointer !important;    /* Курсор в виде руки при наведении */
+    font-weight: 600 !important;   /* Полужирный шрифт (как в counter) */
+    transition: all 0.3s ease !important;  /* Плавные переходы при изменении свойств */
+    white-space: nowrap !important;  /* Запрещаем перенос текста в кнопке */
+    text-decoration: none !important;  /* Убираем подчеркивание у ссылок */
+    display: inline-block !important;  /* Блочно-строчный элемент для правильного отображения */
+    font-size: 0.85rem !important;  /* Размер шрифта 0.85rem (как в counter, было 0.75rem) */
+    min-width: 80px !important;    /* Минимальная ширина кнопки 80px (как в counter, было 64px) */
+    width: 80px !important;        /* Фиксированная ширина кнопки 80px (как в counter, было 64px) */
+    text-align: center !important;  /* Выравнивание текста по центру (ФИКС для calculator) */
+    box-sizing: border-box !important;  /* Учитываем padding в ширине кнопки */
+    font-family: inherit !important;  /* Наследуем шрифт от родителя */
+    line-height: normal !important;  /* Нормальная высота строки (сбрасываем стандартные значения) */
+    margin: 0 !important;          /* Убираем все внешние отступы */
+}
+
+/* === КНОПКА ВЫХОДА ИЗ СИСТЕМЫ === */
+.nav-btn-logout {
+    background: #f44336 !important;  /* Красный фон для кнопки выхода */
+    color: white !important;         /* Белый текст на красном фоне */
+}
+
+/* === АКТИВНАЯ КНОПКА (ТЕКУЩЕЕ ПРИЛОЖЕНИЕ) === */
+.nav-btn-active {
+    background: #0B8661 !important;  /* Зеленый фон для активной кнопки (как в counter) */
+    color: white !important;         /* Белый текст на зеленом фоне */
+}
+
+/* === НЕАКТИВНАЯ КНОПКА (ДРУГОЕ ПРИЛОЖЕНИЕ) === */
+.nav-btn-inactive {
+    background: #e0e0e0 !important;  /* Светло-серый фон для неактивной кнопки (как в counter) */
+    color: #333 !important;          /* Темный текст на сером фоне */
+}
+
+/* === ЭФФЕКТ ПРИ НАВЕДЕНИИ НА ЛЮБУЮ КНОПКУ === */
+.nav-btn:hover {
+    transform: translateY(-1px) !important;  /* Легкий подъем кнопки на 1px при наведении */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;  /* Увеличенная тень при наведении */
+}
+
+/* === ОСОБЫЕ СТИЛИ ДЛЯ ССЫЛОК (ТЕГ <a>) === */
+a.nav-btn {
+    display: flex !important;        /* Используем flexbox для центрирования содержимого */
+    align-items: center !important;  /* Вертикальное центрирование содержимого */
+    justify-content: center !important;  /* Горизонтальное центрирование содержимого (ФИКС для calculator) */
+}
+
+/* ===== 7. СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ (ИЗ SHEET_FORMATS) ===== */
+
+/* Уведомления */
+.notification {
+    position: fixed;     /* Фиксированное позиционирование */
+    top: 15px;           /* Отступ сверху (уменьшено с 20px → 15px) */
+    right: 15px;         /* Отступ справа (уменьшено с 20px → 15px) */
+    padding: 0.8rem 1.2rem;  /* Внутренние отступы (уменьшено) */
+    border-radius: 6px;  /* Скругление углов (уменьшено с 8px → 6px) */
+    color: white;        /* Белый текст */
+    font-weight: 500;    /* Средняя жирность */
+    z-index: 10000;      /* Поверх всех элементов */
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);  /* Тень (уменьшена) */
+    max-width: 350px;    /* Максимальная ширина (уменьшено с 400px → 350px) */
+    word-break: break-word;  /* Перенос длинных слов */
+    transform: translateX(0);  /* Начальная позиция */
+    opacity: 1;          /* Полная видимость */
+    transition: opacity 0.25s ease, transform 0.25s ease;  /* Плавные переходы (быстрее) */
+    animation: slideIn 0.25s ease, fadeOut 0.25s ease 3.7s;  /* Анимация (быстрее) */
+}
+
+/* Цвета уведомлений */
+.notification-success {
+    background-color: #69b66c;  /* Зеленый фон для успеха */
+}
+
+.notification-error {
+    background-color: #f44336;  /* Красный фон для ошибки */
+    border: 1px solid #c62828;  /* Темно-красная рамка (была только слева) */
+}
+
+.notification-warning {
+    background-color: #ff9800;  /* Оранжевый фон для предупреждения */
+    border: 1px solid #f57c00;  /* Темно-оранжевая рамка (была только слева) */
+}
+
+.notification-info {
+    background-color: #2196f3;  /* Синий фон для информации */
+    border: 1px solid #0d47a1;  /* Темно-синяя рамка (была только слева) */
+}
+
+/* Анимация появления уведомления */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);  /* Начинаем справа за экраном */
+        opacity: 0;                   /* Невидимо */
+    }
+    to {
+        transform: translateX(0);     /* Конечная позиция */
+        opacity: 1;                   /* Полная видимость */
+    }
+}
+
+/* Анимация исчезновения уведомления */
+@keyframes fadeOut {
+    from {
+        opacity: 1;                   /* Полная видимость */
+        transform: translateX(0);     /* Начальная позиция */
+    }
+    to {
+        opacity: 0;                   /* Полная прозрачность */
+        transform: translateX(100%);  /* Уезжаем вправо */
+    }
+}
+
+/* ===== 8. СТИЛИ ДЛЯ ФОРМ И ТАБЛИЦ (ИЗ SHEET_FORMATS) ===== */
+
+/* Системные сообщения Django */
+.messages {
+    margin-bottom: 1.2rem;  /* Отступ снизу (уменьшено с 2rem → 1.2rem) */
+}
+
+.alert {
+    padding: 0.8rem;        /* Внутренние отступы (уменьшено с 1rem → 0.8rem) */
+    border-radius: 6px;     /* Скругление углов (уменьшено с 8px → 6px) */
+    margin-bottom: 0.8rem;  /* Отступ снизу (уменьшено с 1rem → 0.8rem) */
+    border: 1px solid transparent;  /* Прозрачная рамка (будет цветной) */
+}
+
+.alert-success {
+    background-color: #d4edda;  /* Светло-зеленый фон */
+    border-color: #c3e6cb;      /* Зеленая рамка */
+    color: #155724;             /* Темно-зеленый текст */
+}
+
+.alert-error {
+    background-color: #f8d7da;  /* Светло-красный фон */
+    border-color: #f5c6cb;      /* Красная рамка */
+    color: #721c24;             /* Темно-красный текст */
+}
+
+.alert-info {
+    background-color: #d1ecf1;  /* Светло-синий фон */
+    border-color: #bee5eb;      /* Синяя рамка */
+    color: #0c5460;             /* Темно-синий текст */
+}
+
+/* Формы */
+.form-group {
+    margin-bottom: 0.8rem;   /* Отступ снизу (уменьшено с 1rem → 0.8rem) */
+}
+
+label {
+    color: #555;             /* Серый цвет текста */
+    margin-bottom: 0.3rem;   /* Отступ снизу (уменьшено с 0.5rem → 0.3rem) */
+    font-weight: 500;        /* Средняя жирность */
+    font-size: 0.85rem;      /* Размер шрифта (уменьшено с 0.95rem → 0.85rem) */
+    display: block;          /* Блочный элемент */
+}
+
+/* Поля ввода */
+input[type="text"], 
+input[type="email"], 
+input[type="tel"], 
+input[type="date"], 
+input[type="datetime-local"], 
+input[type="number"],
+textarea, 
+select {
+    width: 100%;             /* Ширина 100% от родителя */
+    padding: 0.5rem 0.6rem;  /* Внутренние отступы (уменьшено с 0.8rem → 0.5rem 0.6rem) */
+    border: 1px solid #e0e0e0;  /* Тонкая серая рамка по всему периметру */
+    border-radius: 4px;      /* Скругление углов (уменьшено с 8px → 4px) */
+    font-size: 0.85rem;      /* Размер шрифта (уменьшено с 1rem → 0.85rem) */
+    font-family: inherit;    /* Наследуем шрифт */
+    transition: border-color 0.2s ease;  /* Плавное изменение цвета рамки */
+}
+
+/* Эффект при фокусе на поле ввода */
+input:focus, 
+textarea:focus, 
+select:focus {
+    outline: none;           /* Убираем стандартный контур браузера */
+    border-color: #0B8661;   /* Зеленая рамка при фокусе */
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);  /* Светло-зеленая тень (уменьшена) */
+}
+
+/* Группы кнопок */
+.button-group {
+    display: flex;           /* Flexbox для расположения кнопок */
+    gap: 0.8rem;             /* Расстояние между кнопками (уменьшено с 1rem → 0.8rem) */
+    margin-top: 1rem;        /* Отступ сверху (уменьшено с 1.5rem → 1rem) */
+}
+
+/* Общие стили кнопок */
+button, 
+.btn-action {
+    padding: 0.5rem 0.7rem;  /* Внутренние отступы (уменьшено с 1rem → 0.5rem 0.7rem) */
+    border: none;            /* Убираем рамку */
+    border-radius: 4px;      /* Скругление углов (уменьшено с 8px → 4px) */
+    font-size: 0.85rem;      /* Размер шрифта (уменьшено с 1rem → 0.85rem) */
+    font-weight: 600;        /* Полужирный шрифт */
+    cursor: pointer;         /* Курсор в виде руки */
+    transition: all 0.2s ease;  /* Плавные переходы */
+    text-decoration: none;   /* Убираем подчеркивание */
+    display: inline-block;   /* Блочно-строчный элемент */
+}
+
+/* Кнопка отправки */
+.btn-submit {
+    flex: 1;                 /* Занимает всё доступное пространство */
+    background: #0B8661;     /* Зеленый фон */
+    color: white;            /* Белый текст */
+    box-shadow: 0 2px 4px rgba(11, 134, 97, 0.4);  /* Тень (уменьшена) */
+}
+
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);  /* Легкий подъем (уменьшено с -2px → -1px) */
+    box-shadow: 0 3px 6px rgba(11, 134, 97, 0.4);  /* Усиленная тень */
+}
+
+/* Кнопка очистки */
+.btn-clear {
+    flex: 1;                 /* Занимает всё доступное пространство */
+    background: #e0e0e0;     /* Светло-серый фон */
+    color: #333;             /* Темный текст */
+}
+
+.btn-clear:hover {
+    background: #bdbdbd;     /* Темно-серый фон при наведении */
+}
+
+/* Таблицы */
+.printers-table {
+    border-radius: 6px;      /* Скругление углов (уменьшено с 8px → 6px) */
+    overflow: hidden;        /* Скрываем переполнение */
+    border: 1px solid #e0e0e0;  /* Тонкая серая рамка по всему периметру */
+    margin-bottom: 1rem;     /* Отступ снизу (уменьшено с 1.5rem → 1rem) */
+}
+
+.table-header {
+    display: grid;           /* CSS Grid для расположения колонок */
+    grid-template-columns: 2fr 1fr 1fr 2fr;  /* Распределение ширины колонок */
+    background: #f8f9fa;     /* Светло-серый фон */
+    padding: 0.8rem;         /* Внутренние отступы (уменьшено с 1rem → 0.8rem) */
+    font-weight: 600;        /* Полужирный шрифт */
+    color: #333;             /* Темно-серый текст */
+    border-bottom: 1px solid #e0e0e0;  /* Тонкая разделительная линия (уменьшено с 2px → 1px) */
+}
+
+.table-row {
+    display: grid;           /* CSS Grid для расположения колонок */
+    grid-template-columns: 2fr 1fr 1fr 2fr;  /* Распределение ширины колонок */
+    padding: 0.8rem;         /* Внутренние отступы (уменьшено с 1rem → 0.8rem) */
+    border-bottom: 1px solid #e0e0e0;  /* Тонкая разделительная линия */
+    transition: background-color 0.2s ease;  /* Плавное изменение фона */
+}
+
+.table-row:hover {
+    background: #f8f9fa;     /* Светло-серый фон при наведении */
+}
+
+/* ===== 9. СПЕЦИФИЧНЫЕ СТИЛИ ДЛЯ CALCULATOR ===== */
+
+/* Контейнер для секций калькулятора */
+.calculator-sections {
+    display: flex;           /* Flexbox для расположения секций */
+    flex-direction: column;  /* Вертикальное расположение */
+    gap: 0.8rem;             /* Расстояние между секциями (уменьшено с 1.2rem → 0.8rem) */
+    margin-top: 0.8rem;      /* Отступ сверху (уменьшено с 1.5rem → 0.8rem) */
+}
+
+/* Общий стиль для всех секций калькулятора */
+.calculator-section {
+    background: white;       /* Белый фон секции */
+    padding: 0.7rem;         /* Внутренние отступы (уменьшено с 1rem → 0.7rem) */
+    border-radius: 6px;      /* Скругление углов (уменьшено с 12px → 6px) */
+    border: 1px solid #e0e0e0;  /* Тонкая серая рамка по всему периметру (была только слева) */
+    display: flex;           /* Flexbox для внутренней структуры */
+    flex-direction: column;  /* Вертикальное расположение содержимого */
+    overflow: hidden;        /* Скрываем переполнение */
+    transition: all 0.15s ease;  /* Плавные переходы (уменьшено время с 0.3s → 0.15s) */
+}
+
+/* НОВЫЙ ЭФФЕКТ: При наведении на секцию появляется зеленая рамка и легкая тень */
+.calculator-section:hover {
+    border-color: #0B8661;   /* Тонкая зеленая рамка при наведении (#0B8661 - основной зеленый цвет системы) */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая тень при наведении для эффекта глубины */
+    transform: translateY(-1px);  /* Легкий подъем секции на 1px для интерактивного ощущения */
+    transition: all 0.2s ease;  /* Плавный переход всех свойств за 0.2 секунды */
+}
+
+/* Главная секция "Просчёт" */
+.calculator-section.main-section {
+    margin-bottom: 0.4rem;   /* Отступ снизу (уменьшено с 0.5rem → 0.4rem) */
+}
+
+/* ===== 10. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+.section-header {
+    display: flex;           /* Flexbox для расположения элементов заголовка */
+    justify-content: space-between;  /* Пространство между элементами */
+    align-items: center;     /* Выравнивание по вертикали */
+    margin-bottom: 0.5rem;   /* Отступ снизу (уменьшено с 1rem → 0.5rem) */
+    padding-bottom: 0.5rem;  /* Внутренний отступ снизу (уменьшено с 0.8rem → 0.5rem) */
+    border-bottom: 1px solid #f0f0f0;  /* Тонкая разделительная линия (уменьшено с 2px → 1px) */
+}
+
+.section-header h2 {
+    margin: 0;               /* Убираем стандартные отступы */
+    font-size: 0.95rem;      /* Размер шрифта (уменьшено с 1.2rem → 0.95rem) */
+    color: #333;             /* Темно-серый цвет */
+    display: flex;           /* Flexbox для выравнивания */
+    align-items: center;     /* Выравнивание по вертикали */
+    gap: 0.3rem;             /* Расстояние между элементами (уменьшено с 0.5rem → 0.3rem) */
+}
+
+/* Номер секции (круглый бейдж) */
+.section-number {
+    background: #0B8661;     /* Зеленый фон */
+    color: white;            /* Белый текст */
+    width: 1.4rem;           /* Ширина (уменьшено с 1.8rem → 1.4rem) */
+    height: 1.4rem;          /* Высота (уменьшено с 1.8rem → 1.4rem) */
+    border-radius: 50%;      /* Круглая форма */
+    display: flex;           /* Flexbox для центрирования */
+    align-items: center;     /* Вертикальное центрирование */
+    justify-content: center; /* Горизонтальное центрирование */
+    font-size: 0.75rem;      /* Размер шрифта (уменьшено с 0.9rem → 0.75rem) */
+    font-weight: bold;       /* Полужирный шрифт */
+}
+
+/* ===== 11. КНОПКИ УПРАВЛЕНИЯ СЕКЦИЯМИ ===== */
+
+/* Контейнер для кнопок в заголовке */
+.header-buttons {
+    display: flex;           /* Flexbox для расположения кнопок */
+    gap: 0.2rem;             /* Расстояние между кнопками (уменьшено с 0.4rem → 0.2rem) */
+    align-items: center;     /* Выравнивание по вертикали */
+}
+
+/* Общие стили для кнопок действий */
+.btn-action {
+    padding: 0.25rem 0.5rem; /* Внутренние отступы (уменьшено с 0.4rem 0.8rem → 0.25rem 0.5rem) */
+    border: none;            /* Убираем рамку */
+    border-radius: 3px;      /* Скругление углов (уменьшено с 6px → 3px) */
+    font-size: 0.75rem;      /* Размер шрифта (уменьшено с 0.85rem → 0.75rem) */
+    cursor: pointer;         /* Курсор в виде руки */
+    transition: all 0.12s ease;  /* Плавные переходы (уменьшено время с 0.15s → 0.12s) */
+    display: flex;           /* Flexbox для выравнивания */
+    align-items: center;     /* Выравнивание по вертикали */
+    gap: 0.15rem;            /* Расстояние между иконкой и текстом (уменьшено с 0.3rem → 0.15rem) */
+    white-space: nowrap;     /* Запрещаем перенос текста */
+}
+
+/* Кнопка сворачивания/разворачивания секции */
+.btn-collapse-section {
+    background: #f5f5f5;     /* Светло-серый фон */
+    color: #333;             /* Темный текст */
+    border: 1px solid #ddd;  /* Тонкая серая рамка */
+    cursor: pointer;         /* Курсор в виде руки */
+    user-select: none;       /* Запрещаем выделение текста */
+    padding: 0.15rem 0.3rem; /* Внутренние отступы (уменьшено с 0.3rem 0.6rem → 0.15rem 0.3rem) */
+    min-width: 18px;         /* Минимальная ширина (уменьшено с 24px → 18px) */
+    min-height: 18px;        /* Минимальная высота (уменьшено с 24px → 18px) */
+    justify-content: center; /* Центрирование по горизонтали */
+    flex-shrink: 0;          /* Запрещаем сжатие кнопки */
+    align-self: center;      /* Выравнивание по вертикали относительно родителя */
+    margin: 0;               /* Убираем внешние отступы */
+}
+
+.btn-collapse-section:hover {
+    background: #e0e0e0;     /* Темно-серый фон при наведении */
+    transform: scale(1.02);  /* Легкое увеличение (уменьшено с 1.05 → 1.02) */
+}
+
+.btn-collapse-section:active {
+    transform: scale(0.98);  /* Легкое сжатие при нажатии */
+    background: #d0d0d0;     /* Еще более темный серый фон */
+}
+
+.btn-collapse-section i {
+    font-size: 0.75rem;      /* Размер иконки (уменьшено с 0.9rem → 0.75rem) */
+    transition: transform 0.15s ease;  /* Плавное вращение (уменьшено время) */
+    color: #555;             /* Темно-серый цвет иконки */
+}
+
+/* Кнопка расчета цены */
+.btn-calculate-price {
+    background: #0B8661;     /* Зеленый фон */
+    color: white;            /* Белый текст */
+}
+
+.btn-calculate-price:hover:not(:disabled) {
+    background: #097055;     /* Темно-зеленый фон при наведении */
+}
+
+.btn-calculate-price:disabled {
+    background: #cccccc;     /* Серый фон для неактивной кнопки */
+    cursor: not-allowed;     /* Курсор "недоступно" */
+    opacity: 0.6;            /* Полупрозрачность */
+}
+
+/* ===== 12. ТЕЛО СЕКЦИИ ===== */
+
+.section-body {
+    padding: 0.2rem;         /* Внутренние отступы (уменьшено с 0.5rem → 0.2rem) */
+    min-height: 120px;       /* Минимальная высота (уменьшено с 200px → 120px) */
+    display: flex;           /* Flexbox для содержимого */
+    flex-direction: column;  /* Вертикальное расположение */
+    justify-content: center; /* Вертикальное центрирование */
+    transition: all 0.15s ease;  /* Плавные переходы (уменьшено время с 0.3s → 0.15s) */
+}
+
+/* ===== 13. ВЛОЖЕННЫЕ СЕКЦИИ ===== */
+
+.nested-sections {
+    display: flex;           /* Flexbox для расположения вложенных секций */
+    flex-direction: column;  /* Вертикальное расположение */
+    gap: 0.8rem;             /* Расстояние между секциями (уменьшено с 1.5rem → 0.8rem) */
+}
+
+.nested-row {
+    display: flex;           /* Flexbox для строки вложенных секций */
+    gap: 0.6rem;             /* Расстояние между колонками (уменьшено с 1rem → 0.6rem) */
+    width: 100%;             /* Ширина 100% от родителя */
+}
+
+.nested-col {
+    flex: 1;                 /* Равномерное распределение пространства */
+    display: flex;           /* Flexbox для содержимого */
+    flex-direction: column;  /* Вертикальное расположение */
+}
+
+/* Колонка шириной 50% */
+.nested-col[data-col-size="half"] {
+    flex: 0 0 calc(50% - 0.3rem);  /* Ширина 50% минус половина gap (уменьшено) */
+}
+
+/* Колонка шириной 100% */
+.nested-col[data-col-size="full"] {
+    flex: 0 0 100%;          /* Ширина 100% */
+}
+
+/* ===== 14. СТИЛИ ДЛЯ СВЕРНУТЫХ СЕКЦИЙ ===== */
+
+.calculator-section.collapsed {
+    min-height: auto;        /* Автоматическая минимальная высота */
+    max-height: 40px;        /* Максимальная высота (уменьшено с 60px → 40px) */
+    overflow: hidden;        /* Скрываем переполнение */
+    padding-bottom: 0.2rem;  /* Внутренний отступ снизу (уменьшено с 0.5rem → 0.2rem) */
+    border-color: #ccc;      /* Серая рамка для свернутой секции */
+    box-shadow: none;        /* Убираем тень */
+    transform: none;         /* Убираем трансформацию */
+}
+
+.calculator-section.collapsed:hover {
+    border-color: #0B8661;   /* Зеленая рамка при наведении на свернутую секцию */
+    box-shadow: 0 2px 8px rgba(11, 134, 97, 0.08);  /* Легкая тень при наведении */
+    transform: none;         /* Не поднимаем свернутую секцию */
+}
+
+/* Скрываем тело свернутой секции */
+.calculator-section.collapsed .section-body {
+    display: none !important;  /* Скрываем тело секции */
+    height: 0;                /* Высота 0 */
+    padding: 0;               /* Убираем отступы */
+    margin: 0;                /* Убираем внешние отступы */
+    overflow: hidden;         /* Скрываем переполнение */
+    visibility: hidden;       /* Делаем невидимым */
+}
+
+/* Показываем тело развернутой секции */
+.calculator-section:not(.collapsed) .section-body {
+    display: block;           /* Показываем тело секции */
+}
+
+/* ===== 15. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
+@media (max-width: 1137px) {
+    body {
+        padding: 0.6rem;      /* Уменьшаем отступы (было 1.5rem → 0.6rem) */
+    }
+    
+    .container {
+        padding: 0.8rem;      /* Уменьшаем внутренние отступы (было 1.2rem → 0.8rem) */
+        max-width: calc(100% - 0.8rem);  /* Учитываем отступы */
+        margin: 0 0.4rem;     /* Центрирование с отступами */
+    }
+    
+    .section-header {
+        flex-direction: column;  /* Вертикальное расположение элементов */
+        align-items: stretch;    /* Растягиваем на всю ширину */
+        gap: 0.4rem;             /* Расстояние между элементами (уменьшено с 0.8rem → 0.4rem) */
+    }
+    
+    .header-buttons {
+        flex-direction: row;     /* Горизонтальное расположение кнопок */
+        width: 100%;             /* Ширина 100% */
+        justify-content: flex-end;  /* Выравнивание по правому краю */
+        gap: 0.2rem;             /* Расстояние между кнопками (уменьшено) */
+    }
+    
+    .nested-row {
+        flex-direction: column;  /* Вертикальное расположение колонок */
+        gap: 0.6rem;             /* Расстояние между колонками (уменьшено с 1rem → 0.6rem) */
+    }
+    
+    .nested-col {
+        flex: 0 0 100%;          /* Колонки на всю ширину */
+    }
+    
+    .nested-col[data-col-size="half"],
+    .nested-col[data-col-size="full"] {
+        flex: 0 0 100%;          /* Все колонки на всю ширину */
+    }
+    
+    /* Фиксация для свернутых секций */
+    .calculator-section.collapsed .section-header {
+        flex-direction: row !important;      /* Горизонтальное расположение */
+        align-items: center !important;      /* Выравнивание по центру */
+    }
+    
+    .calculator-section.collapsed .header-buttons {
+        position: static !important;         /* Обычное позиционирование */
+        transform: none !important;          /* Без трансформации */
+        flex-shrink: 0 !important;           /* Запрещаем сжатие */
+    }
+    
+    .calculator-section.collapsed .btn-collapse-section {
+        position: static !important;         /* Обычное позиционирование */
+        margin: 0 !important;                /* Убираем отступы */
+    }
+}
+
+/* ===== 16. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    body {
+        padding: 0.4rem;      /* Уменьшаем отступы (было 1rem → 0.4rem) */
+    }
+    
+    .container {
+        padding: 0.6rem;      /* Уменьшаем внутренние отступы (было 0.8rem → 0.6rem) */
+        margin: 0;            /* Убираем внешние отступы */
+        border-radius: 6px;   /* Скругление углов (уменьшено с 10px → 6px) */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);  /* Легкая тень (уменьшена) */
+    }
+    
+    .calculator-sections {
+        gap: 0.6rem;          /* Расстояние между секциями (уменьшено с 1rem → 0.6rem) */
+    }
+    
+    .calculator-section {
+        padding: 0.5rem;      /* Внутренние отступы (уменьшено с 0.8rem → 0.5rem) */
+    }
+    
+    .section-header h2 {
+        font-size: 0.9rem;    /* Размер шрифта (уменьшено с 1.1rem → 0.9rem) */
+        flex-direction: column;  /* Вертикальное расположение элементов */
+        align-items: flex-start;  /* Выравнивание по левому краю */
+        gap: 0.15rem;         /* Расстояние между элементами (уменьшено с 0.3rem → 0.15rem) */
+    }
+    
+    .section-number {
+        width: 1.2rem;        /* Ширина (уменьшено с 1.5rem → 1.2rem) */
+        height: 1.2rem;       /* Высота (уменьшено с 1.5rem → 1.2rem) */
+        font-size: 0.7rem;    /* Размер шрифта (уменьшено с 0.8rem → 0.7rem) */
+    }
+    
+    .header-buttons {
+        justify-content: space-between;  /* Распределение пространства */
+        width: 100%;          /* Ширина 100% */
+    }
+    
+    .btn-collapse-section {
+        min-width: 28px;      /* Минимальная ширина (уменьшено с 36px → 28px) */
+        min-height: 28px;     /* Минимальная высота (уменьшено с 36px → 28px) */
+        padding: 0.2rem;      /* Внутренние отступы (уменьшено) */
+    }
+    
+    .section-body {
+        min-height: 100px;    /* Минимальная высота (уменьшено с 150px → 100px) */
+        padding: 0;           /* Убираем внутренние отступы */
+    }
+    
+    .nested-sections {
+        gap: 0.6rem;          /* Расстояние между секциями (уменьшено с 1rem → 0.6rem) */
+    }
+    
+    .nested-row {
+        gap: 0.3rem;          /* Расстояние между колонками (уменьшено с 0.5rem → 0.3rem) */
+    }
+    
+    /* Специальные стили для свернутых секций на мобильных */
+    .calculator-section.collapsed {
+        max-height: 35px !important;    /* Максимальная высота (уменьшено) */
+        min-height: 35px !important;    /* Минимальная высота (уменьшено) */
+        padding: 0.3rem !important;     /* Внутренние отступы (уменьшено) */
+        overflow: visible !important;   /* Видимое переполнение */
+    }
+    
+    .calculator-section.collapsed .section-header {
+        display: flex !important;        /* Flexbox для расположения */
+        flex-direction: row !important;  /* Горизонтальное расположение */
+        justify-content: space-between !important;  /* Распределение пространства */
+        align-items: center !important;  /* Выравнивание по центру */
+        height: 100% !important;         /* Высота 100% */
+        min-height: 30px !important;     /* Минимальная высота (уменьшено) */
+        margin-bottom: 0 !important;     /* Убираем отступ снизу */
+        padding-bottom: 0 !important;    /* Убираем внутренний отступ снизу */
+        position: relative !important;   /* Относительное позиционирование */
+    }
+}
+
+/* ===== 17. АДАПТИВНОСТЬ ДЛЯ ПАНЕЛИ НАВИГАЦИИ (КАК В COUNTER) ===== */
+
+/* Для экранов меньше 768px (планшеты и смартфоны) */
+@media (max-width: 768px) {
+    .app-nav-container {
+        position: relative;    /* Меняем на относительное позиционирование на мобильных */
+        top: auto;            /* Сбрасываем абсолютное позиционирование */
+        right: auto;          /* Сбрасываем абсолютное позиционирование */
+        width: 100%;          /* Ширина 100% на мобильных устройствах */
+        margin-bottom: 20px;  /* Отступ снизу для отделения от контента */
+    }
+}
+
+/* Для экранов меньше 480px (смартфоны) */
+@media (max-width: 480px) {
+    .nav-panel {
+        padding: 10px 12px;   /* Уменьшаем отступы на очень маленьких экранах */
+        min-height: 55px;     /* Немного уменьшаем высоту панели */
+    }
+    
+    .nav-info strong {
+        font-size: 0.9rem;    /* Уменьшаем размер шрифта названия приложения */
+    }
+    
+    .nav-btn {
+        padding: 6px 12px !important;     /* Уменьшаем отступы кнопок */
+        font-size: 0.8rem !important;     /* Уменьшаем размер шрифта в кнопках */
+        min-width: 70px !important;       /* Уменьшаем минимальную ширину кнопок */
+        width: 70px !important;           /* Уменьшаем фиксированную ширину кнопок */
+    }
+}
+
+/* ===== 18. УТИЛИТАРНЫЕ КЛАССЫ (ИЗ SHEET_FORMATS) ===== */
+
+.hidden {
+    display: none !important;  /* Полностью скрывает элемент */
+}
+
+.text-center {
+    text-align: center;       /* Выравнивание текста по центру */
+}
+
+.text-left {
+    text-align: left;         /* Выравнивание текста по левому краю */
+}
+
+.text-right {
+    text-align: right;        /* Выравнивание текста по правому краю */
+}
+
+/* Отступы сверху */
+.mt-1 { margin-top: 0.2rem; }  /* Маленький отступ (уменьшено) */
+.mt-2 { margin-top: 0.4rem; }  /* Средний отступ (уменьшено) */
+.mt-3 { margin-top: 0.6rem; }  /* Большой отступ (уменьшено) */
+
+/* Отступы снизу */
+.mb-1 { margin-bottom: 0.2rem; }
+.mb-2 { margin-bottom: 0.4rem; }
+.mb-3 { margin-bottom: 0.6rem; }
+
+/* Внутренние отступы */
+.p-1 { padding: 0.2rem; }
+.p-2 { padding: 0.4rem; }
+.p-3 { padding: 0.6rem; }

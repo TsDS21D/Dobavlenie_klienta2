@@ -1,0 +1,986 @@
+/*
+calculator/static/calculator/css/sections/print_components.css
+ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ КОМПАКТНЫЙ ДИЗАЙН - Тонкие рамки по всему периметру
+ДОБАВЛЕН ЭФФЕКТ ПРИ НАВЕДЕНИИ НА СЕКЦИЮ ПЕЧАТНЫХ КОМПОНЕНТОВ
+
+Основные изменения:
+1. Добавлен эффект при наведении на секцию печатных компонентов
+2. При наведении появляется тонкая красная рамка и легкая тень
+3. Все элементы сделаны компактными с минималистичным дизайном
+4. Уменьшены размеры шрифтов, отступы и элементы интерфейса
+5. Добавлены плавные переходы для всех интерактивных элементов
+6. ИСПРАВЛЕНИЕ: кнопка удаления всегда видима, выровнена по центру,
+   убраны лишние границы и эффекты появления при наведении на строку
+*/
+
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ПЕЧАТНЫХ КОМПОНЕНТОВ ===== */
+
+/* Контейнер всей секции печатных компонентов */
+#print-components-section {
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка по всему периметру */
+    background: white;                      /* Белый фон для контраста */
+    padding: 0.6rem;                        /* Внутренние отступы (компактно) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (компактно) */
+    border-radius: 6px;                     /* Скругление углов (компактно) */
+    transition: all 0.15s ease;             /* Плавные переходы для всех свойств */
+}
+
+/* Эффект при наведении на секцию печатных компонентов */
+#print-components-section:hover {
+    border-color: #e74c3c;                  /* Тонкая красная рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Легкая тень для эффекта глубины */
+    transform: translateY(-1px);            /* Легкий подъем секции на 1px для интерактивного ощущения */
+    transition: all 0.2s ease;              /* Плавный переход всех свойств за 0.2 секунды */
+}
+
+/* ===== 2. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+/* Контейнер заголовка секции */
+#print-components-section .section-header {
+    display: flex;                          /* Используем flexbox для расположения элементов */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    align-items: center;                    /* Выравниваем элементы по вертикали */
+    margin-bottom: 0.6rem;                  /* Отступ снизу (компактно) */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу (компактно) */
+    border-bottom: 1px solid #e74c3c;       /* Красная линия-разделитель (тонкая) */
+}
+
+/* Заголовок секции (h2) */
+#print-components-section .section-header h2 {
+    margin: 0;                              /* Убираем стандартные отступы браузера */
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    color: #333;                            /* Темно-серый цвет текста */
+    display: flex;                          /* Используем flexbox для выравнивания элементов */
+    align-items: center;                    /* Выравниваем элементы по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (компактно) */
+}
+
+/* Стили для отображения названия просчёта в заголовке */
+#print-components-proschet-title {
+    margin-left: 0.3rem;                    /* Отступ от основного заголовка (компактно) */
+    font-size: 0.8rem;                      /* Размер шрифта меньше основного заголовка */
+    font-weight: normal;                    /* Обычное начертание, не жирное */
+    color: #555;                            /* Серый цвет для отличия от основного заголовка */
+}
+
+/* Текст-заполнитель (когда просчёт не выбран) */
+#print-components-proschet-title .placeholder-text {
+    color: #888;                            /* Светло-серый цвет для текста-заполнителя */
+    font-size: 0.75rem;                     /* Размер шрифта еще меньше */
+}
+
+/* Активное название просчёта (когда просчёт выбран) */
+#print-components-proschet-title .proschet-title-active {
+    color: #333;                            /* Тёмно-серый цвет для активного названия */
+    background-color: #f5f5f5;              /* Светлый фон для выделения */
+    padding: 0.1rem 0.3rem;                 /* Небольшие отступы вокруг текста */
+    border-radius: 2px;                     /* Закруглённые углы (компактно) */
+}
+
+/* ===== 3. КНОПКИ В ЗАГОЛОВКЕ ===== */
+
+/* Контейнер для кнопок в заголовке */
+#print-components-section .header-buttons {
+    display: flex;                          /* Используем flexbox для расположения кнопок */
+    gap: 0.3rem;                            /* Расстояние между кнопками (компактно) */
+}
+
+/* Кнопка добавления нового компонента */
+#add-print-component-btn {
+    background-color: #0B8661;              /* Красный фон кнопки (в тон секции) */
+    color: white;                           /* Белый цвет текста */
+    border: none;                           /* Без рамки */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Используем flexbox для выравнивания */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.15rem;                           /* Расстояние между иконкой и текстом */
+}
+
+/* Эффект при наведении на кнопку добавления */
+#add-print-component-btn:hover {
+    background-color: #097055;              /* Более темный красный при наведении */
+}
+
+/* Кнопка сворачивания секции */
+#print-components-section .btn-collapse-section {
+    min-width: 18px;                        /* Минимальная ширина (компактно) */
+    min-height: 18px;                       /* Минимальная высота (компактно) */
+    padding: 0.15rem;                       /* Внутренние отступы (компактно) */
+    background: #f5f5f5;                    /* Светло-серый фон кнопки */
+    border: 1px solid #ddd;                 /* Светло-серая рамка */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+}
+
+/* Эффект при наведении на кнопку сворачивания */
+#print-components-section .btn-collapse-section:hover {
+    background: #e0e0e0;                    /* Более темный серый при наведении */
+    border-color: #e74c3c;                  /* Красная рамка при наведении */
+}
+
+/* Иконка в кнопке сворачивания */
+#print-components-section .btn-collapse-section i {
+    font-size: 0.75rem;                     /* Размер иконки (компактно) */
+    color: #555;                            /* Темно-серый цвет иконки */
+    transition: transform 0.15s ease;       /* Плавное вращение иконки */
+}
+
+/* ===== 4. ТЕЛО СЕКЦИИ ===== */
+
+/* Основное тело секции */
+#print-components-section .section-body {
+    padding: 0.3rem;                        /* Внутренние отступы (компактно) */
+    background-color: #ffffff;              /* Белый фон для контента */
+    min-height: 120px;                      /* Минимальная высота (компактно) */
+    transition: all 0.15s ease;             /* Плавные переходы при сворачивании */
+}
+
+/* ===== 5. СООБЩЕНИЯ О ПУСТОМ СОСТОЯНИИ ===== */
+
+/* Сообщения при пустом состоянии (нет просчёта или компонентов) */
+.empty-state-message {
+    text-align: center;                     /* Центрируем текст и иконку */
+    padding: 1.5rem 0.8rem;                 /* Внутренние отступы (компактно) */
+    color: #7f8c8d;                         /* Серый цвет для неактивного состояния */
+}
+
+/* Иконка в сообщении */
+.empty-state-message i {
+    margin-bottom: 0.8rem;                  /* Отступ снизу от иконки */
+    color: #bdc3c7;                         /* Светло-серый цвет иконки */
+    font-size: 1.5rem;                      /* Размер иконки */
+}
+
+/* Заголовок сообщения */
+.empty-state-message h3 {
+    margin-bottom: 0.5rem;                  /* Отступ снизу от заголовка */
+    font-weight: 500;                       /* Средняя толщина шрифта */
+    font-size: 0.85rem;                     /* Размер шрифта (компактно) */
+}
+
+/* Текст сообщения */
+.empty-state-message p {
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    max-width: 250px;                       /* Ограничение ширины для лучшей читаемости */
+    margin: 0 auto;                         /* Центрирование по горизонтали */
+    line-height: 1.4;                       /* Межстрочный интервал */
+}
+
+/* Кнопка в сообщении */
+.empty-state-message .btn-action {
+    margin-top: 0.8rem;                     /* Отступ сверху */
+    padding: 0.25rem 0.5rem;                /* Внутренние отступы (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+}
+
+/* ===== 6. КОНТЕЙНЕР ТАБЛИЦЫ ===== */
+
+/* Контейнер для таблицы компонентов печати */
+.table-container {
+    width: 100%;                            /* Ширина 100% от родителя */
+    overflow-x: auto;                       /* Горизонтальная прокрутка при необходимости */
+    margin-top: 0.4rem;                     /* Отступ сверху (компактно) */
+}
+
+/* ===== 7. ТАБЛИЦА КОМПОНЕНТОВ ПЕЧАТИ ===== */
+
+/* Основные стили таблицы */
+#print-components-table {
+    width: 100%;                            /* Ширина 100% от родителя */
+    border-collapse: collapse;              /* Схлопываем границы ячеек */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    margin-bottom: 0.8rem;                  /* Отступ снизу (компактно) */
+}
+
+/* Заголовки таблицы */
+#print-components-table th {
+    background-color: #f8f9fa;              /* Светло-серый фон заголовков */
+    font-weight: 600;                       /* Полужирное начертание */
+    color: #333;                            /* Темно-серый цвет текста */
+    padding: 0.5rem 0.4rem;                 /* Внутренние отступы (компактно) */
+    text-align: left;                       /* Выравнивание текста по левому краю */
+    border-bottom: 1px solid #e74c3c;       /* Красная граница снизу */
+    white-space: nowrap;                    /* Запрещаем перенос текста */
+}
+
+/* Ячейки таблицы */
+#print-components-table td {
+    padding: 0.4rem 0.4rem;                 /* Внутренние отступы (компактно) */
+    border-bottom: 1px solid #eee;          /* Светло-серая граница снизу */
+    vertical-align: middle;                 /* Вертикальное выравнивание по центру */
+}
+
+/* Эффект при наведении на строку таблицы */
+#print-components-table tbody tr:hover {
+    background-color: #f9f9f9;              /* Светло-серый фон при наведении */
+}
+
+/* Стили для столбца с номером компонента */
+.component-number {
+    font-weight: 600;                       /* Полужирное начертание */
+    color: #e74c3c;                         /* Красный цвет для номера компонента */
+}
+
+/* Стили для столбца с принтером */
+.component-printer {
+    font-weight: 500;                       /* Среднее начертание шрифта */
+}
+
+/* Стили для столбца с бумагой */
+.component-paper {
+    color: #666;                            /* Серый цвет текста */
+}
+
+/* Стили для столбца с количеством листов */
+.component-sheet-count {
+    text-align: center;                     /* Выравнивание текста по центру */
+    font-weight: 600;                       /* Полужирное начертание шрифта */
+    color: #333;                            /* Темно-серый цвет текста */
+}
+
+/* Стили для столбца с ценой за лист */
+.component-price {
+    text-align: right;                      /* Выравнивание текста по правому краю */
+    font-family: 'Courier New', monospace;  /* Моноширинный шрифт для чисел */
+}
+
+/* Стили для столбца со стоимостью */
+.component-total {
+    text-align: right;                      /* Выравнивание текста по правому краю */
+    font-weight: 600;                       /* Полужирное начертание шрифта */
+    color: #2c3e50;                         /* Темно-синий цвет текста */
+    font-family: 'Courier New', monospace;  /* Моноширинный шрифт для чисел */
+}
+
+/* ===== 8. КНОПКИ ДЕЙСТВИЙ В ТАБЛИЦЕ ===== */
+/* ИСПРАВЛЕНИЕ: кнопка всегда видима, выровнена по центру, убраны лишние эффекты */
+
+/* Контейнер для кнопок действий */
+.component-actions {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: center;                /* Центрируем по горизонтали (вместо flex-end) */
+    align-items: center;                    /* Центрируем по вертикали */
+    height: 100%;                           /* Занимаем всю высоту строки */
+    vertical-align: middle;                 /* Дополнительное выравнивание по центру */
+}
+
+/* Кнопка удаления компонента */
+.delete-component-btn {
+    width: 24px;                            /* Ширина кнопки (немного увеличена для удобства) */
+    height: 24px;                           /* Высота кнопки */
+    border: none;                           /* Без рамки */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    background-color: #f5f5f5;              /* Светло-серый фон кнопки */
+    color: #e74c3c;                         /* Красный цвет иконки */
+    display: inline-flex;                   /* Используем flexbox для выравнивания внутри */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    font-size: 0.75rem;                     /* Размер иконки (компактно) */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    /* Убираем все эффекты, которые могли добавить лишние черты */
+    text-decoration: none;
+    outline: none;
+    box-shadow: none;
+    line-height: 1;                         /* Сбрасываем высоту строки, чтобы иконка не смещалась */
+    vertical-align: middle;                 /* Вертикальное выравнивание внутри ячейки */
+}
+
+/* Эффект при наведении на кнопку удаления */
+.delete-component-btn:hover {
+    background-color: #e74c3c;              /* Красный фон при наведении */
+    color: white;                           /* Белый цвет иконки при наведении */
+    transform: scale(1.05);                 /* Легкое увеличение при наведении */
+}
+
+/* Убираем все эффекты появления/скрытия кнопки – она всегда видима */
+.delete-component-btn {
+    opacity: 1;                             /* Полная непрозрачность всегда */
+}
+
+/* ===== 9. ОБЩАЯ СТОИМОСТЬ КОМПОНЕНТОВ ===== */
+
+/* Блок с общей стоимостью компонентов печати */
+.total-summary {
+    display: flex;                          /* Используем flexbox для расположения */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    align-items: center;                    /* Выравниваем по вертикали */
+    padding: 0.6rem;                        /* Внутренние отступы (компактно) */
+    background-color: #f8f9fa;              /* Светло-серый фон */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    margin-top: 0.6rem;                     /* Отступ сверху (компактно) */
+    border: 1px solid #e9ecef;              /* Светло-серая граница */
+}
+
+/* Метка общей стоимости */
+.total-label {
+    font-size: 0.8rem;                      /* Размер шрифта (компактно) */
+    font-weight: 600;                       /* Полужирное начертание шрифта */
+    color: #333;                            /* Темно-серый цвет текста */
+}
+
+/* Значение общей стоимости */
+.total-price {
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    font-weight: 700;                       /* Жирное начертание шрифта */
+    color: #e74c3c;                         /* Красный цвет для общей суммы */
+    font-family: 'Courier New', monospace;  /* Моноширинный шрифт */
+}
+
+/* ===== 10. INLINE-РЕДАКТИРОВАНИЕ ===== */
+
+/* Контейнер для inline-редактирования */
+.inline-edit-container {
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.3rem;                            /* Расстояние между элементами (компактно) */
+    width: 100%;                            /* Ширина 100% */
+}
+
+/* Ячейка в режиме редактирования */
+#print-components-table td.editing-cell {
+    background-color: #f8f9fa !important;   /* Светло-серый фон с приоритетом */
+    border: 1px solid #e74c3c !important;   /* Красная граница с приоритетом */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+}
+
+/* Поля ввода при inline-редактировании */
+.inline-edit-input {
+    flex: 1;                                /* Растягиваем на всё доступное пространство */
+    padding: 0.2rem 0.3rem;                 /* Внутренние отступы (компактно) */
+    border: 1px solid #ddd;                 /* Светло-серая граница */
+    border-radius: 2px;                     /* Скругление углов (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    font-family: inherit;                   /* Наследуем шрифт от родителя */
+    box-sizing: border-box;                 /* Учитываем границы и отступы в ширине */
+}
+
+/* Эффект при фокусе на поле ввода */
+.inline-edit-input:focus {
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #e74c3c;                  /* Красная граница при фокусе */
+    box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.2);  /* Красная тень при фокусе */
+}
+
+/* Выпадающие списки при inline-редактировании */
+.inline-edit-select {
+    flex: 1;                                /* Растягиваем на всё доступное пространство */
+    padding: 0.2rem 0.3rem;                 /* Внутренние отступы (компактно) */
+    border: 1px solid #ddd;                 /* Светло-серая граница */
+    border-radius: 2px;                     /* Скругление углов (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    font-family: inherit;                   /* Наследуем шрифт от родителя */
+    background-color: white;                /* Белый фон */
+    box-sizing: border-box;                 /* Учитываем границы и отступы в ширине */
+}
+
+/* Эффект при фокусе на выпадающем списке */
+.inline-edit-select:focus {
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #e74c3c;                  /* Красная граница при фокусе */
+    box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.2);  /* Красная тень при фокусе */
+}
+
+/* Индикатор сохранения */
+.inline-edit-saving {
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    gap: 0.4rem;                            /* Расстояние между элементами */
+    color: #e74c3c;                         /* Красный цвет текста */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    padding: 0.4rem;                        /* Внутренние отступы */
+}
+
+/* Анимация вращения для спиннера */
+@keyframes spin {
+    0% { transform: rotate(0deg); }         /* Начальное положение */
+    100% { transform: rotate(360deg); }     /* Полный оборот */
+}
+
+/* Спиннер при сохранении */
+.fa-spinner.fa-spin {
+    animation: spin 0.8s linear infinite;    /* Анимация вращения */
+}
+
+/* ===== 11. МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ===== */
+
+/* Overlay для модального окна */
+.print-components-modal-overlay {
+    position: fixed;                        /* Фиксированное позиционирование */
+    top: 0;                                 /* Прикрепляем к верхнему краю */
+    left: 0;                                /* Прикрепляем к левому краю */
+    right: 0;                               /* Прикрепляем к правому краю */
+    bottom: 0;                              /* Прикрепляем к нижнему краю */
+    background-color: rgba(0, 0, 0, 0.5);   /* Полупрозрачный черный фон */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    z-index: 1000;                          /* Высокий z-index для перекрытия */
+    opacity: 0;                             /* Начальная непрозрачность */
+    visibility: hidden;                     /* Скрыто по умолчанию */
+    transition: opacity 0.3s ease, visibility 0.3s ease;  /* Плавный переход */
+}
+
+/* Активное состояние overlay */
+.print-components-modal-overlay.active {
+    opacity: 1;                             /* Полная непрозрачность при активации */
+    visibility: visible;                    /* Видимо при активации */
+}
+
+/* Само модальное окно */
+.print-components-modal {
+    background-color: white;                /* Белый фон */
+    border-radius: 6px;                     /* Скругление углов (компактно) */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);  /* Тень (компактно) */
+    width: 90%;                             /* Ширина 90% от окна */
+    max-width: 400px;                       /* Максимальная ширина (компактно) */
+    max-height: 80vh;                       /* Максимальная высота 80% от высоты окна */
+    overflow-y: auto;                       /* Вертикальная прокрутка при необходимости */
+    transform: translateY(-10px);           /* Начальное смещение вверх (компактно) */
+    opacity: 0;                             /* Начальная непрозрачность */
+    transition: transform 0.3s ease, opacity 0.3s ease;  /* Плавный переход */
+}
+
+/* Активное состояние модального окна */
+.print-components-modal.active {
+    transform: translateY(0);               /* Без смещения при активации */
+    opacity: 1;                             /* Полная непрозрачность при активации */
+}
+
+/* Заголовок модального окна */
+.modal-header {
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    padding: 0.8rem;                        /* Внутренние отступы (компактно) */
+    border-bottom: 1px solid #eee;          /* Светло-серая граница снизу */
+    background-color: #f8f9fa;              /* Светло-серый фон */
+    border-radius: 6px 6px 0 0;             /* Скругление только верхних углов */
+}
+
+/* Заголовок в модальном окне */
+.modal-header h3 {
+    margin: 0;                              /* Убираем внешние отступы */
+    font-size: 0.9rem;                      /* Размер шрифта (компактно) */
+    color: #333;                            /* Темно-серый цвет текста */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между элементами */
+}
+
+/* Иконка в заголовке модального окна */
+.modal-header h3 i {
+    color: #e74c3c;                         /* Красный цвет иконки */
+}
+
+/* Кнопка закрытия модального окна */
+.modal-close-btn {
+    background: none;                       /* Прозрачный фон */
+    border: none;                           /* Без рамки */
+    font-size: 0.9rem;                      /* Размер шрифта иконки */
+    color: #777;                            /* Серый цвет иконки */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    width: 24px;                            /* Ширина кнопки (компактно) */
+    height: 24px;                           /* Высота кнопки (компактно) */
+    border-radius: 50%;                     /* Круглая форма */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    transition: all 0.12s ease;             /* Плавные переходы */
+}
+
+/* Эффект при наведении на кнопку закрытия */
+.modal-close-btn:hover {
+    background-color: #eee;                 /* Светло-серый фон при наведении */
+    color: #333;                            /* Темно-серый цвет иконки при наведении */
+}
+
+/* Тело модального окна */
+.modal-body {
+    padding: 0.8rem;                        /* Внутренние отступы (компактно) */
+}
+
+/* Форма в модальном окне */
+#print-components-add-form {
+    display: flex;                          /* Используем flexbox */
+    flex-direction: column;                 /* Вертикальное расположение элементов */
+    gap: 0.8rem;                            /* Расстояние между группами полей */
+}
+
+/* Группа полей в форме */
+.form-group {
+    display: flex;                          /* Используем flexbox */
+    flex-direction: column;                 /* Вертикальное расположение элементов */
+    gap: 0.3rem;                            /* Расстояние между элементами */
+}
+
+/* Метка поля в форме */
+.form-group label {
+    font-weight: 600;                       /* Полужирное начертание шрифта */
+    color: #333;                            /* Темно-серый цвет текста */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом */
+}
+
+/* Иконка в метке поля */
+.form-group label i {
+    color: #e74c3c;                         /* Красный цвет иконки */
+    width: 12px;                            /* Фиксированная ширина иконки */
+}
+
+/* Поля ввода в модальном окне */
+.modal-input,
+.modal-select {
+    padding: 0.4rem 0.5rem;                 /* Внутренние отступы (компактно) */
+    border: 1px solid #ddd;                 /* Светло-серая граница */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    font-family: inherit;                   /* Наследуем шрифт от родителя */
+    transition: border-color 0.12s;         /* Плавный переход цвета границы */
+    width: 100%;                            /* Ширина 100% */
+    box-sizing: border-box;                 /* Учитываем границы и отступы в ширине */
+}
+
+/* Эффект при фокусе на поле ввода */
+.modal-input:focus,
+.modal-select:focus {
+    outline: none;                          /* Убираем стандартный outline браузера */
+    border-color: #e74c3c;                  /* Красная граница при фокусе */
+    box-shadow: 0 0 0 1px rgba(231, 76, 60, 0.2);  /* Красная тень при фокусе */
+}
+
+/* Убираем стрелочки у числовых полей ввода */
+.modal-input[type="number"] {
+    -moz-appearance: textfield;             /* Для Firefox */
+    -webkit-appearance: textfield;          /* Для WebKit браузеров */
+    appearance: textfield;                  /* Стандартное свойство */
+}
+
+/* Убираем стрелочки в WebKit браузерах */
+.modal-input[type="number"]::-webkit-outer-spin-button,
+.modal-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;               /* Убираем стандартные стрелочки */
+    appearance: none;                       /* Стандартное свойство */
+    margin: 0;                              /* Убираем отступы */
+}
+
+/* Стили для выпадающих списков */
+.modal-select {
+    -webkit-appearance: none;               /* Убираем стандартный вид в WebKit */
+    -moz-appearance: none;                  /* Убираем стандартный вид в Firefox */
+    appearance: none;                       /* Стандартное свойство */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;           /* Не повторяем фоновое изображение */
+    background-position: right 0.5rem center;  /* Позиция стрелки */
+    background-size: 12px;                  /* Размер стрелки */
+    padding-right: 1.8rem;                  /* Отступ справа для стрелки */
+}
+
+/* Футер формы */
+.form-footer {
+    display: flex;                          /* Используем flexbox */
+    justify-content: flex-end;              /* Выравниваем по правому краю */
+    gap: 0.4rem;                            /* Расстояние между кнопками */
+    padding-top: 0.8rem;                    /* Отступ сверху */
+    border-top: 1px solid #eee;             /* Светло-серая граница сверху */
+}
+
+/* Кнопки в футере формы */
+.modal-cancel-btn,
+.modal-submit-btn {
+    padding: 0.4rem 0.8rem;                 /* Внутренние отступы кнопок */
+    border: none;                           /* Без рамки */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    font-size: 0.75rem;                     /* Размер шрифта (компактно) */
+    font-weight: 600;                       /* Полужирное начертание шрифта */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    transition: all 0.12s ease;             /* Плавные переходы */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.3rem;                            /* Расстояние между иконкой и текстом */
+}
+
+/* Кнопка отмены */
+.modal-cancel-btn {
+    background-color: #f8f9fa;              /* Светло-серый фон */
+    color: #333;                            /* Темно-серый цвет текста */
+    border: 1px solid #ddd;                 /* Светло-серая граница */
+}
+
+/* Эффект при наведении на кнопку отмены */
+.modal-cancel-btn:hover {
+    background-color: #e9ecef;              /* Более темный серый фон при наведении */
+}
+
+/* Кнопка отправки */
+.modal-submit-btn {
+    background-color: #e74c3c;              /* Красный фон */
+    color: white;                           /* Белый цвет текста */
+}
+
+/* Эффект при наведении на кнопку отправки */
+.modal-submit-btn:hover {
+    background-color: #c0392b;              /* Более темный красный фон при наведении */
+}
+
+/* Неактивная кнопка отправки */
+.modal-submit-btn:disabled {
+    background-color: #95a5a6;              /* Серый фон для неактивной кнопки */
+    cursor: not-allowed;                    /* Курсор "не разрешено" */
+}
+
+/* ===== 12. УВЕДОМЛЕНИЯ ===== */
+
+/* Базовые стили уведомлений */
+.print-components-notification {
+    position: fixed;                        /* Фиксированное позиционирование */
+    top: 0.8rem;                            /* Отступ сверху (компактно) */
+    right: 0.8rem;                          /* Отступ справа (компактно) */
+    background-color: white;                /* Белый фон */
+    border-radius: 4px;                     /* Скругление углов (компактно) */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);  /* Тень (компактно) */
+    padding: 0.6rem 0.8rem;                 /* Внутренние отступы (компактно) */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: space-between;         /* Распределяем пространство между элементами */
+    gap: 0.6rem;                            /* Расстояние между элементами */
+    min-width: 250px;                       /* Минимальная ширина (компактно) */
+    max-width: 300px;                       /* Максимальная ширина (компактно) */
+    z-index: 9999;                          /* Очень высокий z-index */
+    transform: translateX(100%);            /* Начальное смещение вправо за пределы экрана */
+    opacity: 0;                             /* Начальная непрозрачность */
+    transition: transform 0.3s, opacity 0.3s;  /* Плавный переход */
+}
+
+/* Показываем уведомление */
+.print-components-notification.show {
+    transform: translateX(0);               /* Без смещения при показе */
+    opacity: 1;                             /* Полная непрозрачность при показе */
+}
+
+/* Типы уведомлений (цветовая индикация) */
+.notification-success {
+    border-left: 3px solid #2ecc71;         /* Зеленая полоска слева для успеха */
+}
+
+.notification-error {
+    border-left: 3px solid #e74c3c;         /* Красная полоска слева для ошибки */
+}
+
+.notification-warning {
+    border-left: 3px solid #f39c12;         /* Оранжевая полоска слева для предупреждения */
+}
+
+.notification-info {
+    border-left: 3px solid #3498db;         /* Синяя полоска слева для информации */
+}
+
+/* Содержимое уведомления */
+.notification-content {
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    gap: 0.4rem;                            /* Расстояние между иконкой и текстом */
+    flex-grow: 1;                           /* Занимает всё доступное пространство */
+}
+
+/* Иконка в уведомлении */
+.notification-content i {
+    font-size: 0.9rem;                      /* Размер иконки */
+}
+
+/* Текст в уведомлении */
+.notification-content span {
+    font-size: 0.75rem;                     /* Размер шрифта текста (компактно) */
+    color: #333;                            /* Темно-серый цвет текста */
+}
+
+/* Кнопка закрытия уведомления */
+.notification-close {
+    background: none;                       /* Прозрачный фон */
+    border: none;                           /* Без рамки */
+    color: #777;                            /* Серый цвет иконки */
+    cursor: pointer;                        /* Курсор в виде указателя */
+    font-size: 0.75rem;                     /* Размер шрифта иконки */
+    width: 18px;                            /* Ширина кнопки (компактно) */
+    height: 18px;                           /* Высота кнопки (компактно) */
+    display: flex;                          /* Используем flexbox */
+    align-items: center;                    /* Выравниваем по вертикали */
+    justify-content: center;                /* Выравниваем по горизонтали */
+    border-radius: 50%;                     /* Круглая форма */
+    transition: all 0.12s ease;             /* Плавные переходы */
+}
+
+/* Эффект при наведении на кнопку закрытия уведомления */
+.notification-close:hover {
+    background-color: #f5f5f5;              /* Светло-серый фон при наведении */
+    color: #333;                            /* Темно-серый цвет иконки при наведении */
+}
+
+/* ===== 13. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
+
+/* Для планшетов и небольших ноутбуков (до 1137px) */
+@media (max-width: 1137px) {
+    #print-components-section {
+        padding: 0.5rem;                    /* Уменьшаем внутренние отступы */
+        margin-bottom: 0.4rem;              /* Уменьшаем внешний отступ снизу */
+    }
+    
+    /* Уменьшаем отступы в таблице */
+    #print-components-table th,
+    #print-components-table td {
+        padding: 0.3rem 0.3rem;             /* Уменьшаем внутренние отступы ячеек */
+    }
+    
+    /* Уменьшаем шрифт таблицы на планшетах */
+    #print-components-table {
+        font-size: 0.7rem;                  /* Уменьшаем размер шрифта таблицы */
+    }
+    
+    /* Адаптируем модальное окно */
+    .print-components-modal {
+        max-width: 350px;                   /* Уменьшаем максимальную ширину модального окна */
+    }
+}
+
+/* ===== 14. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+
+/* Для мобильных устройств (до 768px) */
+@media (max-width: 768px) {
+    #print-components-section {
+        padding: 0.4rem;                    /* Еще меньше внутренних отступов */
+        border-radius: 4px;                 /* Меньшее скругление углов */
+    }
+    
+    /* Адаптируем заголовок секции */
+    #print-components-section .section-header h2 {
+        font-size: 0.8rem;                  /* Уменьшаем размер шрифта заголовка */
+        flex-wrap: wrap;                    /* Разрешаем перенос элементов */
+        gap: 0.2rem;                        /* Уменьшаем расстояние между элементами */
+    }
+    
+    /* Скрываем название просчёта на очень маленьких экранах */
+    @media (max-width: 480px) {
+        #print-components-proschet-title {
+            display: none;                  /* Скрываем на очень маленьких экранах */
+        }
+    }
+    
+    /* Адаптируем таблицу для мобильных */
+    .table-container {
+        overflow-x: auto;                   /* Горизонтальная прокрутка для таблицы */
+    }
+    
+    #print-components-table {
+        font-size: 0.7rem;                  /* Уменьшаем размер шрифта таблицы */
+    }
+    
+    #print-components-table th,
+    #print-components-table td {
+        padding: 0.3rem 0.2rem;             /* Уменьшаем внутренние отступы ячеек */
+        white-space: nowrap;                /* Запрещаем перенос текста */
+    }
+    
+    /* Адаптируем общую стоимость */
+    .total-summary {
+        flex-direction: column;             /* Вертикальное расположение элементов */
+        align-items: flex-start;            /* Выравнивание по левому краю */
+        gap: 0.3rem;                        /* Расстояние между элементами */
+    }
+    
+    .total-price {
+        margin-top: 0.2rem;                 /* Отступ сверху для цены */
+    }
+    
+    /* Адаптируем модальное окно */
+    .print-components-modal {
+        width: 95%;                         /* Ширина 95% от окна */
+        max-width: 95%;                     /* Максимальная ширина 95% */
+        margin: 0.4rem;                     /* Внешние отступы */
+    }
+    
+    /* Вертикальное расположение кнопок в модальном окне */
+    .form-footer {
+        flex-direction: column;             /* Вертикальное расположение кнопок */
+    }
+    
+    .modal-cancel-btn,
+    .modal-submit-btn {
+        width: 100%;                        /* Ширина 100% */
+        justify-content: center;            /* Выравнивание по центру */
+    }
+    
+    /* Адаптируем уведомления */
+    .print-components-notification {
+        min-width: auto;                    /* Автоматическая минимальная ширина */
+        width: calc(100% - 1.6rem);         /* Ширина с учетом отступов */
+        max-width: calc(100% - 1.6rem);     /* Максимальная ширина с учетом отступов */
+    }
+}
+
+/* ===== 15. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
+
+/* Анимация плавного появления секции */
+@keyframes fadeInPrintComponents {
+    from {
+        opacity: 0;                         /* Начало: полностью прозрачно */
+        transform: translateY(10px);        /* Сдвиг вниз на 10px */
+    }
+    to {
+        opacity: 1;                         /* Конец: полностью непрозрачно */
+        transform: translateY(0);           /* Возврат в исходное положение */
+    }
+}
+
+/* Применение анимации */
+#print-components-section {
+    animation: fadeInPrintComponents 0.15s ease-out;  /* Анимация появления снизу */
+}
+
+/* ===== 16. ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ СТИЛИ ===== */
+
+/* Стиль для информации о расчёте цены */
+.price-calculation-info {
+    background-color: #ffeaea;              /* Светло-красный фон (в тон секции) */
+    border: 1px solid #e74c3c;              /* Красная рамка по всему периметру */
+    padding: 0.4rem 0.6rem;                 /* Внутренние отступы (компактно) */
+    border-radius: 3px;                     /* Скругление углов (компактно) */
+    margin-top: 0.4rem;                     /* Отступ сверху (компактно) */
+    font-size: 0.7rem;                      /* Размер шрифта (компактно) */
+}
+
+/* Иконка в информации о расчёте цены */
+.price-calculation-info i {
+    color: #e74c3c;                         /* Красный цвет иконки */
+    margin-right: 0.3rem;                   /* Отступ справа от иконки */
+}
+
+/* Стиль для полей ввода, которые рассчитываются автоматически */
+.modal-input[readonly] {
+    background-color: #f5f5f5;              /* Светло-серый фон */
+    border-color: #ddd;                     /* Светло-серая граница */
+    cursor: not-allowed;                    /* Курсор "не разрешено" */
+}
+
+.modal-input[readonly]:focus {
+    border-color: #ddd;                     /* Оставляем светлую границу при фокусе */
+    box-shadow: none;                       /* Убираем тень при фокусе */
+}
+
+/* Подсказки под полями формы */
+.form-hint {
+    display: block;                         /* Блочное отображение */
+    margin-top: 0.2rem;                     /* Отступ сверху (компактно) */
+    font-size: 0.65rem;                     /* Очень мелкий шрифт */
+    color: #666;                            /* Серый цвет текста */
+    font-style: italic;                     /* Курсивный стиль */
+}
+
+/* Стили для обязательных полей (звездочка) */
+label[for*="printer"]::after,
+label[for*="paper"]::after,
+label[for*="price-per-sheet"]::after {
+    content: " *";                          /* Добавляем звездочку после текста */
+    color: #e74c3c;                         /* Красный цвет звездочки */
+    font-weight: bold;                      /* Жирное начертание звездочки */
+}
+
+/* ===== 17. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
+
+/* Свёрнутая секция печатных компонентов */
+#print-components-section.collapsed .section-body {
+    display: none;                          /* Скрываем тело секции при сворачивании */
+    padding: 0;                             /* Убираем отступы при скрытии */
+    height: 0;                              /* Обнуляем высоту */
+    overflow: hidden;                       /* Скрываем переполнение */
+}
+
+#print-components-section.collapsed {
+    border-bottom: none;                    /* Убираем нижнюю границу при сворачивании */
+}
+
+/* Иконка в кнопке сворачивания при свёрнутой секции */
+#print-components-section.collapsed .btn-collapse-section i {
+    transform: rotate(-90deg);              /* Поворачиваем иконку на -90 градусов */
+    transform-origin: center;               /* Вращение вокруг центра иконки */
+}
+
+/* ===== 18. СТИЛИ ДЛЯ ВЫДЕЛЕННОЙ СТРОКИ В ТАБЛИЦЕ ===== */
+
+/* Выделенная строка в таблице (например, при редактировании или выборе) */
+#print-components-table tbody tr.selected {
+    background-color: #e3f2fd !important;  /* Светло-голубой фон для выделенной строки */
+    box-shadow: inset 0 0 0 2px #2196f3;   /* Синяя внутренняя рамка для выделения */
+}
+
+/* Эффект при наведении на строку (кроме выделенной) */
+#print-components-table tbody tr:not(.selected):hover {
+    background-color: #f5f5f5 !important;  /* Светло-серый фон при наведении (не для выделенной) */
+}
+
+/* Стили для ячеек выделенной строки */
+#print-components-table tbody tr.selected td {
+    border-bottom-color: #2196f3;          /* Синяя граница снизу для ячеек выделенной строки */
+    font-weight: 500;                      /* Полужирный текст в выделенных ячейках */
+}
+
+/* Стиль для кнопки удаления в выделенной строке */
+#print-components-table tbody tr.selected .delete-component-btn {
+    background-color: #e3f2fd;             /* Светло-голубой фон кнопки в выделенной строке */
+    border-color: #2196f3;                 /* Синяя рамка кнопки в выделенной строке */
+}
+
+/* Эффект при наведении на кнопку удаления в выделенной строке */
+#print-components-table tbody tr.selected .delete-component-btn:hover {
+    background-color: #e74c3c;             /* Красный фон при наведении (как обычно) */
+    color: white;                          /* Белый цвет иконки при наведении */
+}
+
+/* ===== 19. СТИЛИ ДЛЯ АКТИВНОЙ КНОПКИ ДОБАВЛЕНИЯ ===== */
+
+/* Кнопка добавления компонента в активном состоянии */
+#add-print-component-btn:active,
+#add-first-component-btn:active {
+    transform: translateY(0) !important;   /* Убираем подъем при нажатии */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;  /* Внутренняя тень для эффекта нажатия */
+}
+
+/* ===== 20. АДАПТИВНЫЕ СТИЛИ ДЛЯ ВЫДЕЛЕННОЙ СТРОКИ НА МОБИЛЬНЫХ ===== */
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    /* Уменьшаем интенсивность выделения на мобильных */
+    #print-components-table tbody tr.selected {
+        box-shadow: inset 0 0 0 1px #2196f3;  /* Более тонкая рамка на мобильных */
+    }
+    
+    /* Меняем фон выделенной строки на более контрастный на мобильных */
+    #print-components-table tbody tr.selected {
+        background-color: #e8f4fc !important;  /* Чуть более темный голубой на мобильных */
+    }
+}
+
+.component-cost, .component-markup, .component-profit, .component-price {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+.component-cost { color: #666; }
+.component-markup { color: #0B8661; }
+.component-profit { color: #2ecc71; }
+.component-price { color: #e74c3c; font-weight: 600; }
+
+/* Для мобильной адаптации добавляем метки */
+@media (max-width: 768px) {
+    .component-cost::before { content: "Себест.: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-markup::before { content: "Наценка: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-profit::before { content: "Прибыль: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+    .component-price::before { content: "Цена: "; font-weight: 600; color: #555; margin-right: 0.5rem; display: inline-block; }
+}

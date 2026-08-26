@@ -1,0 +1,189 @@
+<!--
+  ============================================================================
+  Файл: calculator/templates/calculator/sections/price.html
+  Назначение: Секция "Цена" – итоговая стоимость заказа с полной детализацией.
+  НОВАЯ ВЕРСИЯ (03.04.2026):
+  - Переработана структура: теперь отображаются все печатные компоненты,
+    а внутри каждого компонента – его ламинация и дополнительные работы.
+  - Каждая строка содержит себестоимость, прибыль и итоговую стоимость.
+  - Поддерживается горизонтальная прокрутка на мобильных устройствах.
+  - Все стили вынесены в price.css, логика – в price.js.
+
+  Подробные комментарии для каждой строки, чтобы новичкам было понятно.
+  ============================================================================
+-->
+
+<!--
+  Секция "Цена". Класс "calculator-section" – общий для всех секций калькулятора.
+  ID "price-section" используется для сворачивания/разворачивания и для стилизации.
+-->
+<section class="calculator-section price-section" id="price-section">
+    
+    <!-- ==================== ЗАГОЛОВОК СЕКЦИИ ==================== -->
+    <!-- Блок с заголовком и кнопками управления -->
+    <div class="section-header">
+        <!-- Заголовок второго уровня (h2) – семантически правильный уровень для секции -->
+        <h2>
+            <!-- Иконка денежной купюры из библиотеки Font Awesome -->
+            <i class="fas fa-money-bill-wave"></i>
+            <!-- Номер секции (7) – для наглядности в интерфейсе -->
+            <span class="section-number">7.</span>
+            <!-- Название секции -->
+            Цена
+            <!--
+              Элемент для отображения названия выбранного просчёта.
+              По умолчанию показывает текст-заполнитель.
+              При выборе просчёта JavaScript заменит содержимое.
+            -->
+            <span id="price-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <!-- Контейнер для кнопок в правой части заголовка (выравнивается флексом) -->
+        <div class="header-buttons">
+            <!--
+              Кнопка "Рассчитать" – активна только когда выбран просчёт.
+              По умолчанию скрыта (style="display: none;"), будет показана через JS.
+            -->
+            <button type="button" 
+                    class="btn-action btn-calculate-price" 
+                    id="calculate-price-btn"
+                    title="Рассчитать стоимость"
+                    style="display: none;">
+                <i class="fas fa-calculator"></i> Рассчитать
+            </button>
+            <!--
+              Кнопка сворачивания/разворачивания секции.
+              data-section="price-section" указывает, какую секцию сворачивать.
+              Используется в общем механизме сворачивания секций (коллапс).
+            -->
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="price-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== ТЕЛО СЕКЦИИ ==================== -->
+    <!-- Содержимое, которое сворачивается/разворачивается -->
+    <div class="section-body">
+        
+        <!--
+          СООБЩЕНИЕ, КОГДА ПРОСЧЁТ НЕ ВЫБРАН
+          Показывается вместо итоговой стоимости, если не выбран ни один просчёт.
+          Скрыто по умолчанию (display: none), будет показано через JS при необходимости.
+        -->
+        <div id="no-proschet-selected-price" class="empty-state-message" style="display: none;">
+            <!-- Иконка указывающей руки – привлекает внимание -->
+            <i class="fas fa-hand-pointer fa-3x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Выберите просчёт в секции "Список просчётов" для отображения итоговой стоимости</p>
+        </div>
+
+        <!--
+          КОНТЕЙНЕР ИТОГОВОЙ СТОИМОСТИ
+          Показывается, когда просчёт выбран.
+          Скрыт по умолчанию (display: none), будет показан через JS.
+        -->
+        <div id="price-summary-container" class="price-summary-container" style="display: none;">
+            
+            <!-- Верхняя часть контейнера: заголовок и дата расчёта -->
+            <div class="price-summary-header">
+                <!-- Заголовок с иконкой -->
+                <h3><i class="fas fa-file-invoice-dollar"></i> Итоговая стоимость заказа</h3>
+                <!-- Блок с датой расчёта (заполняется через JS) -->
+                <div class="price-summary-date" id="price-summary-date">
+                    <i class="far fa-calendar-alt"></i> 
+                    Дата расчета: <span id="calculation-date">--.--.----</span>
+                </div>
+            </div>
+
+            <!-- ==================== ДЕТАЛИЗАЦИЯ ПО КОМПОНЕНТАМ ==================== -->
+            <!--
+              Здесь будет динамически отображаться список печатных компонентов.
+              Каждый компонент содержит:
+              - Заголовок с его номером, принтером и бумагой
+              - Таблицу с данными по печати (себестоимость, прибыль, стоимость)
+              - Блок ламинации (если включена)
+              - Таблицу дополнительных работ (если есть)
+              - Итоги по компоненту
+            -->
+            <div id="price-components-container">
+                <!-- Сообщение, если нет компонентов (будет показано через JS) -->
+                <!-- <div class="category-empty">...</div> -->
+            </div>
+
+
+            <!-- БЛОК ОБЩЕЙ СТОИМОСТИ ЗАКАЗА (расширенный) -->
+            <div class="price-total-summary">
+                <!-- НОВЫЕ СТРОКИ -->
+                <div class="total-row">
+                    <div class="total-label">
+                        <i class="fas fa-chart-line"></i>
+                        <strong>Общая себестоимость заказа:</strong>
+                    </div>
+                    <div class="total-value" id="total-order-cost">0.00 ₽</div>
+                </div>
+                <div class="total-row">
+                    <div class="total-label">
+                        <i class="fas fa-chart-simple"></i>
+                        <strong>Общая прибыль заказа:</strong>
+                    </div>
+                    <div class="total-value" id="total-order-profit">0.00 ₽</div>
+                </div>
+                <div class="total-row">
+                    <div class="total-label">
+                        <i class="fas fa-calculator"></i>
+                        <strong>Общая стоимость заказа:</strong>
+                    </div>
+                    <div class="total-value" id="total-order-price">0.00 ₽</div>
+                </div>
+                
+                <!-- ===== НОВЫЕ СТРОКИ: ОБЩАЯ МАССА И ОБЩИЙ ОБЪЁМ ===== -->
+                <div class="total-row mass-volume-row">
+                    <div class="total-label">
+                        <i class="fas fa-weight-hanging"></i>
+                        <strong>Общая масса заказа:</strong>
+                    </div>
+                    <div class="total-value" id="total-order-mass">0.000 кг</div>
+                </div>
+                <div class="total-row mass-volume-row">
+                    <div class="total-label">
+                        <i class="fas fa-cube"></i>
+                        <strong>Общий объём заказа:</strong>
+                    </div>
+                    <div class="total-value" id="total-order-volume">0.000 л</div>
+                </div>
+
+                <div class="total-breakdown">
+                    <small>
+                        <i class="far fa-clock"></i> 
+                        Расчет обновляется автоматически при изменении данных
+                    </small>
+                </div>
+            </div>
+
+            <!-- ==================== КНОПКИ ДЕЙСТВИЙ ==================== -->
+            <!--
+              Блок с кнопками экспорта, печати и создания счёта.
+              Все кнопки пока являются заглушками (функционал будет реализован позже).
+            -->
+            <div class="price-actions">
+                <!-- Кнопка экспорта в PDF -->
+                <button type="button" class="btn-action btn-secondary" id="export-price-btn" title="Экспорт в PDF">
+                    <i class="fas fa-file-pdf"></i> Экспорт в PDF
+                </button>
+                <!-- Кнопка печати -->
+                <button type="button" class="btn-action btn-secondary" id="print-price-btn" title="Распечатать">
+                    <i class="fas fa-print"></i> Распечатать
+                </button>
+                <!-- Кнопка создания счёта -->
+                <button type="button" class="btn-action btn-primary" id="create-invoice-btn" title="Создать счёт">
+                    <i class="fas fa-file-invoice"></i> Создать счёт
+                </button>
+            </div>
+        </div>
+    </div>
+</section>

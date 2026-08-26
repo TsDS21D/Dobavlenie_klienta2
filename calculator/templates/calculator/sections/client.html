@@ -1,0 +1,73 @@
+{% load static %}
+<!--
+client.html – компактная секция "Клиент"
+Все данные отображаются в одной строке:
+- Название клиента (редактируется двойным щелчком)
+- Скидка в скобках
+- Статус ЭДО (всегда текст "ЭДО", цвет меняется)
+-->
+
+<section class="calculator-section client-section" id="client-section">
+    <!-- ===== ЗАГОЛОВОК СЕКЦИИ ===== -->
+    <div class="section-header">
+        <h2>
+            <i class="fas fa-user"></i>
+            <span class="section-number">3.</span>
+            Клиент
+            <!-- Бейдж с номером просчёта (скрыт, пока нет выбора) -->
+            <span id="selected-proschet-badge" class="badge" style="display: none;" data-proschet-id="">
+                Просчёт: <span id="current-proschet-number"></span>
+            </span>
+        </h2>
+        <!-- Кнопки управления секцией (сворачивание) -->
+        <div class="header-buttons">
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-target="client-section" 
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== ТЕЛО СЕКЦИИ ===== -->
+    <div class="section-body">
+        <!-- Сообщение, когда просчёт не выбран -->
+        <div id="no-proschet-selected" class="client-message">
+            <i class="fas fa-info-circle fa-2x"></i>
+            <h3>Выберите просчёт</h3>
+            <p>Для просмотра клиента сначала выберите просчёт.</p>
+        </div>
+
+        <!-- Интерфейс, отображаемый при выбранном просчёте (скрыт по умолчанию) -->
+        <div id="client-selection-interface" style="display: none;">
+            <!-- Компактная карточка клиента -->
+            <div id="current-client-display" class="current-client-card" data-proschet-id="">
+                <!-- Одна строка с тремя элементами -->
+                <div class="client-compact-row">
+                    <!-- Название клиента (редактируемое) -->
+                    <span id="current-client-name" class="client-name editable-client-name" data-client-id="">—</span>
+                    <!-- Скидка в скобках -->
+                    <span id="current-client-discount" class="client-discount">(0%)</span>
+                    <!-- Статус ЭДО: всегда текст "ЭДО", цвет меняется классами edo-on/edo-off -->
+                    <span id="current-client-edo" class="client-edo edo-off">ЭДО</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Гарантия видимости карточки при активном просчёте -->
+<style>
+    #client-section .current-client-card {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    /* Запасной вариант для пустого имени (прочерк) */
+    #current-client-name:empty::after {
+        content: "—";
+        color: #777;
+        font-style: italic;
+    }
+</style>

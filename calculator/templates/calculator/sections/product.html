@@ -1,0 +1,87 @@
+<!--
+sections/product.html - Секция "Изделие" для калькулятора типографии
+ОБНОВЛЕНО: Удалены все параметры изделия (формат, страницы, бумага, цветность),
+оставлен только заголовок с названием просчёта и редактируемый тираж.
+-->
+
+<section class="calculator-section product-section" id="product-section">
+    <!-- ===== ЗАГОЛОВОК СЕКЦИИ ===== -->
+    <div class="section-header">
+        <h2>
+            <!-- Иконка изделия -->
+            <i class="fas fa-box"></i>
+            <!-- Номер секции (для удобства навигации) -->
+            <span class="section-number">4.</span>
+            <!-- Название секции -->
+            Изделие
+            <!-- Контейнер для отображения названия выбранного просчёта -->
+            <span id="product-proschet-title" class="proschet-title-placeholder">
+                <!-- По умолчанию показываем текст-заполнитель -->
+                <span class="placeholder-text">(просчёт не выбран)</span>
+            </span>
+        </h2>
+        <!-- Кнопки управления в заголовке (например, сворачивание) -->
+        <div class="header-buttons">
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="product-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- ===== ТЕЛО СЕКЦИИ ===== -->
+    <div class="section-body">
+        <!-- Контейнер для отображения данных, когда просчёт выбран -->
+        <div id="product-params-container" class="product-params-container" style="display: none;">
+            <!-- Заголовок внутри контейнера (можно оставить, можно изменить) -->
+            <h3>Параметры изделия</h3>
+            <!-- ===== ЭЛЕМЕНТ ДЛЯ РЕДАКТИРОВАНИЯ ТИРАЖА ===== -->
+            <div class="product-circulation-item" id="product-circulation-container">
+                <!-- Иконка копий (тиража) -->
+                <i class="fas fa-copy"></i> 
+                <!-- Метка "Тираж:" -->
+                <span class="param-label">Тираж:</span>
+                <!-- Отображаемое значение тиража (редактируется по двойному клику) -->
+                <span id="product-circulation-display" 
+                      class="param-value editable-value" 
+                      data-editable="true"
+                      data-proschet-id=""
+                      data-original-value=""
+                      title="Двойной клик для редактирования">
+                    Не указан
+                </span>
+                <!-- Скрытое поле ввода для редактирования тиража -->
+                <input type="number" 
+                       id="product-circulation-input" 
+                       class="inline-edit-input" 
+                       style="display: none;"
+                       min="1"
+                       max="1000000"
+                       placeholder="Введите тираж"
+                       value="1">
+            </div>
+            <!-- Подсказка о способе редактирования -->
+            <div class="edit-hint">
+                <i class="fas fa-info-circle"></i>
+                Двойной клик по значению для редактирования
+            </div>
+        </div>
+        
+        <!-- ===== ЗАГЛУШКА, КОГДА ПРОСЧЁТ НЕ ВЫБРАН ===== -->
+        <div id="product-placeholder" class="section-placeholder">
+            <i class="fas fa-box-open fa-3x"></i>
+            <h3>Параметры изделия</h3>
+            <p>Для отображения параметров выберите просчёт в разделе "Список просчётов"</p>
+            <!-- Список параметров (теперь только тираж, для наглядности) -->
+            <ul class="placeholder-list">
+                <li><i class="fas fa-copy"></i> Тираж</li>
+            </ul>
+            <small class="placeholder-note">
+                <i class="fas fa-info-circle"></i>
+                Параметры будут влиять на стоимость
+            </small>
+        </div>
+    </div>
+</section>

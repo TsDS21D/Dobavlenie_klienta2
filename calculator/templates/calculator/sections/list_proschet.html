@@ -1,0 +1,180 @@
+<!--
+calculator/templates/calculator/sections/list_proschet.html
+Основной шаблон для отображения секции "Список просчётов"
+
+ОБНОВЛЕНИЯ:
+1. Добавлен контейнер с фиксированной высотой для скролла (5 строк)
+2. Добавлено поле поиска для фильтрации просчётов
+-->
+
+<div id="list-proschet-section" class="calculator-section">
+    
+    <!-- Заголовок секции -->
+    <div class="section-header">
+        <h2>
+            <span class="section-number">1</span>
+            Список просчётов
+            <span id="proschet-count-badge" class="badge">
+                {{ proschets|length }}
+            </span>
+        </h2>
+        
+        <!-- Кнопки управления в заголовке -->
+        <div class="header-buttons">
+            <!-- Кнопка создания нового просчёта -->
+            <button id="create-proschet-btn" class="btn-create" title="Создать новый просчёт">
+                Создать
+            </button>
+
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-target="list-proschet-section"
+                    data-section="list-proschet-section"
+                    title="Свернуть/развернуть секцию">
+                <!-- Иконка FontAwesome (стрелка вниз) -->
+                <!-- При сворачивании JavaScript изменит её на fa-chevron-right -->
+                <i class="fas fa-chevron-down"></i>
+            </button>
+
+        </div>
+    </div>
+    
+    <!-- Форма создания нового просчёта (скрыта по умолчанию) -->
+    <div id="create-proschet-form-container" style="display: none;">
+        <div class="simple-form">
+            <h3>Создание нового просчёта</h3>
+            <form id="create-proschet-form" method="post" action="{% url 'calculator:create_proschet' %}">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="id_title">
+                        Название просчёта *
+                        <span class="small-text">(Обязательное поле)</span>
+                    </label>
+                    <input type="text" 
+                        id="id_title" 
+                        name="title" 
+                        class="form-input" 
+                        placeholder="Введите название просчёта"
+                        required
+                        minlength="3"
+                        maxlength="200">
+                    <div class="form-help">
+                        Краткое описание заказа, например: "Визитки 1000 шт"
+                    </div>
+                </div>
+                
+                <!-- НОВОЕ ПОЛЕ: Выбор клиента -->
+                <div class="form-group">
+                    <label for="id_client">
+                        Клиент
+                        <span class="small-text">(Опционально)</span>
+                    </label>
+                    <select id="id_client" name="client" class="form-input">
+                        <option value="">-- Выберите клиента --</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.client_number }}: {{ client.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-help">
+                        Выберите клиента из базы данных (можно оставить пустым)
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="cancel-create-btn" class="btn-cancel">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn-submit">
+                        Создать просчёт
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Основное содержимое секции -->
+    <div class="section-body">
+        
+        <!-- НОВЫЙ ЭЛЕМЕНТ: Поле поиска для фильтрации просчётов -->
+        <!-- Показывается только если есть просчёты -->
+        <div id="list-proschet-search-container" class="search-container" 
+             {% if not proschets %}style="display: none;"{% endif %}>
+            <input type="text" 
+                   id="list-proschet-search-input" 
+                   class="search-input"
+                   placeholder="Поиск по номеру, названию или дате..."
+                   title="Введите текст для поиска в просчётах">
+            <span id="list-proschet-search-clear" class="search-clear" title="Очистить поиск">✕</span>
+        </div>
+        
+        <!-- Контейнер для таблицы просчётов с фиксированной высотой для скролла -->
+        <!-- Добавлен класс table-scroll-container для стилизации скролла -->
+        <div id="list-proschet-table-scroll-container" class="proschet-table-container table-scroll-container">
+            
+            <!-- Сообщение, которое показывается когда нет просчётов -->
+            <div id="no-proschets-message" class="empty-state-message" 
+                 {% if proschets %}style="display: none;"{% endif %}>
+                <h3>Просчётов пока нет</h3>
+                <p>Создайте свой первый просчёт, нажав кнопку "Создать"</p>
+            </div>
+            
+            <!-- НОВОЕ СООБЩЕНИЕ: Когда поиск не дал результатов -->
+            <div id="list-proschet-no-results-message" class="empty-state-message" style="display: none;">
+                <h3>Ничего не найдено</h3>
+                <p>Попробуйте изменить поисковый запрос</p>
+            </div>
+            
+            <!-- Таблица для отображения списка просчётов -->
+            <table id="proschet-table" class="simple-table" 
+                   {% if not proschets %}style="display: none;"{% endif %}>
+                
+                <!-- Заголовок таблицы -->
+                <thead>
+                    <tr>
+                        <th>Номер</th>
+                        <th>Название</th>
+                        <th>Дата создания</th>
+                    </tr>
+                </thead>
+                
+                <!-- Тело таблицы с данными -->
+                <tbody id="proschet-table-body">
+                    {% for proschet in proschets %}
+                        <!-- 
+                        Строка таблицы для каждого просчёта
+                        data-proschet-id - уникальный идентификатор просчёта для JavaScript
+                        data-search-text - содержит все текстовые данные строки для быстрого поиска
+                        -->
+                        <tr class="proschet-row" 
+                            data-proschet-id="{{ proschet.id }}"
+                            data-search-text="{{ proschet.number|lower }} {{ proschet.title|lower }} {{ proschet.formatted_created_at|lower }}">
+                            
+                            <!-- Ячейка с номером просчёта -->
+                            <td class="proschet-number">
+                                {{ proschet.number }}
+                            </td>
+                            
+                            <!-- Ячейка с названием просчёта -->
+                            <td class="proschet-title editable-cell" 
+                                data-editable="true"
+                                data-field="title"
+                                data-original-value="{{ proschet.title }}">
+                                {{ proschet.title }}
+                            </td>
+                            
+                            <!-- Ячейка с датой создания -->
+                            <td class="proschet-created">
+                                {{ proschet.formatted_created_at }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+    </div>
+    
+</div>

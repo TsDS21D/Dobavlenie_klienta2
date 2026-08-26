@@ -1,0 +1,61 @@
+<!-- counter/templates/counter/login.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему - {{ title }}</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    
+    <!-- Подключаем внешний CSS файл с общими стилями для аутентификации -->
+    <link rel="stylesheet" href="{% static 'counter/css/auth.css' %}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+                 alt="Типография Буква А"
+                 width="150">
+        </div>
+        
+        <h1>Вход в систему</h1>
+                
+        <!-- Отображение системных сообщений -->
+        <div class="messages">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        
+        <!-- Форма входа -->
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="id_username">Имя пользователя:</label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <div class="errorlist">{{ form.username.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_password">Пароль:</label>
+                {{ form.password }}
+                {% if form.password.errors %}
+                    <div class="errorlist">{{ form.password.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <button type="submit" class="btn">Войти</button>
+        </form>
+        
+    </div>
+</body>
+</html>

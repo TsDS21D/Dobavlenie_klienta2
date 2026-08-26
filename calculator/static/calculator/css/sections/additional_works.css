@@ -1,0 +1,890 @@
+/*
+  ============================================================================
+  Файл: additional_works.css
+  Описание: Стили для секции "Дополнительные работы" и модального окна.
+           Полностью переработанный компактный дизайн в стиле print_components,
+           но с оранжевой цветовой темой.
+           Модальное окно теперь позиционируется внутри секции (а не на весь экран).
+  Назначение: Обеспечить приятный внешний вид секции и модального окна,
+              сделать интерфейс понятным и интерактивным.
+  Комментарии: Каждая строка стилей прокомментирована для новичков.
+  
+  ИЗМЕНЕНИЯ:
+   - Уменьшен шрифт таблицы (0.7rem) и отступы в ячейках для компактности.
+   - Ширина заголовков таблицы оставлена прежней, но общая ширина стала меньше.
+   - Добавлена горизонтальная прокрутка контейнера для очень узких экранов.
+  ============================================================================
+*/
+
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ДОПОЛНИТЕЛЬНЫХ РАБОТ ===== */
+
+/*
+  Контейнер всей секции дополнительных работ
+  - Тонкая серая рамка по всему периметру для четкого выделения
+  - Белый фон для контраста на фоне страницы
+  - Уменьшенные внутренние отступы для компактности
+  - Скругленные углы для мягкого визуального восприятия
+  - Плавные переходы для всех свойств при изменении
+  - position: relative – чтобы абсолютно позиционированные элементы (например, модальное окно)
+    располагались относительно этой секции.
+*/
+.additional-works-section {
+    position: relative;                      /* Добавлено для позиционирования модального окна внутри секции */
+    border: 1px solid #e0e0e0;              /* Тонкая серая рамка */
+    background: white;                      /* Белый фон */
+    padding: 0.6rem;                        /* Внутренние отступы (rem – относительно размера шрифта) */
+    margin-bottom: 0.6rem;                  /* Отступ снизу от следующей секции */
+    border-radius: 6px;                     /* Скругление углов */
+    transition: all 0.15s ease;             /* Плавный переход всех свойств за 0.15 секунды */
+}
+
+/*
+  Эффект при наведении на секцию дополнительных работ
+  - Рамка становится оранжевой (#f39c12)
+  - Появляется лёгкая тень для глубины
+  - Секция слегка поднимается вверх (translateY)
+*/
+.additional-works-section:hover {
+    border-color: #f39c12;                  /* Оранжевая рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);  /* Тень */
+    transform: translateY(-1px);            /* Подъём на 1px */
+    transition: all 0.2s ease;              /* Чуть более длительный переход при наведении */
+}
+
+/* ===== 2. ЗАГОЛОВОК СЕКЦИИ ===== */
+
+/*
+  Контейнер заголовка секции
+  - Flexbox для горизонтального расположения элементов
+  - Распределение пространства между ними (space-between)
+  - Выравнивание по вертикали (center)
+  - Отступ снизу и оранжевая линия-разделитель
+*/
+.additional-works-section-header {
+    display: flex;                          /* Включаем flex-контейнер */
+    justify-content: space-between;         /* Элементы прижимаются к краям */
+    align-items: center;                    /* Вертикальное выравнивание по центру */
+    margin-bottom: 0.6rem;                  /* Отступ снизу до содержимого */
+    padding-bottom: 0.4rem;                 /* Внутренний отступ снизу */
+    border-bottom: 1px solid #f39c12;       /* Оранжевая линия под заголовком */
+}
+
+/*
+  Сам заголовок (тег h2)
+  - Убираем стандартные отступы браузера
+  - Уменьшенный размер шрифта
+  - Тёмно-серый цвет
+  - Flexbox для выравнивания иконки, номера и текста
+*/
+.additional-works-section-header h2 {
+    margin: 0;                              /* Убираем внешние отступы по умолчанию */
+    font-size: 0.9rem;                      /* Размер шрифта 0.9 от базового (обычно 14-16px) */
+    color: #333;                             /* Тёмно-серый цвет */
+    display: flex;                          /* Внутренний flex для элементов заголовка */
+    align-items: center;                    /* Выравнивание по вертикали */
+    gap: 0.3rem;                             /* Расстояние между дочерними элементами */
+}
+
+/*
+  Текст-заполнитель для названия компонента (когда ничего не выбрано)
+  - Светло-серый цвет, чуть меньший размер
+*/
+.additional-works-placeholder-text {
+    color: #888;                             /* Светло-серый */
+    font-size: 0.75rem;                      /* Ещё меньше шрифт */
+}
+
+/*
+  Активное название компонента (когда компонент выбран)
+  - Тёмно-серый цвет, светлый фон, небольшие отступы
+*/
+.additional-works-component-title-active {
+    color: #333;                             /* Тёмно-серый */
+    background-color: #f5f5f5;               /* Светло-серый фон */
+    padding: 0.1rem 0.3rem;                  /* Отступы вокруг текста */
+    border-radius: 2px;                      /* Небольшое скругление */
+}
+
+/* ===== 3. КНОПКИ В ЗАГОЛОВКЕ ===== */
+
+/*
+  Контейнер для кнопок в правой части заголовка
+  - Flexbox, небольшой отступ между кнопками
+*/
+.additional-works-header-buttons {
+    display: flex;                          /* Кнопки в ряд */
+    gap: 0.3rem;                            /* Расстояние между кнопками */
+}
+
+/*
+  Кнопка добавления новой работы
+  - Зелёный фон (в оригинале оранжевый, но по ТЗ используется #0B8661)
+  - Белый текст, без рамки, скругление
+  - Компактные отступы
+*/
+.additional-works-btn-add {
+    background-color: #0B8661;              /* Зелёный цвет (по проекту) */
+    color: white;                            /* Белый текст */
+    border: none;                            /* Без рамки */
+    border-radius: 3px;                      /* Скругление углов */
+    padding: 0.25rem 0.5rem;                 /* Внутренние отступы */
+    font-size: 0.75rem;                       /* Размер шрифта */
+    cursor: pointer;                          /* Указатель при наведении */
+    transition: all 0.12s ease;               /* Плавные переходы */
+    display: flex;                            /* Для выравнивания иконки и текста */
+    align-items: center;                      /* По центру по вертикали */
+    gap: 0.15rem;                              /* Отступ между иконкой и текстом */
+}
+
+/* Эффект при наведении на кнопку добавления */
+.additional-works-btn-add:hover {
+    background-color: #097055;                /* Более тёмный зелёный */
+    transform: translateY(-1px);               /* Лёгкий подъём */
+}
+
+/*
+  Кнопка сворачивания секции (квадратная с иконкой)
+  - Светло-серый фон, серая рамка, миниатюрные размеры
+*/
+.additional-works-btn-collapse-section {
+    background: #f5f5f5;                      /* Светло-серый фон */
+    color: #333;                               /* Тёмно-серый цвет иконки */
+    border: 1px solid #ddd;                    /* Светло-серая рамка */
+    cursor: pointer;                           /* Указатель */
+    user-select: none;                         /* Запрет выделения текста */
+    padding: 0.15rem;                          /* Маленькие отступы */
+    min-width: 18px;                           /* Минимальная ширина */
+    min-height: 18px;                          /* Минимальная высота */
+    justify-content: center;                   /* Центрирование содержимого */
+    flex-shrink: 0;                            /* Запрет сжатия */
+    align-self: center;                        /* Выравнивание по центру по вертикали */
+    transition: all 0.12s ease;                 /* Плавный переход */
+}
+
+/* Эффект при наведении на кнопку сворачивания */
+.additional-works-btn-collapse-section:hover {
+    background: #e0e0e0;                       /* Более тёмный серый фон */
+    border-color: #f39c12;                      /* Оранжевая рамка */
+}
+
+/* Иконка внутри кнопки сворачивания */
+.additional-works-btn-collapse-section i {
+    font-size: 0.75rem;                         /* Размер иконки */
+    color: #555;                                 /* Тёмно-серый цвет */
+    transition: transform 0.15s ease;            /* Плавный поворот при сворачивании */
+}
+
+/* ===== 4. ТЕЛО СЕКЦИИ ===== */
+
+/*
+  Основное тело секции
+  - Небольшие отступы, белый фон, минимальная высота
+*/
+.additional-works-section-body {
+    padding: 0.3rem;                            /* Внутренние отступы */
+    background-color: #ffffff;                  /* Белый фон */
+    min-height: 120px;                          /* Минимальная высота, чтобы секция не схлопывалась */
+    transition: all 0.15s ease;                  /* Плавный переход при сворачивании */
+}
+
+/* ===== 5. СООБЩЕНИЯ О ПУСТОМ СОСТОЯНИИ ===== */
+
+/*
+  Сообщения (пустой компонент или нет работ)
+  - Текст по центру, серый цвет, отступы
+*/
+.additional-works-empty-state-message {
+    text-align: center;                          /* Центрирование содержимого */
+    padding: 1.5rem 0.8rem;                      /* Отступы */
+    color: #7f8c8d;                              /* Серый цвет текста */
+}
+
+/* Иконка в сообщении */
+.additional-works-empty-state-message i {
+    margin-bottom: 0.8rem;                       /* Отступ снизу */
+    color: #bdc3c7;                              /* Светло-серый цвет иконки */
+    font-size: 1.5rem;                            /* Размер иконки */
+}
+
+/* Заголовок сообщения */
+.additional-works-empty-state-message h3 {
+    margin-bottom: 0.5rem;                       /* Отступ снизу */
+    font-weight: 500;                            /* Средняя жирность */
+    font-size: 0.85rem;                           /* Размер шрифта */
+}
+
+/* Текст сообщения */
+.additional-works-empty-state-message p {
+    font-size: 0.75rem;                           /* Размер шрифта */
+    max-width: 250px;                             /* Ограничение ширины для лучшей читаемости */
+    margin: 0 auto;                               /* Центрирование по горизонтали */
+    line-height: 1.4;                              /* Межстрочный интервал */
+}
+
+/* ===== 6. КОНТЕЙНЕР ТАБЛИЦЫ ===== */
+
+/*
+  Контейнер для таблицы (обеспечивает горизонтальную прокрутку при необходимости)
+*/
+.additional-works-table-container {
+    width: 100%;                                   /* Ширина 100% от родителя */
+    overflow-x: auto;                              /* Горизонтальный скролл, если таблица не помещается */
+    margin-top: 0.4rem;                             /* Отступ сверху */
+}
+
+/* ===== 7. ТАБЛИЦА ДОПОЛНИТЕЛЬНЫХ РАБОТ ===== */
+
+/*
+  Основные стили таблицы
+  - Ширина 100%, схлопывание границ, компактный шрифт
+  - Уменьшенный размер шрифта (0.7rem) для компактности
+*/
+.additional-works-simple-table {
+    width: 100%;                                   /* На всю ширину контейнера */
+    border-collapse: collapse;                     /* Убираем двойные границы между ячейками */
+    font-size: 0.7rem;                             /* Уменьшенный размер шрифта (было 0.75rem) */
+    margin-bottom: 0.8rem;                          /* Отступ снизу до блока общей стоимости */
+}
+
+/*
+  Заголовки таблицы
+  - Светло-серый фон, полужирный текст, оранжевая нижняя граница
+  - Уменьшенные отступы для экономии места
+*/
+.additional-works-simple-table th {
+    background-color: #f8f9fa;                     /* Светло-серый фон */
+    font-weight: 600;                              /* Полужирный */
+    color: #333;                                    /* Тёмно-серый цвет текста */
+    padding: 0.4rem 0.3rem;                         /* Уменьшенные отступы (было 0.5rem 0.4rem) */
+    text-align: left;                               /* Выравнивание по левому краю */
+    border-bottom: 1px solid #f39c12;               /* Оранжевая линия снизу */
+    white-space: nowrap;                             /* Запрет переноса текста */
+}
+
+/*
+  Ячейки таблицы
+  - Компактные отступы, серая нижняя граница, вертикальное выравнивание по центру
+*/
+.additional-works-simple-table td {
+    padding: 0.3rem 0.3rem;                         /* Уменьшенные отступы (было 0.4rem 0.4rem) */
+    border-bottom: 1px solid #eee;                  /* Светло-серая граница снизу */
+    vertical-align: middle;                          /* Выравнивание по центру по вертикали */
+}
+
+/* Подсветка строки при наведении */
+.additional-works-simple-table tbody tr:hover {
+    background-color: #f9f9f9;                      /* Очень светлый серый фон */
+}
+
+/* Номер работы – оранжевый, полужирный */
+.additional-works-work-number {
+    font-weight: 600;
+    color: #f39c12;                                  /* Оранжевый цвет */
+    text-align: left;
+}
+
+/* Название работы – с ограничением ширины и многоточием при переполнении */
+.additional-works-work-title {
+    font-weight: 500;
+    max-width: 250px;                                /* Максимальная ширина ячейки */
+    overflow: hidden;                                /* Скрываем выходящий текст */
+    text-overflow: ellipsis;                         /* Добавляем многоточие */
+    white-space: nowrap;                             /* Запрещаем перенос строк */
+    color: #333;
+    text-align: left;
+}
+
+/* Цена – моноширинный шрифт, полужирный, тёмно-синий */
+.additional-works-work-price {
+    text-align: left;
+    font-family: 'Courier New', monospace;           /* Моноширинный для чисел */
+    font-weight: 600;
+    color: #2c3e50;                                  /* Тёмно-синий */
+}
+
+/* Количество – моноширинный, обычный вес */
+.additional-works-work-quantity {
+    text-align: left;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}
+
+/* Общая стоимость работы – зелёный цвет, моноширинный, полужирный */
+.additional-works-work-total-price {
+    text-align: left;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #27ae60;                                  /* Зелёный */
+}
+
+/* ===== 8. КНОПКИ ДЕЙСТВИЙ В ТАБЛИЦЕ ===== */
+
+/* Контейнер для кнопок (удаление) */
+.additional-works-work-actions {
+    text-align: left;
+    display: flex;
+    justify-content: flex-start;                     /* Кнопка слева */
+    align-items: center;
+    height: 100%;
+}
+
+/* Кнопка удаления работы */
+.additional-works-delete-work-btn {
+    width: 20px;                                     /* Маленький размер */
+    height: 20px;
+    border: none;
+    border-radius: 2px;                              /* Скругление */
+    background-color: #f8f9fa;                       /* Светло-серый фон */
+    color: #e74c3c;                                  /* Красный цвет иконки */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.7rem;                               /* Размер иконки */
+    transition: all 0.12s ease;
+    opacity: 0.6;                                     /* Полупрозрачная по умолчанию */
+}
+
+/* Эффект при наведении на кнопку удаления */
+.additional-works-delete-work-btn:hover {
+    background-color: #e74c3c;                       /* Красный фон */
+    color: white;                                     /* Белая иконка */
+    opacity: 1;                                        /* Полная непрозрачность */
+    transform: scale(1.05);                           /* Лёгкое увеличение */
+}
+
+/* Показываем кнопку удаления ярче при наведении на строку */
+.additional-works-simple-table tbody tr:hover .additional-works-delete-work-btn {
+    opacity: 0.8;                                      /* Менее прозрачная */
+}
+
+/* ===== 9. ОБЩАЯ СТОИМОСТЬ РАБОТ ===== */
+
+/*
+  Блок с общей стоимостью дополнительных работ
+  - Flexbox, светлый фон, оранжевая полоска слева
+*/
+.additional-works-total-summary {
+    display: flex;
+    justify-content: space-between;                    /* Метка слева, сумма справа */
+    align-items: center;
+    padding: 0.6rem;                                   /* Отступы внутри блока */
+    background-color: #f8f9fa;                         /* Светло-серый фон */
+    border-radius: 4px;                                 /* Скругление */
+    margin-top: 0.6rem;                                 /* Отступ сверху */
+    border: 1px solid #e9ecef;                          /* Светло-серая рамка */
+    border-left: 3px solid #f39c12;                     /* Оранжевая полоска слева для акцента */
+}
+
+/* Метка общей стоимости */
+.additional-works-total-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Значение общей стоимости */
+.additional-works-total-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #f39c12;                                     /* Оранжевый цвет */
+    font-family: 'Courier New', monospace;              /* Моноширинный */
+}
+
+/* ===== 10. INLINE-РЕДАКТИРОВАНИЕ ===== */
+
+/* Ячейка в режиме редактирования – оранжевая рамка, светлый фон */
+.additional-works-simple-table td.additional-works-editing-cell {
+    background-color: #f8f9fa !important;               /* Светло-серый фон (важно, чтобы перебить другие фоны) */
+    border: 1px solid #f39c12 !important;                /* Оранжевая рамка */
+    border-radius: 3px;
+}
+
+/* Поле ввода при inline-редактировании */
+.additional-works-inline-edit-input {
+    flex: 1;                                             /* Занимает всё доступное пространство */
+    padding: 0.2rem 0.3rem;                              /* Отступы внутри поля */
+    border: 1px solid #ddd;                              /* Светло-серая рамка */
+    border-radius: 2px;
+    font-size: 0.7rem;                                   /* Уменьшенный шрифт */
+    font-family: inherit;                                /* Наследуем шрифт от родителя */
+    box-sizing: border-box;                              /* Учитываем границы и отступы в ширине */
+}
+
+/* Фокус на поле ввода – оранжевая рамка и тень */
+.additional-works-inline-edit-input:focus {
+    outline: none;                                        /* Убираем стандартный outline */
+    border-color: #f39c12;                                /* Оранжевая граница */
+    box-shadow: 0 0 0 1px rgba(243, 156, 18, 0.2);        /* Лёгкая оранжевая тень */
+}
+
+/* Индикатор сохранения (спиннер и текст) */
+.additional-works-inline-edit-saving {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    color: #f39c12;                                       /* Оранжевый цвет */
+    font-size: 0.7rem;                                    /* Уменьшенный шрифт */
+    padding: 0.4rem;
+}
+
+/* Анимация вращения для спиннера */
+@keyframes additional-works-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Применение анимации к спиннеру Font Awesome */
+.fa-spinner.fa-spin {
+    animation: additional-works-spin 0.8s linear infinite;
+}
+
+/* ===== 11. МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ===== */
+
+/*
+  Оверлей (полупрозрачный фон под модальным окном)
+  - Позиционируется абсолютно внутри родительской секции (благодаря position: relative у секции)
+  - Занимает всю область секции
+  - Полупрозрачный чёрный фон
+  - Flexbox для центрирования модального окна
+  - Изначально скрыт (opacity:0, visibility:hidden)
+*/
+.additional-works-modal-overlay {
+    position: absolute;                                   /* Абсолютное позиционирование внутри секции */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);                 /* Полупрозрачный чёрный */
+    display: flex;                                        /* Включаем flex для центрирования */
+    align-items: center;                                  /* По вертикали по центру */
+    justify-content: center;                              /* По горизонтали по центру */
+    z-index: 1000;                                        /* Высокий z-index, чтобы перекрыть содержимое секции */
+    opacity: 0;                                            /* Начальная прозрачность – невидимо */
+    visibility: hidden;                                    /* Скрыто */
+    transition: opacity 0.3s ease, visibility 0.3s ease;   /* Плавное появление */
+}
+
+/* Активное состояние оверлея – показываем */
+.additional-works-modal-overlay.additional-works-active {
+    opacity: 1;                                            /* Полностью видим */
+    visibility: visible;                                   /* Видимый */
+}
+
+/*
+  Само модальное окно (белая карточка)
+  - Белый фон, скругление, тень
+  - Начальное смещение вверх и прозрачность для анимации
+  - Максимальная ширина ограничена, чтобы не выходить за пределы секции
+*/
+.additional-works-modal {
+    background-color: white;                              /* Белый фон */
+    border-radius: 6px;                                    /* Скругление */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);            /* Тень */
+    width: 90%;                                            /* Ширина 90% от родителя (оверлея) */
+    max-width: 400px;                                      /* Но не больше 400px */
+    max-height: 80vh;                                      /* Максимальная высота 80% от окна (но в пределах секции) */
+    overflow-y: auto;                                      /* Если контент не помещается – скролл */
+    transform: translateY(-10px);                          /* Начальное смещение вверх */
+    opacity: 0;                                            /* Начальная прозрачность */
+    transition: transform 0.3s ease, opacity 0.3s ease;    /* Плавное появление */
+}
+
+/* Активное состояние модального окна – без смещения и полностью видимо */
+.additional-works-modal.additional-works-active {
+    transform: translateY(0);                              /* Исходное положение */
+    opacity: 1;                                            /* Полностью видимо */
+}
+
+/* Заголовок модального окна */
+.additional-works-modal-header {
+    display: flex;
+    justify-content: space-between;                        /* Заголовок слева, кнопка закрытия справа */
+    align-items: center;
+    padding: 1rem 1.5rem;                                  /* Отступы внутри заголовка */
+    border-bottom: 1px solid #e0e0e0;                      /* Светлая линия снизу */
+}
+
+/* Заголовок h3 внутри модального окна */
+.additional-works-modal-header h3 {
+    margin: 0;                                              /* Убираем стандартные отступы */
+    font-size: 1.1rem;                                      /* Немного крупнее */
+    color: #333;
+}
+
+/* Кнопка закрытия (крестик) */
+.additional-works-modal-close-btn {
+    background: none;                                       /* Прозрачный фон */
+    border: none;                                           /* Без рамки */
+    font-size: 1.2rem;                                      /* Размер иконки */
+    cursor: pointer;                                        /* Указатель */
+    color: #888;                                            /* Серый цвет */
+    transition: color 0.15s ease;                           /* Плавное изменение цвета */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem;
+}
+
+/* Эффект при наведении на кнопку закрытия */
+.additional-works-modal-close-btn:hover {
+    color: #333;                                            /* Темнеет */
+}
+
+/* Тело модального окна (содержит форму) */
+.additional-works-modal-body {
+    padding: 1.5rem;                                        /* Внутренние отступы */
+}
+
+/* Группа полей формы (label + input/select) */
+.additional-works-form-group {
+    margin-bottom: 1.2rem;                                  /* Отступ снизу между группами */
+}
+
+/* Метка (label) для поля */
+.additional-works-form-group label {
+    display: block;                                         /* Занимает всю ширину */
+    margin-bottom: 0.4rem;                                  /* Отступ снизу до поля */
+    font-weight: 600;                                       /* Полужирный */
+    font-size: 0.9rem;
+    color: #333;
+}
+
+/* Иконка внутри label – небольшой отступ справа */
+.additional-works-form-group label i {
+    margin-right: 0.3rem;
+    color: #f39c12;                                         /* Оранжевый цвет иконок */
+}
+
+/* Поля ввода (текстовые, числовые) */
+.additional-works-modal-input {
+    width: 100%;                                            /* На всю ширину родителя */
+    padding: 0.6rem 0.8rem;                                 /* Внутренние отступы */
+    border: 1px solid #ddd;                                 /* Светло-серая рамка */
+    border-radius: 4px;                                     /* Скругление */
+    font-size: 0.9rem;
+    box-sizing: border-box;                                 /* Чтобы padding не увеличивал ширину */
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Поле ввода в фокусе */
+.additional-works-modal-input:focus {
+    outline: none;                                          /* Убираем стандартный outline */
+    border-color: #f39c12;                                  /* Оранжевая рамка */
+    box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.2);          /* Лёгкая оранжевая тень */
+}
+
+/* Стили для поля select (выпадающий список) */
+.additional-works-modal-select {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: white;                                /* Белый фон */
+    cursor: pointer;
+    box-sizing: border-box;
+    appearance: none;                                       /* Убираем стандартную стрелку браузера */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;                /* Стрелка справа */
+    background-size: 1rem;
+}
+
+/* Фокус на select – тоже оранжевая рамка */
+.additional-works-modal-select:focus {
+    outline: none;
+    border-color: #f39c12;
+    box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.2);
+}
+
+/* Вспомогательный текст под полем */
+.additional-works-form-hint {
+    display: block;                                         /* Перенос на новую строку */
+    margin-top: 0.3rem;                                     /* Отступ сверху */
+    font-size: 0.75rem;                                      /* Мелкий шрифт */
+    color: #888;                                             /* Серый цвет */
+}
+
+/* Подвал формы (кнопки) */
+.additional-works-form-footer {
+    display: flex;
+    justify-content: flex-end;                               /* Кнопки прижаты к правому краю */
+    gap: 0.8rem;                                             /* Расстояние между кнопками */
+    margin-top: 1.5rem;                                      /* Отступ сверху */
+}
+
+/* Кнопка отмены */
+.additional-works-modal-cancel-btn {
+    background-color: #f8f9fa;                               /* Светло-серый фон */
+    color: #333;                                             /* Тёмно-серый текст */
+    border: 1px solid #ddd;                                  /* Светло-серая рамка */
+    border-radius: 4px;
+    padding: 0.6rem 1.2rem;                                  /* Отступы */
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Эффект при наведении на кнопку отмены */
+.additional-works-modal-cancel-btn:hover {
+    background-color: #e9ecef;                               /* Чуть темнее фон */
+    border-color: #ccc;
+}
+
+/* Кнопка отправки (добавить работу) */
+.additional-works-modal-submit-btn {
+    background-color: #0B8661;                               /* Зелёный (как основная кнопка) */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Эффект при наведении */
+.additional-works-modal-submit-btn:hover {
+    background-color: #097055;                               /* Темнее зелёный */
+    transform: translateY(-1px);                             /* Лёгкий подъём */
+}
+
+/* Эффект при нажатии (active) */
+.additional-works-modal-submit-btn:active {
+    transform: translateY(0);                                /* Возвращаем на место */
+}
+
+/* ===== 12. УВЕДОМЛЕНИЯ ===== */
+
+/*
+  Базовые стили уведомлений
+  - Фиксированное положение в правом верхнем углу
+  - Белый фон, тень, скругление
+  - Изначально скрыты за правым краем (transform: translateX(100%))
+*/
+.additional-works-notification {
+    position: fixed;
+    top: 0.8rem;
+    right: 0.8rem;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    min-width: 250px;
+    max-width: 300px;
+    z-index: 9999;
+    transform: translateX(100%);                             /* Скрыто за экраном */
+    opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+}
+
+/* Показываем уведомление */
+.additional-works-notification.additional-works-notification-show {
+    transform: translateX(0);                                /* На месте */
+    opacity: 1;
+}
+
+/* Типы уведомлений (цветная полоска слева) */
+.additional-works-notification-success {
+    border-left: 3px solid #2ecc71;                          /* Зелёная полоска */
+}
+
+.additional-works-notification-error {
+    border-left: 3px solid #e74c3c;                          /* Красная полоска */
+}
+
+.additional-works-notification-warning {
+    border-left: 3px solid #f39c12;                          /* Оранжевая полоска */
+}
+
+.additional-works-notification-info {
+    border-left: 3px solid #3498db;                          /* Синяя полоска */
+}
+
+/* ===== 13. АДАПТИВНЫЕ СТИЛИ ДЛЯ ПЛАНШЕТОВ ===== */
+@media (max-width: 1137px) {
+    .additional-works-section {
+        padding: 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .additional-works-simple-table th,
+    .additional-works-simple-table td {
+        padding: 0.3rem 0.2rem;                              /* Ещё меньше отступы */
+    }
+
+    .additional-works-simple-table {
+        font-size: 0.65rem;                                  /* Ещё меньше шрифт */
+    }
+
+    .additional-works-modal {
+        max-width: 350px;                                    /* Чуть меньше на планшетах */
+    }
+}
+
+/* ===== 14. АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ ===== */
+@media (max-width: 768px) {
+    .additional-works-section {
+        padding: 0.4rem;
+        border-radius: 4px;
+    }
+
+    .additional-works-section-header h2 {
+        font-size: 0.8rem;
+        flex-wrap: wrap;                                     /* Разрешаем перенос элементов */
+        gap: 0.2rem;
+    }
+
+    /* На очень маленьких экранах скрываем дополнительный текст в заголовке */
+    @media (max-width: 480px) {
+        .additional-works-component-title-placeholder {
+            display: none;
+        }
+    }
+
+    .additional-works-table-container {
+        overflow-x: auto;
+    }
+
+    .additional-works-simple-table {
+        font-size: 0.6rem;                                   /* Минимальный шрифт */
+    }
+
+    .additional-works-simple-table th,
+    .additional-works-simple-table td {
+        padding: 0.25rem 0.15rem;                            /* Минимальные отступы */
+        white-space: nowrap;                                 /* Запрещаем перенос в ячейках */
+    }
+
+    /* Блок общей стоимости – вертикальное расположение на мобильных */
+    .additional-works-total-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+
+    .additional-works-total-price {
+        margin-top: 0.2rem;
+    }
+
+    /* Модальное окно почти на всю ширину */
+    .additional-works-modal {
+        width: 95%;
+        max-width: 95%;
+        margin: 0.4rem;
+    }
+}
+
+/* ===== 15. АНИМАЦИЯ ПОЯВЛЕНИЯ СЕКЦИИ ===== */
+@keyframes fadeInAdditionalWorks {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Применяем анимацию к секции при загрузке */
+.additional-works-section {
+    animation: fadeInAdditionalWorks 0.15s ease-out;
+}
+
+/* ===== 16. СТИЛИ ДЛЯ СВЁРНУТОЙ СЕКЦИИ ===== */
+.additional-works-section.collapsed .additional-works-section-body {
+    display: none;                                           /* Скрываем тело */
+    padding: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.additional-works-section.collapsed {
+    border-bottom: none;                                     /* Убираем нижнюю границу */
+}
+
+/* Поворачиваем иконку в кнопке сворачивания */
+.additional-works-section.collapsed .additional-works-btn-collapse-section i {
+    transform: rotate(-90deg);                               /* Поворот на -90° */
+    transform-origin: center;
+}
+
+/* ===== 17. СТИЛИ ДЛЯ ВЫДЕЛЕННОЙ СТРОКИ В ТАБЛИЦЕ ===== */
+.additional-works-simple-table tbody tr.selected {
+    background-color: #e3f2fd !important;                    /* Светло-голубой фон (для контраста) */
+    border-left: 3px solid #1976d2;                          /* Синяя полоска слева */
+    box-shadow: inset 0 0 0 1px rgba(25, 118, 210, 0.2);     /* Внутренняя рамка */
+}
+
+/* Ячейки выделенной строки – оранжевая нижняя граница */
+.additional-works-simple-table tbody tr.selected td {
+    border-bottom-color: #f39c12;                            /* Оранжевая граница снизу */
+}
+
+/* ===== 18. УТИЛИТАРНЫЕ КЛАССЫ ===== */
+.additional-works-hidden {
+    display: none !important;                                /* Полностью скрыть */
+}
+
+.additional-works-visible {
+    display: block !important;                               /* Принудительно показать как блок */
+}
+
+.additional-works-flex {
+    display: flex !important;                                /* Сделать flex-контейнером */
+}
+
+.additional-works-text-center {
+    text-align: center !important;                           /* Центрировать текст */
+}
+
+/* ===== 19. ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ЭЛЕМЕНТОВ ТАБЛИЦЫ ===== */
+.additional-works-selectable-row {
+    cursor: pointer;                                         /* Указатель при наведении */
+    transition: background-color 0.15s ease;
+}
+
+/* Чётные строки */
+.additional-works-even-row {
+    background-color: #fafafa;                               /* Очень светлый серый */
+}
+
+/* Нечётные строки */
+.additional-works-odd-row {
+    background-color: #ffffff;                               /* Белый */
+}
+
+/* При наведении перебиваем базовый фон */
+.additional-works-even-row:hover,
+.additional-works-odd-row:hover {
+    background-color: #f0f7ff !important;                    /* Светло-голубой */
+}
+
+/* Для выбранной строки сохраняем выделение */
+.additional-works-even-row.selected,
+.additional-works-odd-row.selected {
+    background-color: #e3f2fd !important;                    /* Голубой */
+}
+
+/* Ячейки, доступные для редактирования */
+.additional-works-editable-cell {
+    cursor: text;                                            /* Курсор в виде текстового курсора */
+}
+
+/* Подсветка редактируемой ячейки при наведении */
+.additional-works-editable-cell:hover {
+    background-color: #fff9c4;                               /* Светло-жёлтый */
+}

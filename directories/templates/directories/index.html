@@ -1,0 +1,178 @@
+<!-- 
+directories/templates/directories/index.html
+Главная страница приложения "Справочники".
+Содержит карточки для навигации ко всем справочникам системы.
+ДОБАВЛЕНА карточка для "Дополнительные работы" (spravochnik_dopolnitelnyh_rabot).
+-->
+
+<!-- Наследуем базовый шаблон directories/base.html -->
+{% extends "directories/base.html" %}
+
+<!-- Блок заголовка страницы -->
+{% block directories_title %}Справочники - Типография Буква А{% endblock %}
+
+<!-- Блок основного содержимого страницы -->
+{% block directories_content %}
+    <!-- Заголовок страницы с логотипом компании -->
+    <h1>
+        <!-- Логотип типографии "Буква А" -->
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+            alt="Типография &quot;Буква А&quot;" 
+            title="Типография &quot;Буква А&quot;"
+            width="150">
+        <!-- Текст заголовка -->
+        Справочники
+    </h1>
+    
+    <!-- Приветственный текст -->
+    <div class="welcome-text">
+        <p>
+            Добро пожаловать в раздел справочников информационной системы типографии "Буква А". 
+            Здесь собраны все справочные данные для работы с заказами и производством.
+        </p>
+    </div>
+    
+    <!-- Основной контейнер для карточек справочников -->
+    <div class="directories-container">
+        <!-- КАРТОЧКА 1: Форматы листов -->
+        <a href="/sheet_formats/" class="directory-card">
+            <div class="directory-icon">📄</div>
+            <div class="directory-name">Форматы листов</div>
+            <div class="directory-description">
+                Управление форматами печатных листов (SRA3, A4, A3+ и другие). 
+                Добавление, редактирование и удаление форматов бумаги для расчетов.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+        
+        <!-- КАРТОЧКА 2: Устройства -->
+        <a href="/devices/" class="directory-card">
+            <div class="directory-icon">🖨️</div>
+            <div class="directory-name">Устройства</div>
+            <div class="directory-description">
+                Управление оборудованием типографии: принтеры, плоттеры, резаки, 
+                ламинаторы и другое печатное и послепечатное оборудование.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+        
+        <!-- КАРТОЧКА 3: Склад материалов -->
+        <a href="/sklad/" class="directory-card">
+            <div class="directory-icon">📦📋</div>
+            <div class="directory-name">Склад материалов</div>
+            <div class="directory-description">
+                Управление материалами типографии: бумаги, плёнки. 
+                Учёт остатков, цены.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+
+        <!-- КАРТОЧКА 4: Цены на печать -->
+        <a href="/print_price/" class="directory-card">
+            <div class="directory-icon">💰</div>
+            <div class="directory-name">Цены на печать</div>
+            <div class="directory-description">
+                Управление ценами на печать для различных принтеров и тиражей. 
+                Настройка стоимости печати одного листа.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+
+        <!-- КАРТОЧКА 5: База клиентов -->
+        <a href="/baza_klientov/" class="directory-card">
+            <div class="directory-icon">👥</div>
+            <div class="directory-name">База клиентов</div>
+            <div class="directory-description">
+                Управление клиентской базой типографии. Хранение контактных данных, 
+                истории заказов, скидок и банковских реквизитов клиентов.
+            </div>
+            <div class="directory-status">Доступно</div>
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+
+        <!-- ===== КАРТОЧКА 6: Дополнительные работы (НОВАЯ) ===== -->
+        <a href="/spravochnik_dopolnitelnyh_rabot/" class="directory-card">
+            <!-- Иконка инструментов (эмодзи) -->
+            <div class="directory-icon">🔧</div>
+            <!-- Название справочника -->
+            <div class="directory-name">Дополнительные работы</div>
+            <!-- Подробное описание справочника -->
+            <div class="directory-description">
+                Управление справочником дополнительных работ: настройка цен, 
+                формул расчета, коэффициентов и опорных точек для различных 
+                послепечатных операций.
+            </div>
+            <!-- Статус доступности -->
+            <div class="directory-status">Доступно</div>
+            <!-- Подсказка для перехода -->
+            <div class="directory-hint">Нажмите для перехода →</div>
+        </a>
+    </div>
+    
+    <!-- Секция "Скоро появится" - справочники в разработке -->
+    <div class="coming-soon-section">
+        <div class="coming-soon-title">Справочники в разработке:</div>
+        <div class="coming-soon-grid">
+            <div class="coming-soon-item">Услуги и операции</div>
+            <div class="coming-soon-item">Клиенты и заказчики</div>
+            <div class="coming-soon-item">Сотрудники</div>
+        </div>
+    </div>
+{% endblock %}
+
+<!-- Блок дополнительного JavaScript -->
+{% block extra_js %}
+<script>
+// Когда весь DOM загружен, выполняем этот код
+document.addEventListener('DOMContentLoaded', function() {
+    // Логируем в консоль загрузку приложения
+    console.log('📚 Приложение "Справочники" загружено');
+    
+    // Находим все карточки на странице
+    const cards = document.querySelectorAll('.directory-card');
+    
+    // Для каждой карточки добавляем обработчики событий
+    cards.forEach(card => {
+        // При наведении мыши на карточку
+        card.addEventListener('mouseenter', function() {
+            // Поднимаем карточку на 5px вверх для эффекта парения
+            this.style.transform = 'translateY(-5px)';
+        });
+        
+        // Когда мышь уходит с карточки
+        card.addEventListener('mouseleave', function() {
+            // Возвращаем карточку в исходное положение
+            this.style.transform = 'translateY(0)';
+        });
+        
+        // Если карточка отключена (класс 'disabled')
+        if (card.classList.contains('disabled')) {
+            // Добавляем обработчик клика
+            card.addEventListener('click', function(e) {
+                // Предотвращаем стандартное действие ссылки
+                e.preventDefault();
+                // Показываем сообщение пользователю
+                alert('Этот справочник находится в разработке');
+            });
+        }
+    });
+    
+    // Задержка перед началом анимации появления карточек
+    setTimeout(() => {
+        // Для каждой карточки с задержкой
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                // Делаем карточку видимой (убираем opacity: 0)
+                card.style.opacity = '1';
+                // Убираем смещение по вертикали
+                card.style.transform = 'translateY(0)';
+            }, index * 100); // Каждая следующая карточка появляется на 100ms позже
+        });
+    }, 100); // Начальная задержка 100ms
+});
+</script>
+{% endblock %}

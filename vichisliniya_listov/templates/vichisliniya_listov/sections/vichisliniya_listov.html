@@ -1,0 +1,427 @@
+<!--
+    ФАЙЛ: vichisliniya_listov/templates/vichisliniya_listov/sections/vichisliniya_listov.html
+    НАЗНАЧЕНИЕ: Шаблон секции "Вычисления листов" для вставки в калькулятор.
+    
+    ОСНОВНЫЕ БЛОКИ:
+    1. Заголовок секции с кнопкой сворачивания.
+    2. Сообщение о необходимости выбора печатного компонента.
+    3. Контейнер с контентом (показывается, когда компонент выбран):
+       a) Переключатель режимов: "Одностраничное изделие" / "Многостраничное изделие (брошюра)".
+       b) Блок одностраничного режима (параметры изделия, размещение, визуализация).
+       c) Блок многостраничного режима (параметры брошюры, размещение страниц, визуализация).
+       d) ОБЩИЙ БЛОК РЕЗУЛЬТАТОВ (количество листов, формула, расшифровка) – вынесен из одностраничного режима,
+         чтобы отображаться и при одностраничном, и при многостраничном режиме.
+       e) Примечание.
+    
+    ИСПРАВЛЕНИЯ (2026-04-15):
+    - Блок результатов вынесен из #vichisliniya-listov-single-mode и расположен после обоих режимных блоков,
+      но внутри #vichisliniya-listov-container.
+    - Добавлен элемент <p id="multipage-warning"> для предупреждений в многостраничном режиме.
+    - Все ID и классы сохранены для совместимости с JavaScript.
+-->
+
+<!-- Секция "Вычисления листов" – основной контейнер -->
+<section class="calculator-section vichisliniya-listov-section" id="vichisliniya-listov-section">
+    
+    <!-- ЗАГОЛОВОК СЕКЦИИ -->
+    <div class="section-header">
+        <!-- Заголовок h2 с иконкой и номером секции -->
+        <h2>
+            <!-- Иконка калькулятора из FontAwesome -->
+            <i class="fas fa-calculator"></i>
+            <!-- Номер секции (4) -->
+            <span class="section-number">4.</span>
+            <!-- Текст заголовка -->
+            Вычисления листов
+            <!-- Динамическое отображение названия просчёта или компонента -->
+            <span id="vichisliniya-listov-proschet-title" class="proschet-title-placeholder">
+                <span class="placeholder-text">(печатный компонент не выбран)</span>
+            </span>
+        </h2>
+
+        <!-- Кнопки в заголовке (сворачивание) -->
+        <div class="header-buttons">
+            <button type="button" 
+                    class="btn-action btn-collapse-section" 
+                    data-section="vichisliniya-listov-section"
+                    title="Свернуть/развернуть секцию">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ТЕЛО СЕКЦИИ (содержимое) -->
+    <div class="section-body">
+        
+        <!-- СООБЩЕНИЕ, КОГДА НЕ ВЫБРАН ПЕЧАТНЫЙ КОМПОНЕНТ -->
+        <div id="vichisliniya-listov-no-print-component-selected" class="empty-state-message" style="display: block;">
+            <i class="fas fa-print fa-3x"></i>
+            <h3>Выберите печатный компонент</h3>
+            <p>Выберите печатный компонент в секции "Печатные компоненты" для выполнения вычислений листов</p>
+        </div>
+
+        <!-- КОНТЕЙНЕР ДЛЯ КОНТЕНТА ВЫЧИСЛЕНИЙ (показывается, когда компонент выбран) -->
+        <div id="vichisliniya-listov-container" class="vichisliniya-listov-container" style="display: none;">
+            
+            <!-- ========== ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ ========== -->
+            <div class="vichisliniya-listov-mode-switch">
+                <!-- Радиокнопка для одностраничного режима -->
+                <label class="mode-label">
+                    <input type="radio" name="product_mode" value="single" checked> Одностраничное изделие
+                </label>
+                <!-- Радиокнопка для многостраничного режима -->
+                <label class="mode-label">
+                    <input type="radio" name="product_mode" value="multipage"> Многостраничное изделие (брошюра)
+                </label>
+            </div>
+
+            <!-- ========== БЛОК ОДНОСТРАНИЧНОГО РЕЖИМА (ВЕСЬ СУЩЕСТВУЮЩИЙ КОНТЕНТ) ========== -->
+            <div id="vichisliniya-listov-single-mode" class="mode-content">
+                <!-- Информация о печатном компоненте (компактный блок) – заполняется динамически через JS -->
+                <div class="vichisliniya-listov-info"></div>
+
+                <!-- ===== БЛОК ПАРАМЕТРОВ ИЗДЕЛИЯ И РАЗМЕЩЕНИЯ ===== -->
+                <div class="vichisliniya-listov-parameters">
+                    <h3>
+                        <i class="fas fa-ruler"></i>
+                        Параметры изделия и размещения
+                    </h3>
+                    <p class="parameters-description">
+                        Укажите размеры изделия и расстояние между ними на листе (мм):
+                    </p>
+
+                    <!-- Контейнер для полей в одну строку -->
+                    <div class="vichisliniya-listov-form-row">
+                        <!-- Поле: Ширина изделия -->
+                        <div class="vichisliniya-listov-form-group">
+                            <label for="vichisliniya-listov-item-width-input">
+                                <i class="fas fa-arrows-alt-h"></i>
+                                Ширина (мм):
+                            </label>
+                            <div class="input-with-help">
+                                <input 
+                                    type="number" 
+                                    id="vichisliniya-listov-item-width-input" 
+                                    name="vichisliniya_listov_item_width" 
+                                    min="1" 
+                                    max="1000" 
+                                    step="0.1" 
+                                    value="90.0"
+                                    class="vichisliniya-listov-input"
+                                    data-parameter="item_width"
+                                >
+                                <span class="help-icon" title="Ширина одного изделия в миллиметрах (например, 90 для визитки)">
+                                    <i class="fas fa-question-circle"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Поле: Высота изделия -->
+                        <div class="vichisliniya-listov-form-group">
+                            <label for="vichisliniya-listov-item-height-input">
+                                <i class="fas fa-arrows-alt-v"></i>
+                                Высота (мм):
+                            </label>
+                            <div class="input-with-help">
+                                <input 
+                                    type="number" 
+                                    id="vichisliniya-listov-item-height-input" 
+                                    name="vichisliniya_listov_item_height" 
+                                    min="1" 
+                                    max="1000" 
+                                    step="0.1" 
+                                    value="50.0"
+                                    class="vichisliniya-listov-input"
+                                    data-parameter="item_height"
+                                >
+                                <span class="help-icon" title="Высота одного изделия в миллиметрах (например, 50 для визитки)">
+                                    <i class="fas fa-question-circle"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Поле: Расстояние между изделиями (вылеты) -->
+                        <div class="vichisliniya-listov-form-group">
+                            <label for="vichisliniya-listov-vyleta-input">
+                                <i class="fas fa-paper-plane"></i>
+                                Зазор (мм):
+                            </label>
+                            <div class="input-with-help">
+                                <input 
+                                    type="number" 
+                                    id="vichisliniya-listov-vyleta-input" 
+                                    name="vichisliniya_listov_vyleta" 
+                                    min="0" 
+                                    max="100" 
+                                    step="1" 
+                                    value="1"
+                                    class="vichisliniya-listov-input"
+                                    data-parameter="vyleta"
+                                >
+                                <span class="help-icon" title="Расстояние между изделиями на листе в миллиметрах">
+                                    <i class="fas fa-question-circle"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== БЛОК РАЗМЕЩЕНИЯ НА ЛИСТЕ ===== -->
+                <div class="vichisliniya-listov-fitting">
+                    <h3>
+                        <i class="fas fa-object-group"></i>
+                        Размещение изделий на листе
+                    </h3>
+
+                    <!-- Информация о печатной области (динамическая) -->
+                    <div class="fitting-info" id="vichisliniya-listov-printable-info">
+                        <p>Размер листа: <span id="vichisliniya-listov-sheet-dimensions">—</span>, 
+                           поля: <span id="vichisliniya-listov-margin">—</span> мм, 
+                           печатная область: <span id="vichisliniya-listov-printable-dimensions">—</span></p>
+                    </div>
+
+                    <!-- Два варианта размещения (кликабельна вся область) -->
+                    <div class="fitting-options">
+                        <!-- Альбомная ориентация (изделие не повёрнуто) -->
+                        <div class="fitting-option" id="vichisliniya-listov-option-landscape" data-orientation="landscape">
+                            <div class="option-header">
+                                <span class="option-title">Альбомная</span>
+                                <span class="option-count" id="vichisliniya-listov-landscape-count">0</span> шт.
+                            </div>
+                            <div class="option-details">
+                                <span id="vichisliniya-listov-landscape-details">0×0</span>
+                            </div>
+                            <button type="button" class="btn-choose-orientation" data-orientation="landscape">Выбрать</button>
+                        </div>
+
+                        <!-- Портретная ориентация (изделие повёрнуто на 90°) -->
+                        <div class="fitting-option" id="vichisliniya-listov-option-portrait" data-orientation="portrait">
+                            <div class="option-header">
+                                <span class="option-title">Портретная</span>
+                                <span class="option-count" id="vichisliniya-listov-portrait-count">0</span> шт.
+                            </div>
+                            <div class="option-details">
+                                <span id="vichisliniya-listov-portrait-details">0×0</span>
+                            </div>
+                            <button type="button" class="btn-choose-orientation" data-orientation="portrait">Выбрать</button>
+                        </div>
+                    </div>
+
+                    <!-- Выбранный вариант -->
+                    <div class="selected-orientation" id="vichisliniya-listov-selected-orientation-block">
+                        <strong>Выбрано:</strong> 
+                        <span id="vichisliniya-listov-selected-orientation-name">автоматически</span> 
+                        ( <span id="vichisliniya-listov-selected-fit-total">0</span> изделий на листе )
+                    </div>
+
+                    <!-- ВИЗУАЛИЗАЦИЯ: два canvas для лица и оборота -->
+                    <div class="vichisliniya-listov-visualization">
+                        <h4>
+                            Схема размещения на листе 
+                            <span id="vichisliniya-listov-viz-orientation-label">(альбомная)</span>
+                        </h4>
+                        
+                        <!-- Контейнер для двух canvas, расположенных рядом -->
+                        <div class="dual-canvas-container">
+                            <!-- Лицевая сторона -->
+                            <div class="canvas-side">
+                                <div class="canvas-title">Лицевая сторона</div>
+                                <canvas id="vichisliniya-listov-canvas-front" width="400" height="300"></canvas>
+                            </div>
+                            <!-- Оборотная сторона -->
+                            <div class="canvas-side">
+                                <div class="canvas-title">Оборотная сторона</div>
+                                <canvas id="vichisliniya-listov-canvas-back" width="400" height="300"></canvas>
+                            </div>
+                        </div>
+                        <p class="canvas-note">
+                            * Схематичное отображение. Масштаб может не соблюдаться.<br>
+                            <strong>Примечание:</strong> при односторонней печати оборотная сторона показана только контурами.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- ========== КОНЕЦ БЛОКА ОДНОСТРАНИЧНОГО РЕЖИМА ========== -->
+
+            <!-- ========== НОВЫЙ БЛОК: МНОГОСТРАНИЧНЫЙ РЕЖИМ ========== -->
+            <div id="vichisliniya-listov-multipage-mode" class="mode-content" style="display: none;">
+                <div class="multipage-params">
+                    <h3><i class="fas fa-book"></i> Параметры брошюры</h3>
+                    
+                    <!-- Первая строка: способ скрепления и общее количество страниц -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Способ скрепления:</label>
+                            <select id="multipage-binding-select" class="form-control">
+                                <option value="">-- выберите --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Количество страниц:</label>
+                            <input type="number" id="multipage-total-pages" min="1" step="1" value="4">
+                        </div>
+                        <div class="form-group">
+                            <label>Ориентация брошюры:</label>
+                            <select id="multipage-booklet-orientation" class="form-control">
+                                <option value="portrait">Вертикальная (портретная)</option>
+                                <option value="landscape">Горизонтальная (альбомная)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Вторая строка: размер страницы и зазор -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ширина страницы (мм):</label>
+                            <input type="number" id="multipage-item-width" step="0.1" value="210">
+                        </div>
+                        <div class="form-group">
+                            <label>Высота страницы (мм):</label>
+                            <input type="number" id="multipage-item-height" step="0.1" value="297">
+                        </div>
+                        <div class="form-group">
+                            <label>Зазор между страницами (мм):</label>
+                            <input type="number" id="multipage-vyleta" step="1" value="1">
+                        </div>
+                    </div>
+
+                    <!-- ===== БЛОК РАЗМЕЩЕНИЯ (как в одностраничном) ===== -->
+                    <div class="multipage-fitting">
+                        <h3><i class="fas fa-object-group"></i> Размещение страниц на листе</h3>
+                        
+                        <!-- Информация о печатной области -->
+                        <div class="fitting-info" id="multipage-printable-info">
+                            <p>Размер листа: <span id="multipage-sheet-dimensions">—</span>, 
+                            поля: <span id="multipage-margin">—</span> мм, 
+                            печатная область: <span id="multipage-printable-dimensions">—</span></p>
+                        </div>
+
+                        <!-- Два варианта размещения (кликабельные) -->
+                        <div class="fitting-options" id="multipage-fitting-options">
+                            <!-- Альбомная ориентация -->
+                            <div class="fitting-option" id="multipage-option-landscape" data-orientation="landscape">
+                                <div class="option-header">
+                                    <span class="option-title">Альбомная</span>
+                                    <span class="option-count" id="multipage-landscape-count">0</span> шт.
+                                </div>
+                                <div class="option-details">
+                                    <span id="multipage-landscape-details">0×0</span>
+                                </div>
+                                <button type="button" class="btn-choose-orientation" data-orientation="landscape">Выбрать</button>
+                            </div>
+
+                            <!-- Портретная ориентация -->
+                            <div class="fitting-option" id="multipage-option-portrait" data-orientation="portrait">
+                                <div class="option-header">
+                                    <span class="option-title">Портретная</span>
+                                    <span class="option-count" id="multipage-portrait-count">0</span> шт.
+                                </div>
+                                <div class="option-details">
+                                    <span id="multipage-portrait-details">0×0</span>
+                                </div>
+                                <button type="button" class="btn-choose-orientation" data-orientation="portrait">Выбрать</button>
+                            </div>
+                        </div>
+
+                        <!-- Выбранная ориентация -->
+                        <div class="selected-orientation" id="multipage-selected-orientation-block">
+                            <strong>Выбрано:</strong> 
+                            <span id="multipage-selected-orientation-name">автоматически</span> 
+                            ( <span id="multipage-selected-fit-total">0</span> страниц на листе )
+                        </div>
+
+                        <!-- Визуализация для многостраничного режима -->
+                        <div class="multipage-visualization">
+                            <h4>Схема размещения страниц на листе</h4>
+                            <div class="dual-canvas-container">
+                                <div class="canvas-side">
+                                    <div class="canvas-title">Лицевая сторона</div>
+                                    <canvas id="multipage-canvas-front" width="400" height="300"></canvas>
+                                </div>
+                                <div class="canvas-side">
+                                    <div class="canvas-title">Оборотная сторона</div>
+                                    <canvas id="multipage-canvas-back" width="400" height="300"></canvas>
+                                </div>
+                            </div>
+                            <p class="canvas-note">
+                                * Схематичное отображение. Масштаб может не соблюдаться.<br>
+                                <strong>Примечание:</strong> при односторонней печати оборотная сторона показана только контурами.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Блок для предупреждений (например, о некратности страниц) -->
+                    <p id="multipage-warning" class="warning" style="display:none;"></p>
+
+                    <!-- Скрытый блок, который ранее использовался для вывода "Количество печатных листов:" –
+                         теперь результат выводится в общем блоке, поэтому этот блок скрыт или удалён -->
+                    <div class="multipage-results" style="display: none;"></div>
+                </div>
+            </div>
+            <!-- ========== КОНЕЦ БЛОКА МНОГОСТРАНИЧНОГО РЕЖИМА ========== -->
+
+            <!-- ========== ОБЩИЙ БЛОК РЕЗУЛЬТАТОВ (ВИДЕН ВСЕГДА) ========== -->
+            <!-- Раньше этот блок находился внутри одностраничного режима. Теперь он вынесен сюда,
+                 чтобы отображаться и при одностраничном, и при многостраничном режиме. -->
+            <div class="vichisliniya-listov-results">
+                <h3><i class="fas fa-chart-bar"></i> Результаты вычислений</h3>
+                <div class="vichisliniya-listov-result-card">
+                    <div class="result-header">
+                        <h4>Количество листов</h4>
+                        <span class="result-badge" id="vichisliniya-listov-result-badge">ожидает расчёта</span>
+                    </div>
+                    <div class="result-content">
+                        <div class="result-value-container">
+                            <span class="result-value" id="vichisliniya-listov-result-value">0.00</span>
+                            <span class="result-unit">листов</span>
+                        </div>
+                        <div class="result-details">
+                            <div class="result-formula">
+                                <span class="formula-label">Формула расчёта:</span>
+                                <span class="formula-text" id="vichisliniya-listov-formula-text">
+                                    (тираж / количество полос) + вылеты
+                                </span>
+                            </div>
+                            <div class="result-breakdown">
+                                <span class="breakdown-label">Расшифровка:</span>
+                                <ul class="breakdown-list" id="vichisliniya-listov-breakdown-list">
+                                    <li>Тираж: <span id="vichisliniya-listov-breakdown-circulation">0</span> шт.</li>
+                                    <li>Зазор: <span id="vichisliniya-listov-breakdown-vyleta">1</span> мм</li>
+                                    <li>Количество полос: <span id="vichisliniya-listov-breakdown-polosa-count">1</span></li>
+                                    <li>Цветность: <span id="vichisliniya-listov-breakdown-color">4+0</span></li>
+                                    <li>Изделий на листе: <span id="vichisliniya-listov-breakdown-fit-total">0</span></li>
+                                    <li>Количество резов: <span id="vichisliniya-listov-breakdown-cuts-count">0</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-footer">
+                        <span class="result-timestamp" id="vichisliniya-listov-result-timestamp">
+                            <i class="fas fa-clock"></i> Последний расчёт: не выполнялся
+                        </span>
+                    </div>
+                </div>
+                <!-- Блок с сохранёнными данными (показывается при наличии) -->
+                <div class="vichisliniya-listov-saved-data" id="vichisliniya-listov-saved-data-container" style="display: none;"></div>
+            </div>
+            <!-- ========== КОНЕЦ ОБЩЕГО БЛОКА РЕЗУЛЬТАТОВ ========== -->
+
+            <!-- Примечание -->
+            <div class="vichisliniya-listov-note">
+                <i class="fas fa-info-circle"></i>
+                <p>
+                    <strong>Важно:</strong> Поле "Зазор" – расстояние между изделиями на листе.
+                    При изменении размеров или зазора автоматически пересчитывается оптимальное размещение.
+                    Кликните по любому месту блока ориентации, чтобы выбрать её.
+                    Количество резов рассчитывается автоматически.
+                </p>
+            </div>
+        </div>
+        <!-- КОНЕЦ КОНТЕЙНЕРА vichisliniya-listov-container -->
+    </div>
+    <!-- КОНЕЦ ТЕЛА СЕКЦИИ -->
+</section>
+<!-- КОНЕЦ СЕКЦИИ -->
+
+<!-- Мета-тег для CSRF-токена (используется в AJAX-запросах) -->
+<meta name="csrf-token" content="{{ csrf_token }}">

@@ -1,0 +1,46 @@
+<!--
+base.html для приложения spravochnik_dopolnitelnyh_rabot
+Независимый базовый шаблон, не наследующий sheet_formats.
+Содержит общую структуру HTML страниц приложения.
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Динамический заголовок страницы -->
+    <title>{% block title %}Справочник дополнительных работ{% endblock %} - Система управления</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Подключаем общий CSS стиль (из sheet_formats, чтобы сохранить единообразие) -->
+    <link rel="stylesheet" href="{% static 'sheet_formats/css/index.css' %}">
+    
+    <!-- Собственные CSS стили для нашего приложения -->
+    <link rel="stylesheet" href="{% static 'spravochnik_dopolnitelnyh_rabot/css/spravochnik_dopolnitelnyh_rabot.css' %}">
+    
+    <!-- Дополнительный блок для CSS -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Включаем панели приложений из counter -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"spravochnik_dopolnitelnyh_rabot" %}
+    
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        <!-- Блок для контента страницы -->
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Собственные скрипты -->
+    <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/spravochnik_dopolnitelnyh_rabot.js' %}"></script>
+    <script src="{% static 'spravochnik_dopolnitelnyh_rabot/js/spravochnik_dopolnitelnyh_rabot_inline_edit.js' %}"></script>
+    
+    <!-- Дополнительный блок для JavaScript -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

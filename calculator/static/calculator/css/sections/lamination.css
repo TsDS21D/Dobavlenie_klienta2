@@ -1,0 +1,195 @@
+/*
+calculator/static/calculator/css/sections/lamination.css
+Стили для секции "Ламинация"
+*/
+
+/* Основной контейнер секции */
+.lamination-section {
+    border: 1px solid #e0e0e0;
+    background: white;
+    padding: 0.6rem;
+    margin-bottom: 0.6rem;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+/* Эффект при наведении */
+.lamination-section:hover {
+    border-color: #9b59b6;  /* фиолетовый оттенок для ламинации */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Заголовок секции */
+.lamination-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #9b59b6;
+}
+
+.lamination-section .section-header h2 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Заглушка названия компонента */
+.lamination-component-title-placeholder {
+    margin-left: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: #555;
+}
+.lamination-component-title-active {
+    color: #333;
+    background-color: #f5f5f5;
+    padding: 0.1rem 0.3rem;
+    border-radius: 2px;
+}
+
+/* Переключатель (тумблер) */
+.lamination-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+.lamination-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+.lamination-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.2s;
+    border-radius: 24px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+}
+input:checked + .slider {
+    background-color: #0B8661;
+}
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+.lamination-toggle-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+}
+.lamination-toggle-label.active {
+    color: #0B8661;
+}
+
+/* Форма выбора ламинатора и плёнки */
+.lamination-form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.lamination-form-row .form-group {
+    flex: 1;
+}
+.lamination-form-row label {
+    font-size: 0.75rem;
+    margin-bottom: 0.2rem;
+    display: block;
+}
+.lamination-form-row select {
+    width: 100%;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+/* Блок с ценами */
+.lamination-price-block {
+    background: #fef9e7;
+    border-left: 3px solid #f39c12;
+    padding: 0.6rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+.price-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+.price-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+}
+.price-item.total {
+    grid-column: span 2;
+    border-top: 1px dashed #ccc;
+    padding-top: 0.3rem;
+    margin-top: 0.2rem;
+    font-weight: 700;
+}
+.price-label {
+    color: #555;
+}
+.price-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #2c3e50;
+}
+.total-price {
+    color: #e67e22;
+    font-size: 0.9rem;
+}
+.lamination-note {
+    font-size: 0.7rem;
+    color: #777;
+    margin-top: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .lamination-form-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .price-details-grid {
+        grid-template-columns: 1fr;
+    }
+    .price-item.total {
+        grid-column: span 1;
+    }
+}

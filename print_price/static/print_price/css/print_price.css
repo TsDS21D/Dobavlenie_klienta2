@@ -1,0 +1,588 @@
+/*
+print_price.css - Стили для приложения справочника цен на печать
+Обновлено для поддержки себестоимости и наценки.
+*/
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.two-column-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(350px, 2fr);
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+}
+
+.left-column {
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.right-column {
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    min-width: 0;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.printers-container {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    padding: 0.4rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    overflow-x: hidden;
+}
+
+.printers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.printer-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.8rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.printer-item:hover {
+    background: #f5f9ff;
+    border-color: #0B8661;
+    transform: translateX(2px);
+}
+
+.printer-item.selected {
+    background: #e8f5e9;
+    border-color: #0B8661;
+    border-left: 3px solid #0B8661;
+}
+
+.printer-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.printer-name {
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.printer-name i {
+    color: #0B8661;
+}
+
+.printer-details {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.printer-stats .price-count {
+    background: #0B8661;
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.form-section {
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid #e0e0e0;
+}
+
+.form-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 0.8rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+    color: #555;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #0B8661;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-submit {
+    padding: 0.6rem 1.2rem;
+    background: #0B8661;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease;
+}
+
+.btn-submit:hover {
+    background: #097055;
+}
+
+.btn-clear {
+    padding: 0.6rem 1.2rem;
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+    background: #e0e0e0;
+}
+
+.prices-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 0.8rem;
+}
+
+.prices-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.prices-table {
+    flex: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.prices-table .table-body {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.prices-table .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr;
+    background: #f8f9fa;
+    padding: 0.8rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.prices-table .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr;
+    padding: 0.8rem;
+    border-bottom: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.prices-table .table-row:hover {
+    background: #f8f9fa;
+}
+
+.prices-table .table-row.editing {
+    background: #fffde7 !important;
+    border-left: 3px solid #ffc107;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.col-copies, .col-cost, .col-markup, .col-price, .col-total-price, .col-actions {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    min-width: 0;
+}
+
+.copies-badge, .cost-badge, .markup-badge {
+    display: inline-block;
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    min-width: 80px;
+    text-align: center;
+}
+.copies-badge { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+.cost-badge { background: #fff3e0; color: #ef6c00; border-color: #ffcc80; }
+.markup-badge { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.price-per-sheet-badge { background: #e0f2fe; color: #0284c7; border-radius: 12px; padding: 0.3rem 0.6rem; font-size: 0.85rem; font-weight: 600; }
+.total-price-badge { background: #f3e5f5; color: #7b1fa2; border-radius: 12px; padding: 0.3rem 0.6rem; font-size: 0.85rem; font-weight: 600; }
+
+.inline-edit-input {
+    display: none;
+    width: 100px;
+    max-width: 120px;
+    padding: 0.3rem 0.5rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+    border-color: #097055;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.2);
+}
+
+.arbitrary-calc-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.arbitrary-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+.arbitrary-form-row .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+#calculate-arbitrary-price {
+    height: 38px;
+    margin-top: 1.7rem;
+    white-space: nowrap;
+}
+.arbitrary-result {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.result-header {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.result-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+}
+.result-label {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+}
+.result-value {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+.price-value {
+    color: #0B8661;
+    background: #e8f5e9;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #c8e6c9;
+}
+.table-hint {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+.hint-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+    color: #666;
+}
+.hint-icon {
+    font-size: 1rem;
+}
+.header-buttons {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+.btn-reset-filter {
+    padding: 0.4rem 0.8rem;
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+}
+.btn-reset-filter:hover {
+    background: #f44336;
+    color: white;
+    transform: scale(1.05);
+}
+.btn-add-price {
+    padding: 0.4rem 0.8rem;
+    background: #0B8661;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+.btn-add-price:hover {
+    background: #097055;
+}
+.btn-delete {
+    padding: 0.3rem 0.6rem;
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+.btn-delete:hover {
+    background: #f44336;
+    color: white;
+}
+.empty-message {
+    text-align: center;
+    color: #999;
+    padding: 2rem;
+    font-style: italic;
+}
+.empty-message i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+    display: block;
+}
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    z-index: 10000;
+    animation: fadeInOut 5s ease-in-out;
+}
+.notification-success { background-color: #4CAF50; }
+.notification-error { background-color: #F44336; }
+.notification-warning { background-color: #FF9800; }
+.notification-info { background-color: #2196F3; }
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+}
+@media (max-width: 1137px) {
+    .container { padding: 1.2rem; max-width: calc(100% - 1rem); margin: 0 0.5rem; }
+    .two-column-layout { grid-template-columns: minmax(250px, 1fr) minmax(280px, 1.5fr); gap: 1rem; }
+    .left-column, .right-column { padding: 0.8rem; min-height: 450px; }
+    .section-header { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+    .header-buttons { flex-direction: column; width: 100%; gap: 0.4rem; }
+    .btn-reset-filter, .btn-add-price { width: 100%; justify-content: center; text-align: center; }
+    .prices-table .table-header, .prices-table .table-row { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 0.8fr; }
+    .inline-edit-input { max-width: 100px; }
+    .arbitrary-form-row { flex-direction: column; gap: 0.8rem; }
+    .arbitrary-form-row .form-group { min-width: 100%; }
+    #calculate-arbitrary-price { margin-top: 0; width: 100%; }
+}
+@media (max-width: 768px) {
+    .two-column-layout { grid-template-columns: 1fr; gap: 1rem; }
+    .container { padding: 0.8rem; margin: 0; border-radius: 10px; }
+    .left-column, .right-column { padding: 0.8rem; min-height: auto; }
+    .prices-table .table-header { display: none; }
+    .prices-table .table-row { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; }
+    .col-copies, .col-cost, .col-markup, .col-price, .col-total-price, .col-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 0.3rem 0;
+    }
+    .col-copies::before { content: "Тираж: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-cost::before { content: "Себестоимость: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-markup::before { content: "Наценка: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-price::before { content: "Цена за лист: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-total-price::before { content: "Общая стоимость: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .col-actions::before { content: "Действия: "; font-weight: 600; color: #555; margin-right: 0.5rem; }
+    .inline-edit-input { max-width: 100%; width: 150px; font-size: 1rem; padding: 0.5rem; }
+    .arbitrary-result .result-item { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+}
+
+/* ========== СТИЛИ ДЛЯ ПЕРЕКЛЮЧАТЕЛЯ ТИПА ПЕЧАТИ ========== */
+.print-type-switch {
+    background: #f9f9f9;
+    padding: 0.8rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.switch-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+.btn-group {
+    display: flex;
+    gap: 0.5rem;
+    background: white;
+    border-radius: 30px;
+    padding: 0.2rem;
+    border: 1px solid #ddd;
+}
+.btn-type {
+    padding: 0.4rem 1.2rem;
+    border-radius: 30px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    color: #666;
+    background: transparent;
+}
+.btn-type.active {
+    background: #0B8661;
+    color: white;
+}
+.btn-type:hover:not(.active) {
+    background: #e8f5e9;
+    color: #0B8661;
+}
+@media (max-width: 768px) {
+    .print-type-switch {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-group {
+        justify-content: center;
+    }
+}

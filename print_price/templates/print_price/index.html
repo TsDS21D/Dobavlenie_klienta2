@@ -1,0 +1,944 @@
+<!--
+    Файл: index.html
+    Приложение: print_price
+    Назначение: Главная страница управления ценами на печать для принтеров.
+    
+    Что делает эта страница:
+    1. Показывает список всех принтеров (левая колонка).
+    2. При выборе принтера – показывает таблицу цен для выбранного типа печати.
+    3. Позволяет добавлять/удалять/редактировать цены (себестоимость + наценка).
+    4. Содержит переключатель между цветной и чёрно-белой печатью.
+    5. Рассчитывает цену для произвольного тиража методом интерполяции.
+    
+    ВЕРСИЯ: Добавлена поддержка типа печати (color / bw).
+    Автор: (указать при необходимости)
+-->
+
+<!-- Расширяем базовый шаблон print_price/base.html.
+     Базовый шаблон содержит общую структуру HTML, подключает CSS и JS. -->
+{% extends "print_price/base.html" %}
+
+<!-- Заголовок страницы, отображается во вкладке браузера. -->
+{% block title %}Справочник цен на печать{% endblock %}
+
+<!-- Основной контент страницы. -->
+{% block content %}
+    <!-- Блок заголовка с логотипом типографии. -->
+    <h1>
+        <!-- Логотип – изображение с внешнего ресурса. width="150" задаёт ширину.
+             alt – альтернативный текст для доступности. title – всплывающая подсказка. -->
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+             width="150" 
+             alt="Типография &quot;Буква А&quot;" 
+             title="Типография &quot;Буква А&quot;">
+        Справочник цен на печать
+    </h1>
+
+    <!-- Скрытый контейнер для сообщений Django (messages framework).
+         Сообщения будут преобразованы JavaScript'ом во всплывающие уведомления. -->
+    <div class="django-messages" style="display: none;">
+        <!-- Если в контексте есть переменная messages (список сообщений) -->
+        {% if messages %}
+            <!-- Перебираем все сообщения. -->
+            {% for message in messages %}
+                <!-- Каждое сообщение помещаем в div с атрибутом data-type (тип сообщения: success, error, warning, info). -->
+                <div class="django-message" data-type="{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Двухколоночная раскладка: левая колонка – список принтеров,
+         правая колонка – цены и управление. -->
+    <div class="two-column-layout">
+
+        <!-- ==================== ЛЕВАЯ КОЛОНКА: СПИСОК ПРИНТЕРОВ ==================== -->
+        <div class="left-column">
+            <!-- Заголовок секции с иконкой и кнопкой перехода к ламинаторам. -->
+            <div class="section-header">
+                <h2><i class="fas fa-print"></i> Принтеры</h2>
+                <!-- Кнопка-ссылка на страницу ламинаторов (другой раздел приложения). -->
+                <a href="/print_price/laminators/" class="btn-action btn-reset-filter" title="Перейти к ламинаторам">
+                    <i class="fas fa-layer-group"></i> Ламинаторы
+                </a>
+            </div>
+            
+            <!-- Контейнер для списка принтеров (с прокруткой, если много). -->
+            <div class="printers-container">
+                <div class="printers-list">
+                    <!-- Перебираем всех принтеров, переданных из view в переменной printers. -->
+                    {% for printer in printers %}
+                        <!-- Ссылка на эту же страницу с параметрами: выбранный принтер и текущий тип печати.
+                             При клике страница перезагрузится с новым printer_id и сохранённым print_type. -->
+                        <a href="?printer_id={{ printer.id }}&print_type={{ current_print_type }}" 
+                           class="printer-item {% if selected_printer and selected_printer.id == printer.id %}selected{% endif %}">
+                            <div class="printer-info">
+                                <div class="printer-name">
+                                    <i class="fas fa-print"></i>
+                                    {{ printer.name }}
+                                </div>
+                                <div class="printer-details">
+                                    <span class="printer-format">
+                                        <i class="fas fa-ruler"></i>
+                                        {{ printer.sheet_format.name }}   <!-- Формат бумаги, связанный с принтером. -->
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- Справа отображаем количество сохранённых цен для этого принтера (фильтр по текущему типу). 
+                                 Здесь используется length, но в реальности нужно фильтровать по типу, поэтому в view передаём отфильтрованные. -->
+                            <div class="printer-stats">
+                                <span class="price-count">{{ printer.print_prices|length }} цен</span>
+                            </div>
+                        </a>
+                    {% empty %}
+                        <!-- Если принтеров нет – выводим сообщение. -->
+                        <div class="empty-message">
+                            <i class="fas fa-print"></i>
+                            Принтеры не найдены. Добавьте принтеры в приложении "Устройства".
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ПРАВАЯ КОЛОНКА: ЦЕНЫ НА ПЕЧАТЬ ==================== -->
+        <div class="right-column">
+            <!-- Заголовок секции цен. -->
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-money-bill-wave"></i> Цены на печать
+                    {% if selected_printer %}
+                        <!-- Если выбран принтер – показываем его название. -->
+                        <span class="selected-printer">
+                            для принтера "<strong>{{ selected_printer.name }}</strong>"
+                        </span>
+                    {% endif %}
+                </h2>
+                <div class="header-buttons">
+                    {% if selected_printer %}
+                        <!-- Кнопка сброса выбора принтера (оставляет только параметр print_type). -->
+                        <a href="/print_price/?print_type={{ current_print_type }}" class="btn-action btn-reset-filter" title="Сбросить выбор принтера">
+                            <i class="fas fa-times-circle"></i> Сбросить
+                        </a>
+                    {% endif %}
+                    <!-- Кнопка показа/скрытия формы добавления цены. -->
+                    <button type="button" class="btn-action btn-add-price" id="add-price-btn">
+                        + Добавить цену
+                    </button>
+                </div>
+            </div>
+
+            <!-- НОВЫЙ БЛОК: ПЕРЕКЛЮЧАТЕЛЬ ТИПА ПЕЧАТИ (цветная / чёрно-белая). -->
+            <div class="print-type-switch">
+                <span class="switch-label">Тип печати:</span>
+                <div class="btn-group" role="group">
+                    <!-- Перебираем все возможные типы печати (color, bw), переданные из view в print_type_choices. -->
+                    {% for type_code, type_name in print_type_choices %}
+                        <!-- Ссылка переключает тип, оставляя выбранный принтер (если есть) и меняя print_type.
+                             Класс active подсвечивает текущий выбранный тип. -->
+                        <a href="?printer_id={{ selected_printer.id|default:'' }}&print_type={{ type_code }}"
+                           class="btn-type {% if current_print_type == type_code %}active{% endif %}">
+                            {{ type_name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Форма добавления новой цены (изначально скрыта). -->
+            <div class="form-section" id="price-form-section" style="display: none;">
+                <h3>Добавить новую цену</h3>
+                <!-- Форма отправляется на URL create_print_price (через AJAX).
+                     method="post" – стандартная отправка, но JavaScript перехватывает и отправляет через fetch. -->
+                <form method="post" action="{% url 'print_price:create_print_price' %}" id="price-form">
+                    {% csrf_token %}  <!-- Токен защиты от CSRF-атак, обязателен для POST-запросов в Django. -->
+
+                    <!-- Поле выбора принтера. -->
+                    <div class="form-group">
+                        <label for="price-printer">Принтер*</label>
+                        <select id="price-printer" name="printer" class="form-control" required>
+                            <option value="">-- Выберите принтер --</option>
+                            <!-- Перебираем всех принтеров для выпадающего списка. -->
+                            {% for printer in printers %}
+                                <!-- Если принтер совпадает с выбранным в данный момент – делаем его selected. -->
+                                <option value="{{ printer.id }}" {% if selected_printer and selected_printer.id == printer.id %}selected{% endif %}>
+                                    {{ printer.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- НОВОЕ ПОЛЕ: выбор типа печати в форме.
+                         Оно предустановлено текущим типом (current_print_type), чтобы добавлять цену именно для выбранного типа. -->
+                    <div class="form-group">
+                        <label for="price-print-type">Тип печати*</label>
+                        <select id="price-print-type" name="print_type" class="form-control" required>
+                            {% for type_code, type_name in print_type_choices %}
+                                <option value="{{ type_code }}" {% if current_print_type == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Три поля в одной строке: тираж, себестоимость, наценка. -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="price-copies">Тираж (шт.)*</label>
+                            <input type="number" id="price-copies" name="copies" class="form-control" min="1" placeholder="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="price-cost">Себестоимость (руб.)*</label>
+                            <input type="number" id="price-cost" name="cost" class="form-control" step="0.01" min="0" placeholder="2.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="price-markup">Наценка (%)*</label>
+                            <input type="number" id="price-markup" name="markup_percent" class="form-control" step="0.01" min="0" placeholder="20.00" required>
+                        </div>
+                    </div>
+
+                    <!-- Блок предпросмотра итоговой цены за лист (обновляется через JS). -->
+                    <div class="total-price-preview" id="total-price-preview" style="display: none;">
+                        <div class="total-price-label">
+                            <i class="fas fa-calculator"></i> Итоговая цена за лист:
+                        </div>
+                        <div class="total-price-value" id="total-price-value"></div>
+                    </div>
+
+                    <!-- Кнопки управления формой. -->
+                    <div class="button-group">
+                        <button type="submit" class="btn-submit">Сохранить цену</button>
+                        <button type="button" class="btn-clear" onclick="clearPriceForm()">Очистить форму</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Контейнер для отображения таблицы цен и расчётов. -->
+            <div class="prices-container">
+                <div class="prices-section">
+                    <!-- Если принтер не выбран – показываем сообщение. -->
+                    {% if not selected_printer %}
+                        <div class="empty-message">
+                            <i class="fas fa-hand-pointer"></i>
+                            Выберите принтер слева для просмотра цен.
+                        </div>
+                    <!-- Если принтер выбран, но для данного типа печати нет цен – сообщение. -->
+                    {% elif not print_prices %}
+                        <div class="empty-message">
+                            <i class="fas fa-money-bill-wave"></i>
+                            Для принтера "{{ selected_printer.name }}" нет сохранённых цен
+                            для типа "{{ current_print_type|yesno:"Цветная,Чёрно-белая" }}".
+                            <br><small>Добавьте первую цену, используя кнопку "Добавить цену".</small>
+                        </div>
+                    {% else %}
+                        <!-- Таблица цен. -->
+                        <div class="prices-table">
+                            <!-- Заголовок таблицы: 6 колонок. -->
+                            <div class="table-header">
+                                <div class="col-copies">Тираж</div>
+                                <div class="col-cost">Себестоимость</div>
+                                <div class="col-markup">Наценка</div>
+                                <div class="col-price">Цена за лист</div>
+                                <div class="col-total-price">Стоимость за тираж</div>
+                                <div class="col-actions">Действия</div>
+                            </div>
+                            <!-- Тело таблицы: перебираем все цены для выбранного принтера и типа печати. -->
+                            <div class="table-body">
+                                {% for price in print_prices %}
+                                    <!-- Каждая строка таблицы имеет data-price-id для идентификации и data-print-type (на всякий случай). -->
+                                    <div class="table-row" data-price-id="{{ price.id }}" data-print-type="{{ price.print_type }}">
+                                        
+                                        <!-- Колонка "Тираж" -->
+                                        <div class="col-copies">
+                                            <!-- Отображаемое значение (span) с классами editable-field – по двойному клику активируется редактирование.
+                                                 data-field – имя поля, data-price-id – ID записи, data-original-value – исходное значение. -->
+                                            <span class="copies-badge editable-field"
+                                                  data-field="copies"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.copies|stringformat:'d' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_copies_display }}
+                                            </span>
+                                            <!-- Скрытое поле ввода для inline-редактирования. -->
+                                            <input type="number"
+                                                   class="inline-edit-input copies-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="copies"
+                                                   value="{{ price.copies|stringformat:'d' }}"
+                                                   min="1" step="1"
+                                                   style="display: none;">
+                                        </div>
+                                        
+                                        <!-- Колонка "Себестоимость" -->
+                                        <div class="col-cost">
+                                            <span class="cost-badge editable-field"
+                                                  data-field="cost"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.cost|stringformat:'f' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_cost_display }}
+                                            </span>
+                                            <input type="number"
+                                                   class="inline-edit-input cost-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="cost"
+                                                   value="{{ price.cost|stringformat:'f' }}"
+                                                   min="0" step="0.01"
+                                                   style="display: none;">
+                                        </div>
+                                        
+                                        <!-- Колонка "Наценка" -->
+                                        <div class="col-markup">
+                                            <span class="markup-badge editable-field"
+                                                  data-field="markup_percent"
+                                                  data-price-id="{{ price.id }}"
+                                                  data-original-value="{{ price.markup_percent|stringformat:'f' }}"
+                                                  title="Двойной клик для редактирования">
+                                                {{ price.get_markup_percent_display }}
+                                            </span>
+                                            <input type="number"
+                                                   class="inline-edit-input markup-input"
+                                                   data-price-id="{{ price.id }}"
+                                                   data-field="markup_percent"
+                                                   value="{{ price.markup_percent|stringformat:'f' }}"
+                                                   min="0" step="0.01"
+                                                   style="display: none;">
+                                        </div>
+                                        
+                                        <!-- Колонка "Цена за лист" (только отображение) -->
+                                        <div class="col-price">
+                                            <span class="price-per-sheet-badge">{{ price.get_price_per_sheet_display }}</span>
+                                        </div>
+                                        
+                                        <!-- Колонка "Общая стоимость за тираж" (только отображение) -->
+                                        <div class="col-total-price">
+                                            <span class="total-price-badge">{{ price.get_total_price_display }}</span>
+                                        </div>
+                                        
+                                        <!-- Колонка "Действия" – кнопка удаления. -->
+                                        <div class="col-actions">
+                                            <button type="button"
+                                                    class="btn-action btn-delete"
+                                                    data-price-id="{{ price.id }}"
+                                                    data-price-copies="{{ price.copies }}">
+                                                Удалить
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Блок расчёта цены для произвольного тиража (интерполяция). -->
+                        <div class="arbitrary-calc-section" id="arbitrary-calc-section">
+                            <div class="section-header">
+                                <h3><i class="fas fa-calculator"></i> Расчёт для произвольного тиража</h3>
+                            </div>
+                            <div class="arbitrary-calc-form">
+                                <div class="arbitrary-form-row">
+                                    <!-- Выбор метода интерполяции (линейная или логарифмическая).
+                                         data-printer-id – ID текущего принтера для сохранения метода. -->
+                                    <div class="form-group">
+                                        <label for="interpolation-method">Метод интерполяции:</label>
+                                        <select id="interpolation-method"
+                                                class="form-control"
+                                                data-printer-id="{{ selected_printer.id }}">
+                                            <option value="linear" {% if selected_printer.devices_interpolation_method == 'linear' %}selected{% endif %}>Линейная</option>
+                                            <option value="logarithmic" {% if selected_printer.devices_interpolation_method == 'logarithmic' %}selected{% endif %}>Логарифмическая</option>
+                                        </select>
+                                        <small class="form-text text-muted">Используется для расчета цены между опорными точками</small>
+                                    </div>
+                                    <!-- Поле ввода произвольного тиража. -->
+                                    <div class="form-group">
+                                        <label for="arbitrary-copies">Произвольный тираж (шт.):</label>
+                                        <input type="number" id="arbitrary-copies" class="form-control" min="1" step="1" placeholder="Введите тираж">
+                                    </div>
+                                    <!-- Кнопка расчёта. -->
+                                    <div class="form-group">
+                                        <label>&nbsp;</label>
+                                        <button type="button" id="calculate-arbitrary-price" class="btn-submit" style="margin-top: 1.7rem;">
+                                            <i class="fas fa-calculator"></i> Рассчитать
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Блок с результатами расчёта (изначально скрыт). -->
+                                <div class="arbitrary-result" id="arbitrary-result" style="display: none;">
+                                    <div class="result-header">
+                                        <h4><i class="fas fa-chart-line"></i> Результат расчета:</h4>
+                                    </div>
+                                    <div class="result-content">
+                                        <div class="result-item">
+                                            <span class="result-label">Метод интерполяции:</span>
+                                            <span class="result-value" id="result-interpolation-method"></span>
+                                        </div>
+                                        <div class="result-item">
+                                            <span class="result-label">Тираж:</span>
+                                            <span class="result-value" id="result-copies"></span>
+                                        </div>
+                                        <div class="result-item">
+                                            <span class="result-label">Себестоимость:</span>
+                                            <span class="result-value" id="result-cost"></span>
+                                        </div>
+                                        <div class="result-item">
+                                            <span class="result-label">Наценка:</span>
+                                            <span class="result-value" id="result-markup"></span>
+                                        </div>
+                                        <div class="result-item">
+                                            <span class="result-label">Цена за лист:</span>
+                                            <span class="result-value price-value" id="result-price-per-sheet"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Подсказки для пользователя. -->
+                        <div class="table-hint">
+                            <div class="hint-item"><span class="hint-icon">✏️</span><span class="hint-text">Двойной клик по тиражу, себестоимости или наценке для редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💾</span><span class="hint-text">Нажмите Enter для сохранения или Esc для отмены редактирования</span></div>
+                            <div class="hint-item"><span class="hint-icon">💰</span><span class="hint-text">Цена за лист = себестоимость + себестоимость × наценка/100</span></div>
+                            <div class="hint-item"><span class="hint-icon">📊</span><span class="hint-text">Используйте блок "Расчёт для произвольного тиража" для интерполяции</span></div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+<!-- Блок для дополнительного JavaScript, который подключается в конце body. -->
+{% block extra_js %}
+<script>
+    // ==================== ОСНОВНОЙ JavaScript ДЛЯ ПРИНТЕРОВ (с учётом типа печати) ====================
+    // Весь код обёрнут в DOMContentLoaded, чтобы гарантировать наличие элементов DOM.
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // ---------- 1. ПОКАЗ/СКРЫТИЕ ФОРМЫ ДОБАВЛЕНИЯ ЦЕНЫ ----------
+        const addPriceBtn = document.getElementById('add-price-btn');
+        const priceFormSection = document.getElementById('price-form-section');
+        if (addPriceBtn && priceFormSection) {
+            addPriceBtn.addEventListener('click', function() {
+                // Если форма скрыта – показываем, иначе – скрываем.
+                if (priceFormSection.style.display === 'none') {
+                    priceFormSection.style.display = 'block';
+                    addPriceBtn.textContent = '− Скрыть форму';
+                } else {
+                    priceFormSection.style.display = 'none';
+                    addPriceBtn.textContent = '+ Добавить цену';
+                }
+            });
+        }
+
+        // ---------- 2. ПРЕДПРОСМОТР ЦЕНЫ ПРИ ВВОДЕ СЕБЕСТОИМОСТИ И НАЦЕНКИ ----------
+        const costInput = document.getElementById('price-cost');
+        const markupInput = document.getElementById('price-markup');
+        const totalPricePreview = document.getElementById('total-price-preview');
+        const totalPriceValue = document.getElementById('total-price-value');
+        
+        // Функция обновления предпросмотра цены.
+        function updateTotalPrice() {
+            const cost = parseFloat(costInput?.value) || 0;
+            const markup = parseFloat(markupInput?.value) || 0;
+            if (cost > 0 && markup >= 0) {
+                const price = cost + (cost * markup / 100);
+                totalPricePreview.style.display = 'block';
+                totalPriceValue.textContent = `${price.toFixed(2)} руб./лист`;
+                // Добавляем подсказку под полем наценки (если ещё нет).
+                let hint = document.getElementById('price-markup-hint');
+                if (!hint) {
+                    hint = document.createElement('div');
+                    hint.id = 'price-markup-hint';
+                    hint.className = 'help-text';
+                    markupInput.parentNode.appendChild(hint);
+                }
+                hint.textContent = `Итоговая цена за лист: ${price.toFixed(2)} руб.`;
+                hint.style.color = '#0B8661';
+                hint.style.fontWeight = '600';
+            } else {
+                totalPricePreview.style.display = 'none';
+                const hint = document.getElementById('price-markup-hint');
+                if (hint) hint.remove();
+            }
+        }
+        // Навешиваем обработчики ввода.
+        if (costInput && markupInput) {
+            costInput.addEventListener('input', updateTotalPrice);
+            markupInput.addEventListener('input', updateTotalPrice);
+            updateTotalPrice(); // Вызываем при загрузке, если поля уже заполнены.
+        }
+
+        // ---------- 3. ОЧИСТКА ФОРМЫ (глобальная функция) ----------
+        window.clearPriceForm = function() {
+            if (costInput) costInput.value = '';
+            if (markupInput) markupInput.value = '';
+            if (totalPricePreview) totalPricePreview.style.display = 'none';
+            const hint = document.getElementById('price-markup-hint');
+            if (hint) hint.remove();
+            showNotification('Форма очищена', 'info');
+        };
+
+        // ---------- 4. AJAX-ОТПРАВКА ФОРМЫ ДОБАВЛЕНИЯ ----------
+        const priceForm = document.getElementById('price-form');
+        if (priceForm) {
+            priceForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Отменяем стандартную отправку.
+                const submitBtn = priceForm.querySelector('.btn-submit');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Сохранение...';
+                submitBtn.disabled = true;
+
+                const formData = new FormData(priceForm); // Собираем данные формы.
+
+                fetch(priceForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' } // Для определения AJAX на сервере.
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Цена успешно добавлена!', 'success');
+                        window.clearPriceForm();
+                        if (priceFormSection) {
+                            priceFormSection.style.display = 'none';
+                            if (addPriceBtn) addPriceBtn.textContent = '+ Добавить цену';
+                        }
+                        // Перезагружаем страницу, чтобы отобразить новую цену.
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        let errorMessage = 'Ошибка при сохранении: ';
+                        if (data.errors) {
+                            for (let field in data.errors) {
+                                errorMessage += data.errors[field].join(', ') + ' ';
+                            }
+                        }
+                        showNotification(errorMessage, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Ошибка при сохранении. Попробуйте еще раз.', 'error');
+                })
+                .finally(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                });
+            });
+        }
+
+        // ---------- 5. УДАЛЕНИЕ ЦЕНЫ (через AJAX) ----------
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const priceId = this.getAttribute('data-price-id');
+                const copies = this.getAttribute('data-price-copies');
+                if (confirm(`Вы уверены, что хотите удалить цену для тиража ${copies} шт.?`)) {
+                    fetch(`/print_price/delete/${priceId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const row = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
+                            if (row) {
+                                row.style.opacity = '0.5';
+                                setTimeout(() => {
+                                    row.remove();
+                                    showNotification('Цена удалена', 'success');
+                                    // Если после удаления не осталось цен – перезагружаем страницу.
+                                    if (document.querySelectorAll('.table-row').length === 0) {
+                                        window.location.reload();
+                                    }
+                                }, 300);
+                            } else {
+                                showNotification('Цена удалена. Обновляем страницу...', 'success');
+                                setTimeout(() => window.location.reload(), 1000);
+                            }
+                        } else {
+                            showNotification('Ошибка при удалении: ' + (data.message || 'неизвестная ошибка'), 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Ошибка при удалении. Попробуйте обновить страницу.', 'error');
+                    });
+                }
+            });
+        });
+
+        // ---------- 6. INLINE-РЕДАКТИРОВАНИЕ (двойной клик, Enter/Esc, потеря фокуса) ----------
+        // Переменная для хранения информации о текущем редактируемом поле.
+        let currentlyEditing = null;
+
+        // Функция включения режима редактирования.
+        function enableEditMode(fieldElement) {
+            if (currentlyEditing) {
+                showNotification('Завершите редактирование текущего поля', 'warning');
+                return;
+            }
+            const fieldName = fieldElement.getAttribute('data-field');
+            const priceId = fieldElement.getAttribute('data-price-id');
+            const originalValue = fieldElement.getAttribute('data-original-value');
+            if (!fieldName || !priceId) return;
+
+            const inputSelector = `.inline-edit-input[data-price-id="${priceId}"][data-field="${fieldName}"]`;
+            const targetInput = document.querySelector(inputSelector);
+            if (!targetInput) {
+                console.error('Input not found');
+                showNotification('Ошибка: поле ввода не найдено', 'error');
+                return;
+            }
+
+            // Подготавливаем значение для поля ввода.
+            let valueForInput = originalValue;
+            if (fieldName === 'cost' || fieldName === 'markup_percent') {
+                valueForInput = originalValue.replace(',', '.');
+            }
+            if (fieldName === 'copies') {
+                valueForInput = parseInt(valueForInput) || 1;
+            }
+            targetInput.value = valueForInput;
+
+            currentlyEditing = {
+                fieldElement: fieldElement,
+                inputElement: targetInput,
+                fieldName: fieldName,
+                priceId: priceId,
+                originalValue: originalValue
+            };
+
+            fieldElement.style.display = 'none';
+            targetInput.style.display = 'inline-block';
+            targetInput.focus();
+            targetInput.select();
+
+            const row = fieldElement.closest('.table-row');
+            if (row) row.classList.add('editing');
+            showNotification('Введите новое значение и нажмите Enter для сохранения', 'info');
+        }
+
+        // Функция отмены редактирования.
+        function cancelEdit() {
+            if (!currentlyEditing) return;
+            const { fieldElement, inputElement } = currentlyEditing;
+            fieldElement.style.display = 'inline-block';
+            inputElement.style.display = 'none';
+            const row = fieldElement.closest('.table-row');
+            if (row) row.classList.remove('editing');
+            currentlyEditing = null;
+        }
+
+        // Функция сохранения изменений.
+        function saveEdit() {
+            if (!currentlyEditing) return;
+            const { fieldElement, inputElement, fieldName, priceId, originalValue } = currentlyEditing;
+            const newValue = inputElement.value.trim();
+
+            if (newValue === originalValue) {
+                cancelEdit();
+                return;
+            }
+
+            // Валидация.
+            if (fieldName === 'copies') {
+                const copies = parseInt(newValue);
+                if (isNaN(copies) || copies < 1) {
+                    showNotification('Тираж должен быть целым числом ≥ 1', 'error');
+                    cancelEdit();
+                    return;
+                }
+            }
+            if (fieldName === 'cost') {
+                const cost = parseFloat(newValue);
+                if (isNaN(cost) || cost < 0) {
+                    showNotification('Себестоимость должна быть ≥ 0', 'error');
+                    cancelEdit();
+                    return;
+                }
+            }
+            if (fieldName === 'markup_percent') {
+                const markup = parseFloat(newValue);
+                if (isNaN(markup) || markup < 0) {
+                    showNotification('Наценка должна быть ≥ 0', 'error');
+                    cancelEdit();
+                    return;
+                }
+            }
+
+            // Отправка AJAX-запроса.
+            const formData = new FormData();
+            formData.append('field_name', fieldName);
+            formData.append('new_value', newValue);
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+            fetch(`/print_price/api/update/${priceId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const priceData = data.print_price;
+                    const row = document.querySelector(`.table-row[data-price-id="${priceId}"]`);
+                    if (row) {
+                        if (fieldName === 'copies') {
+                            const badge = row.querySelector('.copies-badge');
+                            badge.textContent = priceData.copies_display;
+                            badge.setAttribute('data-original-value', priceData.copies);
+                            const input = row.querySelector('.copies-input');
+                            if (input) input.value = priceData.copies;
+                            const deleteBtn = row.querySelector('.btn-delete');
+                            if (deleteBtn) deleteBtn.setAttribute('data-price-copies', priceData.copies);
+                        } else if (fieldName === 'cost') {
+                            const badge = row.querySelector('.cost-badge');
+                            badge.textContent = priceData.cost_display;
+                            badge.setAttribute('data-original-value', priceData.cost);
+                            const input = row.querySelector('.cost-input');
+                            if (input) input.value = priceData.cost;
+                        } else if (fieldName === 'markup_percent') {
+                            const badge = row.querySelector('.markup-badge');
+                            badge.textContent = priceData.markup_percent_display;
+                            badge.setAttribute('data-original-value', priceData.markup_percent);
+                            const input = row.querySelector('.markup-input');
+                            if (input) input.value = priceData.markup_percent;
+                        }
+                        // Обновляем цену за лист и общую стоимость.
+                        const priceBadge = row.querySelector('.price-per-sheet-badge');
+                        if (priceBadge) priceBadge.textContent = priceData.price_per_sheet_display;
+                        const totalBadge = row.querySelector('.total-price-badge');
+                        if (totalBadge) totalBadge.textContent = priceData.total_price_display;
+                    }
+                    cancelEdit();
+                    showNotification('Значение успешно обновлено', 'success');
+                } else {
+                    showNotification(`Ошибка: ${data.error}`, 'error');
+                    cancelEdit();
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showNotification('Ошибка при сохранении', 'error');
+                cancelEdit();
+            });
+        }
+
+        // Обработчики событий для inline-редактирования.
+        document.addEventListener('dblclick', function(e) {
+            const editable = e.target.closest('.editable-field');
+            if (editable) {
+                e.stopPropagation();
+                e.preventDefault();
+                enableEditMode(editable);
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (currentlyEditing) {
+                if (e.key === 'Enter') {
+                    saveEdit();
+                    e.preventDefault();
+                } else if (e.key === 'Escape') {
+                    cancelEdit();
+                    e.preventDefault();
+                }
+            }
+        });
+
+        document.addEventListener('focusout', function(e) {
+            const editing = currentlyEditing;
+            if (editing && editing.inputElement === e.target) {
+                setTimeout(() => {
+                    if (currentlyEditing === editing && editing.inputElement && document.activeElement !== editing.inputElement) {
+                        saveEdit();
+                    }
+                }, 100);
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (currentlyEditing && currentlyEditing.inputElement) {
+                const isInside = currentlyEditing.inputElement.contains(e.target) ||
+                                 currentlyEditing.fieldElement.contains(e.target);
+                if (!isInside) {
+                    saveEdit();
+                }
+            }
+        });
+
+        // ---------- 7. РАСЧЁТ ДЛЯ ПРОИЗВОЛЬНОГО ТИРАЖА (с передачей типа печати) ----------
+        const interpolationMethodSelect = document.getElementById('interpolation-method');
+        const arbitraryCopiesInput = document.getElementById('arbitrary-copies');
+        const calculateBtn = document.getElementById('calculate-arbitrary-price');
+        const resultSection = document.getElementById('arbitrary-result');
+        const resultInterpolationMethod = document.getElementById('result-interpolation-method');
+        const resultCopies = document.getElementById('result-copies');
+        const resultCost = document.getElementById('result-cost');
+        const resultMarkup = document.getElementById('result-markup');
+        const resultPricePerSheet = document.getElementById('result-price-per-sheet');
+
+        // Получаем текущий тип печати из шаблона (переменная current_print_type).
+        let currentPrintType = '{{ current_print_type|escapejs }}';
+
+        // Сохранение метода интерполяции при его изменении.
+        if (interpolationMethodSelect) {
+            interpolationMethodSelect.addEventListener('change', function() {
+                const printerId = this.getAttribute('data-printer-id');
+                const newMethod = this.value;
+                if (!printerId) {
+                    showNotification('Ошибка: не найден ID принтера', 'error');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('interpolation_method', newMethod);
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                fetch(`/print_price/api/update_interpolation_method/${printerId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (resultInterpolationMethod) resultInterpolationMethod.textContent = data.new_method_display;
+                        showNotification(`Метод интерполяции изменен на "${data.new_method_display}"`, 'success');
+                    } else {
+                        const prevMethod = this.getAttribute('data-previous-value') || 'linear';
+                        this.value = prevMethod;
+                        showNotification(`Ошибка: ${data.error || 'неизвестная ошибка'}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    showNotification('Ошибка при сохранении метода интерполяции', 'error');
+                });
+            });
+            interpolationMethodSelect.setAttribute('data-previous-value', interpolationMethodSelect.value);
+        }
+
+        // Расчёт цены для произвольного тиража.
+        if (calculateBtn && arbitraryCopiesInput) {
+            calculateBtn.addEventListener('click', function() {
+                const printerId = interpolationMethodSelect ? interpolationMethodSelect.getAttribute('data-printer-id') : null;
+                if (!printerId) {
+                    showNotification('Ошибка: не найден ID принтера. Выберите принтер слева.', 'error');
+                    return;
+                }
+                const arbitraryCopies = arbitraryCopiesInput.value.trim();
+                if (!arbitraryCopies) {
+                    showNotification('Введите тираж для расчета', 'warning');
+                    arbitraryCopiesInput.focus();
+                    return;
+                }
+                const copiesNumber = parseInt(arbitraryCopies);
+                if (isNaN(copiesNumber) || copiesNumber < 1) {
+                    showNotification('Тираж должен быть положительным числом', 'error');
+                    arbitraryCopiesInput.focus();
+                    return;
+                }
+
+                const originalText = this.textContent;
+                this.textContent = 'Расчет...';
+                this.disabled = true;
+
+                const formData = new FormData();
+                formData.append('arbitrary_copies', arbitraryCopies);
+                formData.append('print_type', currentPrintType);   // Передаём тип печати на сервер.
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+                fetch(`/print_price/api/calculate_arbitrary_price/${printerId}/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (resultInterpolationMethod) resultInterpolationMethod.textContent = data.interpolation_method_display;
+                        if (resultCopies) resultCopies.textContent = `${data.arbitrary_copies} шт.`;
+                        if (resultCost) resultCost.textContent = data.cost_display;
+                        if (resultMarkup) resultMarkup.textContent = data.markup_percent_display;
+                        if (resultPricePerSheet) resultPricePerSheet.textContent = data.calculated_price_display;
+                        if (resultSection) resultSection.style.display = 'block';
+                        showNotification('Расчёт выполнен', 'success');
+                    } else {
+                        if (resultSection) resultSection.style.display = 'none';
+                        showNotification(`Ошибка: ${data.error || 'неизвестная ошибка'}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    showNotification('Ошибка при расчете. Проверьте подключение.', 'error');
+                    if (resultSection) resultSection.style.display = 'none';
+                })
+                .finally(() => {
+                    this.textContent = originalText;
+                    this.disabled = false;
+                });
+            });
+
+            arbitraryCopiesInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    calculateBtn.click();
+                }
+            });
+
+            arbitraryCopiesInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                const numericValue = value.replace(/[^\d]/g, '');
+                if (numericValue !== value) this.value = numericValue;
+                if (numericValue && parseInt(numericValue) < 1) this.value = '1';
+            });
+        }
+
+        // ---------- 8. ПРЕОБРАЗОВАНИЕ СООБЩЕНИЙ DJANGO В УВЕДОМЛЕНИЯ ----------
+        const djangoMessages = document.querySelector('.django-messages');
+        if (djangoMessages) {
+            const messages = djangoMessages.querySelectorAll('.django-message');
+            messages.forEach(message => {
+                const type = message.getAttribute('data-type');
+                const text = message.textContent;
+                if (text.trim()) {
+                    let notificationType = 'info';
+                    if (type === 'error' || type === 'danger') notificationType = 'error';
+                    else if (type === 'warning') notificationType = 'warning';
+                    else if (type === 'success') notificationType = 'success';
+                    showNotification(text, notificationType);
+                }
+            });
+        }
+
+        // ---------- 9. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+        // Функция получения CSRF-токена из cookie.
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Функция отображения всплывающего уведомления.
+        function showNotification(message, type = 'info') {
+            const oldNotifications = document.querySelectorAll('.notification');
+            oldNotifications.forEach(n => n.remove());
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                if (notification.parentNode) notification.parentNode.removeChild(notification);
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

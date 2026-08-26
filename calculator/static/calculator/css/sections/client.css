@@ -1,0 +1,276 @@
+/*
+client.css – стили для компактной секции "Клиент"
+Особенности:
+- Все элементы клиента в одной строке (.client-compact-row)
+- Статус ЭДО имеет два класса: .edo-on (зелёный) и .edo-off (серый)
+- Сохранены эффекты наведения и адаптивность
+*/
+
+/* ===== 1. ОСНОВНЫЕ СТИЛИ СЕКЦИИ ===== */
+#client-section {
+    border: 1px solid #e0e0e0;      /* Тонкая серая рамка */
+    background: white;
+    padding: 0.6rem;
+    margin-bottom: 0.6rem;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+#client-section:hover {
+    border-color: #3498db;           /* Синяя рамка при наведении */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* ===== 2. ЗАГОЛОВОК ===== */
+#client-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #3498db;
+    background: #f8f9fa;
+    min-height: 32px;
+    padding: 0.5rem 0.8rem;
+}
+#client-section .section-header h2 {
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    flex-grow: 1;
+    font-size: 0.9rem;
+}
+#client-section .section-header i {
+    color: #3498db;
+    font-size: 0.85rem;
+}
+
+/* ===== 3. БЕЙДЖ ПРОСЧЁТА ===== */
+#selected-proschet-badge {
+    background-color: #3498db;
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
+}
+
+/* ===== 4. КНОПКИ УПРАВЛЕНИЯ ===== */
+#client-section .header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+#client-section .btn-collapse-section {
+    min-width: 18px;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+#client-section .btn-collapse-section:hover {
+    background: #e0e0e0;
+    border-color: #3498db;
+}
+#client-section .btn-collapse-section:active {
+    background: #d0d0d0;
+}
+#client-section .btn-collapse-section i {
+    font-size: 0.75rem;
+    color: #555;
+    transition: transform 0.15s ease;
+}
+#client-section.collapsed .btn-collapse-section i {
+    transform: rotate(-90deg);
+}
+
+/* ===== 5. ТЕЛО СЕКЦИИ ===== */
+#client-section .section-body {
+    padding: 0.8rem 0.6rem;
+    background-color: #ffffff;
+    min-height: 60px;                /* Уменьшено для компактности */
+    transition: all 0.15s ease;
+}
+
+/* ===== 6. СООБЩЕНИЕ "ВЫБЕРИТЕ ПРОСЧЁТ" ===== */
+#no-proschet-selected {
+    text-align: center;
+    padding: 1.5rem 0.8rem;
+    color: #7f8c8d;
+}
+#no-proschet-selected i {
+    margin-bottom: 0.8rem;
+    color: #bdc3c7;
+    font-size: 1.5rem;
+}
+#no-proschet-selected h3 {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+#no-proschet-selected p {
+    font-size: 0.75rem;
+    max-width: 250px;
+    margin: 0 auto;
+    line-height: 1.4;
+}
+
+/* ===== 7. КОМПАКТНАЯ КАРТОЧКА КЛИЕНТА ===== */
+.current-client-card {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 0.15s ease;
+}
+/* Контейнер одной строки */
+.client-compact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+}
+
+/* Название клиента (редактируемое) */
+.client-name {
+    font-weight: 600;
+    color: #2c3e50;
+    cursor: pointer;
+    padding: 0.1rem 0.2rem;
+    border-radius: 2px;
+    transition: background-color 0.12s;
+    border: 1px solid transparent;
+}
+.client-name:hover {
+    background-color: #e3f2fd;
+    border-color: #bbdefb;
+}
+.client-name.editing {
+    background-color: #fff;
+    border: 1px solid #3498db;
+    box-shadow: 0 0 3px rgba(52,152,219,0.3);
+}
+
+/* Скидка (в скобках) */
+.client-discount {
+    color: #7f8c8d;
+    font-weight: 500;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Статус ЭДО – всегда текст "ЭДО", цвет зависит от класса */
+.client-edo {
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;        /* Заглавные буквы для акцента */
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    background-color: rgba(0,0,0,0.03);
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+/* ЭДО есть – зелёный */
+.client-edo.edo-on {
+    color: #27ae60;
+    background-color: rgba(39, 174, 96, 0.1);
+    border: 1px solid rgba(39, 174, 96, 0.2);
+}
+/* ЭДО нет – бледно-серый */
+.client-edo.edo-off {
+    color: #95a5a6;
+    background-color: rgba(149, 165, 166, 0.1);
+    border: 1px solid rgba(149, 165, 166, 0.2);
+}
+
+/* ===== 8. СТИЛИ ДЛЯ РЕДАКТИРОВАНИЯ ИМЕНИ ===== */
+.client-name-input {
+    padding: 0.1rem 0.3rem;
+    border: 1px solid #3498db;
+    border-radius: 2px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    width: 200px;
+    max-width: 100%;
+}
+.client-name-input:focus {
+    outline: none;
+    border-color: #2980b9;
+    box-shadow: 0 0 2px rgba(52,152,219,0.5);
+}
+.client-loading {
+    color: #3498db;
+    font-style: normal;
+    font-size: 0.8rem;
+}
+.client-loading i {
+    margin-right: 0.3rem;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== 9. АНИМАЦИИ ===== */
+@keyframes fadeInUpClient {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.current-client-card {
+    animation: fadeInUpClient 0.15s ease-out;
+}
+@keyframes fadeInClient {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+#client-section {
+    animation: fadeInClient 0.15s ease-out;
+}
+
+/* ===== 10. СВЁРНУТАЯ СЕКЦИЯ ===== */
+#client-section.collapsed .section-body {
+    display: none;
+    padding: 0;
+    height: 0;
+    overflow: hidden;
+}
+#client-section.collapsed {
+    border-bottom: none;
+}
+
+/* ===== 11. АДАПТИВНОСТЬ ===== */
+@media (max-width: 1137px) {
+    #client-section { padding: 0.5rem; margin-bottom: 0.4rem; }
+    .current-client-card { padding: 0.5rem 0.6rem; }
+    .client-compact-row { gap: 0.5rem; font-size: 0.8rem; }
+    .client-name { font-size: 0.8rem; }
+    .client-discount { font-size: 0.75rem; }
+    .client-edo { font-size: 0.75rem; }
+}
+@media (max-width: 768px) {
+    #client-section .section-header { flex-wrap: wrap; padding: 0.4rem 0.6rem; gap: 0.4rem; }
+    #client-section .section-header h2 { font-size: 0.8rem; }
+    #client-section .section-body { padding: 0.6rem 0.4rem; }
+    .current-client-card { padding: 0.4rem 0.5rem; border-radius: 3px; }
+    .client-compact-row { gap: 0.4rem; font-size: 0.75rem; flex-wrap: wrap; }
+    .client-name { font-size: 0.75rem; }
+    .client-discount { font-size: 0.7rem; }
+    .client-edo { font-size: 0.7rem; padding: 0.05rem 0.2rem; }
+}

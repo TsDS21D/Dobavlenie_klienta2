@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<!-- 
+index.html
+Главный HTML шаблон приложения системы управления заказами типографии.
+Включает базу клиентов, WebSocket обновления и адаптивный дизайн.
+
+ВНЕСЁННЫЕ ИЗМЕНЕНИЯ:
+- Группировка активных заказов по трём статусам (в работе, приняты, готовы).
+- Добавлена кнопка "Далее" для пагинации выполненных заказов.
+- Добавлены подробные комментарии к каждой строке для обучения новичков.
+- [НОВОЕ] Добавлен ID "add-order-section" в блок формы добавления заказа.
+- [НОВОЕ] Добавлена кнопка "+ Добавить" в блок сортировки, которая прокручивает страницу к форме.
+Все существующие элементы и структура сохранены.
+-->
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления заказами типографии</title>
+    
+    <!-- Загружаем статические файлы Django -->
+    {% load static %}
+    <!-- Иконка вкладки браузера -->
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Подключаем внешний CSS файл со стилями главной страницы -->
+    <link rel="stylesheet" href="{% static 'counter/css/index.css' %}">
+</head>
+<body>
+    {% load static %}
+    <!-- Подключаем панели приложений (навигационные панели) через include.
+         Параметр active_app указывает, какое приложение сейчас активно (counter) -->
+    {% include "counter/app_panels.html" with active_app="counter" %}       
+
+    <!-- Основной контейнер страницы — белый блок с контентом -->
+    <div class="container">
+        <!-- Заголовок страницы с логотипом типографии -->
+        <h1>
+            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+                alt="Типография &quot;Буква А&quot;" 
+                title="Типография &quot;Буква А&quot;"
+                width="150">
+            Система управления заказами
+        </h1>
+        
+        <!-- Блок для отображения статуса подключения WebSocket.
+             Изначально класс "disconnected", текст "Подключение..." -->
+        <div id="status" class="status disconnected">Подключение...</div>
+
+        <!-- ===== ДОБАВЛЕН БЛОК УПРАВЛЕНИЯ СИСТЕМОЙ (РЕЗЕРВИРОВАНИЕ / ЭКСПОРТ) ===== -->
+        <div class="backup-controls" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: flex-end;">
+            <!-- Кнопка экспорта заказов в Excel.
+                 Используем класс 'btn-sort' – он уже определён в CSS, имеет приятный серый фон.
+                 При клике вызывается JavaScript-обработчик, который перенаправляет на URL экспорта.
+                 ID 'export-excel-btn' нужен для привязки события. -->
+            <button class="btn-sort" id="export-excel-btn">
+                📥 Экспорт заказов в Excel
+            </button>
+            
+            <!-- Кнопка скачивания резервной копии БД.
+                 При клике переходим по URL /backup/download/. -->
+            <button class="btn-sort" id="backup-download-btn">
+                💾 Скачать резервную копию
+            </button>
+            
+            <!-- Кнопка восстановления из резервной копии.
+                 При клике будет программно вызван клик по скрытому input[type=file] (см. ниже). -->
+            <button class="btn-sort" id="backup-upload-btn">
+                📂 Восстановить из резервной копии
+            </button>
+            
+            <!-- СКРЫТАЯ ФОРМА ДЛЯ ЗАГРУЗКИ ФАЙЛА.
+                 Атрибуты:
+                 - id="backup-upload-form" – для доступа из JavaScript.
+                 - method="POST" – отправка методом POST.
+                 - enctype="multipart/form-data" – обязателен для передачи файлов.
+                 - action="{% url 'backup_upload' %}" – адрес, куда отправляется файл.
+                 - style="display: none;" – форма не видна на странице.
+                 Внутри: csrf_token – обязательный токен защиты Django.
+                 input type="file" с id="backup-file-input" – поле выбора файла.
+                 При выборе файла форма автоматически отправится (обработчик в index.js). -->
+            <form id="backup-upload-form" method="POST" enctype="multipart/form-data" action="{% url 'backup_upload' %}" style="display: none;">
+                {% csrf_token %}
+                <input type="file" id="backup-file-input" name="backup_file" accept=".json,application/json">
+            </form>
+        </div>
+        <!-- ===== КОНЕЦ БЛОКА УПРАВЛЕНИЯ ===== -->
+
+        <!-- Секция с активными заказами (все, кроме "Выдан") -->
+        <div class="orders-section">
+            <h2>Активные заказы</h2>
+            
+            <!-- Кнопки для сортировки активных заказов (по номеру / по дедлайну) 
+                 + [НОВОЕ] Третья кнопка "Добавить" для быстрой прокрутки к форме -->
+            <div class="sort-buttons">
+                <button class="btn-sort" id="sort-by-number">📊 По номеру</button>
+                <button class="btn-sort active" id="sort-by-deadline">⏰ По дедлайну</button>
+                <!-- 
+                     [НОВОЕ] Кнопка "+ Добавить"
+                     - Класс 'btn-sort' даёт ей единое стилевое оформление с кнопками сортировки.
+                     - ID 'scroll-to-add-btn' используется в JavaScript для привязки события прокрутки.
+                     - При клике страница плавно переместится к блоку добавления нового заказа.
+                -->
+                <button class="btn-sort" id="scroll-to-add-btn">+ Добавить</button>
+            </div>
+            
+            <!-- ИЗМЕНЕНО: Вместо одного списка – три группы по статусам -->
+            
+            <!-- 1. Группа "В работе" (статус in_progress) -->
+            <div class="status-group in-progress-group">
+                <h3>🔧 В работе</h3>
+                <!-- Список заказов со статусом "В работе".
+                     Если заказов нет, внутри будет элемент .empty-message -->
+                <ul class="orders-list" id="in-progress-orders-list">
+                    <li class="empty-message">Нет заказов в работе</li>
+                </ul>
+            </div>
+            
+            <!-- 2. Группа "Приняты" (статус accepted) -->
+            <div class="status-group accepted-group">
+                <h3>📥 Приняты</h3>
+                <ul class="orders-list" id="accepted-orders-list">
+                    <li class="empty-message">Нет принятых заказов</li>
+                </ul>
+            </div>
+            
+            <!-- 3. Группа "Готовы к выдаче" (статус ready) -->
+            <div class="status-group ready-group">
+                <h3>✅ Готовы к выдаче</h3>
+                <ul class="orders-list" id="ready-orders-list">
+                    <li class="empty-message">Нет готовых заказов</li>
+                </ul>
+            </div>
+            <!-- КОНЕЦ ИЗМЕНЕНИЙ -->
+        </div>
+
+        <!-- Секция формы для добавления нового заказа -->
+        <!-- [НОВОЕ] Добавлен атрибут id="add-order-section" – он нужен JavaScript для точной прокрутки к этому блоку -->
+        <div class="form-section" id="add-order-section">
+            <h2>Добавить новый заказ</h2>
+            
+            <!-- Поле для выбора клиента из выпадающего списка -->
+            <div class="form-group">
+                <label for="client-select">Клиент:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <!-- Выпадающий список клиентов, заполняется динамически через JS -->
+                    <select id="client-select" class="form-control" style="flex: 1;">
+                        <option value="">-- Загрузка клиентов... --</option>
+                    </select>
+                    <!-- Кнопка для открытия модального окна добавления нового клиента -->
+                    <button type="button" id="add-client-btn" class="btn-edit" style="width: auto; padding: 0.8rem 1.5rem;">
+                        + Добавить клиента
+                    </button>
+                </div>
+                <div class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">
+                    Выберите клиента из базы данных
+                </div>
+            </div>
+
+            <!-- Поле для описания заказа (текстовая область) -->
+            <div class="form-group">
+                <label for="description">Описание заказа:</label>
+                <textarea id="description" placeholder="Опишите что нужно сделать в этом заказе..." required></textarea>
+            </div>
+
+            <!-- Поле для выбора даты и времени готовности заказа -->
+            <div class="form-group">
+                <label for="ready-datetime">Дата и время готовности:</label>
+                <input type="datetime-local" id="ready-datetime" required>
+            </div>
+
+            <!-- Группа кнопок: добавить заказ и очистить форму -->
+            <div class="button-group">
+                <button class="btn-submit" id="submit-btn">Добавить заказ</button>
+                <button type="button" class="btn-clear" id="clear-btn">Очистить</button>
+            </div>
+        </div>
+
+        <!-- Секция с выполненными заказами (статус completed) -->
+        <div class="orders-section completed-orders-section">
+            <h2>Выполненные заказы</h2>
+            
+            <!-- Список выполненных заказов -->
+            <ul class="orders-list" id="completed-orders-list">
+                <li class="empty-message">Нет выполненных заказов</li>
+            </ul>
+            
+            <!-- ДОБАВЛЕНО: Кнопка для подгрузки следующих 10 выполненных заказов -->
+            <div id="load-more-completed-container" style="text-align: center; margin-top: 1rem;">
+                <button id="load-more-completed-btn" class="load-more-btn">⬇️ Далее</button>
+            </div>
+            <!-- КОНЕЦ ДОБАВЛЕНИЯ -->
+        </div>
+    </div>
+
+    <!-- Модальное окно для редактирования заказа -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h2>Редактировать заказ</h2>
+            
+            <div class="form-group">
+                <label for="edit-description">Описание заказа:</label>
+                <textarea id="edit-description" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-ready-datetime">Дата и время готовности:</label>
+                <input type="datetime-local" id="edit-ready-datetime" required>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-modal-save" id="save-edit-btn">💾 Сохранить</button>
+                <button class="btn-modal-cancel" id="cancel-edit-btn">❌ Отменить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления клиента -->
+    <div id="addClientModal" class="modal">
+        <div class="modal-content">
+            <h2>📋 Добавить нового клиента</h2>
+            
+            <div class="form-group">
+                <label for="new-client-name">Название клиента*:</label>
+                <input type="text" id="new-client-name" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-phone">Телефон:</label>
+                <input type="tel" id="new-client-phone" class="form-control" placeholder="+7 (999) 123-45-67">
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-email">Email:</label>
+                <input type="email" id="new-client-email" class="form-control" placeholder="email@example.com">
+            </div>
+            
+            <div class="form-group" style="display: flex; align-items: center; margin: 1rem 0;">
+                <input type="checkbox" id="new-client-edo" style="margin-right: 10px;">
+                <label for="new-client-edo" style="margin: 0;">Работает через ЭДО</label>
+            </div>
+            
+            <div class="form-group">
+                <label for="new-client-notes">Дополнительная информация:</label>
+                <textarea id="new-client-notes" class="form-control" rows="3" placeholder="Дополнительные сведения о клиенте"></textarea>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-modal-save" id="save-client-btn">💾 Сохранить клиента</button>
+                <button class="btn-modal-cancel" id="cancel-client-btn">❌ Отменить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем внешний JavaScript файл с логикой главной страницы -->
+    <script src="{% static 'counter/js/index.js' %}"></script>
+</body>
+</html>
