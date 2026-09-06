@@ -12,6 +12,14 @@
 - Функция calculate_price_for_printer пока не поддерживает print_type (требует доработки в print_price),
   но в данном файле она не используется для расчёта цен компонентов (используется статический метод модели).
 
+ИСПРАВЛЕНИЕ ДЛЯ ЛАМИНАЦИИ (06.09.2026):
+- В функциях get_lamination_data и update_lamination изменён способ получения количества листов:
+  теперь сначала проверяется активный многостраничный режим (VichisliniyaMultipageModel.is_active),
+  и если он активен, используется sheet_count из многостраничной модели.
+  Если многостраничный режим не активен или записи нет, используется одностраничная модель.
+  Это гарантирует, что ламинация всегда использует актуальное количество листов,
+  соответствующее выбранному режиму (одностраничному или многостраничному).
+
 ПОДРОБНЫЕ КОММЕНТАРИИ К КАЖДОЙ СТРОЧКЕ для понимания новичками.
 """
 
@@ -1389,23 +1397,54 @@ def get_spravochnik_works(request):
 
 
 # ============================================================================
-# РАБОТА С ЛАМИНАЦИЕЙ (без изменений для ч/б)
+# РАБОТА С ЛАМИНАЦИЕЙ – ИСПРАВЛЕННАЯ ВЕРСИЯ С УЧЁТОМ МНОГОСТРАНИЧНОГО РЕЖИМА
 # ============================================================================
 
 @login_required
 @require_GET
 def get_lamination_data(request, component_id):
+    """
+    Возвращает данные ламинации для указанного печатного компонента.
+    ИСПРАВЛЕНИЕ: количество листов определяется с учётом активного многостраничного режима.
+    - Если для компонента есть запись VichisliniyaMultipageModel и is_active=True,
+      используется sheet_count из многостраничной модели.
+    - В противном случае используется sheet_count из одностраничной модели VichisliniyaListovModel.
+    - Если ни одной записи нет, sheet_count = 0.
+    """
+    # Получаем печатный компонент или возвращаем 404, если не найден
     component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
+
+    # Получаем или создаём запись ламинации для этого компонента
     lamination, created = Laminate.objects.get_or_create(print_component=component)
+
+    # ===== ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ЛИСТОВ С УЧЁТОМ РЕЖИМА =====
+    sheet_count = Decimal('0.00')
+
+    # 1. Проверяем многостраничный режим
     try:
-        vich_data = VichisliniyaListovModel.objects.get(
-            vichisliniya_listov_print_component=component
-        )
-        sheet_count = vich_data.vichisliniya_listov_list_count
-    except VichisliniyaListovModel.DoesNotExist:
-        sheet_count = Decimal('0.00')
+        multipage = VichisliniyaMultipageModel.objects.get(print_component=component)
+        if multipage.is_active:
+            # Если многостраничный режим активен, используем sheet_count из многостраничной модели
+            sheet_count = multipage.sheet_count
+        else:
+            # Если многостраничный режим есть, но не активен – переключаемся на одностраничный
+            raise VichisliniyaMultipageModel.DoesNotExist
+    except VichisliniyaMultipageModel.DoesNotExist:
+        # 2. Если многостраничной записи нет или она не активна, используем одностраничную модель
+        try:
+            vich_data = VichisliniyaListovModel.objects.get(
+                vichisliniya_listov_print_component=component
+            )
+            sheet_count = vich_data.vichisliniya_listov_list_count
+        except VichisliniyaListovModel.DoesNotExist:
+            # Если и одностраничной записи нет, оставляем 0
+            sheet_count = Decimal('0.00')
+
+    # Пересчитываем стоимость ламинации на основе полученного количества листов
     lamination.recalculate_price(sheet_count)
     lamination.save()
+
+    # Возвращаем данные ламинации в формате JSON
     return JsonResponse({
         'success': True,
         'lamination': lamination.to_dict()
@@ -1415,24 +1454,38 @@ def get_lamination_data(request, component_id):
 @login_required
 @require_POST
 def update_lamination(request):
+    """
+    Обновляет параметры ламинации (включение/выключение, выбор ламинатора, плёнки, стороны).
+    После обновления пересчитывает стоимость, используя актуальное количество листов
+    (с учётом активного многостраничного режима).
+    """
     try:
+        # Парсим JSON из тела запроса
         data = json.loads(request.body)
         component_id = data.get('print_component_id')
         field_name = data.get('field_name')
         field_value = data.get('field_value')
 
+        # Проверяем наличие обязательных полей
         if not component_id or not field_name:
             return JsonResponse({'success': False, 'error': 'Не указаны обязательные поля'}, status=400)
 
+        # Получаем печатный компонент
         component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
+
+        # Получаем или создаём запись ламинации
         lamination, created = Laminate.objects.get_or_create(print_component=component)
 
+        # Обработка изменения поля в зависимости от field_name
         if field_name == 'is_enabled':
+            # Преобразуем значение в булево (поддерживаем строки 'true', '1', 'yes', 'да')
             if isinstance(field_value, str):
                 lamination.is_enabled = field_value.lower() in ('true', '1', 'yes', 'да')
             else:
                 lamination.is_enabled = bool(field_value)
+
         elif field_name == 'laminator':
+            # Устанавливаем выбранный ламинатор (по ID)
             if field_value and field_value != 'null' and field_value != '':
                 try:
                     laminator = Laminator.objects.get(id=field_value)
@@ -1441,7 +1494,9 @@ def update_lamination(request):
                     return JsonResponse({'success': False, 'error': 'Ламинатор не найден'}, status=400)
             else:
                 lamination.laminator = None
+
         elif field_name == 'film':
+            # Устанавливаем выбранную плёнку (по ID)
             if field_value and field_value != 'null' and field_value != '':
                 try:
                     film = Material.objects.get(id=field_value, type='film')
@@ -1450,28 +1505,48 @@ def update_lamination(request):
                     return JsonResponse({'success': False, 'error': 'Плёнка не найдена'}, status=400)
             else:
                 lamination.film = None
+
         elif field_name == 'side':
+            # Устанавливаем сторону ламинации ('single' или 'duplex')
             if field_value not in ['single', 'duplex']:
                 return JsonResponse({'success': False, 'error': 'Некорректное значение стороны'}, status=400)
             lamination.side = field_value
+
         else:
             return JsonResponse({'success': False, 'error': f'Недопустимое поле: {field_name}'}, status=400)
 
-        try:
-            vich_data = VichisliniyaListovModel.objects.get(
-                vichisliniya_listov_print_component=component
-            )
-            sheet_count = vich_data.vichisliniya_listov_list_count
-        except VichisliniyaListovModel.DoesNotExist:
-            sheet_count = Decimal('0.00')
+        # ===== ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ЛИСТОВ С УЧЁТОМ РЕЖИМА =====
+        sheet_count = Decimal('0.00')
 
+        # 1. Проверяем многостраничный режим
+        try:
+            multipage = VichisliniyaMultipageModel.objects.get(print_component=component)
+            if multipage.is_active:
+                sheet_count = multipage.sheet_count
+            else:
+                raise VichisliniyaMultipageModel.DoesNotExist
+        except VichisliniyaMultipageModel.DoesNotExist:
+            # 2. Используем одностраничную модель
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component=component
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                sheet_count = Decimal('0.00')
+
+        # Пересчитываем стоимость ламинации на основе полученного количества листов
         lamination.recalculate_price(sheet_count)
         lamination.save()
 
+        # Возвращаем обновлённые данные ламинации
         return JsonResponse({
             'success': True,
             'lamination': lamination.to_dict()
         })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Неверный формат JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

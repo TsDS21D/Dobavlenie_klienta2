@@ -6,6 +6,9 @@
 
 ИСПРАВЛЕНИЯ:
 - В методе recalculate_price используется film.get_price() вместо film.price.
+- В методе to_dict() количество листов определяется с учётом активного многостраничного режима:
+  сначала проверяется VichisliniyaMultipageModel.is_active, и если активен,
+  используется sheet_count из многостраничной модели, иначе из одностраничной.
 - Добавлены комментарии ко всем строкам.
 """
 
@@ -19,6 +22,9 @@ from sklad.models import Material
 from .models_list_proschet import PrintComponent
 # Импортируем утилиту для интерполяции цен ламинаторов
 from print_price.utils import get_cost_and_markup_for_laminator_and_copies
+# Импортируем модели вычислений листов для определения количества листов
+from vichisliniya_listov.models import VichisliniyaListovModel
+from vichisliniya_listov.multipage_models import VichisliniyaMultipageModel
 
 
 class Laminate(models.Model):
@@ -211,16 +217,32 @@ class Laminate(models.Model):
         self.total_price = total.quantize(Decimal('0.01'))
 
     def to_dict(self):
-        """Преобразует объект в словарь для JSON-ответов (AJAX)."""
-        # Получаем количество листов из связанной записи вычислений листов
-        from vichisliniya_listov.models import VichisliniyaListovModel
+        """
+        Преобразует объект в словарь для JSON-ответов (AJAX).
+        ИСПРАВЛЕНИЕ: количество листов определяется с учётом активного многостраничного режима.
+        """
+        # ===== ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ЛИСТОВ С УЧЁТОМ РЕЖИМА =====
+        sheet_count = Decimal('0.00')
+
+        # 1. Проверяем многостраничный режим
         try:
-            vich_data = VichisliniyaListovModel.objects.get(
-                vichisliniya_listov_print_component=self.print_component
-            )
-            sheet_count = vich_data.vichisliniya_listov_list_count
-        except VichisliniyaListovModel.DoesNotExist:
-            sheet_count = Decimal('0.00')
+            multipage = VichisliniyaMultipageModel.objects.get(print_component=self.print_component)
+            if multipage.is_active:
+                # Если многостраничный режим активен, используем sheet_count из многостраничной модели
+                sheet_count = multipage.sheet_count
+            else:
+                # Если многостраничный режим есть, но не активен – переключаемся на одностраничный
+                raise VichisliniyaMultipageModel.DoesNotExist
+        except VichisliniyaMultipageModel.DoesNotExist:
+            # 2. Если многостраничной записи нет или она не активна, используем одностраничную модель
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component=self.print_component
+                )
+                sheet_count = vich_data.vichisliniya_listov_list_count
+            except VichisliniyaListovModel.DoesNotExist:
+                # Если и одностраничной записи нет, оставляем 0
+                sheet_count = Decimal('0.00')
 
         return {
             'id': self.id,

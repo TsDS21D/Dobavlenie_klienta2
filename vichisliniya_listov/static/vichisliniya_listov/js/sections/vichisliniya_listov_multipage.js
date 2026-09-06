@@ -27,6 +27,11 @@
  * ИСПРАВЛЕНИЕ (2026-08-13): маркеры рисуются после основного цикла страниц,
  * чтобы не затирать цвет заливки страниц. Также маркеры размещены внутри страниц.
  *
+ * ИСПРАВЛЕНИЕ (2026-09-06): добавлен механизм pendingMode для корректного переключения
+ * в многостраничный режим, когда данные ещё не загружены с сервера.
+ * Теперь при первом нажатии на "Многостраничное изделие" переключение дожидается
+ * загрузки данных и затем сохраняется, устраняя проблему с "первым разом".
+ *
  * ПОДРОБНЫЕ КОММЕНТАРИИ К КАЖДОЙ СТРОЧКЕ – для понимания новичками.
  */
 
@@ -114,6 +119,12 @@ var vichisliniyaMultipage = {
 
     // Флаг, что выполняется загрузка данных (предотвращает множественные запросы).
     isLoading: false,
+
+    // ===== НОВОЕ ПОЛЕ: отложенное переключение режима =====
+    // Хранит режим, который пользователь выбрал, но который ещё не был применён,
+    // потому что данные ещё не загружены. После загрузки данных будет выполнено
+    // сохранение с этим режимом.
+    pendingMode: null,
 
     // ------------------------------------------------------------------------
     // 1.2. ИНИЦИАЛИЗАЦИЯ МОДУЛЯ (вызывается при загрузке страницы)
@@ -340,6 +351,8 @@ var vichisliniyaMultipage = {
      * Загружает сохранённые многостраничные данные для текущего компонента.
      * ВАЖНО: после загрузки, если данные существуют, пересчитывает sheet_count
      * с учётом текущего режима печати (это исправление для случая, когда режим изменился).
+     * Также, если есть отложенное переключение (pendingMode === 'multipage'),
+     * выполняет switchModeAndSave('multipage') для применения выбранного режима.
      */
     loadMultipageData: function() {
         // Если ID компонента не задан – выходим.
@@ -407,6 +420,16 @@ var vichisliniyaMultipage = {
                         if (this.currentMode === 'multipage') {
                             this.drawBothSides();
                         }
+                    }
+
+                    // ===== НОВОЕ: обработка отложенного переключения =====
+                    // Если пользователь выбрал многостраничный режим, а данные только что загрузились,
+                    // выполняем переключение с сохранением.
+                    if (this.pendingMode === 'multipage') {
+                        console.log('✅ Выполняем отложенное переключение в multipage');
+                        this.pendingMode = null; // Сбрасываем, чтобы не зациклиться
+                        // Повторно вызываем switchModeAndSave – теперь данные уже загружены
+                        this.switchModeAndSave('multipage');
                     }
                 }
             })
@@ -1134,10 +1157,24 @@ var vichisliniyaMultipage = {
 
         // ===== 2) Рисуем маркеры перфорации (если пружина) =====
         if (isPunched) {
-            const isPortrait = this.bookletOrientation === 'portrait';
-            const numMarks = 3;
+            const isBookletPortrait = (this.bookletOrientation === 'portrait');
+            // Определяем, повёрнуты ли страницы на листе (размещение 'portrait' означает поворот на 90°)
+            const isRotated = (this.currentParams.fit_selected_orientation === 'portrait');
+            // В зависимости от комбинации определяем, с какой стороны рисовать маркеры
+            // Возможные значения: 'left', 'top', 'bottom'
+            let side = 'left';
+            if (isBookletPortrait && !isRotated) {
+                side = 'left';
+            } else if (isBookletPortrait && isRotated) {
+                side = 'top';
+            } else if (!isBookletPortrait && !isRotated) {
+                side = 'bottom';
+            } else { // !isBookletPortrait && isRotated
+                side = 'left';
+            }
+
+            const numMarks = 8;
             const markSize = 3;
-            // Цвет маркеров – тёмно-серый (не влияет на заливку страниц).
             ctx.fillStyle = '#555';
             ctx.strokeStyle = '#555';
             ctx.lineWidth = 0.5;
@@ -1145,17 +1182,15 @@ var vichisliniyaMultipage = {
             for (let pos of pagePositions) {
                 const x = pos.x;
                 const y = pos.y;
-                // Координаты страницы в пикселях.
+                // Координаты страницы в пикселях
                 const left = x * scale;
                 const right = (x + itemW) * scale;
                 const top = y * scale;
                 const bottom = (y + itemH) * scale;
 
-                if (isPortrait) {
-                    // Для портретной брошюры корешок слева. Размещаем маркеры внутри страницы, у левого края.
-                    // Отступ от левого края – 10% ширины страницы (но не менее 2 пикселей).
+                if (side === 'left') {
+                    // Маркеры у левого края, распределены по вертикали
                     const offsetX = Math.max(2, itemW * 0.1) * scale;
-                    // Маркеры равномерно распределены по вертикали, с отступом 10% от краёв.
                     const startY = top + (bottom - top) * 0.1;
                     const endY = bottom - (bottom - top) * 0.1;
                     const step = (endY - startY) / (numMarks + 1);
@@ -1163,8 +1198,18 @@ var vichisliniyaMultipage = {
                         const yPos = startY + i * step;
                         ctx.fillRect(left + offsetX - markSize/2, yPos - markSize/2, markSize, markSize);
                     }
-                } else {
-                    // Для ландшафтной брошюры корешок снизу. Маркеры внутри страницы, у нижнего края.
+                } else if (side === 'top') {
+                    // Маркеры у верхнего края, распределены по горизонтали
+                    const offsetY = Math.max(2, itemH * 0.1) * scale;
+                    const startX = left + (right - left) * 0.1;
+                    const endX = right - (right - left) * 0.1;
+                    const step = (endX - startX) / (numMarks + 1);
+                    for (let i = 1; i <= numMarks; i++) {
+                        const xPos = startX + i * step;
+                        ctx.fillRect(xPos - markSize/2, top + offsetY - markSize/2, markSize, markSize);
+                    }
+                } else if (side === 'bottom') {
+                    // Маркеры у нижнего края, распределены по горизонтали
                     const offsetY = Math.max(2, itemH * 0.1) * scale;
                     const startX = left + (right - left) * 0.1;
                     const endX = right - (right - left) * 0.1;
@@ -1327,7 +1372,7 @@ var vichisliniyaMultipage = {
     },
 
     // ------------------------------------------------------------------------
-    // 1.9. ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ (С СОХРАНЕНИЕМ)
+    // 1.9. ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ (С СОХРАНЕНИЕМ) – ИСПРАВЛЕННАЯ ВЕРСИЯ
     // ------------------------------------------------------------------------
 
     /**
@@ -1360,32 +1405,54 @@ var vichisliniyaMultipage = {
 
     /**
      * Переключает режим и сохраняет выбранный режим на сервере.
+     * ИСПРАВЛЕНИЕ: добавлена логика pendingMode для случаев, когда данные ещё не загружены.
      * @param {string} mode - 'single' или 'multipage'.
      */
     switchModeAndSave: function(mode) {
-        if (mode === this.currentMode) return;
+        if (mode === this.currentMode) {
+            console.log(`ℹ️ Режим уже установлен на ${mode}, ничего не делаем`);
+            return;
+        }
         console.log(`🔄 Переключение режима на ${mode} с сохранением...`);
-        const oldMode = this.currentMode;
-        this.currentMode = mode; // временно для формирования payload.
 
-        // Если переключаемся в многостраничный и нет данных, создаём запись по умолчанию.
+        // Если переключаемся в multipage, но данные ещё не загружены
         if (mode === 'multipage' && !this.multipageData) {
-            this.createDefaultMultipageData()
-                .then(() => this.switchModeAndSave(mode))
-                .catch(err => console.error('Ошибка создания данных по умолчанию:', err));
+            this.pendingMode = 'multipage';
+            if (this.isLoading) {
+                console.log('⏳ Загрузка данных уже идёт, дожидаемся...');
+                return;
+            }
+            console.log('📡 Данные не загружены, загружаем...');
+            this.loadMultipageData();
             return;
         }
 
+        // Сохраняем старый режим (на случай ошибки)
+        const oldMode = this.currentMode;
+
+        // Временно устанавливаем целевой режим для формирования payload
+        this.currentMode = mode;
+
+        // Если переключение в single, сбрасываем отложенное переключение
+        if (mode === 'single') {
+            if (this.pendingMode) {
+                console.log('🔄 Сброс отложенного переключения (пользователь выбрал single)');
+                this.pendingMode = null;
+            }
+        }
+
+        // Сохраняем данные с новым флагом is_active
         this.saveDataPromise()
             .then(() => {
+                // После успешного сохранения переключаем UI
                 this.switchMode(mode);
                 if (mode === 'single') {
-                    // Принудительно загружаем одностраничные данные.
+                    // Принудительно загружаем одностраничные данные
                     if (window.vichisliniyaListov && this.printComponentId) {
                         window.vichisliniyaListov.updateFromPrintComponent({ printComponentId: this.printComponentId });
                     }
                 }
-                // Уведомляем печатные компоненты.
+                // Уведомляем печатные компоненты
                 if (window.printComponentsSection?.updateForProschet) {
                     const proschetId = this.getCurrentProschetIdFromComponent();
                     if (proschetId) {
@@ -1396,6 +1463,7 @@ var vichisliniyaMultipage = {
             })
             .catch(err => {
                 console.error('Ошибка при сохранении режима:', err);
+                // Восстанавливаем старый режим
                 this.currentMode = oldMode;
                 this.showNotification('Не удалось сохранить режим', 'error');
             });
@@ -1455,6 +1523,7 @@ var vichisliniyaMultipage = {
         this.printComponentId = null;
         this.circulation = null;
         this.multipageData = null;
+        this.pendingMode = null; // Сбрасываем отложенное переключение
         this.resetForm();
         this.clearCanvas();
         this.updateGlobalResult(0, 'Нет выбранного компонента');
