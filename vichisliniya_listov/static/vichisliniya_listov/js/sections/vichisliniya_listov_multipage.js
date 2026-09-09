@@ -32,6 +32,16 @@
  * Теперь при первом нажатии на "Многостраничное изделие" переключение дожидается
  * загрузки данных и затем сохраняется, устраняя проблему с "первым разом".
  *
+ * ===== НОВОЕ ИСПРАВЛЕНИЕ (2026-09-10): =====
+ * Устранена бесконечная рекурсия при переключении на многостраничный режим
+ * для нового компонента, у которого ещё нет записи в БД.
+ * - Вместо отложенной загрузки (pendingMode) теперь используется прямое создание
+ *   записи через метод createDefaultMultipageData() при первом переключении.
+ * - Удалён блок обработки pendingMode в loadMultipageData().
+ * - Переменная pendingMode удалена, так как больше не используется.
+ * - В switchModeAndSave() при отсутствии данных сразу вызывается создание записи,
+ *   после чего выполняется переключение UI и пересчёт.
+ *
  * ПОДРОБНЫЕ КОММЕНТАРИИ К КАЖДОЙ СТРОЧКЕ – для понимания новичками.
  */
 
@@ -120,11 +130,8 @@ var vichisliniyaMultipage = {
     // Флаг, что выполняется загрузка данных (предотвращает множественные запросы).
     isLoading: false,
 
-    // ===== НОВОЕ ПОЛЕ: отложенное переключение режима =====
-    // Хранит режим, который пользователь выбрал, но который ещё не был применён,
-    // потому что данные ещё не загружены. После загрузки данных будет выполнено
-    // сохранение с этим режимом.
-    pendingMode: null,
+    // ===== УДАЛЕНО: переменная pendingMode больше не используется =====
+    // (ранее здесь была переменная для отложенного переключения)
 
     // ------------------------------------------------------------------------
     // 1.2. ИНИЦИАЛИЗАЦИЯ МОДУЛЯ (вызывается при загрузке страницы)
@@ -351,8 +358,12 @@ var vichisliniyaMultipage = {
      * Загружает сохранённые многостраничные данные для текущего компонента.
      * ВАЖНО: после загрузки, если данные существуют, пересчитывает sheet_count
      * с учётом текущего режима печати (это исправление для случая, когда режим изменился).
-     * Также, если есть отложенное переключение (pendingMode === 'multipage'),
-     * выполняет switchModeAndSave('multipage') для применения выбранного режима.
+     * 
+     * ===== ИЗМЕНЕНИЕ: удалён блок обработки pendingMode =====
+     * Теперь при отсутствии данных переключение не происходит,
+     * и пользователь остаётся в одностраничном режиме.
+     * Переключение в многостраничный режим для нового компонента
+     * выполняется через createDefaultMultipageData() в switchModeAndSave().
      */
     loadMultipageData: function() {
         // Если ID компонента не задан – выходим.
@@ -421,16 +432,9 @@ var vichisliniyaMultipage = {
                             this.drawBothSides();
                         }
                     }
-
-                    // ===== НОВОЕ: обработка отложенного переключения =====
-                    // Если пользователь выбрал многостраничный режим, а данные только что загрузились,
-                    // выполняем переключение с сохранением.
-                    if (this.pendingMode === 'multipage') {
-                        console.log('✅ Выполняем отложенное переключение в multipage');
-                        this.pendingMode = null; // Сбрасываем, чтобы не зациклиться
-                        // Повторно вызываем switchModeAndSave – теперь данные уже загружены
-                        this.switchModeAndSave('multipage');
-                    }
+                    // ===== УДАЛЕН БЛОК ОБРАБОТКИ pendingMode =====
+                    // (ранее здесь был код, который вызывал повторное переключение,
+                    // приводящее к бесконечному циклу)
                 }
             })
             .catch(err => {
@@ -1405,54 +1409,95 @@ var vichisliniyaMultipage = {
 
     /**
      * Переключает режим и сохраняет выбранный режим на сервере.
-     * ИСПРАВЛЕНИЕ: добавлена логика pendingMode для случаев, когда данные ещё не загружены.
+     *
+     * ===== ИСПРАВЛЕНИЕ (2026-09-10): =====
+     * Устранена бесконечная рекурсия при переключении на многостраничный режим
+     * для нового компонента без записи в БД.
+     *
+     * Раньше при отсутствии multipageData выставлялся pendingMode и вызывалась
+     * загрузка данных, которая после ответа (exists: false) снова вызывала
+     * switchModeAndSave('multipage'), создавая бесконечный цикл.
+     *
+     * Теперь:
+     * - Если переключение в multipage и данных нет, вызывается
+     *   createDefaultMultipageData() – создаёт запись с is_active=true.
+     * - После успешного создания переключается UI, выполняется расчёт и
+     *   синхронизация радиокнопок.
+     * - В случае ошибки возвращается в single-режим.
+     * - Если данные уже есть, используется существующая логика сохранения
+     *   с обновлением флага is_active.
+     *
      * @param {string} mode - 'single' или 'multipage'.
      */
     switchModeAndSave: function(mode) {
+        // Если режим уже установлен – ничего не делаем.
         if (mode === this.currentMode) {
             console.log(`ℹ️ Режим уже установлен на ${mode}, ничего не делаем`);
             return;
         }
         console.log(`🔄 Переключение режима на ${mode} с сохранением...`);
 
-        // Если переключаемся в multipage, но данные ещё не загружены
+        // ===== НОВАЯ ЛОГИКА: если переключаемся в multipage, а данных нет – создаём запись =====
         if (mode === 'multipage' && !this.multipageData) {
-            this.pendingMode = 'multipage';
-            if (this.isLoading) {
-                console.log('⏳ Загрузка данных уже идёт, дожидаемся...');
-                return;
-            }
-            console.log('📡 Данные не загружены, загружаем...');
-            this.loadMultipageData();
-            return;
+            console.log('📡 Данные не загружены, создаём запись...');
+            // Вызываем метод создания записи по умолчанию.
+            this.createDefaultMultipageData()
+                .then(() => {
+                    // После успешного создания данные загружены, переключаем UI.
+                    this.switchMode('multipage');
+                    // Принудительно обновляем параметры и пересчитываем.
+                    this.updateParamsFromForm();
+                    this.calculateFitting();
+                    this.calculateSheetCount();
+                    this.drawBothSides();
+                    // Отправляем событие обновления количества листов.
+                    this.sendListCountUpdate(this.currentSheetCount);
+
+                    // Обновляем другие секции (например, печатные компоненты).
+                    if (window.printComponentsSection?.updateForProschet) {
+                        const proschetId = this.getCurrentProschetIdFromComponent();
+                        if (proschetId) {
+                            const row = document.querySelector('.proschet-row.selected');
+                            setTimeout(() => window.printComponentsSection.updateForProschet(proschetId, row), 500);
+                        }
+                    }
+                    // Синхронизируем радиокнопки (устанавливаем multipage как выбранную).
+                    this.syncingRadio = true;
+                    if (this.elements.radioMultipage) this.elements.radioMultipage.checked = true;
+                    this.syncingRadio = false;
+                    console.log('✅ Многостраничный режим активирован (новая запись создана)');
+                })
+                .catch(err => {
+                    // В случае ошибки показываем уведомление и возвращаемся в single.
+                    console.error('Ошибка при создании записи:', err);
+                    this.showNotification('Не удалось создать многостраничные данные', 'error');
+                    // Восстанавливаем одностраничный режим.
+                    this.switchMode('single');
+                    this.syncingRadio = true;
+                    if (this.elements.radioSingle) this.elements.radioSingle.checked = true;
+                    this.syncingRadio = false;
+                });
+            return; // Выходим, дальнейшее выполнение не нужно.
         }
 
-        // Сохраняем старый режим (на случай ошибки)
+        // ===== Если данные уже есть (или переключение в single) =====
+        // Сохраняем старый режим на случай ошибки.
         const oldMode = this.currentMode;
-
-        // Временно устанавливаем целевой режим для формирования payload
+        // Временно устанавливаем целевой режим для формирования payload.
         this.currentMode = mode;
 
-        // Если переключение в single, сбрасываем отложенное переключение
-        if (mode === 'single') {
-            if (this.pendingMode) {
-                console.log('🔄 Сброс отложенного переключения (пользователь выбрал single)');
-                this.pendingMode = null;
-            }
-        }
-
-        // Сохраняем данные с новым флагом is_active
+        // Выполняем сохранение с новым флагом is_active.
         this.saveDataPromise()
             .then(() => {
-                // После успешного сохранения переключаем UI
+                // После успешного сохранения переключаем UI.
                 this.switchMode(mode);
+                // Если переключились в single, обновляем одностраничные данные.
                 if (mode === 'single') {
-                    // Принудительно загружаем одностраничные данные
                     if (window.vichisliniyaListov && this.printComponentId) {
                         window.vichisliniyaListov.updateFromPrintComponent({ printComponentId: this.printComponentId });
                     }
                 }
-                // Уведомляем печатные компоненты
+                // Обновляем секцию печатных компонентов.
                 if (window.printComponentsSection?.updateForProschet) {
                     const proschetId = this.getCurrentProschetIdFromComponent();
                     if (proschetId) {
@@ -1463,7 +1508,7 @@ var vichisliniyaMultipage = {
             })
             .catch(err => {
                 console.error('Ошибка при сохранении режима:', err);
-                // Восстанавливаем старый режим
+                // Восстанавливаем старый режим.
                 this.currentMode = oldMode;
                 this.showNotification('Не удалось сохранить режим', 'error');
             });
@@ -1490,7 +1535,7 @@ var vichisliniyaMultipage = {
             fit_landscape_total: 0,
             fit_portrait_total: 0,
             color: window.vichisliniyaListov?.currentParameters?.color || '4+0',
-            is_active: true
+            is_active: true  // Важно: сразу активируем многостраничный режим.
         };
         return fetch('/vichisliniya_listov/multipage/save/', {
             method: 'POST',
@@ -1500,14 +1545,17 @@ var vichisliniyaMultipage = {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                // Сохраняем полученные данные (включая расчитанные fit_* и sheet_count).
                 this.multipageData = data.data;
+                // Заполняем форму значениями из ответа.
                 this.populateForm(this.multipageData);
+                // Выполняем пересчёт и отрисовку.
                 this.calculateFitting();
                 this.calculateSheetCount();
                 this.drawBothSides();
                 return data;
             } else {
-                throw new Error(data.message);
+                throw new Error(data.message || 'Ошибка создания записи');
             }
         });
     },
@@ -1523,7 +1571,7 @@ var vichisliniyaMultipage = {
         this.printComponentId = null;
         this.circulation = null;
         this.multipageData = null;
-        this.pendingMode = null; // Сбрасываем отложенное переключение
+        // Удалены ссылки на pendingMode (больше не используется)
         this.resetForm();
         this.clearCanvas();
         this.updateGlobalResult(0, 'Нет выбранного компонента');
