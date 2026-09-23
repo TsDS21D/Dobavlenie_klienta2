@@ -92,6 +92,21 @@ class Proschet(models.Model):
         help_text='Клиент, для которого выполняется просчёт'
     )
 
+    # ===== ССЫЛКА НА ШАБЛОН, ИЗ КОТОРОГО СОЗДАН ПРОСЧЁТ =====
+    # Нужна, чтобы на странице шаблонов понимать, что «Сохранить шаблон»
+    # относится именно к этому шаблону, и чтобы обновлять существующий шаблон,
+    # а не плодить дубликаты.
+    source_template = models.ForeignKey(
+        'shablony_proschetov.ProschetTemplate',
+        verbose_name='Исходный шаблон',
+        on_delete=models.SET_NULL,          # при удалении шаблона просчёт остаётся
+        null=True,
+        blank=True,
+        related_name='created_proschets',   # template.created_proschets.all()
+        help_text='Шаблон, из которого был создан этот просчёт (может быть пустым)'
+    )
+
+
     # Дата и время создания (автоматически устанавливается при создании записи).
     # auto_now_add=True – значение устанавливается один раз при создании и не меняется.
     created_at = models.DateTimeField(
@@ -580,76 +595,45 @@ class PrintComponent(models.Model):
     @staticmethod
     def calculate_price_for_printer_and_copies(printer, sheet_count, print_type='color'):
         """
-        Расчёт цены за лист методом интерполяции на основе справочника PrintPrice.
-        Поддерживает линейную и логарифмическую интерполяцию.
-        Теперь учитывает тип печати (print_type) для выборки опорных точек.
+        Расчёт цены за лист методом интерполяции.
+
+        ИСПРАВЛЕНИЕ (23.09.2026): метод больше не дублирует логику интерполяции,
+        а делегирует её единой функции из print_price.utils.
+        Это гарантирует, что цены, посчитанные здесь (при сохранении/пересчёте
+        компонента), совпадают с ценами, которые считает серверная утилита
+        (в секциях «Цена», «Печатные компоненты» и т.д.).
+
+        Почему это важно: раньше было две разные реализации интерполяции —
+        одна интерполировала итоговую цену, другая — cost и markup по
+        отдельности. Они давали разные результаты между опорными точками.
+        Теперь источник истины один — функция из print_price.utils.
+
+        Аргументы:
+            printer: экземпляр devices.Printer или None.
+            sheet_count: количество листов (int/Decimal).
+            print_type: 'color' или 'bw'.
+
+        Возвращает:
+            Decimal: цена за лист, округлённая до 2 знаков.
+                     Decimal('0.00'), если данных недостаточно.
         """
+        # Если принтер не задан — считать нечего.
+        if not printer:
+            return Decimal('0.00')
+
+        # Внутренний импорт, чтобы избежать циклической зависимости:
+        # print_price.utils импортирует devices.models, а calculator.models_list_proschet
+        # в свою очередь импортируется из devices? Нет, но лучше держать импорт локальным.
         try:
-            from print_price.models import PrintPrice
-            # Фильтруем цены по принтеру и типу печати (цветная/ч/б)
-            price_points = PrintPrice.objects.filter(
-                printer=printer,
-                print_type=print_type
-            ).order_by('copies')
-            if not price_points.exists():
+            from print_price.utils import calculate_price_for_printer_and_copies as _calc
+
+            # Приводим sheet_count к int — интерполяция работает по целым листам.
+            sheet_count_int = int(sheet_count)
+            if sheet_count_int <= 0:
                 return Decimal('0.00')
 
-            # Количество листов – целое число (для интерполяции)
-            sheet_count_int = int(sheet_count)
-            # Метод интерполяции, заданный для принтера (linear или logarithmic)
-            interpolation_method = getattr(printer, 'devices_interpolation_method', 'linear')
-
-            # Первая и последняя опорные точки
-            min_price = price_points.first()
-            max_price = price_points.last()
-
-            # Если тираж меньше минимального – берём минимальную цену
-            if sheet_count_int <= min_price.copies:
-                return min_price.price_per_sheet
-            # Если тираж больше максимального – берём максимальную цену
-            if sheet_count_int >= max_price.copies:
-                return max_price.price_per_sheet
-
-            # Находим ближайшие опорные точки снизу и сверху
-            prev_price = None
-            next_price = None
-            for price in price_points:
-                if price.copies <= sheet_count_int:
-                    prev_price = price
-                if price.copies >= sheet_count_int:
-                    next_price = price
-                    break
-
-            # Если обе точки найдены и они разные – выполняем интерполяцию
-            if prev_price and next_price and prev_price != next_price:
-                if interpolation_method == 'linear':
-                    # Линейная интерполяция
-                    x1, y1 = float(prev_price.copies), float(prev_price.price_per_sheet)
-                    x2, y2 = float(next_price.copies), float(next_price.price_per_sheet)
-                    x = float(sheet_count_int)
-                    result = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-                    return Decimal(str(round(result, 2)))
-                elif interpolation_method == 'logarithmic':
-                    # Логарифмическая интерполяция (для цен, падающих с ростом тиража)
-                    epsilon = 1e-10   # маленькое число для избежания log(0)
-                    x1 = math.log(float(prev_price.copies) + epsilon)
-                    y1 = math.log(float(prev_price.price_per_sheet) + epsilon)
-                    x2 = math.log(float(next_price.copies) + epsilon)
-                    y2 = math.log(float(next_price.price_per_sheet) + epsilon)
-                    x = math.log(float(sheet_count_int) + epsilon)
-                    result_log = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-                    result = math.exp(result_log) - epsilon
-                    return Decimal(str(round(result, 2)))
-                else:
-                    # По умолчанию – линейная
-                    x1, y1 = float(prev_price.copies), float(prev_price.price_per_sheet)
-                    x2, y2 = float(next_price.copies), float(next_price.price_per_sheet)
-                    x = float(sheet_count_int)
-                    result = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-                    return Decimal(str(round(result, 2)))
-            else:
-                # Если не нашли две разные точки – возвращаем цену из нижней точки
-                return prev_price.price_per_sheet if prev_price else min_price.price_per_sheet
+            # Единая функция возвращает уже округлённую до 2 знаков цену.
+            return _calc(printer, sheet_count_int, print_type)
         except Exception as e:
             print(f"⚠️ Ошибка в calculate_price_for_printer_and_copies: {str(e)}")
             return Decimal('0.00')

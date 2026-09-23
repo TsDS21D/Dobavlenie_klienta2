@@ -41,6 +41,11 @@ urlpatterns = [
     # В шаблонах можно использовать: {% url 'directories:index' %}
     path('directories/', include(('directories.urls', 'directories'), namespace='directories')),
 
+    # НОВОЕ ПРИЛОЖЕНИЕ: shablony_proschetov (справочник шаблонов просчётов)
+    # Все URL, начинающиеся с /shablony/, обрабатываются в shablony_proschetov.urls
+    path('shablony/', include(('shablony_proschetov.urls', 'shablony_proschetov'), namespace='shablony_proschetov')),
+
+
     # НОВОЕ ПРИЛОЖЕНИЕ: devices (устройства)
     # Все URL, начинающиеся с /devices/, передаются на обработку в devices.urls
     # namespace='devices' создает пространство имен для этого приложения

@@ -274,3 +274,87 @@ calculator/static/calculator/css/sections/massa_i_obyom.css
 .massa-i-obyom-section {
     animation: fadeInMassa 0.15s ease-out;
 }
+
+/* ===== РАЗМЕР СТОПКИ (по каждому компоненту) ===== */
+
+.massa-i-obyom-stacks-container {
+    margin-top: 0.6rem;
+    padding: 0.6rem;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    transition: border-color 0.15s ease;
+}
+
+.massa-i-obyom-stacks-container:hover {
+    border-color: #0B8661;
+}
+
+.massa-i-obyom-stacks-title {
+    margin: 0 0 0.5rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #ddd;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.massa-i-obyom-stacks-title i {
+    color: #0B8661;
+    font-size: 1rem;
+}
+
+.massa-i-obyom-stacks-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.massa-i-obyom-stacks-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.25rem 0;
+    font-size: 0.78rem;
+    border-bottom: 1px dashed #eee;
+}
+
+.massa-i-obyom-stacks-list li:last-child {
+    border-bottom: none;
+}
+
+.massa-i-obyom-stacks-list .stack-label {
+    font-weight: 500;
+    color: #555;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.massa-i-obyom-stacks-list .stack-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #0B8661;
+    white-space: nowrap;
+}
+
+/* Сообщение, если у компонента нет размеров/толщины */
+.massa-i-obyom-stacks-list .stack-empty {
+    font-size: 0.75rem;
+    color: #999;
+    font-style: italic;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .massa-i-obyom-stacks-list li {
+        font-size: 0.72rem;
+    }
+}

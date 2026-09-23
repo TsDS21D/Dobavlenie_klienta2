@@ -92,10 +92,18 @@ def get_cost_and_markup_for_printer_and_copies(printer, copies, print_type='colo
             markup = math.exp(markup_log) - epsilon
 
         cost = Decimal(str(round(cost, 2)))
-        markup = Decimal(str(round(markup, 2)))
+        # ===== ОКРУГЛЕНИЕ НАЦЕНКИ ДО ЦЕЛЫХ ПРОЦЕНТОВ =====
+        # «Умные цифры» хранят наценку как целое число процентов, и при
+        # интерполяции округляют результат до целого. Наш калькулятор должен
+        # вести себя так же, иначе цены между опорными точками расходятся.
+        # round(x) без второго аргумента → округление до целого.
+        markup = Decimal(str(round(markup)))
         return cost, markup
 
     return prev_point.cost, prev_point.markup_percent
+
+
+# ==================== ЛАМИНАТОРЫ ====================
 
 
 # ==================== ЛАМИНАТОРЫ (без изменений) ====================
@@ -159,7 +167,10 @@ def get_cost_and_markup_for_laminator_and_copies(laminator, copies):
             markup = math.exp(markup_log) - epsilon
 
         cost = Decimal(str(round(cost, 2)))
-        markup = Decimal(str(round(markup, 2)))
+        # ===== ОКРУГЛЕНИЕ НАЦЕНКИ ДО ЦЕЛЫХ ПРОЦЕНТОВ (аналогично принтерам) =====
+        # В «Умных цифрах» ламинация настраивается так же — целыми процентами.
+        # Для идентичности расчётов округляем интерполированную наценку до целого.
+        markup = Decimal(str(round(markup)))
         return cost, markup
 
     return prev_point.cost, prev_point.markup_percent

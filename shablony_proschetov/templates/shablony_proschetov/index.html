@@ -1,0 +1,267 @@
+<!--
+shablony_proschetov/templates/shablony_proschetov/index.html
+Главная страница справочника шаблонов просчётов.
+
+Структура:
+1. Заголовок с названием и кнопкой "Создать категорию" (только для админа).
+2. Панель поиска по названию и комментарию.
+3. Двухколоночный макет:
+   - Левая колонка: дерево категорий и шаблонов (MPTT recursetree).
+   - Правая колонка: превью выбранного шаблона + кнопка "Создать просчёт из шаблона".
+
+На этом шаге дерево статичное (без drag-n-drop и сворачивания) —
+это будет добавлено на следующем шаге вместе с JS.
+-->
+
+{% extends "shablony_proschetov/base.html" %}
+{% load static %}
+{% load mptt_tags %}
+
+{% block shablony_title %}Справочник шаблонов просчётов{% endblock %}
+
+{% block shablony_content %}
+
+    <!-- ==================== ЗАГОЛОВОК ==================== -->
+    <h1>
+        <!-- Логотип типографии, как в других разделах проекта -->
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png"
+             alt="Типография &quot;Буква А&quot;"
+             title="Типография &quot;Буква А&quot;"
+             width="150">
+        Справочник шаблонов просчётов
+    </h1>
+
+    <!-- Панель инструментов под заголовком -->
+    <div class="tpl-toolbar">
+        <!-- Поле поиска по названию и комментарию -->
+        <input type="text"
+               id="tpl-search-input"
+               class="tpl-search-input"
+               placeholder="Поиск по названию, комментарию или категории...">
+
+        <!-- Кнопки (видны только администратору) -->
+        {% if is_admin %}
+            <button type="button" id="tpl-btn-add-root-category" class="tpl-btn tpl-btn-add">
+                + Категория
+            </button>
+        {% endif %}
+    </div>
+    <!-- ==================== ПАНЕЛЬ СОХРАНЕНИЯ ПРОСЧЁТА КАК ШАБЛОНА ==================== -->
+    <!-- Показывается только админу и только если пришли с ?proschet_id=<id>. -->
+    {% if source_proschet and is_admin %}
+    <div class="tpl-save-panel" id="tpl-save-panel"
+         data-proschet-id="{{ source_proschet.id }}">
+        <h3 class="tpl-save-title">
+            Сохранение просчёта
+            «{{ source_proschet.number }} — {{ source_proschet.title }}»
+            как шаблона
+        </h3>
+        <p class="tpl-save-hint">
+            Выберите категорию, введите название и нажмите «Сохранить шаблон».
+            Если в выбранной категории уже есть шаблон с таким названием — он будет
+            заменён новым.
+        </p>
+
+        <!-- Название шаблона -->
+        <div class="tpl-save-row">
+            <label for="tpl-save-name">Название шаблона:</label>
+            <input type="text" id="tpl-save-name"
+                   value="{{ source_proschet.title }}"
+                   maxlength="200" autocomplete="off">
+        </div>
+
+        <!-- Комментарий -->
+        <div class="tpl-save-row">
+            <label for="tpl-save-comment">Комментарий (необязательно):</label>
+            <textarea id="tpl-save-comment" rows="2"
+                      placeholder="Например: используется для VIP-клиентов"></textarea>
+        </div>
+
+        <!-- Категория -->
+        <div class="tpl-save-row">
+            <label for="tpl-save-category">Категория:</label>
+            <select id="tpl-save-category">
+                <option value="">— выберите категорию —</option>
+                {% for cat in categories_flat %}
+                    <option value="{{ cat.id }}">{{ cat.path }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="tpl-save-actions">
+            <button type="button" id="tpl-save-cancel"
+                    class="tpl-btn tpl-btn-cancel">Отмена</button>
+            <button type="button" id="tpl-save-confirm"
+                    class="tpl-btn tpl-btn-primary">Сохранить шаблон</button>
+        </div>
+    </div>
+    {% endif %}
+
+
+
+    <!-- ==================== ДВУХКОЛОНОЧНЫЙ МАКЕТ ==================== -->
+    <div class="tpl-layout">
+
+        <!-- ЛЕВАЯ КОЛОНКА: дерево -->
+        <aside class="tpl-tree-pane" id="tpl-tree-pane">
+            {% if categories %}
+                <ul class="tpl-tree">
+                    {% recursetree categories %}
+                        <li class="tpl-tree-node"
+                            data-category-id="{{ node.id }}"
+                            data-node-level="{{ node.level }}">
+
+                            <!-- Строка категории -->
+                            <div class="tpl-category-row">
+                                <i class="fas fa-folder tpl-folder-icon"></i>
+                                <span class="tpl-category-name">{{ node.name }}</span>
+
+                                {% if is_admin %}
+                                    <!-- Мини-кнопки управления категорией (будут работать после JS-шага) -->
+                                    <span class="tpl-node-actions">
+                                        <button type="button"
+                                                class="tpl-mini-btn tpl-btn-add-sub"
+                                                data-category-id="{{ node.id }}"
+                                                title="Добавить подкатегорию">+</button>
+                                        <button type="button"
+                                                class="tpl-mini-btn tpl-btn-rename"
+                                                data-category-id="{{ node.id }}"
+                                                data-category-name="{{ node.name }}"
+                                                title="Переименовать">✎</button>
+                                        <button type="button"
+                                                class="tpl-mini-btn tpl-btn-delete"
+                                                data-category-id="{{ node.id }}"
+                                                data-category-name="{{ node.name }}"
+                                                title="Удалить">✕</button>
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Шаблоны этой категории -->
+                            {% if node.templates.all %}
+                                <ul class="tpl-templates-list">
+                                    {% for tpl in node.templates.all %}
+                                        <li class="tpl-template-item"
+                                            data-template-id="{{ tpl.id }}"
+                                            data-category-id="{{ node.id }}">
+                                            <i class="fas fa-file-alt tpl-template-icon"></i>
+                                            <span class="tpl-template-name">{{ tpl.name }}</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            <!-- Рекурсивно: дочерние категории -->
+                            {% if not node.is_leaf_node %}
+                                <ul class="tpl-tree-children">
+                                    {{ children }}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endrecursetree %}
+                </ul>
+            {% else %}
+                <div class="tpl-empty">
+                    <p>Категорий пока нет.</p>
+                    {% if is_admin %}
+                        <p>Нажмите «+ Категория», чтобы создать первую.</p>
+                    {% else %}
+                        <p>Обратитесь к администратору, чтобы добавить шаблоны.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </aside>
+
+        <!-- ПРАВАЯ КОЛОНКА: превью выбранного шаблона -->
+        <section class="tpl-preview-pane" id="tpl-preview-pane">
+
+            <!-- Сообщение, когда шаблон не выбран -->
+            <div id="tpl-preview-empty" class="tpl-preview-empty">
+                <h3>Шаблон не выбран</h3>
+                <p>Выберите шаблон в дереве слева, чтобы увидеть его состав.</p>
+            </div>
+
+            <!-- Контейнер превью (будет наполняться JS) -->
+            <div id="tpl-preview-content" class="tpl-preview-content" style="display:none;">
+
+                <!-- Заголовок с названием и категорией -->
+                <div class="tpl-preview-header">
+                    <h2 id="tpl-preview-title">—</h2>
+                    <div class="tpl-preview-meta">
+                        <span>Категория: <b id="tpl-preview-category">—</b></span>
+                        <span>Типовой тираж: <b id="tpl-preview-circulation">—</b></span>
+                    </div>
+                    <p id="tpl-preview-comment" class="tpl-preview-comment"></p>
+                </div>
+
+                <!-- Кнопки -->
+                <div class="tpl-preview-actions">
+                    <button type="button"
+                            id="tpl-btn-create-proschet"
+                            class="tpl-btn tpl-btn-primary">
+                        Создать просчёт из шаблона
+                    </button>
+
+                    {% if is_admin %}
+                        <button type="button"
+                                id="tpl-btn-rename-template"
+                                class="tpl-btn tpl-btn-secondary">
+                            Переименовать / изменить комментарий
+                        </button>
+                        <button type="button"
+                                id="tpl-btn-delete-template"
+                                class="tpl-btn tpl-btn-danger">
+                            Удалить шаблон
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Превью компонентов и работ -->
+                <div id="tpl-preview-components" class="tpl-preview-components">
+                    <!-- будет заполнено JS -->
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ==================== МОДАЛЬНОЕ ОКНО ДЛЯ ВВОДА НАЗВАНИЯ ==================== -->
+    <!-- Одна модалка для трёх сценариев: создать категорию, создать подкатегорию,
+         переименовать. JS подставит нужные заголовок и обработчик. -->
+    <div id="tpl-modal-overlay" class="tpl-modal-overlay" style="display:none;">
+        <div class="tpl-modal">
+            <div class="tpl-modal-header">
+                <h3 id="tpl-modal-title">Введите название</h3>
+                <button type="button" id="tpl-modal-close" class="tpl-modal-close">×</button>
+            </div>
+              <div class="tpl-modal-body">
+                <label for="tpl-modal-input">Название:</label>
+                <input type="text" id="tpl-modal-input" class="tpl-modal-input" maxlength="200" autocomplete="off">
+
+                <!-- Поле комментария показывается только при редактировании шаблона. -->
+                <div id="tpl-modal-comment-wrapper" style="display:none; margin-top: 0.9rem;">
+                    <label for="tpl-modal-comment">Комментарий (необязательно):</label>
+                    <textarea id="tpl-modal-comment" class="tpl-modal-input" rows="2"
+                              placeholder="Например: используется для VIP-клиентов"></textarea>
+                </div>
+
+                <div id="tpl-modal-error" class="tpl-modal-error" style="display:none;"></div>
+            </div>
+            <div class="tpl-modal-footer">
+                <button type="button" id="tpl-modal-cancel" class="tpl-btn tpl-btn-cancel">Отмена</button>
+                <button type="button" id="tpl-modal-confirm" class="tpl-btn tpl-btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+    <!-- CSRF-токен для AJAX-запросов (создание/переименование/удаление категорий). -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+    <!-- Подключаем JS приложения -->
+    <script src="{% static 'shablony_proschetov/js/index.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,47 @@
+<!--
+shablony_proschetov/templates/shablony_proschetov/base.html
+Базовый шаблон для страниц приложения "Справочник шаблонов просчётов".
+
+Наследует стилистику приложения directories (единый дизайн проекта):
+- подключает общие стили из sheet_formats/css/index.css;
+- подключает собственные стили приложения;
+- включает панели навигации из counter/app_panels.html;
+- оборачивает содержимое в общий контейнер .container.
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Динамический заголовок страницы -->
+    <title>{% block shablony_title %}Шаблоны просчётов{% endblock %} - Система управления</title>
+
+    <!-- Загружаем тег static для ссылок на статические файлы -->
+    {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+
+    <!-- Подключаем общие стили проекта (те же, что в directories) -->
+    <link rel="stylesheet" href="{% static 'sheet_formats/css/index.css' %}">
+
+    <!-- Подключаем стили приложения "Шаблоны просчётов" -->
+    <link rel="stylesheet" href="{% static 'shablony_proschetov/css/index.css' %}">
+
+    <!-- Блок для дополнительных CSS, если понадобится -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Панели навигации по приложениям.
+         active_app из контекста подсветит наш раздел в общем меню. -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"shablony_proschetov" %}
+
+    <!-- Основной контейнер страницы -->
+    <div class="container">
+        {% block shablony_content %}{% endblock %}
+    </div>
+
+    <!-- Блок для дополнительного JS -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -57,6 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Сбрасываем контроллер при инициализации
     resetListProschetRequestController();
     
+    // ===== НОВОЕ: автовыбор просчёта по URL-параметру ?proschet_id=<N> =====
+    // Используется, когда пользователь приходит из другого раздела
+    // (например, из справочника шаблонов после создания просчёта).
+    autoSelectProschetFromUrl();
+    
     console.log('✅ Инициализация секции "Список просчётов" завершена');
 });
 
@@ -1006,5 +1011,59 @@ window.addEventListener('beforeunload', function() {
     console.log('🔄 Очистка перед перезагрузкой страницы');
     resetListProschetRequestController();
 });
+
+
+// ===== 16. АВТОВЫБОР ПРОСЧЁТА ПО URL-ПАРАМЕТРУ =====
+
+/**
+ * Проверяет URL на наличие параметра ?proschet_id=<N>.
+ * Если параметр есть — находит строку таблицы с этим ID, выделяет её
+ * и запускает стандартный сценарий выбора (загрузка данных во все секции).
+ *
+ * Это нужно, чтобы после создания просчёта из шаблона пользователь
+ * сразу попадал в калькулятор с открытым и выделенным просчётом.
+ */
+function autoSelectProschetFromUrl() {
+    // 1. Берём строку запроса из URL и парсим её как URLSearchParams.
+    const params = new URLSearchParams(window.location.search);
+    const targetId = params.get('proschet_id');
+
+    // Если параметра нет — выходим.
+    if (!targetId) return;
+
+    console.log(`🔗 Обнаружен URL-параметр proschet_id=${targetId}, пытаемся выделить просчёт`);
+
+    // 2. Ищем строку таблицы с этим ID.
+    //    Строки отрисованы сервером в шаблоне list_proschet.html
+    //    (атрибут data-proschet-id у tr.proschet-row).
+    const row = document.querySelector(`.proschet-row[data-proschet-id="${targetId}"]`);
+    if (!row) {
+        console.warn(`⚠️ Просчёт с ID ${targetId} не найден в таблице`);
+        return;
+    }
+
+    // 3. Программно кликаем по найденной строке — это запустит
+    //    стандартный обработчик selectListProschetRow().
+    //    Используем setTimeout, чтобы DOM и все остальные секции
+    //    успели инициализироваться (важно при быстрой загрузке страницы).
+    setTimeout(function () {
+        // Снимаем обработчик с самого события — вызываем функцию напрямую,
+        // чтобы не сработал preventDefault/stopPropagation из других мест.
+        selectListProschetRow(row, targetId);
+        console.log(`✅ Просчёт ${targetId} автоматически выделен`);
+    }, 300);
+
+    // 4. Чистим URL — убираем параметр proschet_id, чтобы при обновлении
+    //    страницы или перезагрузке автовыбор не срабатывал повторно.
+    //    (Не критично, но аккуратнее.)
+    try {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+    } catch (e) {
+        // Если по каким-то причинам replaceState недоступен — ничего страшного.
+        console.warn('Не удалось очистить URL:', e);
+    }
+}
+
 
 console.log('✅ Основной файл секции "Список просчётов" загружен с исправлениями для предотвращения гонок запросов');

@@ -16,3 +16,11 @@ db.sqlite3
 staticfiles/
 media/
 clickcounter/asgi.py
+
+# Локальные дампы БД (не коммитим — большие, приватные)
+*.sql
+backup_*.sql
+
+# Резервные копии файлов
+*.backup
+*.backup2

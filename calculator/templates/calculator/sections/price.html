@@ -183,7 +183,59 @@
                 <button type="button" class="btn-action btn-primary" id="create-invoice-btn" title="Создать счёт">
                     <i class="fas fa-file-invoice"></i> Создать счёт
                 </button>
+
+                <!-- Кнопка "Создать шаблон" — видна только администратору.
+                     Перебрасывает в справочник шаблонов с текущим просчётом,
+                     чтобы сохранить его как шаблон в нужную категорию. -->
+                {% if request.user.is_staff %}
+                <button type="button" class="btn-action btn-secondary" id="create-template-btn" title="Сохранить просчёт как шаблон">
+                    <i class="fas fa-bookmark"></i> Создать шаблон
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
 </section>
+
+<!-- ==================== ОБРАБОТЧИК КНОПКИ "СОЗДАТЬ ШАБЛОН" ==================== -->
+<!--
+    Inline-скрипт: при клике на кнопку "Создать шаблон" берём id
+    текущего выделенного просчёта и переходим в справочник шаблонов
+    с этим параметром. Справочник покажет панель "Сохранить просчёт как шаблон".
+-->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Находим кнопку.
+    const btn = document.getElementById('create-template-btn');
+    if (!btn) return;   // если пользователь не админ, кнопки нет
+
+    // Обработчик клика.
+    btn.addEventListener('click', function () {
+        // 1. Пытаемся получить ID выделенного просчёта.
+        let proschetId = null;
+
+        // Основной путь: через API listProschetSection.
+        if (window.listProschetSection && typeof window.listProschetSection.getSelectedId === 'function') {
+            proschetId = window.listProschetSection.getSelectedId();
+        }
+
+        // Резервный путь: ищем в DOM выделенную строку.
+        if (!proschetId) {
+            const selectedRow = document.querySelector('.proschet-row.selected');
+            if (selectedRow) proschetId = selectedRow.getAttribute('data-proschet-id');
+        }
+
+        // 2. Если просчёт не выбран — предупреждаем.
+        if (!proschetId) {
+            alert('Сначала выберите просчёт в списке просчётов');
+            return;
+        }
+
+        // 3. Переходим в справочник шаблонов с параметром proschet_id.
+        //    Справочник (index view) покажет панель сохранения шаблона.
+        window.location.href = '/shablony/?proschet_id=' + encodeURIComponent(proschetId);
+    });
+
+    console.log('✅ Обработчик кнопки "Создать шаблон" установлен');
+});
+</script>

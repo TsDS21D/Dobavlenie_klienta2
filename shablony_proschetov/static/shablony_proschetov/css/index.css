@@ -1,0 +1,547 @@
+/*
+shablony_proschetov/static/shablony_proschetov/css/index.css
+Стили страницы справочника шаблонов просчётов.
+
+Стиль проекта:
+- белый контейнер с мягкой тенью (уже задан в общих стилях);
+- фирменный зелёный #0B8661 для акцентов;
+- системный шрифт, аккуратные скругления.
+*/
+
+/* ==================== ОБЩИЕ ==================== */
+
+/* Панель инструментов под заголовком */
+.tpl-toolbar {
+    display: flex;                     /* Горизонтальное расположение */
+    gap: 1rem;                         /* Расстояние между элементами */
+    align-items: center;               /* Выравнивание по вертикали */
+    margin-bottom: 1.5rem;             /* Отступ снизу от макета */
+    flex-wrap: wrap;                   /* На узких экранах элементы переносятся */
+}
+
+/* Поле поиска */
+.tpl-search-input {
+    flex: 1;                           /* Растягивается на всё свободное место */
+    min-width: 240px;                  /* Минимальная ширина */
+    padding: 0.6rem 1rem;              /* Внутренние отступы */
+    border: 2px solid #e0e0e0;         /* Серая рамка */
+    border-radius: 8px;                /* Скругление */
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Фокус на поле поиска */
+.tpl-search-input:focus {
+    outline: none;
+    border-color: #0B8661;             /* Фирменный зелёный */
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.15);
+}
+
+/* ==================== КНОПКИ ==================== */
+
+/* Базовый класс кнопки */
+.tpl-btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+/* Кнопка "Категория" (админ) — зелёная */
+.tpl-btn-add {
+    background: #0B8661;
+    color: #ffffff;
+}
+.tpl-btn-add:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.35);
+}
+
+/* Основная кнопка (например, "Создать просчёт из шаблона") */
+.tpl-btn-primary {
+    background: #0B8661;
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+}
+.tpl-btn-primary:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.35);
+}
+
+/* Вторичная кнопка (переименовать) */
+.tpl-btn-secondary {
+    background: #2282d0;
+    color: #ffffff;
+}
+.tpl-btn-secondary:hover {
+    background: #0b5fb2;
+    transform: translateY(-1px);
+}
+
+/* Опасная кнопка (удалить) */
+.tpl-btn-danger {
+    background: #cf6b66;
+    color: #ffffff;
+}
+.tpl-btn-danger:hover {
+    background: #b3080b;
+    transform: translateY(-1px);
+}
+
+/* ==================== МАКЕТ ==================== */
+
+/* Двухколоночный макет: слева — дерево, справа — превью */
+.tpl-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;   /* слева фиксированная ширина, справа всё остальное */
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* Левая колонка (дерево) */
+.tpl-tree-pane {
+    background: #fafafa;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem;
+    max-height: 70vh;                   /* ограничиваем высоту */
+    overflow-y: auto;                   /* прокрутка при большом дереве */
+}
+
+/* Правая колонка (превью) */
+.tpl-preview-pane {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-height: 400px;
+}
+
+/* ==================== ДЕРЕВО ==================== */
+
+/* Список узлов дерева */
+.tpl-tree,
+.tpl-tree-children,
+.tpl-templates-list {
+    list-style: none;                   /* убираем маркеры списка */
+    padding-left: 0;
+    margin: 0;
+}
+
+/* Дочерние узлы — отступ для визуальной вложенности */
+.tpl-tree-children {
+    padding-left: 1.2rem;
+    border-left: 1px dashed #d0d0d0;
+    margin-left: 0.6rem;
+}
+
+/* Строка категории */
+.tpl-category-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.tpl-category-row:hover {
+    background: #eaf6ef;                /* лёгкий зелёный при наведении */
+}
+
+/* Иконка папки */
+.tpl-folder-icon {
+    color: #0B8661;
+    flex: 0 0 auto;
+}
+
+/* Имя категории */
+.tpl-category-name {
+    flex: 1;
+    font-weight: 600;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Мини-кнопки управления (+, ✎, ✕) */
+.tpl-node-actions {
+    display: none;                      /* показываются только при hover строки */
+    gap: 0.2rem;
+}
+.tpl-category-row:hover .tpl-node-actions {
+    display: inline-flex;
+}
+
+.tpl-mini-btn {
+    background: transparent;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 0 0.4rem;
+    font-size: 0.8rem;
+    color: #555;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font-family: inherit;
+}
+.tpl-mini-btn:hover {
+    background: #0B8661;
+    color: #ffffff;
+    border-color: #0B8661;
+}
+
+/* Шаблоны внутри категории */
+.tpl-templates-list {
+    padding-left: 1.5rem;
+    margin-top: 0.2rem;
+}
+
+.tpl-template-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.tpl-template-item:hover {
+    background: #eaf6ef;
+}
+.tpl-template-item.active {
+    background: #0B8661;
+    color: #ffffff;
+}
+.tpl-template-item.active .tpl-template-icon {
+    color: #ffffff;
+}
+
+/* Иконка шаблона */
+.tpl-template-icon {
+    color: #666;
+    flex: 0 0 auto;
+}
+
+/* Имя шаблона */
+.tpl-template-name {
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Пустое состояние дерева */
+.tpl-empty {
+    text-align: center;
+    color: #999;
+    padding: 1.5rem 0.5rem;
+    font-style: italic;
+}
+
+/* ==================== ПРЕВЬЮ ШАБЛОНА ==================== */
+
+.tpl-preview-empty {
+    text-align: center;
+    color: #999;
+    padding: 3rem 1rem;
+    font-style: italic;
+}
+
+.tpl-preview-header {
+    border-bottom: 1px solid #ececec;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+.tpl-preview-header h2 {
+    color: #0B8661;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.3rem;
+}
+.tpl-preview-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+    color: #555;
+    flex-wrap: wrap;
+}
+.tpl-preview-meta b {
+    color: #333;
+}
+.tpl-preview-comment {
+    margin-top: 0.75rem;
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
+    white-space: pre-wrap;
+}
+
+.tpl-preview-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin: 1rem 0 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* Блок компонентов */
+.tpl-preview-components {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Карточка одного компонента */
+.tpl-component-card {
+    background: #fafafa;
+    border: 1px solid #ececec;
+    border-radius: 10px;
+    padding: 1rem;
+}
+.tpl-component-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    color: #333;
+    font-weight: 600;
+}
+.tpl-component-row {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+}
+.tpl-component-row b {
+    color: #333;
+}
+
+/* Секции внутри компонента (работы, ламинация, вычисления) */
+.tpl-section {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #e0e0e0;
+}
+.tpl-section h4 {
+    font-size: 0.9rem;
+    color: #0B8661;
+    margin: 0 0 0.4rem 0;
+}
+.tpl-works-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.tpl-works-list li {
+    font-size: 0.88rem;
+    color: #444;
+    padding: 0.2rem 0;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 900px) {
+    .tpl-layout {
+        grid-template-columns: 1fr;     /* на узких экранах колонки идут друг под другом */
+    }
+    .tpl-tree-pane {
+        max-height: 40vh;
+    }
+}
+
+
+/* ==================== МОДАЛЬНОЕ ОКНО ==================== */
+
+/* Тёмный полупрозрачный фон, центрирующий модалку */
+.tpl-modal-overlay {
+    position: fixed;
+    inset: 0;                                /* top/right/bottom/left: 0 */
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;                           /* поверх всего */
+}
+
+/* Белая карточка модалки */
+.tpl-modal {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 460px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: tplModalIn 0.15s ease-out;
+}
+@keyframes tplModalIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.tpl-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #ececec;
+}
+.tpl-modal-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #0B8661;
+}
+.tpl-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: #888;
+    cursor: pointer;
+    padding: 0 0.4rem;
+}
+.tpl-modal-close:hover {
+    color: #333;
+}
+
+.tpl-modal-body {
+    padding: 1.25rem;
+}
+.tpl-modal-body label {
+    display: block;
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 0.4rem;
+}
+.tpl-modal-input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.tpl-modal-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.15);
+}
+.tpl-modal-error {
+    margin-top: 0.5rem;
+    color: #cf6b66;
+    font-size: 0.85rem;
+}
+
+.tpl-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.9rem 1.25rem 1.25rem;
+}
+
+/* Кнопка "Отмена" в модалке */
+.tpl-btn-cancel {
+    background: #e0e0e0;
+    color: #333;
+}
+.tpl-btn-cancel:hover {
+    background: #bdbdbd;
+}
+
+/* ==================== ПОИСК ПО ДЕРЕВУ ==================== */
+
+/* Класс, которым JS скрывает несовпавшие узлы при поиске.
+   !important — чтобы перебить возможные правила отображения у вложенных элементов. */
+.tpl-hidden {
+    display: none !important;
+}
+
+/* ==================== ПАНЕЛЬ СОХРАНЕНИЯ ПРОСЧЁТА КАК ШАБЛОНА ==================== */
+
+.tpl-save-panel {
+    background: #eaf6ef;                      /* очень светлый зелёный — привлекает внимание */
+    border: 1px solid #c5e3d2;
+    border-left: 4px solid #0B8661;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.tpl-save-title {
+    color: #0B8661;
+    font-size: 1.05rem;
+    margin: 0 0 0.5rem 0;
+}
+
+.tpl-save-hint {
+    font-size: 0.85rem;
+    color: #555;
+    margin: 0 0 1rem 0;
+    font-style: italic;
+}
+
+.tpl-save-row {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+.tpl-save-row label {
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+}
+.tpl-save-row input[type="text"],
+.tpl-save-row textarea,
+.tpl-save-row select {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #b9d9c7;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #ffffff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tpl-save-row input[type="text"]:focus,
+.tpl-save-row textarea:focus,
+.tpl-save-row select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.15);
+}
+.tpl-save-row textarea {
+    resize: vertical;
+    min-height: 44px;
+}
+
+.tpl-save-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+@media (max-width: 700px) {
+    .tpl-save-row {
+        grid-template-columns: 1fr;   /* на узких экранах — label сверху, поле снизу */
+    }
+    .tpl-save-actions {
+        justify-content: stretch;
+    }
+    .tpl-save-actions .tpl-btn {
+        flex: 1;
+    }
+}
+
+/* Текстовое поле (textarea) внутри модалки — размеры и рамка как у input. */
+.tpl-modal-body textarea.tpl-modal-input {
+    resize: vertical;
+    min-height: 60px;
+}

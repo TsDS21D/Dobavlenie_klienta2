@@ -81,6 +81,22 @@ calculator/templates/calculator/sections/massa_i_obyom.html
             </div>
         </div>
 
+        <!-- ==================== РАЗМЕР СТОПКИ (по каждому компоненту) ==================== -->
+        <!-- Показывается только когда есть результаты. Содержит список компонентов
+             с их габаритами стопки: ширина × высота × высота стопки (в мм). -->
+        <div id="massa-i-obyom-stacks-container"
+             class="massa-i-obyom-stacks-container"
+             style="display: none;">
+            <h3 class="massa-i-obyom-stacks-title">
+                <i class="fas fa-layer-group"></i>
+                Размер стопки
+            </h3>
+            <ul id="massa-i-obyom-stacks-list" class="massa-i-obyom-stacks-list">
+                <!-- Строки добавляет JS -->
+            </ul>
+        </div>
+
+
         <!-- Подсказки -->
         <div class="massa-i-obyom-note">
             <i class="fas fa-info-circle"></i>
@@ -89,6 +105,7 @@ calculator/templates/calculator/sections/massa_i_obyom.html
                 Масса плёнки = (ширина×высота / 1_000_000) × тираж × толщина плёнки (мкм) × 0.1 × (1 или 2 для двусторонней).<br>
                 Объём бумаги = (ширина×высота×толщина бумаги×тираж) / 1000 (см³).<br>
                 Объём плёнки = (ширина×высота×толщина плёнки×тираж) / 1_000_000 (см³).<br>
+                <strong>Размер стопки</strong> = ширина × высота × (толщина бумаги + толщина плёнки × сторона) × тираж. Учитывается отдельно по каждому печатному компоненту.<br>
                 <strong>Примечание:</strong> если материал не выбран или нет данных, соответствующие показатели равны 0.
             </p>
         </div>

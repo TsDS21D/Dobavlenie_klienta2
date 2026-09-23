@@ -1560,8 +1560,13 @@ def update_lamination(request):
 def get_proschet_price_data(request, proschet_id):
     """
     Получение данных о просчёте для расчёта цены.
-    Возвращает печатные компоненты, дополнительные работы, ламинации и итоговые суммы.
-    В компонентах теперь есть print_type.
+
+    ИСПРАВЛЕНИЕ: теперь корректно учитывается многостраничный режим.
+    Если у печатного компонента есть активная запись VichisliniyaMultipageModel,
+    количество листов берётся из неё (с актуализацией тиража), а не из
+    одностраничной модели. Это устраняет расхождение между ценой,
+    которая показывается при выделении просчёта, и ценой после выделения
+    печатного компонента.
     """
     try:
         proschet = Proschet.objects.get(id=proschet_id, is_deleted=False)
@@ -1570,6 +1575,7 @@ def get_proschet_price_data(request, proschet_id):
             is_deleted=False
         ).select_related('printer', 'paper')
 
+        # ===== Одностраничные данные =====
         vich_data_qs = VichisliniyaListovModel.objects.filter(
             vichisliniya_listov_print_component__in=components
         ).values(
@@ -1587,11 +1593,31 @@ def get_proschet_price_data(request, proschet_id):
             for item in vich_data_qs
         }
 
+        # ===== НОВОЕ: многостраничные данные =====
+        # Забираем одним запросом все multipage-записи для наших компонентов.
+        # Ключ — id печатного компонента, значение — сам объект.
+        multipage_objects = VichisliniyaMultipageModel.objects.filter(
+            print_component__in=components
+        ).select_related('print_component')
+        multipage_dict = {obj.print_component_id: obj for obj in multipage_objects}
+
         components_data = []
         laminations_data = []
 
         for comp in components:
-            sheet_count = vich_dict.get(comp.id, {}).get('list_count', Decimal('0.00'))
+            # ===== ИЗМЕНЕНО: сначала проверяем многостраничный режим =====
+            multipage_obj = multipage_dict.get(comp.id)
+            if multipage_obj and multipage_obj.is_active:
+                # Актуализируем тираж и пересчитываем sheet_count
+                # по актуальным параметрам брошюры.
+                multipage_obj.copies = proschet.circulation
+                multipage_obj.calculate_sheet_count()
+                multipage_obj.save(update_fields=['sheet_count', 'copies'])
+                sheet_count = multipage_obj.sheet_count
+            else:
+                # Иначе — как раньше, берём из одностраничной модели.
+                sheet_count = vich_dict.get(comp.id, {}).get('list_count', Decimal('0.00'))
+
             sheet_count_float = float(sheet_count)
 
             cost = Decimal('0.00')
@@ -1626,15 +1652,21 @@ def get_proschet_price_data(request, proschet_id):
             paper_thickness = None
             if comp.paper and comp.paper.paper_thickness:
                 paper_thickness = float(comp.paper.paper_thickness)
-            item_width = float(vich_dict.get(comp.id, {}).get('item_width', Decimal('0')))
-            item_height = float(vich_dict.get(comp.id, {}).get('item_height', Decimal('0')))
+
+            # ===== ИЗМЕНЕНО: item_width / item_height тоже берём из правильного источника =====
+            if multipage_obj and multipage_obj.is_active:
+                item_width = float(multipage_obj.finished_width)
+                item_height = float(multipage_obj.finished_height)
+            else:
+                item_width = float(vich_dict.get(comp.id, {}).get('item_width', Decimal('0')))
+                item_height = float(vich_dict.get(comp.id, {}).get('item_height', Decimal('0')))
 
             components_data.append({
                 'id': comp.id,
                 'number': comp.number,
                 'printer_name': comp.printer.name if comp.printer else None,
                 'paper_name': comp.paper.name if comp.paper else None,
-                'print_type': comp.print_type,                     # НОВОЕ
+                'print_type': comp.print_type,
                 'print_type_display': comp.print_type_display_name,
                 'sheet_count': sheet_count_float,
                 'formatted_sheet_count_display': f"{sheet_count_float:,.2f}".replace(',', ' ') if sheet_count_float > 0 else "0.00",
@@ -1724,7 +1756,6 @@ def get_proschet_price_data(request, proschet_id):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Ошибка сервера: {str(e)}'}, status=500)
-
 
 @require_POST
 @csrf_exempt

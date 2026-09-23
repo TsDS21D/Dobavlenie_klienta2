@@ -2,14 +2,24 @@
  * ФАЙЛ: massa_i_obyom.js
  * НАЗНАЧЕНИЕ: Секция "Масса и объём" – расчёт общей массы и объёма бумаги и плёнки
  *             для выбранного просчёта на основе реальных данных из базы.
- * 
+ *
  * ИСПРАВЛЕНИЯ (08.04.2026):
  * - Добавлена отправка события 'massa_i_obyom_updated' после каждого пересчёта,
  *   чтобы другие секции (например, "Цена") могли отображать массу и объём.
  * - В функции reset также отправляется событие с нулевыми значениями.
  * - Сохранены все предыдущие исправления: коэффициент 2% на краску/упаковку,
  *   автоконвертация плотности, форматирование в кг и л.
- * 
+ *
+ * ДОБАВЛЕНИЕ (22.09.2026):
+ * - Добавлен расчёт РАЗМЕРА СТОПКИ по каждому печатному компоненту.
+ *   Формула: ширина × высота × (толщина_бумаги + толщина_плёнки × сторона) × тираж.
+ *   Толщина плёнки переводится из мкм в мм (делится на 1000).
+ *   При двусторонней ламинации толщина плёнки учитывается дважды.
+ * - В возвращаемый объект функции расчёта добавлено поле `stacks` —
+ *   массив с данными о каждом компоненте.
+ * - Добавлена функция massa_i_obyom_renderStacks() для отрисовки списка стопок.
+ * - В функциях показа/сброса UI добавлено управление видимостью блока стопок.
+ *
  * ПОДРОБНЫЕ КОММЕНТАРИИ К КАЖДОЙ СТРОЧКЕ – для понимания новичками.
  */
 
@@ -45,18 +55,18 @@ function massa_i_obyom_init() {
     // Предотвращаем повторную инициализацию
     if (massa_i_obyom_initialized) return;
     console.log('🔧 Инициализация секции "Масса и объём"...');
-    
+
     // 1. Настраиваем обработчики событий от других секций
     massa_i_obyom_setupEventListeners();
-    
+
     // 2. Проверяем, не выбран ли уже какой-то просчёт при загрузке страницы
     massa_i_obyom_checkForSelectedProschet();
-    
+
     // 3. Показываем сообщение "просчёт не выбран", если ничего не выбрано
     if (!massa_i_obyom_currentProschetId) {
         massa_i_obyom_showNoProschetMessage();
     }
-    
+
     massa_i_obyom_initialized = true;
     console.log('✅ Секция "Масса и объём" инициализирована');
 }
@@ -76,7 +86,7 @@ function massa_i_obyom_checkForSelectedProschet() {
         const proschetId = parseInt(selectedRow.dataset.proschetId, 10);
         console.log(`🔍 Найден выбранный просчёт при загрузке: ID ${proschetId}`);
         massa_i_obyom_currentProschetId = proschetId;
-        
+
         // Обновляем заголовок секции, вставляя название просчёта
         const titleElement = document.getElementById('massa-i-obyom-proschet-title');
         if (titleElement) {
@@ -85,7 +95,7 @@ function massa_i_obyom_checkForSelectedProschet() {
                 titleElement.innerHTML = `<span class="proschet-title-active">${titleCell.textContent.trim()}</span>`;
             }
         }
-        
+
         // Запускаем расчёт массы и объёма
         massa_i_obyom_recalculate();
     } else {
@@ -102,7 +112,7 @@ function massa_i_obyom_checkForSelectedProschet() {
  */
 function massa_i_obyom_setupEventListeners() {
     console.log('🔗 Настройка обработчиков событий для секции "Масса и объём"...');
-    
+
     // 1. ОСНОВНОЕ СОБЫТИЕ: готовность секции "Изделие" (генерируется в product.js)
     //    Это событие приходит после того, как выбран просчёт и загружены его данные.
     document.addEventListener('productSectionReady', function(event) {
@@ -115,13 +125,13 @@ function massa_i_obyom_setupEventListeners() {
             }
         }
     });
-    
+
     // 2. ОТМЕНА ВЫБОРА ПРОСЧЁТА (если событие генерируется)
     document.addEventListener('proschetDeselected', function() {
         console.log('📥 Получено событие proschetDeselected – сброс секции');
         massa_i_obyom_reset();
     });
-    
+
     // 3. Изменение тиража
     document.addEventListener('productCirculationSaved', function(event) {
         if (event.detail && event.detail.proschetId === massa_i_obyom_currentProschetId) {
@@ -129,7 +139,7 @@ function massa_i_obyom_setupEventListeners() {
             massa_i_obyom_recalculate();
         }
     });
-    
+
     // 4. Изменение печатных компонентов (добавление, удаление, редактирование)
     document.addEventListener('printComponentsUpdated', function(event) {
         if (event.detail && event.detail.proschetId === massa_i_obyom_currentProschetId) {
@@ -137,7 +147,7 @@ function massa_i_obyom_setupEventListeners() {
             massa_i_obyom_recalculate();
         }
     });
-    
+
     // 5. Изменение размеров изделия (секция вычислений листов)
     document.addEventListener('vichisliniyaListovUpdated', function(event) {
         if (event.detail && event.detail.printComponentId && massa_i_obyom_currentProschetId) {
@@ -145,7 +155,7 @@ function massa_i_obyom_setupEventListeners() {
             massa_i_obyom_recalculate();
         }
     });
-    
+
     // 6. Изменение ламинации
     document.addEventListener('laminationUpdated', function(event) {
         if (event.detail && event.detail.componentId && massa_i_obyom_currentProschetId) {
@@ -153,7 +163,7 @@ function massa_i_obyom_setupEventListeners() {
             massa_i_obyom_recalculate();
         }
     });
-    
+
     // 7. Кнопка сворачивания секции
     const collapseBtn = document.querySelector('#massa-i-obyom-section .btn-collapse-section');
     if (collapseBtn) {
@@ -170,7 +180,7 @@ function massa_i_obyom_setupEventListeners() {
             }
         });
     }
-    
+
     console.log('✅ Обработчики событий для секции "Масса и объём" настроены');
 }
 
@@ -189,16 +199,16 @@ function massa_i_obyom_recalculate() {
         massa_i_obyom_showNoProschetMessage();
         return;
     }
-    
+
     console.log(`📊 Пересчёт массы и объёма для просчёта ID: ${massa_i_obyom_currentProschetId}`);
-    
+
     // Отменяем предыдущий запрос, если он был (предотвращает гонку запросов)
     if (massa_i_obyom_abortController) {
         massa_i_obyom_abortController.abort();
     }
     massa_i_obyom_abortController = new AbortController();
     const signal = massa_i_obyom_abortController.signal;
-    
+
     // Запрашиваем данные для расчёта цены (они содержат все компоненты, ламинации, размеры)
     fetch(`/calculator/get-proschet-price-data/${massa_i_obyom_currentProschetId}/`, {
         method: 'GET',
@@ -222,7 +232,7 @@ function massa_i_obyom_recalculate() {
             massa_i_obyom_updateDisplay(result);
             // Показываем контейнер с результатами
             massa_i_obyom_showResults();
-            
+
             // ===== НОВОЕ: отправляем событие с данными массы и объёма =====
             massa_i_obyom_dispatchUpdateEvent(result.totalMass, result.totalVolume);
         } else {
@@ -250,18 +260,22 @@ function massa_i_obyom_recalculate() {
  * Выполняет расчёт массы и объёма на основе данных, полученных с сервера.
  * Использует реальные поля: paper_density, paper_thickness, item_width, item_height,
  * film_thickness, side, circulation.
- * 
+ *
  * ФОРМУЛЫ:
  * - Масса бумаги (г) = площадь_м² × плотность_г_на_м² × тираж
  * - Объём бумаги (см³) = (ширина_мм × высота_мм × толщина_мм × тираж) / 1000
  * - Масса плёнки (г) = площадь_м² × тираж × толщина_мкм × 0.1 × коэффициент_стороны
  * - Объём плёнки (см³) = (ширина_мм × высота_мм × толщина_мкм × тираж) / 1_000_000
- * 
+ *
  * НОВОЕ: к итоговой массе (бумага + плёнка) применяется коэффициент 1.02 (+2%)
  * для учёта краски и упаковки.
- * 
+ *
+ * НОВОЕ (22.09.2026): для каждого компонента рассчитывается размер стопки
+ * и собирается в массив stacksData.
+ *
  * @param {Object} data - Данные от API get-proschet-price-data
- * @returns {Object} Результаты расчёта: paperMass, filmMass, totalMass, paperVolume, filmVolume, totalVolume
+ * @returns {Object} Результаты расчёта: paperMass, filmMass, totalMass, paperVolume,
+ *                   filmVolume, totalVolume, stacks
  */
 function massa_i_obyom_calculateFromData(data) {
     // Итоговые суммы (в граммах и кубических сантиметрах)
@@ -269,30 +283,48 @@ function massa_i_obyom_calculateFromData(data) {
     let totalFilmMassGrams = 0;    // масса плёнки в граммах
     let totalPaperVolume = 0;      // объём бумаги в см³
     let totalFilmVolume = 0;       // объём плёнки в см³
-    
+
+    // ===== НОВОЕ =====
+    // Массив для данных о размерах стопок по каждому компоненту.
+    // Каждый элемент — { label, widthMm, heightMm, stackHeightMm, valid }.
+    // valid=false означает, что у компонента не заданы размеры/толщина.
+    const stacksData = [];
+
     // Получаем тираж просчёта (используется для всех компонентов)
     const circulation = data.proschet ? data.proschet.circulation : 1;
-    
+
     console.log(`📊 Расчёт для тиража ${circulation} шт.`);
-    
+
     // Перебираем все печатные компоненты
     const components = data.print_components || [];
     for (const component of components) {
-        // 1. Размеры изделия (из VichisliniyaListovModel)
+        // 1. Размеры изделия (из VichisliniyaListovModel или VichisliniyaMultipageModel)
         const itemWidthMm = component.item_width || 0;
         const itemHeightMm = component.item_height || 0;
         if (itemWidthMm <= 0 || itemHeightMm <= 0) {
             console.warn(`⚠️ Для компонента ${component.id} не заданы размеры изделия, пропускаем`);
+            // Но стопку всё равно добавим в массив с пометкой "не заданы".
+            // Формируем метку компонента и кладём невалидную запись.
+            const badLabelParts = [];
+            if (component.number) badLabelParts.push(component.number);
+            if (component.printer_name) badLabelParts.push(component.printer_name);
+            stacksData.push({
+                label: badLabelParts.join(' · ') || ('Компонент #' + component.id),
+                widthMm: itemWidthMm,
+                heightMm: itemHeightMm,
+                stackHeightMm: 0,
+                valid: false
+            });
             continue;
         }
-        
+
         // Площадь изделия в квадратных метрах
         const areaM2 = (itemWidthMm * itemHeightMm) / 1_000_000;
-        
+
         // 2. Бумага
         let paperDensity = component.paper_density || 0;   // г/м² (из базы)
         const paperThicknessMm = component.paper_thickness || 0; // мм
-        
+
         // ===== АВТОКОНВЕРТАЦИЯ: если плотность пришла в кг/м² (значение < 100), переводим в г/м² =====
         // В базе данных density обычно хранится в г/м² (например, 350). Но если значение маленькое (0.35),
         // значит, оно в кг/м². Тогда умножаем на 1000.
@@ -300,65 +332,113 @@ function massa_i_obyom_calculateFromData(data) {
             console.log(`   Компонент ${component.id}: плотность ${paperDensity} кг/м² → переводим в г/м²: ${paperDensity * 1000}`);
             paperDensity = paperDensity * 1000;
         }
-        
+
         // Масса бумаги в граммах: площадь_м² × плотность_г_на_м² × тираж
         const paperMassGrams = areaM2 * paperDensity * circulation;
         // Объём бумаги (см³): (ширина_мм × высота_мм × толщина_мм × тираж) / 1000
         const paperVolume = (itemWidthMm * itemHeightMm * paperThicknessMm * circulation) / 1000;
-        
+
         console.log(`   Компонент ${component.id}: бумага ${component.paper_name || '?'} — масса ${paperMassGrams.toFixed(2)} г, объём ${paperVolume.toFixed(2)} см³`);
-        
+
         totalPaperMassGrams += paperMassGrams;
         totalPaperVolume += paperVolume;
-        
-        // 3. Ламинация – ищем запись для этого компонента
+
+        // ===== НОВЫЙ БЛОК: РАСЧЁТ РАЗМЕРА СТОПКИ ДЛЯ ЭТОГО КОМПОНЕНТА =====
+        // Логика:
+        //   1. Определяем, включена ли ламинация и её сторону (single/duplex).
+        //   2. Толщина плёнки в мкм переводится в мм (÷ 1000).
+        //   3. Прибавляем толщину плёнки к толщине бумаги (×1 или ×2 по стороне).
+        //   4. Умножаем на тираж → получаем высоту стопки.
+        //   5. Ширина и высота — это размеры изделия (item_width × item_height).
+        let stackHeightMm = 0;      // высота стопки (мм)
+        let stackValid = false;     // флаг: можно ли считать стопку
+
+        // Ищем ламинацию для этого компонента, чтобы добавить её толщину.
+        let stackLamination = null;
+        if (data.laminations && Array.isArray(data.laminations)) {
+            stackLamination = data.laminations.find(l => l.component_id == component.id);
+        }
+
+        // Считаем толщину одного изделия.
+        let thicknessPerItemMm = paperThicknessMm;
+        if (stackLamination && stackLamination.is_enabled === true && stackLamination.film_thickness) {
+            // film_thickness в мкм → в мм.
+            const filmThicknessMm = stackLamination.film_thickness / 1000;
+            // Односторонняя → ×1, двусторонняя → ×2.
+            const sideMultiplier = (stackLamination.side === 'duplex') ? 2 : 1;
+            thicknessPerItemMm += filmThicknessMm * sideMultiplier;
+        }
+
+        if (thicknessPerItemMm > 0 && itemWidthMm > 0 && itemHeightMm > 0) {
+            stackHeightMm = thicknessPerItemMm * circulation;
+            stackValid = true;
+        }
+
+        // Формируем метку компонента: "KP-1 · Xerox с себестоимостью".
+        const labelParts = [];
+        if (component.number) labelParts.push(component.number);
+        if (component.printer_name) labelParts.push(component.printer_name);
+        const stackLabel = labelParts.join(' · ') || ('Компонент #' + component.id);
+
+        // Пушим данные в массив.
+        stacksData.push({
+            label: stackLabel,
+            widthMm: itemWidthMm,
+            heightMm: itemHeightMm,
+            stackHeightMm: stackHeightMm,
+            valid: stackValid
+        });
+
+        // 3. Ламинация – ищем запись для этого компонента (для массы и объёма плёнки).
         let lamination = null;
         if (data.laminations && Array.isArray(data.laminations)) {
             lamination = data.laminations.find(l => l.component_id == component.id);
         }
-        
+
         let filmMassGrams = 0;
         let filmVolume = 0;
         if (lamination && lamination.is_enabled === true && lamination.film_thickness) {
             const filmThicknessUm = lamination.film_thickness;   // мкм
             const sideMultiplier = (lamination.side === 'duplex') ? 2 : 1;
-            
+
             // Масса плёнки (г): площадь_м² × тираж × толщина_мкм × 0.1 × коэффициент_стороны
             filmMassGrams = areaM2 * circulation * filmThicknessUm * 0.1 * sideMultiplier;
             // Объём плёнки (см³): (ширина_мм × высота_мм × толщина_мкм × тираж) / 1_000_000
             filmVolume = (itemWidthMm * itemHeightMm * filmThicknessUm * circulation) / 1_000_000;
-            
+
             console.log(`   Компонент ${component.id}: плёнка ${lamination.film_name || '?'} (${lamination.side === 'duplex' ? 'двусторонняя' : 'односторонняя'}) — масса ${filmMassGrams.toFixed(2)} г, объём ${filmVolume.toFixed(2)} см³`);
         }
-        
+
         totalFilmMassGrams += filmMassGrams;
         totalFilmVolume += filmVolume;
     }
-    
+
     // Округляем до двух знаков
     totalPaperMassGrams = Math.round(totalPaperMassGrams * 100) / 100;
     totalFilmMassGrams = Math.round(totalFilmMassGrams * 100) / 100;
     totalPaperVolume = Math.round(totalPaperVolume * 100) / 100;
     totalFilmVolume = Math.round(totalFilmVolume * 100) / 100;
-    
+
     // ===== НОВЫЙ КОЭФФИЦИЕНТ: добавляем 2% на краску и упаковку =====
     const PACKAGING_COEFFICIENT = 1.02;
     const totalMassGrams = (totalPaperMassGrams + totalFilmMassGrams) * PACKAGING_COEFFICIENT;
     // Округляем итоговую массу после применения коэффициента
     const finalTotalMassGrams = Math.round(totalMassGrams * 100) / 100;
-    
+
     console.log(`📦 ИТОГО: бумага ${totalPaperMassGrams} г, плёнка ${totalFilmMassGrams} г, ` +
                 `сумма до коэффициента: ${totalPaperMassGrams + totalFilmMassGrams} г, ` +
                 `с коэффициентом 1.02: ${finalTotalMassGrams} г`);
     console.log(`📦 Объём: бумага ${totalPaperVolume} см³, плёнка ${totalFilmVolume} см³, всего ${totalPaperVolume + totalFilmVolume} см³`);
-    
+    console.log(`📚 Стопки: рассчитано ${stacksData.length} компонент(ов)`);
+
     return {
         paperMass: totalPaperMassGrams,
         filmMass: totalFilmMassGrams,
         totalMass: finalTotalMassGrams,               // уже с учётом +2%
         paperVolume: totalPaperVolume,
         filmVolume: totalFilmVolume,
-        totalVolume: totalPaperVolume + totalFilmVolume
+        totalVolume: totalPaperVolume + totalFilmVolume,
+        stacks: stacksData                             // НОВОЕ: список размеров стопок
     };
 }
 
@@ -376,13 +456,13 @@ function massa_i_obyom_updateDisplay(result) {
         const kg = grams / 1000;
         return kg.toFixed(3) + ' кг';
     };
-    
+
     // Форматирование объёма: всегда в литрах с тремя знаками после запятой
     const formatVolume = (cm3) => {
         const liters = cm3 / 1000;
         return liters.toFixed(3) + ' л';
     };
-    
+
     // Получаем ссылки на DOM-элементы, куда будем выводить результаты
     const paperMassEl = document.getElementById('massa-i-obyom-paper-mass');
     const filmMassEl = document.getElementById('massa-i-obyom-film-mass');
@@ -390,7 +470,7 @@ function massa_i_obyom_updateDisplay(result) {
     const paperVolumeEl = document.getElementById('massa-i-obyom-paper-volume');
     const filmVolumeEl = document.getElementById('massa-i-obyom-film-volume');
     const totalVolumeEl = document.getElementById('massa-i-obyom-total-volume');
-    
+
     // Обновляем значения (если элементы существуют)
     if (paperMassEl) paperMassEl.textContent = formatMass(result.paperMass);
     if (filmMassEl) filmMassEl.textContent = formatMass(result.filmMass);
@@ -398,6 +478,61 @@ function massa_i_obyom_updateDisplay(result) {
     if (paperVolumeEl) paperVolumeEl.textContent = formatVolume(result.paperVolume);
     if (filmVolumeEl) filmVolumeEl.textContent = formatVolume(result.filmVolume);
     if (totalVolumeEl) totalVolumeEl.textContent = formatVolume(result.totalVolume);
+
+    // ===== НОВОЕ: рендерим блок размеров стопки по каждому компоненту =====
+    massa_i_obyom_renderStacks(result.stacks || []);
+}
+
+/**
+ * НОВАЯ ФУНКЦИЯ.
+ * Отрисовывает список размеров стопки по каждому компоненту.
+ * @param {Array} stacks — массив объектов { label, widthMm, heightMm, stackHeightMm, valid }.
+ */
+function massa_i_obyom_renderStacks(stacks) {
+    // Находим контейнер и список по их ID.
+    const container = document.getElementById('massa-i-obyom-stacks-container');
+    const list = document.getElementById('massa-i-obyom-stacks-list');
+
+    // Если элементов нет в DOM (например, секция свёрнута или шаблон не обновлён) — выходим.
+    if (!container || !list) return;
+
+    // Если компонентов нет — скрываем блок и очищаем список.
+    if (!stacks.length) {
+        container.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    // Собираем HTML всех строк.
+    let html = '';
+    stacks.forEach(function (s) {
+        // Если у компонента не заданы размеры/толщина — выводим информативное сообщение.
+        if (!s.valid) {
+            html += '<li class="stack-empty">' +
+                        s.label + ': размеры или толщина не заданы' +
+                    '</li>';
+            return;
+        }
+
+        // Вспомогательная функция форматирования чисел:
+        // округляем до 1 знака после запятой; если получилось целое — без ".0".
+        const fmt = function (v) {
+            const r = Math.round(v * 10) / 10;
+            return (r % 1 === 0) ? String(r) : r.toFixed(1);
+        };
+
+        // Формируем строку вида "300 × 400 × 310 мм".
+        const sizeText = fmt(s.widthMm) + ' × ' + fmt(s.heightMm) + ' × ' + fmt(s.stackHeightMm) + ' мм';
+
+        html += '<li>' +
+                    '<span class="stack-label">' + s.label + '</span>' +
+                    '<span class="stack-value">' + sizeText + '</span>' +
+                '</li>';
+    });
+
+    // Записываем HTML в список и показываем контейнер.
+    list.innerHTML = html;
+    container.style.display = 'block';
 }
 
 /**
@@ -428,8 +563,10 @@ function massa_i_obyom_dispatchUpdateEvent(totalMassGrams, totalVolumeCm3) {
 function massa_i_obyom_showNoProschetMessage() {
     const noProschetMsg = document.getElementById('massa-i-obyom-no-proschet-message');
     const resultsContainer = document.getElementById('massa-i-obyom-results-container');
+    const stacksContainer = document.getElementById('massa-i-obyom-stacks-container');   // НОВОЕ
     if (noProschetMsg) noProschetMsg.style.display = 'block';
     if (resultsContainer) resultsContainer.style.display = 'none';
+    if (stacksContainer) stacksContainer.style.display = 'none';                          // НОВОЕ
 }
 
 /**
@@ -463,13 +600,13 @@ function massa_i_obyom_reset() {
     massa_i_obyom_currentProschetId = null;
     // Показываем сообщение "Выберите просчёт"
     massa_i_obyom_showNoProschetMessage();
-    
+
     // Обнуляем заголовок секции
     const titleElement = document.getElementById('massa-i-obyom-proschet-title');
     if (titleElement) {
         titleElement.innerHTML = '<span class="placeholder-text">(просчёт не выбран)</span>';
     }
-    
+
     // Обнуляем значения в карточках (единицы измерения кг и л)
     const zeroMass = '0.000 кг';
     const zeroVolume = '0.000 л';
@@ -485,7 +622,13 @@ function massa_i_obyom_reset() {
     if (paperVolumeEl) paperVolumeEl.textContent = zeroVolume;
     if (filmVolumeEl) filmVolumeEl.textContent = zeroVolume;
     if (totalVolumeEl) totalVolumeEl.textContent = zeroVolume;
-    
+
+    // ===== НОВОЕ: скрываем блок размеров стопки и очищаем список =====
+    const stacksContainer = document.getElementById('massa-i-obyom-stacks-container');
+    const stacksList = document.getElementById('massa-i-obyom-stacks-list');
+    if (stacksContainer) stacksContainer.style.display = 'none';
+    if (stacksList) stacksList.innerHTML = '';
+
     // Отправляем событие с нулевыми значениями (чтобы секция "Цена" тоже обнулилась)
     massa_i_obyom_dispatchUpdateEvent(0, 0);
 }
@@ -521,4 +664,4 @@ window.massa_i_obyom = {
     reset: massa_i_obyom_reset                 // Сброс секции
 };
 
-console.log('✅ Модуль "Масса и объём" полностью загружен (с событием для секции "Цена", единицы: кг и л)');
+console.log('✅ Модуль "Масса и объём" полностью загружен (с событием для секции "Цена", единицы: кг и л, + размер стопки)');

@@ -27,6 +27,18 @@
             {% if active_app == 'counter' %}На экране{% else %}Открыть{% endif %}
         </a>
     </div>
+    <!-- Панель справочника шаблонов просчётов -->
+    <div class="nav-panel nav-templates">
+        <div class="nav-info">
+            <strong>Шаблоны</strong>
+            <div>Шаблоны просчётов</div>
+        </div>
+        <a href="{% url 'shablony_proschetov:index' %}"
+           class="nav-btn {% if active_app == 'shablony_proschetov' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'shablony_proschetov' %}На экране{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
 
     <!-- Панель справочников -->
     <div class="nav-panel nav-directories">
