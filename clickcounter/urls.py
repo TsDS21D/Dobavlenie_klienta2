@@ -45,6 +45,9 @@ urlpatterns = [
     # Все URL, начинающиеся с /shablony/, обрабатываются в shablony_proschetov.urls
     path('shablony/', include(('shablony_proschetov.urls', 'shablony_proschetov'), namespace='shablony_proschetov')),
 
+    # НОВОЕ ПРИЛОЖЕНИЕ: web_calculators (веб-калькуляторы для сайтов)
+    path('web-calc/', include(('web_calculators.urls', 'web_calculators'), namespace='web_calculators')),
+
 
     # НОВОЕ ПРИЛОЖЕНИЕ: devices (устройства)
     # Все URL, начинающиеся с /devices/, передаются на обработку в devices.urls

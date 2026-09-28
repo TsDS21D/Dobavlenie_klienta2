@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ calculator.name }} — Типография «Буква А»</title>
+
+    <!-- Подключаем статику Django. -->
+    {% load static %}
+    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
+
+    <!-- Стили страницы-калькулятора. -->
+    <link rel="stylesheet" href="{% static 'web_calculators/css/calculator.css' %}">
+</head>
+<body>
+
+    <!-- ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== -->
+    <div class="wc-page">
+
+        <!-- Шапка: логотип и название калькулятора. -->
+        <header class="wc-header">
+            <img src="https://www.bukva-a.ru/uploads/logo/logo300.png"
+                 alt="Типография «Буква А»" class="wc-logo">
+            <h1 class="wc-title">{{ calculator.name }}</h1>
+        </header>
+
+        <!-- Основной блок: слева форма, справа цена и превью. -->
+        <div class="wc-layout">
+
+            <!-- ЛЕВАЯ КОЛОНКА: форма заказа. -->
+            <form class="wc-form" id="wc-form" autocomplete="off">
+
+                <!-- Контейнер, куда JS вставит компоненты (из options API). -->
+                <div id="wc-components-container">
+                    <!-- JS рендерит здесь по одному блоку на каждый компонент. -->
+                </div>
+
+                <!-- Блок тиража — общий для всего заказа.
+                     JS строит внутри контейнера селект пресетов и поле ввода. -->
+                <div class="wc-field wc-field-circulation">
+                    <label>Тираж, шт.</label>
+                    <div id="wc-circulation-container"></div>
+                </div>
+
+                <!-- Блок многостраничных параметров — скрыт для одностраничных. -->
+                <div id="wc-multipage-fields" class="wc-multipage-fields" style="display: none;">
+                    <div class="wc-field">
+                        <label for="wc-total-pages">Количество страниц</label>
+                        <input type="number" id="wc-total-pages" min="1" step="1" value="8">
+                        <div class="wc-hint" id="wc-total-pages-hint"></div>
+                    </div>
+
+                    <div class="wc-field">
+                        <label for="wc-booklet-orientation">Ориентация брошюры</label>
+                        <select id="wc-booklet-orientation">
+                            <!-- JS заполнит опции. -->
+                        </select>
+                    </div>
+
+                    <div class="wc-field">
+                        <label for="wc-binding">Способ скрепления</label>
+                        <select id="wc-binding">
+                            <!-- JS заполнит опции. -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Кнопки под формой. -->
+                <div class="wc-actions">
+                    <button type="button" id="wc-calc-btn" class="wc-btn wc-btn-primary">
+                        Рассчитать
+                    </button>
+                    <button type="button" id="wc-add-to-cart-btn" class="wc-btn wc-btn-secondary">
+                        Добавить в корзину
+                    </button>
+                </div>
+
+            </form>
+
+            <!-- ПРАВАЯ КОЛОНКА: превью и результат. -->
+            <aside class="wc-sidebar">
+
+                <!-- Визуализация размера изделия. -->
+                <div class="wc-preview">
+                    <svg id="wc-size-preview" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <!-- JS рисует прямоугольник и подписи сторон. -->
+                    </svg>
+                    <div class="wc-preview-note">Размер изделия (пропорционально)</div>
+                </div>
+
+                <!-- Результат расчёта. -->
+                <div class="wc-result" id="wc-result">
+                    <div class="wc-result-placeholder">
+                        Заполните параметры и нажмите «Рассчитать»
+                    </div>
+                </div>
+
+            </aside>
+
+        </div>
+
+    </div>
+
+    <!-- ==================== КОНФИГУРАЦИЯ ДЛЯ JS ==================== -->
+    <script>
+        // Этот объект JS-код использует, чтобы знать, куда стучаться.
+        window.WC_CONFIG = {
+            slug: "{{ calculator.slug|escapejs }}",
+            optionsUrl: "{% url 'web_calculators:options_api' calculator.slug %}",
+            priceUrl: "{% url 'web_calculators:price_api' calculator.slug %}"
+        };
+    </script>
+
+    <!-- ==================== JS СТРАНИЦЫ ==================== -->
+    <script src="{% static 'web_calculators/js/calculator.js' %}"></script>
+
+</body>
+</html>

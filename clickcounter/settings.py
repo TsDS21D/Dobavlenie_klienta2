@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'vichisliniya_listov',
     'spravochnik_dopolnitelnyh_rabot',
     'shablony_proschetov',         # справочник шаблонов просчётов
+    'web_calculators',
 ]
 
 MIDDLEWARE = [

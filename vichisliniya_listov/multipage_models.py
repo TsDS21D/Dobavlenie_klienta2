@@ -85,6 +85,21 @@ class MultipageBinding(models.Model):
         help_text='Чем меньше число, тем выше в списке'
     )
 
+    # ===== НОВОЕ ПОЛЕ: РАБОТА ПО УМОЛЧАНИЮ =====
+    # Если задано — при выборе этого способа скрепления в веб-калькуляторе
+    # автоматически добавляется указанная работа к компоненту-обложке.
+    # Например: для скрепления "скрепка" — работа "Брошюровка на скрепку".
+    default_work = models.ForeignKey(
+        'spravochnik_dopolnitelnyh_rabot.Work',
+        verbose_name='Работа по умолчанию',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bindings_as_default',
+        help_text='Работа, которая автоматически добавляется к компоненту-обложке при выборе этого скрепления',
+    )
+
+
     # Внутренний класс Meta для метаданных модели.
     class Meta:
         db_table = 'vichisliniya_listov_multipage_bindings'  # Имя таблицы в БД.
