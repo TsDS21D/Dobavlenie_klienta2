@@ -215,10 +215,12 @@ var WC = {
 
         if (hasPresets) {
             // Опции-пресеты.
+            var self = this;
             comp.size.presets.forEach(function (p, index) {
                 var opt = document.createElement('option');
                 opt.value = 'preset_' + index;
-                opt.textContent = p.label;
+                // Форматируем размер: 90.00 × 50.00 → "90×50".
+                opt.textContent = self.formatMm(p.w) + '×' + self.formatMm(p.h);
                 opt.dataset.w = p.w;
                 opt.dataset.h = p.h;
                 select.appendChild(opt);
@@ -302,11 +304,11 @@ var WC = {
             }
         });
 
-        // --- Подсказка о диапазоне ---
+        // Подсказка о диапазоне (без лишних нулей).
         var hint = document.createElement('div');
         hint.className = 'wc-hint';
-        hint.textContent = 'от ' + comp.size.min_width_mm + '×' + comp.size.min_height_mm +
-                          ' до ' + comp.size.max_width_mm + '×' + comp.size.max_height_mm + ' мм';
+        hint.textContent = 'от ' + this.formatMm(comp.size.min_width_mm) + '×' + this.formatMm(comp.size.min_height_mm) +
+                          ' до ' + this.formatMm(comp.size.max_width_mm) + '×' + this.formatMm(comp.size.max_height_mm) + ' мм';
         field.appendChild(hint);
 
         return field;
@@ -548,6 +550,28 @@ var WC = {
 
         wrap.appendChild(select);
 
+        // Значение по умолчанию для тиража.
+        var defaultCirc = calc.default_circulation || minCirc;
+        // Если дефолт не входит в список пресетов, добавим его туда.
+        if (presets.indexOf(defaultCirc) === -1) {
+            // Добавляем пресет так, чтобы не сломать сортировку.
+            // (Он уже прошёл валидацию при сохранении в админке, так что кратен шагу.)
+            presets.push(defaultCirc);
+            presets.sort(function (a, b) { return a - b; });
+            // Перестраиваем опции селекта.
+            select.innerHTML = '';
+            presets.forEach(function (v) {
+                var o = document.createElement('option');
+                o.value = v;
+                o.textContent = v + ' шт.';
+                select.appendChild(o);
+            });
+            var customOpt2 = document.createElement('option');
+            customOpt2.value = 'custom';
+            customOpt2.textContent = 'Свой тираж';
+            select.appendChild(customOpt2);
+        }
+
         // === 2. Поле ввода (скрыто, если выбран пресет) ===
         var inputWrap = document.createElement('div');
         inputWrap.id = 'wc-circulation-input-wrap';
@@ -560,7 +584,7 @@ var WC = {
         input.min = minCirc;
         input.max = maxCirc;
         input.step = step;
-        input.value = presets.length ? presets[0] : minCirc;
+        input.value = defaultCirc;
         inputWrap.appendChild(input);
 
         wrap.appendChild(inputWrap);
@@ -624,10 +648,10 @@ var WC = {
             }
         });
 
-        // Установим начальное значение.
-        if (presets.length) {
-            this.applyCirculationRounding(presets[0]);
-        }
+        // Ставим в селект значение по умолчанию.
+        select.value = defaultCirc;
+        // И применяем округление (это запишет корректное значение в state).
+        this.applyCirculationRounding(defaultCirc);
     },
 
     /**
@@ -1040,9 +1064,26 @@ var WC = {
         svg.innerHTML = svgContent;
     },
 
+
     // ========================================================================
     // 9. ФОРМАТИРОВАНИЕ
     // ========================================================================
+    /**
+     * Форматирует размер в миллиметрах: убирает лишние нули после запятой.
+     * Примеры:
+     *   90       → "90"
+     *   90.0     → "90"
+     *   90.00    → "90"
+     *   90.5     → "90.5"
+     *   90.50    → "90.5"
+     *   85.25    → "85.25"
+     */
+    formatMm: function (v) {
+        // Округляем до 2 знаков и убираем хвостовые нули/точку.
+        var s = (Math.round(v * 100) / 100).toString();
+        return s;
+    },
+
 
     formatPrice: function (v) {
         return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' ₽';

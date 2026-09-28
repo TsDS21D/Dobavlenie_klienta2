@@ -180,7 +180,12 @@ class WebCalculatorAdmin(NestedModelAdmin):
             'fields': ('name', 'slug', 'product_type', 'comment', 'order', 'is_active'),
         }),
         ('Тираж', {
-            'fields': ('min_circulation', 'max_circulation', 'circulation_step'),
+            'fields': (
+                'min_circulation',
+                'max_circulation',
+                'circulation_step',
+                'default_circulation',
+            ),
         }),
         ('Служебная информация', {
             'fields': ('created_at', 'updated_at'),

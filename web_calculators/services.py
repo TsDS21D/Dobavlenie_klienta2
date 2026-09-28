@@ -184,6 +184,7 @@ def get_options(calculator):
             'min_circulation': calculator.min_circulation,
             'max_circulation': calculator.max_circulation,
             'circulation_step': calculator.circulation_step,
+            'default_circulation': calculator.default_circulation,
             'circulation_presets': circulation_presets,
         },
         'components': components_data,

@@ -93,6 +93,17 @@ class WebCalculator(models.Model):
         default=5000,
         validators=[MinValueValidator(1)],
     )
+
+    # Тираж, который подставляется в калькуляторе по умолчанию.
+    # При сохранении округляется до кратного circulation_step
+    # и зажимается в [min_circulation, max_circulation].
+    default_circulation = models.PositiveIntegerField(
+        verbose_name='Тираж по умолчанию',
+        default=100,
+        validators=[MinValueValidator(1)],
+        help_text='Значение, которое клиент увидит в калькуляторе при открытии',
+    )
+
     # Шаг кратности тиража. Тираж должен быть кратен этому числу.
     # Например, для визиток — 50. Клиент может ввести 74, но при расчёте
     # тираж округлится до ближайшего кратного: 74 → 50, 75 → 100.
@@ -132,31 +143,34 @@ class WebCalculator(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Переопределённый save(): при сохранении округляем min_circulation
-        и max_circulation до ближайших значений, кратных circulation_step.
+        Переопределённый save():
 
-        Логика:
-        - min_circulation округляется ВВЕРХ до ближайшего кратного (чтобы
-          минимальный допустимый тираж сам был кратным).
-        - max_circulation округляется ВНИЗ (чтобы не превышал заданный
-          пользователем предел, но был кратен).
-
-        Примеры (при шаге 50):
-        - min=1   → 50
-        - min=60  → 100
-        - min=100 → 100
-        - max=1000 → 1000
-        - max=1024 → 1000
+        1. Округляет min_circulation и max_circulation до ближайших кратных
+           circulation_step (min — вверх, max — вниз).
+        2. Округляет default_circulation до ближайшего кратного шагу
+           и зажимает его в границы [min_circulation, max_circulation].
         """
         step = self.circulation_step or 1
+
         if step > 0:
-            # Округление вверх: (x + step - 1) // step * step
+            # Округление min вверх до кратного: 1 → 50, 60 → 100.
             self.min_circulation = ((self.min_circulation + step - 1) // step) * step
-            # Округление вниз: x // step * step
+            # Округление max вниз до кратного: 1024 → 1000.
             self.max_circulation = (self.max_circulation // step) * step
             # Защита от ситуации, когда после округления max < min.
             if self.max_circulation < self.min_circulation:
                 self.max_circulation = self.min_circulation
+
+            # Округление default до ближайшего кратного.
+            if self.default_circulation:
+                self.default_circulation = round(self.default_circulation / step) * step
+
+        # Зажимаем default в границы.
+        if self.default_circulation < self.min_circulation:
+            self.default_circulation = self.min_circulation
+        if self.default_circulation > self.max_circulation:
+            self.default_circulation = (self.max_circulation // step) * step
+
         super().save(*args, **kwargs)
 
 
