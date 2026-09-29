@@ -132,8 +132,57 @@ var tplApp = {
                 window.location.href = '/shablony/';
             });
         }
+        // Навешиваем обработчики сворачивания/разворачивания на категории.
+        tplApp.setupTreeToggle();
+
         // Восстанавливаем выделение последнего шаблона (если он сохранён в localStorage).
         tplApp.restoreLastSelectedTemplate();        
+    },
+
+    // ==================================================================
+    // СВОРАЧИВАНИЕ / РАЗВОРАЧИВАНИЕ ДЕРЕВА
+    // ==================================================================
+
+    /**
+     * Навешивает обработчики клика на строки категорий.
+     * Клик по строке (кроме мини-кнопок +/✎/✕) переключает .expanded у узла.
+     * На верхнем уровне (level=0) — аккордеон: раскрыта только одна.
+     */
+    setupTreeToggle: function () {
+        document.querySelectorAll('.tpl-category-row').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                // Клики по мини-кнопкам не должны сворачивать/разворачивать.
+                if (e.target.closest('.tpl-node-actions')) return;
+
+                var node = row.closest('.tpl-tree-node');
+                if (!node) return;
+
+                var level = parseInt(node.getAttribute('data-node-level'), 10);
+                var isExpanded = node.classList.contains('expanded');
+
+                // Аккордеон на верхнем уровне: сворачиваем все остальные корневые.
+                if (level === 0 && !isExpanded) {
+                    document.querySelectorAll('.tpl-tree-node[data-node-level="0"].expanded').forEach(function (other) {
+                        if (other !== node) other.classList.remove('expanded');
+                    });
+                }
+
+                // Переключаем состояние текущего узла.
+                node.classList.toggle('expanded');
+
+                // Проверяем, есть ли хоть один раскрытый корневой узел.
+                // Если да — добавляем .has-expanded на макет (панель расширяется).
+                var anyExpanded = document.querySelector('.tpl-tree-node[data-node-level="0"].expanded') !== null;
+                var layout = document.querySelector('.tpl-layout');
+                if (layout) {
+                    if (anyExpanded) {
+                        layout.classList.add('has-expanded');
+                    } else {
+                        layout.classList.remove('has-expanded');
+                    }
+                }
+            });
+        });
     },
 
     // ------------------------------------------------------------------
@@ -447,8 +496,23 @@ var tplApp = {
             el.classList.remove('tpl-hidden');
         });
 
-        // Пустой запрос — оставляем дерево как есть.
-        if (!q) return;
+        // Пустой запрос — сворачиваем все узлы (возвращаемся к «только корневые»).
+        if (!q) {
+            treePane.querySelectorAll('.tpl-tree-node.expanded').forEach(function (n) {
+                n.classList.remove('expanded');
+            });
+            var layout = document.querySelector('.tpl-layout');
+            if (layout) layout.classList.remove('has-expanded');
+            return;
+        }
+
+        // При непустом запросе раскрываем ВСЕ узлы — иначе поиск не найдёт
+        // элементы внутри свёрнутых веток.
+        treePane.querySelectorAll('.tpl-tree-node').forEach(function (node) {
+            node.classList.add('expanded');
+        });
+        var layout2 = document.querySelector('.tpl-layout');
+        if (layout2) layout2.classList.add('has-expanded');
 
         // Наборы, которые нужно оставить видимыми.
         const matchingTemplates = new Set();      // какие .tpl-template-item показываем

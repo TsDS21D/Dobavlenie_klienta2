@@ -5,8 +5,8 @@
  * РАБОТА:
  * 1. При загрузке страницы — запрашивает опции калькулятора
  *    (GET /web-calc/api/<slug>/options/) и строит форму.
- * 2. По кнопке «Рассчитать» — собирает payload и отправляет
- *    POST /web-calc/api/<slug>/price/.
+ * 2. По кнопке «Рассчитать», а также автоматически при blur/Enter
+ *    (если форма изменена) — отправляет POST /web-calc/api/<slug>/price/.
  * 3. Показывает результат в правой панели.
  * 4. Рисует SVG-превью размера изделия.
  *
@@ -37,20 +37,9 @@ var WC = {
     // Карта компонентов по id: {5: {...}, 7: {...}}.
     componentsById: {},
 
-    // Текущее состояние формы по каждому компоненту:
-    // {
-    //   "5": {
-    //     print_combo: "color_single",
-    //     paper_id: 35,
-    //     width_mm: 90,
-    //     height_mm: 50,
-    //     lamination_enabled: false,
-    //     lamination_side: "single",
-    //     film_id: null,
-    //     work_ids: [35]
-    //   },
-    //   ...
-    // }
+    // Текущее состояние формы по каждому компоненту + общее состояние.
+    // Компоненты: { "5": { print_combo, paper_id, width_mm, height_mm, ... } }
+    // Общее: circulation, needsRecalc, recalcInProgress.
     state: {},
 
     // Последний успешный результат расчёта (для отладки и корзины).
@@ -146,6 +135,12 @@ var WC = {
 
         // Сбрасываем результат.
         this.resetResult();
+
+        // ===== Флаги для авто-пересчёта =====
+        // needsRecalc — были ли изменения формы с момента последнего расчёта.
+        // recalcInProgress — защита от параллельных запросов (запущен ли уже расчёт).
+        this.state.needsRecalc = false;
+        this.state.recalcInProgress = false;
     },
 
     /**
@@ -253,10 +248,20 @@ var WC = {
         wInput.value = this.state[comp.id].width_mm;
         wInput.dataset.field = 'width';
         wInput.dataset.componentId = comp.id;
+        // Пока печатается — обновляем превью и помечаем форму изменённой,
+        // но НЕ подставляем границы (иначе нельзя ввести многозначное число).
         wInput.addEventListener('input', () => {
             this.state[comp.id].width_mm = parseFloat(wInput.value) || 0;
             this.updateSizePreview();
-            this.resetResult();
+            this.markDirty();
+        });
+        // При уходе из поля — валидация с подстановкой граничных значений.
+        wInput.addEventListener('blur', () => {
+            this.validateSizeField(comp, 'width', wInput, field);
+        });
+        // Enter = завершить ввод.
+        wInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); wInput.blur(); }
         });
         row.appendChild(wInput);
 
@@ -276,7 +281,13 @@ var WC = {
         hInput.addEventListener('input', () => {
             this.state[comp.id].height_mm = parseFloat(hInput.value) || 0;
             this.updateSizePreview();
-            this.resetResult();
+            this.markDirty();
+        });
+        hInput.addEventListener('blur', () => {
+            this.validateSizeField(comp, 'height', hInput, field);
+        });
+        hInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); hInput.blur(); }
         });
         row.appendChild(hInput);
 
@@ -300,8 +311,8 @@ var WC = {
                 // Скрываем поля.
                 row.classList.add('wc-hidden');
                 this.updateSizePreview();
-                this.resetResult();
             }
+            this.markDirty();
         });
 
         // Подсказка о диапазоне (без лишних нулей).
@@ -336,7 +347,7 @@ var WC = {
         select.value = this.state[comp.id].print_combo;
         select.addEventListener('change', () => {
             this.state[comp.id].print_combo = select.value;
-            this.resetResult();
+            this.markDirty();
         });
         field.appendChild(select);
 
@@ -364,7 +375,7 @@ var WC = {
         select.value = this.state[comp.id].paper_id;
         select.addEventListener('change', () => {
             this.state[comp.id].paper_id = parseInt(select.value, 10);
-            this.resetResult();
+            this.markDirty();
         });
         field.appendChild(select);
 
@@ -418,7 +429,7 @@ var WC = {
             sideSelect.value = this.state[comp.id].lamination_side;
             sideSelect.addEventListener('change', () => {
                 this.state[comp.id].lamination_side = sideSelect.value;
-                this.resetResult();
+                this.markDirty();
             });
             sideField.appendChild(sideSelect);
             extra.appendChild(sideField);
@@ -443,7 +454,7 @@ var WC = {
             filmSelect.value = this.state[comp.id].film_id;
             filmSelect.addEventListener('change', () => {
                 this.state[comp.id].film_id = parseInt(filmSelect.value, 10);
-                this.resetResult();
+                this.markDirty();
             });
             filmField.appendChild(filmSelect);
             extra.appendChild(filmField);
@@ -454,7 +465,7 @@ var WC = {
             var enabled = chkInput.checked;
             this.state[comp.id].lamination_enabled = enabled;
             extra.style.display = enabled ? 'block' : 'none';
-            this.resetResult();
+            this.markDirty();
         });
 
         field.appendChild(extra);
@@ -491,7 +502,7 @@ var WC = {
                 // Перерисовываем SVG-превью: некоторые работы могут
                 // менять внешний вид изделия (например, скругление углов).
                 this.updateSizePreview();
-                this.resetResult();
+                this.markDirty();
             });
             wrap.appendChild(input);
 
@@ -607,15 +618,14 @@ var WC = {
                 inputWrap.style.display = 'none';
                 self.applyCirculationRounding(parseInt(select.value, 10));
             }
-            self.resetResult();
+            self.markDirty();
         });
 
         // Пока клиент печатает — ничего не делаем со значением.
         // Иначе нельзя ввести многозначное число: после первой цифры
-        // оно бы сразу округлилось. Только сбрасываем результат расчёта,
-        // чтобы не показывать устаревшую цену.
+        // оно бы сразу округлилось. Только помечаем форму как изменённую.
         input.addEventListener('input', function () {
-            self.resetResult();
+            self.markDirty();
         });
 
         // Когда клиент ушёл из поля (blur) или нажал Enter (который
@@ -678,24 +688,96 @@ var WC = {
 
         // Подсказка об округлении (всплывающая на 3 секунды).
         if (original !== rounded) {
-            this.showRoundingHint('Тираж изменён: количество должно быть кратно ' + step + ' шт.');
+            var circField = document.querySelector('.wc-field-circulation');
+            this.showFieldHint(circField, 'Тираж изменён: количество должно быть кратно ' + step + ' шт.');
         }
     },
 
     /**
-     * Показывает всплывающую подсказку над полем тиража на 3 секунды.
-     * В зелёных тонах проекта.
+     * Проверяет размер (ширину или высоту) на попадание в диапазон.
+     * Если значение меньше минимума — подставляет минимум и показывает подсказку.
+     * Если больше максимума — подставляет максимум и показывает подсказку.
+     * Если значение пустое/некорректное — подставляет минимум.
+     *
+     * @param {Object} comp       — компонент (содержит size.min_width_mm и т.д.).
+     * @param {string} dimension  — 'width' или 'height'.
+     * @param {HTMLInputElement} input — само поле ввода.
+     * @param {HTMLElement} fieldWrap  — .wc-field, рядом с которым показываем подсказку.
      */
-    showRoundingHint: function (message) {
-        // Убираем предыдущую подсказку, если есть.
-        var old = document.getElementById('wc-rounding-hint');
+    validateSizeField: function (comp, dimension, input, fieldWrap) {
+        var minVal, maxVal, label;
+        if (dimension === 'width') {
+            minVal = comp.size.min_width_mm;
+            maxVal = comp.size.max_width_mm;
+            label = 'Ширина';
+        } else {
+            minVal = comp.size.min_height_mm;
+            maxVal = comp.size.max_height_mm;
+            label = 'Высота';
+        }
+
+        var v = parseFloat(input.value);
+
+        // --- 1. Пустое или некорректное значение — подставляем минимум ---
+        if (isNaN(v)) {
+            input.value = minVal;
+            this.state[comp.id][dimension + '_mm'] = minVal;
+            this.updateSizePreview();
+            this.markDirty();
+            return;
+        }
+
+        // --- 2. Меньше минимума — подставляем минимум + подсказка ---
+        if (v < minVal) {
+            input.value = minVal;
+            this.state[comp.id][dimension + '_mm'] = minVal;
+            this.updateSizePreview();
+            this.markDirty();
+            this.showFieldHint(
+                fieldWrap,
+                label + ' не может быть меньше ' + this.formatMm(minVal) + ' мм'
+            );
+            return;
+        }
+
+        // --- 3. Больше максимума — подставляем максимум + подсказка ---
+        if (v > maxVal) {
+            input.value = maxVal;
+            this.state[comp.id][dimension + '_mm'] = maxVal;
+            this.updateSizePreview();
+            this.markDirty();
+            this.showFieldHint(
+                fieldWrap,
+                label + ' не может быть больше ' + this.formatMm(maxVal) + ' мм'
+            );
+            return;
+        }
+
+        // --- 4. Значение в пределах — просто фиксируем в state ---
+        this.state[comp.id][dimension + '_mm'] = v;
+        this.updateSizePreview();
+    },
+
+
+    /**
+     * Показывает всплывающую подсказку над указанным .wc-field на 3 секунды.
+     * В зелёных тонах проекта.
+     *
+     * @param {HTMLElement} anchorField — элемент .wc-field, рядом с которым
+     *                                     показываем подсказку.
+     * @param {string} message          — текст подсказки.
+     */
+    showFieldHint: function (anchorField, message) {
+        if (!anchorField) return;
+
+        // Убираем предыдущую подсказку внутри этого поля, если есть.
+        var old = anchorField.querySelector('.wc-field-hint');
         if (old) old.parentNode.removeChild(old);
 
         var hint = document.createElement('div');
-        hint.id = 'wc-rounding-hint';
+        hint.className = 'wc-field-hint';
         hint.textContent = message;
-        // Позиционируется относительно родителя поля тиража.
-        document.querySelector('.wc-field-circulation').appendChild(hint);
+        anchorField.appendChild(hint);
 
         // Автоскрытие через 3 секунды.
         setTimeout(function () {
@@ -739,7 +821,7 @@ var WC = {
             o2.textContent = 'Горизонтальная (альбомная)';
             orientSelect.appendChild(o2);
         }
-        orientSelect.addEventListener('change', () => this.resetResult());
+        orientSelect.addEventListener('change', () => this.markDirty());
 
         // --- Скрепление ---
         var bindSelect = document.getElementById('wc-binding');
@@ -748,7 +830,7 @@ var WC = {
         opt.value = bindingComp.binding.id;
         opt.textContent = bindingComp.binding.name;
         bindSelect.appendChild(opt);
-        bindSelect.addEventListener('change', () => this.resetResult());
+        bindSelect.addEventListener('change', () => this.markDirty());
 
         // --- Страницы ---
         var pagesInput = document.getElementById('wc-total-pages');
@@ -757,7 +839,7 @@ var WC = {
         pagesInput.value = bindingComp.multipage.min_pages;
         document.getElementById('wc-total-pages-hint').textContent =
             'от ' + bindingComp.multipage.min_pages + ' до ' + bindingComp.multipage.max_pages;
-        pagesInput.addEventListener('input', () => this.resetResult());
+        pagesInput.addEventListener('input', () => this.markDirty());
     },
 
     // ========================================================================
@@ -773,8 +855,41 @@ var WC = {
             alert('Кнопка будет работать на основном сайте bukva-a.ru');
         });
 
-        // Тираж: обработчики навешиваются в renderForm,
-        // потому что там создаётся весь интерфейс поля.
+        // ===== Автопересчёт по blur и Enter =====
+        // Логика (вариант C):
+        //  - при изменении любого поля ставится флаг needsRecalc;
+        //  - при уходе фокуса из поля (focusout, который срабатывает
+        //    при клике мимо или при переходе на другое поле) запускается
+        //    пересчёт, если флаг стоит;
+        //  - при Enter в поле принудительно эмулируется blur.
+        var self = this;
+        var form = document.getElementById('wc-form');
+
+        if (form) {
+            // focusout всплывает (в отличие от blur), поэтому можно
+            // навесить один обработчик на всю форму.
+            form.addEventListener('focusout', function () {
+                // Небольшая задержка, чтобы клик по кнопке «Рассчитать»
+                // успел обработаться и не было двойного запроса.
+                setTimeout(function () {
+                    if (self.state.needsRecalc && !self.state.recalcInProgress) {
+                        self.onCalculate();
+                    }
+                }, 150);
+            });
+
+            // Enter в любом поле = завершение ввода (как blur).
+            // Обработчик на поле тиража уже делает blur — здесь подстраховка
+            // для остальных полей (input с числом, текстом и т.п.).
+            form.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') {
+                    // Для checkbox и кнопок Enter — это обычное действие, не трогаем.
+                    if (e.target.type === 'checkbox' || e.target.type === 'button') return;
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+        }
     },
 
     // ========================================================================
@@ -785,12 +900,23 @@ var WC = {
      * Собирает payload из состояния и отправляет на сервер.
      */
     onCalculate: function () {
+        // Защита от параллельных запросов: если расчёт уже идёт — выходим.
+        if (this.state.recalcInProgress) {
+            return;
+        }
+        // Снимаем флаг «есть изменения» — как только расчёт стартует,
+        // считаем, что актуальность соблюдается. Если придут новые
+        // изменения, флаг снова встанет в markDirty().
+        this.state.needsRecalc = false;
+        this.state.recalcInProgress = true;
+
         // Тираж берём из state — он уже округлён до кратного шагу.
         var circulation = this.state.circulation;
         var min = this.options.calculator.min_circulation;
         var max = this.options.calculator.max_circulation;
         if (!circulation || circulation < min || circulation > max) {
             this.showError('Тираж должен быть от ' + min + ' до ' + max + ' шт.');
+            this.state.recalcInProgress = false;
             return;
         }
 
@@ -820,7 +946,11 @@ var WC = {
             }
             components.push(item);
         });
-        if (missing) { this.showError(missing); return; }
+        if (missing) {
+            this.showError(missing);
+            this.state.recalcInProgress = false;
+            return;
+        }
 
         // Payload.
         var payload = {
@@ -866,6 +996,7 @@ var WC = {
         .finally(() => {
             btn.disabled = false;
             btn.textContent = originalText;
+            this.state.recalcInProgress = false;
         });
     },
 
@@ -934,6 +1065,16 @@ var WC = {
         }
 
         box.innerHTML = html;
+    },
+
+    /**
+     * Помечает форму как «изменённую»: устанавливает флаг needsRecalc,
+     * чтобы при следующем blur/Enter сработал автопересчёт.
+     * Заодно сбрасывает отображение старой цены в placeholder.
+     */
+    markDirty: function () {
+        this.state.needsRecalc = true;
+        this.resetResult();
     },
 
     /**

@@ -422,7 +422,13 @@ body {
 
 /* ==================== ВСПЛЫВАЮЩАЯ ПОДСКАЗКА ==================== */
 
-#wc-rounding-hint {
+/* Все .wc-field — с относительным позиционированием, чтобы подсказка
+   корректно позиционировалась относительно своего поля. */
+.wc-field {
+    position: relative;
+}
+
+.wc-field-hint {
     position: absolute;
     top: 100%;
     left: 0;
@@ -440,7 +446,7 @@ body {
 }
 
 /* Хвостик-стрелочка сверху, чтобы подсказка "указывала" на поле. */
-#wc-rounding-hint::before {
+.wc-field-hint::before {
     content: '';
     position: absolute;
     top: -6px;

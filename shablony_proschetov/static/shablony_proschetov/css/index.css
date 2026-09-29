@@ -100,14 +100,40 @@ shablony_proschetov/static/shablony_proschetov/css/index.css
 /* Двухколоночный макет: слева — дерево, справа — превью */
 .tpl-layout {
     display: grid;
-    grid-template-columns: 380px 1fr;   /* слева фиксированная ширина, справа всё остальное */
+    grid-template-columns: 380px 1fr;
     gap: 1.5rem;
     align-items: start;
+    position: relative;
+    transition: grid-template-columns 0.2s ease;
+}
+
+/* Когда в дереве есть раскрытая категория — левая колонка расширяется.
+   Правая колонка сжимается, эффект «накрытия» — за счёт тени на панели. */
+.tpl-layout.has-expanded {
+    grid-template-columns: 620px 1fr;
+}
+
+.tpl-layout.has-expanded .tpl-tree-pane {
+    background: #ffffff;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* Левая колонка (дерево) */
 .tpl-tree-pane {
+    background: #fafafa;/* Левая колонка (дерево) */
+.tpl-tree-pane {
     background: #fafafa;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem;
+    /* Убираем ограничение высоты и обрезку — при раскрытии дерево
+       должно «выезжать» за границы ячейки и накрывать правую панель. */
+    overflow: visible;
+    max-height: none;
+    position: relative;
+    z-index: 10;
+    transition: box-shadow 0.2s ease, background 0.2s ease;
+}
     border: 1px solid #ececec;
     border-radius: 12px;
     padding: 1rem;
@@ -544,4 +570,41 @@ shablony_proschetov/static/shablony_proschetov/css/index.css
 .tpl-modal-body textarea.tpl-modal-input {
     resize: vertical;
     min-height: 60px;
+}
+
+/* ==================== СВОРАЧИВАНИЕ ДЕРЕВА ==================== */
+
+/* Дочерние категории и шаблоны внутри узла скрыты по умолчанию.
+   Показываются только у раскрытой категории. */
+.tpl-tree-node > .tpl-tree-children,
+.tpl-tree-node > .tpl-templates-list {
+    display: none;
+}
+
+.tpl-tree-node.expanded > .tpl-tree-children,
+.tpl-tree-node.expanded > .tpl-templates-list {
+    display: block;
+}
+
+/* Название категории: при расширенной панели разрешаем перенос строк —
+   длинные названия будут видны целиком. */
+.tpl-layout.has-expanded .tpl-category-name,
+.tpl-layout.has-expanded .tpl-template-name {
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Иконка-индикатор раскрытия: маленький треугольник справа от названия. */
+.tpl-tree-node > .tpl-category-row .tpl-category-name::after {
+    content: ' ▸';
+    color: #999;
+    font-weight: normal;
+    font-size: 0.85em;
+    margin-left: 0.3rem;
+}
+.tpl-tree-node.expanded > .tpl-category-row .tpl-category-name::after {
+    content: ' ▾';
+    color: #0B8661;
 }
