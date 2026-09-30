@@ -87,11 +87,14 @@ def get_options(calculator):
         if comp.allow_bw_duplex:
             print_options.append({'value': 'bw_duplex', 'label': 'Ч/б двусторонняя'})
 
-        # Бумаги.
-        papers = [
-            {'id': p.id, 'name': p.name}
-            for p in comp.allowed_papers.all().order_by('name')
-        ]
+        # Бумаги: в API отдаём клиентское название, а если его нет —
+        # полное складское. Привязка — через новую модель papers.
+        papers = []
+        for cp in comp.papers.all().select_related('material').order_by('order', 'id'):
+            papers.append({
+                'id': cp.material.id,
+                'name': cp.customer_name or cp.material.name,
+            })
 
         # Ламинация.
         lamination_data = None
@@ -101,10 +104,12 @@ def get_options(calculator):
                 sides.append({'value': 'single', 'label': 'Односторонняя'})
             if comp.allow_lamination_duplex:
                 sides.append({'value': 'duplex', 'label': 'Двусторонняя'})
-            films = [
-                {'id': f.id, 'name': f.name}
-                for f in comp.allowed_films.all().order_by('name')
-            ]
+            films = []
+            for cf in comp.films.all().select_related('material').order_by('order', 'id'):
+                films.append({
+                    'id': cf.material.id,
+                    'name': cf.customer_name or cf.material.name,
+                })
             lamination_data = {'enabled': True, 'sides': sides, 'films': films}
 
         # Работы: в API отдаём только опциональные (галочки в калькуляторе).
@@ -569,7 +574,8 @@ def _get_allowed_paper(comp, paper_id):
         raise OrderCalculationError(f'Бумага с id={paper_id} не найдена', 'paper_not_found', {'paper_id': paper_id})
     if paper.type != 'paper':
         raise OrderCalculationError(f'Материал "{paper.name}" не является бумагой', 'bad_paper_type')
-    if not comp.allowed_papers.filter(id=paper.id).exists():
+    # Проверяем, что материал привязан к компоненту (через новую модель papers).
+    if not comp.papers.filter(material_id=paper.id).exists():
         raise OrderCalculationError(f'Бумага "{paper.name}" недоступна в этом калькуляторе', 'paper_not_allowed')
     return paper
 
@@ -584,7 +590,8 @@ def _get_allowed_film(comp, film_id):
         raise OrderCalculationError(f'Плёнка с id={film_id} не найдена', 'film_not_found', {'film_id': film_id})
     if film.type != 'film':
         raise OrderCalculationError(f'Материал "{film.name}" не является плёнкой', 'bad_film_type')
-    if not comp.allowed_films.filter(id=film.id).exists():
+    # Проверяем, что материал привязан к компоненту (через новую модель films).
+    if not comp.films.filter(material_id=film.id).exists():
         raise OrderCalculationError(f'Плёнка "{film.name}" недоступна в этом калькуляторе', 'film_not_allowed')
     return film
 
@@ -630,7 +637,9 @@ def _calc_sheets_single(comp, width_mm, height_mm, circulation):
     vich = VichisliniyaListovModel()
     vich.vichisliniya_listov_item_width = width_mm
     vich.vichisliniya_listov_item_height = height_mm
-    vich.vichisliniya_listov_vyleta = 1
+    # Зазор берём из компонента веб-калькулятора.
+    # Если поле не заполнено (например, для старых записей до миграции) — 4 мм.
+    vich.vichisliniya_listov_vyleta = comp.vyleta_mm if comp.vyleta_mm is not None else 4
     vich.vichisliniya_listov_fit_selected_orientation = 'auto'
     # calculate_fitting обновит fit_horizontal/fit_vertical/fit_total/cuts_count.
     vich.calculate_fitting(
@@ -689,8 +698,10 @@ def _calc_sheets_multipage(comp, width_mm, height_mm, total_pages,
         raise OrderCalculationError('Альбомная ориентация недоступна', 'orientation_not_allowed')
 
     # Считаем fit_total (страниц на одной стороне листа).
+    # Зазор берём из компонента веб-калькулятора.
+    vyleta_mm = comp.vyleta_mm if comp.vyleta_mm is not None else 4
     fit_h, fit_v, fit_total = _calc_multipage_fitting(
-        printer, comp.binding, width_mm, height_mm, booklet_orientation,
+        printer, comp.binding, width_mm, height_mm, booklet_orientation, vyleta_mm,
     )
     if fit_total <= 0:
         raise OrderCalculationError(
@@ -714,16 +725,25 @@ def _calc_sheets_multipage(comp, width_mm, height_mm, total_pages,
     return Decimal(sheets), 0
 
 
-def _calc_multipage_fitting(printer, binding, item_width, item_height, orientation):
+def _calc_multipage_fitting(printer, binding, item_width, item_height, orientation, vyleta_mm):
     """
     Порт логики размещения страниц/разворотов на листе из JS
     (vichisliniya_listov_multipage.js).
+
+    Аргументы:
+        printer: экземпляр Printer.
+        binding: экземпляр MultipageBinding (способ скрепления).
+        item_width, item_height: размеры страницы, мм.
+        orientation: 'portrait' или 'landscape'.
+        vyleta_mm: зазор между страницами/разворотами, мм.
+
     Возвращает (fit_horizontal, fit_vertical, fit_total).
     fit_total — количество СТРАНИЦ на одной стороне листа.
     """
     printable_w = printer.sheet_format.width_mm - 2 * printer.margin_mm
     printable_h = printer.sheet_format.height_mm - 2 * printer.margin_mm
-    gap = 1  # vyleta по умолчанию
+    # Зазор между изделиями — из параметра (задан в веб-калькуляторе).
+    gap = vyleta_mm
 
     def count_items(available, item_size, gap):
         if item_size <= 0:

@@ -27,6 +27,8 @@ from .models import (
     WebCalculator,
     WebCalculatorCirculationPreset,
     WebCalculatorComponent,
+    WebCalculatorComponentFilm,
+    WebCalculatorComponentPaper,
     WebCalculatorComponentWork,
     WebCalculatorSizePreset,
 )
@@ -66,6 +68,32 @@ class WebCalculatorComponentWorkInline(NestedTabularInline):
     verbose_name = 'Работа'
     verbose_name_plural = 'Работы'
 
+class WebCalculatorComponentPaperInline(NestedTabularInline):
+    """
+    Inline доступных бумаг внутри компонента.
+    Tabular — бумаги удобнее видеть таблицей.
+    Колонки: порядок, материал, название для клиента.
+    """
+    model = WebCalculatorComponentPaper
+    extra = 1
+    fields = ('order', 'material', 'customer_name')
+    ordering = ('order', 'id')
+    autocomplete_fields = ('material',)
+    verbose_name = 'Доступная бумага'
+    verbose_name_plural = 'Доступные бумаги'
+
+
+class WebCalculatorComponentFilmInline(NestedTabularInline):
+    """
+    Inline доступных плёнок внутри компонента.
+    """
+    model = WebCalculatorComponentFilm
+    extra = 1
+    fields = ('order', 'material', 'customer_name')
+    ordering = ('order', 'id')
+    autocomplete_fields = ('material',)
+    verbose_name = 'Доступная плёнка'
+    verbose_name_plural = 'Доступные плёнки'
 
 
 
@@ -82,9 +110,13 @@ class WebCalculatorComponentInline(NestedStackedInline):
     verbose_name = 'Компонент'
     verbose_name_plural = 'Компоненты'
     # Вкладываем пресеты размеров внутрь каждого компонента.
-    inlines = [WebCalculatorComponentWorkInline, WebCalculatorSizePresetInline]
-    # M2M-поля — через два списка с фильтром.
-    filter_horizontal = ('allowed_papers', 'allowed_films')
+    inlines = [
+        WebCalculatorComponentWorkInline,
+        WebCalculatorComponentPaperInline,
+        WebCalculatorComponentFilmInline,
+        WebCalculatorSizePresetInline,
+    ]
+
 
     # Группировка полей внутри компонента для читаемости.
     fieldsets = (
@@ -99,15 +131,14 @@ class WebCalculatorComponentInline(NestedStackedInline):
                 'allow_bw_duplex',
             ),
         }),
-        ('Бумага и ламинация', {
+        ('Ламинация', {
             'fields': (
-                'allowed_papers',
                 'lamination_enabled',
                 'laminator',
                 'allow_lamination_single',
                 'allow_lamination_duplex',
-                'allowed_films',
             ),
+            'description': 'Бумаги и плёнки добавляются в инлайн-таблицах ниже.',
         }),
         ('Дополнительные работы', {
             'fields': (),
@@ -119,6 +150,7 @@ class WebCalculatorComponentInline(NestedStackedInline):
             'fields': (
                 ('min_width_mm', 'max_width_mm'),
                 ('min_height_mm', 'max_height_mm'),
+                'vyleta_mm',
             ),
         }),
         ('Скрепление (только для многостраничных)', {
@@ -241,8 +273,11 @@ class WebCalculatorComponentAdmin(admin.ModelAdmin):
     )
     list_filter = ('calculator', 'printer', 'binding')
     search_fields = ('name', 'calculator__name', 'calculator__slug', 'printer__name')
-    filter_horizontal = ('allowed_papers', 'allowed_films')
-    inlines = [WebCalculatorComponentWorkInline]
+    inlines = [
+        WebCalculatorComponentWorkInline,
+        WebCalculatorComponentPaperInline,
+        WebCalculatorComponentFilmInline,
+    ]
     autocomplete_fields = ('printer', 'binding')
 
 
@@ -276,3 +311,20 @@ class WebCalculatorCirculationPresetAdmin(admin.ModelAdmin):
     list_filter = ('calculator',)
     search_fields = ('calculator__name', 'calculator__slug')
     autocomplete_fields = ('calculator',)
+
+@admin.register(WebCalculatorComponentPaper)
+class WebCalculatorComponentPaperAdmin(admin.ModelAdmin):
+    """Отдельная админка доступных бумаг — для поиска."""
+    list_display = ('id', 'component', 'material', 'customer_name', 'order')
+    list_filter = ('component__calculator',)
+    search_fields = ('component__name', 'component__calculator__name', 'material__name', 'customer_name')
+    autocomplete_fields = ('component', 'material')
+
+
+@admin.register(WebCalculatorComponentFilm)
+class WebCalculatorComponentFilmAdmin(admin.ModelAdmin):
+    """Отдельная админка доступных плёнок — для поиска."""
+    list_display = ('id', 'component', 'material', 'customer_name', 'order')
+    list_filter = ('component__calculator',)
+    search_fields = ('component__name', 'component__calculator__name', 'material__name', 'customer_name')
+    autocomplete_fields = ('component', 'material')

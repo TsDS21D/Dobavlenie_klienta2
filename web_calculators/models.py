@@ -24,7 +24,7 @@ vichisliniya_listov) — добавлено поле default_work, чтобы п
 # ===== СТАНДАРТНЫЕ ИМПОРТЫ =====
 from decimal import Decimal                     # Для точных числовых значений
 from django.db import models                    # Базовый модуль моделей Django
-from django.core.validators import MinValueValidator  # Валидатор «не меньше нуля»
+from django.core.validators import MinValueValidator, MaxValueValidator  # Валидатор «не меньше нуля»
 
 # ===== ИМПОРТЫ МОДЕЛЕЙ ИЗ ДРУГИХ ПРИЛОЖЕНИЙ =====
 # Эти приложения (devices, sklad, spravochnik) не зависят от web_calculators,
@@ -253,16 +253,6 @@ class WebCalculatorComponent(models.Model):
         default=False,
     )
 
-    # ===== БУМАГИ, ДОСТУПНЫЕ КЛИЕНТУ =====
-    # M2M — список материалов из склада с типом 'paper'.
-    allowed_papers = models.ManyToManyField(
-        Material,
-        verbose_name='Доступные бумаги',
-        blank=True,
-        related_name='web_calculator_components_as_paper',
-        limit_choices_to={'type': 'paper'},
-        help_text='Материалы из склада с типом "бумага", которые клиент может выбрать',
-    )
 
     # ===== ЛАМИНАЦИЯ =====
     # Флаг, разрешена ли ламинация вообще для этого компонента.
@@ -292,15 +282,6 @@ class WebCalculatorComponent(models.Model):
         verbose_name='Ламинация двусторонняя',
         default=False,
     )
-    # Список плёнок (материалы с типом 'film').
-    allowed_films = models.ManyToManyField(
-        Material,
-        verbose_name='Доступные плёнки',
-        blank=True,
-        related_name='web_calculator_components_as_film',
-        limit_choices_to={'type': 'film'},
-        help_text='Материалы из склада с типом "плёнка", которые клиент может выбрать',
-    )
 
 
     # ===== ДИАПАЗОН РАЗМЕРОВ =====
@@ -328,6 +309,16 @@ class WebCalculatorComponent(models.Model):
         max_digits=6,
         decimal_places=2,
         default=Decimal('120.00'),
+    )
+
+    # ===== ЗАЗОР МЕЖДУ ИЗДЕЛИЯМИ НА ЛИСТЕ =====
+    # Расстояние между соседними изделиями при расчёте размещения
+    # на печатном листе. Значение в мм, целое.
+    vyleta_mm = models.PositiveIntegerField(
+        verbose_name='Зазор между изделиями (мм)',
+        default=4,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Расстояние между соседними изделиями на листе. По умолчанию 4 мм.',
     )
 
     # ===== СКРЕПЛЕНИЕ (для многостраничных изделий) =====
@@ -571,3 +562,115 @@ class WebCalculatorCirculationPreset(models.Model):
 
     def __str__(self):
         return f"{self.value} шт."    
+
+
+# ============================================================================
+# МОДЕЛЬ 6: ДОСТУПНАЯ БУМАГА КОМПОНЕНТА
+# ============================================================================
+
+class WebCalculatorComponentPaper(models.Model):
+    """
+    Связь «компонент ↔ бумага» с клиентским названием.
+
+    Каждая запись — одна бумага (Material с type='paper'), привязанная
+    к компоненту веб-калькулятора.
+
+    Поле customer_name — то, что клиент видит в выпадающем списке на сайте.
+    Если оставить пустым — будет показано полное складское название материала.
+
+    В расчётах используется сам объект Material (берём цену, плотность,
+    толщину и т.п.). customer_name — только для отображения.
+    """
+
+    # Ссылка на компонент веб-калькулятора.
+    component = models.ForeignKey(
+        WebCalculatorComponent,
+        verbose_name='Компонент',
+        on_delete=models.CASCADE,
+        related_name='papers',                       # comp.papers.all()
+        help_text='Компонент, к которому относится бумага',
+    )
+
+    # Ссылка на материал из склада.
+    material = models.ForeignKey(
+        Material,
+        verbose_name='Бумага (со склада)',
+        on_delete=models.CASCADE,
+        related_name='web_calculator_papers',
+        limit_choices_to={'type': 'paper'},
+    )
+
+    # Клиентское название. Пустое — показываем складское.
+    customer_name = models.CharField(
+        verbose_name='Название для клиента',
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Если оставить пустым — клиент увидит полное складское название',
+    )
+
+    # Порядок сортировки в выпадающем списке.
+    order = models.PositiveIntegerField(
+        verbose_name='Порядок',
+        default=0,
+    )
+
+    class Meta:
+        ordering = ['component', 'order', 'id']
+        unique_together = ['component', 'material']
+        verbose_name = 'Доступная бумага'
+        verbose_name_plural = 'Доступные бумаги'
+
+    def __str__(self):
+        return self.customer_name or self.material.name
+
+
+# ============================================================================
+# МОДЕЛЬ 7: ДОСТУПНАЯ ПЛЁНКА КОМПОНЕНТА
+# ============================================================================
+
+class WebCalculatorComponentFilm(models.Model):
+    """
+    Связь «компонент ↔ плёнка» с клиентским названием.
+
+    Полностью аналогична WebCalculatorComponentPaper,
+    но для материалов с type='film'.
+    """
+
+    component = models.ForeignKey(
+        WebCalculatorComponent,
+        verbose_name='Компонент',
+        on_delete=models.CASCADE,
+        related_name='films',                        # comp.films.all()
+        help_text='Компонент, к которому относится плёнка',
+    )
+
+    material = models.ForeignKey(
+        Material,
+        verbose_name='Плёнка (со склада)',
+        on_delete=models.CASCADE,
+        related_name='web_calculator_films',
+        limit_choices_to={'type': 'film'},
+    )
+
+    customer_name = models.CharField(
+        verbose_name='Название для клиента',
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Если оставить пустым — клиент увидит полное складское название',
+    )
+
+    order = models.PositiveIntegerField(
+        verbose_name='Порядок',
+        default=0,
+    )
+
+    class Meta:
+        ordering = ['component', 'order', 'id']
+        unique_together = ['component', 'material']
+        verbose_name = 'Доступная плёнка'
+        verbose_name_plural = 'Доступные плёнки'
+
+    def __str__(self):
+        return self.customer_name or self.material.name    
