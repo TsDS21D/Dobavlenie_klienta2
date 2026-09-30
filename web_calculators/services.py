@@ -270,8 +270,13 @@ def calculate_price(calculator, data):
 
     # Коэффициент 1.02 на массу (краска, упаковка) — как в секции "Масса и объём".
     total_mass_g = (total_mass_g * Decimal('1.02')).quantize(Decimal('0.01'))
-    total_price = total_price.quantize(Decimal('0.01'))
+
+    # Сначала округляем цену за штуку, потом пересчитываем итог от неё.
+    # Так цифры сходятся: price_per_unit × circulation = total_price.
+    # Пример: точная цена 667.80 ₽ / 100 шт = 6.678 ₽/шт → округляем до 6.68,
+    # итог = 6.68 × 100 = 668.00 ₽. Клиент не увидит расхождения.
     price_per_unit = (total_price / Decimal(circulation)).quantize(Decimal('0.01'))
+    total_price = (price_per_unit * Decimal(circulation)).quantize(Decimal('0.01'))
 
     return {
         'success': True,

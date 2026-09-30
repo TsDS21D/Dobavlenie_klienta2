@@ -26,6 +26,10 @@ body {
     min-height: 100vh;
     padding: 2rem 1rem;
     color: #333;
+    /* Резервируем место под вертикальный скролл всегда — даже когда
+       содержимое короче экрана. Это устраняет горизонтальное смещение
+       контента при появлении/исчезновении скролла. */
+    overflow-y: scroll;
 }
 
 /* ==================== КОНТЕЙНЕР СТРАНИЦЫ ==================== */
@@ -460,4 +464,90 @@ body {
 @keyframes wcHintIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ==================== ЯЧЕЙКИ ПОЛЕЙ ШИРИНЫ И ВЫСОТЫ ==================== */
+
+/* Каждое из двух полей (ширина, высота) в блоке размера обёрнуто в .wc-size-cell.
+   Это нужно, чтобы всплывающая подсказка показывалась именно под нужным полем. */
+.wc-size-row > .wc-size-cell {
+    position: relative;
+}
+
+/* Поле ввода внутри ячейки растягивается на всю ширину ячейки. */
+.wc-size-row > .wc-size-cell > input {
+    width: 100%;
+}
+
+/* ==================== КНОПКА "ДОБАВИТЬ В КОРЗИНУ" В РЕЗУЛЬТАТЕ ==================== */
+
+/* Кнопка внутри блока результата — во всю ширину, чуть ниже цены. */
+.wc-result-add-to-cart {
+    width: 100%;
+    margin: 0.75rem 0 1rem;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.95rem;
+}
+
+/* Заглушечное состояние — когда цена ещё не посчитана:
+   серый знак вопроса + нейтральная подпись. */
+.wc-result-price-pending {
+    color: #b9d9c7;
+    font-size: 2.2rem;
+}
+
+.wc-result-per-unit-pending {
+    color: #999;
+    font-style: italic;
+}
+
+/* Красная рамка у невалидного числового поля (ширина/высота). */
+.wc-size-cell.wc-has-error > input {
+    border-color: #cf6b66;
+}
+
+/* ==================== ПЛАВНЫЕ ПЕРЕХОДЫ БЛОКА РЕЗУЛЬТАТА ==================== */
+
+/* Мягкая пульсация знака вопроса в состоянии «Ожидание расчёта».
+   Показывает клиенту, что идёт расчёт (или что что-то не заполнено). */
+@keyframes wcPulsePending {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+}
+
+.wc-result-price-pending {
+    animation: wcPulsePending 1.6s ease-in-out infinite;
+}
+
+/* Кнопка «Добавить в корзину» в неактивном состоянии — плавное затемнение. */
+.wc-result-add-to-cart {
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+/* ==================== ПЛАВНАЯ ПЕРЕРИСОВКА SVG-ПРЕВЬЮ ==================== */
+
+/* Прямоугольник и линии плавно меняют координаты и размеры.
+   Работает в Chrome, Edge, Safari и новых Firefox — там атрибуты
+   x/y/width/height и x1/y1/x2/y2 анимируются через CSS transition. */
+#wc-size-preview rect,
+#wc-size-preview line {
+    transition:
+        x 0.22s ease-out,
+        y 0.22s ease-out,
+        width 0.22s ease-out,
+        height 0.22s ease-out,
+        rx 0.22s ease-out,
+        ry 0.22s ease-out,
+        x1 0.22s ease-out,
+        y1 0.22s ease-out,
+        x2 0.22s ease-out,
+        y2 0.22s ease-out;
+}
+
+#wc-size-preview text {
+    transition:
+        x 0.22s ease-out,
+        y 0.22s ease-out,
+        transform 0.22s ease-out;
 }

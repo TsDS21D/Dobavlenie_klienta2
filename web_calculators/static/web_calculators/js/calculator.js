@@ -3,12 +3,17 @@
  * НАЗНАЧЕНИЕ: логика публичной страницы-калькулятора.
  *
  * РАБОТА:
- * 1. При загрузке страницы — запрашивает опции калькулятора
- *    (GET /web-calc/api/<slug>/options/) и строит форму.
- * 2. По кнопке «Рассчитать», а также автоматически при blur/Enter
- *    (если форма изменена) — отправляет POST /web-calc/api/<slug>/price/.
- * 3. Показывает результат в правой панели.
- * 4. Рисует SVG-превью размера изделия.
+ * 1. При загрузке страницы — запрашивает опции (GET /web-calc/api/<slug>/options/),
+ *    строит форму и СРАЗУ делает первый расчёт по параметрам по умолчанию.
+ * 2. Автопересчёт через 1 секунду после любого изменения формы
+ *    (debounce — срабатывает только последнее изменение).
+ * 3. Отдельно — быстрый пересчёт по blur/Enter (когда клиент ушёл из поля).
+ * 4. Валидация размеров: не подставляет границы, а подсвечивает поле
+ *    красной рамкой и показывает подсказку. Пока есть ошибка — цена
+ *    не считается, в блоке результата «Ожидание расчёта».
+ * 5. Показывает результат: крупно — цена за тираж, мельче — за штуку,
+ *    кнопка «Добавить в корзину», затем детали.
+ * 6. Рисует SVG-превью размера изделия с размерными линиями.
  *
  * ВСЁ СОСТОЯНИЕ — в объекте state. DOM-элементы создаются через JS,
  * потому что структура формы зависит от ответа API.
@@ -22,10 +27,6 @@
 // 1. ОБЪЕКТ СОСТОЯНИЯ
 // ============================================================================
 
-/**
- * Хранилище всех данных страницы.
- * Доступ к нему — через замыкание (всё в одном IIFE ниже).
- */
 var WC = {
 
     // URL из шаблона (window.WC_CONFIG, задан инлайн-скриптом в calculator.html).
@@ -34,30 +35,41 @@ var WC = {
     // Данные от API options (полная структура).
     options: null,
 
-    // Карта компонентов по id: {5: {...}, 7: {...}}.
+    // Карта компонентов по id: {5: {...}, 7: {...}} — удобно искать по id.
     componentsById: {},
 
-    // Текущее состояние формы по каждому компоненту + общее состояние.
-    // Компоненты: { "5": { print_combo, paper_id, width_mm, height_mm, ... } }
+    // Состояние формы.
+    // Для каждого компонента: { "5": { print_combo, paper_id, width_mm, height_mm, ... } }.
     // Общее: circulation, needsRecalc, recalcInProgress.
     state: {},
 
-    // Последний успешный результат расчёта (для отладки и корзины).
+    // Последний успешный результат (на будущее, для «корзины»).
     lastResult: null,
+
+    // Таймер debounce для автопересчёта (общий для всех полей).
+    _debounceTimer: null,
+
 
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ
     // ========================================================================
 
     /**
-     * Точка входа. Загружает опции и навешивает общие обработчики.
+     * Точка входа. Загружает опции, строит форму, делает первый расчёт.
      */
     init: function () {
         console.log('🚀 Инициализация страницы-калькулятора', this.config);
 
         // Загружаем опции с сервера.
         this.loadOptions()
-            .then(() => this.setupGeneralHandlers())
+            .then(() => {
+                // Навешиваем общие обработчики (debounce, focusout, Enter).
+                this.setupGeneralHandlers();
+
+                // Сразу считаем цену по параметрам по умолчанию,
+                // чтобы клиент не видел «Ожидание расчёта» при загрузке.
+                this.onCalculate();
+            })
             .catch(err => {
                 console.error('Ошибка загрузки опций:', err);
                 this.showError('Не удалось загрузить параметры калькулятора. Обновите страницу.');
@@ -81,7 +93,7 @@ var WC = {
             if (!data.success) throw new Error(data.error || 'API вернул success: false');
             this.options = data;
 
-            // Заполняем карту компонентов.
+            // Заполняем карту компонентов для быстрого доступа по id.
             this.componentsById = {};
             data.components.forEach(c => { this.componentsById[c.id] = c; });
 
@@ -89,6 +101,7 @@ var WC = {
             this.renderForm();
         });
     },
+
 
     // ========================================================================
     // 3. РЕНДЕР ФОРМЫ
@@ -114,12 +127,11 @@ var WC = {
                 film_id: (comp.lamination && comp.lamination.films.length) ? comp.lamination.films[0].id : null,
                 work_ids: []
             };
-            // Рендерим.
+            // Рендерим блок компонента и добавляем в контейнер.
             container.appendChild(this.buildComponentBlock(comp));
         });
 
         // Инициализируем глобальный тираж (общий для всего заказа).
-        // Значение по умолчанию — минимальный тираж.
         this.state.circulation = this.options.calculator.min_circulation;
 
         // Строим блок тиража (селект пресетов + поле ввода + подсказка).
@@ -130,22 +142,22 @@ var WC = {
             this.setupMultipageFields();
         }
 
-        // Отрисовываем превью размера первого компонента.
+        // Первичная отрисовка SVG-превью.
         this.updateSizePreview();
 
-        // Сбрасываем результат.
+        // Показываем «Ожидание расчёта» (знак вопроса + серая неактивная кнопка).
+        // Реальную цену подставит первый вызов onCalculate() из init().
         this.resetResult();
 
-        // ===== Флаги для авто-пересчёта =====
+        // Флаги для авто-пересчёта.
         // needsRecalc — были ли изменения формы с момента последнего расчёта.
-        // recalcInProgress — защита от параллельных запросов (запущен ли уже расчёт).
+        // recalcInProgress — защита от параллельных запросов.
         this.state.needsRecalc = false;
         this.state.recalcInProgress = false;
     },
 
     /**
      * Строит DOM-блок одного печатного компонента.
-     * Возвращает готовый <div class="wc-component">.
      */
     buildComponentBlock: function (comp) {
         var block = document.createElement('div');
@@ -158,27 +170,26 @@ var WC = {
         title.textContent = comp.name;
         block.appendChild(title);
 
-        // --- 1. Блок размера ---
+        // 1. Блок размера (селект пресетов + поля ширины/высоты).
         block.appendChild(this.buildSizeBlock(comp));
 
-        // --- 2. Блок печати ---
+        // 2. Блок печати (выбор комбинации color/bw + single/duplex).
         if (comp.print_options.length) {
             block.appendChild(this.buildPrintBlock(comp));
         }
 
-        // --- 3. Блок бумаги ---
+        // 3. Блок бумаги (выпадающий список доступных бумаг).
         if (comp.papers.length) {
             block.appendChild(this.buildPaperBlock(comp));
         }
 
-        // --- 4. Блок ламинации ---
+        // 4. Блок ламинации (галочка + сторона + плёнка).
         if (comp.lamination && comp.lamination.enabled) {
             block.appendChild(this.buildLaminationBlock(comp));
         }
 
-        // --- 5. Блок опциональных работ ---
-        // Показываем только опциональные (галочки). Always-on в форме не отображаем,
-        // но они участвуют в расчёте и показываются в результате.
+        // 5. Блок опциональных работ (галочки).
+        // Always-on работы в форме не показываем, но они участвуют в расчёте.
         if (comp.works.length) {
             block.appendChild(this.buildWorksBlock(comp));
         }
@@ -188,11 +199,12 @@ var WC = {
 
     /**
      * Блок размера.
-     * Логика (вариант A):
-     * - Один выпадающий список: пресеты + опция «Свой размер».
-     * - При выборе пресета — поля ширины/высоты скрыты, значения берутся из пресета.
-     * - При выборе «Свой размер» — появляются два поля ввода (ширина, высота).
-     * - Если у компонента нет пресетов — сразу показываем поля ввода.
+     * Логика:
+     * - Выпадающий список: пресеты + «Свой размер».
+     * - При выборе пресета поля ширины/высоты скрыты.
+     * - При выборе «Свой размер» — появляются два поля ввода.
+     * - Валидация: при вводе меньше min / больше max — красная рамка
+     *   и постоянная подсказка. Значение НЕ подставляется.
      */
     buildSizeBlock: function (comp) {
         var field = document.createElement('div');
@@ -209,7 +221,7 @@ var WC = {
         select.className = 'wc-size-select';
 
         if (hasPresets) {
-            // Опции-пресеты.
+            // Опции-пресеты (90×50, 85×55 и т.п.).
             var self = this;
             comp.size.presets.forEach(function (p, index) {
                 var opt = document.createElement('option');
@@ -235,10 +247,14 @@ var WC = {
 
         field.appendChild(select);
 
-        // --- Ряд полей ширины/высоты (скрыт, если пресеты есть и выбран пресет) ---
+        // --- Ряд полей ширины/высоты (скрыт, если выбран пресет) ---
         var row = document.createElement('div');
         row.className = 'wc-size-row';
         if (hasPresets) row.classList.add('wc-hidden');
+
+        // ===== ЯЧЕЙКА ШИРИНЫ =====
+        var wCell = document.createElement('div');
+        wCell.className = 'wc-size-cell';
 
         var wInput = document.createElement('input');
         wInput.type = 'number';
@@ -248,27 +264,36 @@ var WC = {
         wInput.value = this.state[comp.id].width_mm;
         wInput.dataset.field = 'width';
         wInput.dataset.componentId = comp.id;
-        // Пока печатается — обновляем превью и помечаем форму изменённой,
-        // но НЕ подставляем границы (иначе нельзя ввести многозначное число).
+
+        // При каждом изменении:
+        //  - обновляем state,
+        //  - перерисовываем превью,
+        //  - помечаем форму изменённой (сбрасывает цену на «Ожидание расчёта»),
+        //  - валидируем (красная рамка + подсказка при ошибке),
+        //  - ставим таймер на автопересчёт (debounce 1 секунда).
         wInput.addEventListener('input', () => {
             this.state[comp.id].width_mm = parseFloat(wInput.value) || 0;
             this.updateSizePreview();
             this.markDirty();
+            this.validateSizeField(comp, 'width', wInput, wCell);
+            this.scheduleAutoRecalc();
         });
-        // При уходе из поля — валидация с подстановкой граничных значений.
-        wInput.addEventListener('blur', () => {
-            this.validateSizeField(comp, 'width', wInput, field);
-        });
-        // Enter = завершить ввод.
+        // Enter = завершить ввод (для удобства и для запуска быстрого пересчёта).
         wInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); wInput.blur(); }
         });
-        row.appendChild(wInput);
+        wCell.appendChild(wInput);
+        row.appendChild(wCell);
 
+        // Разделитель «×» между полями ширины и высоты.
         var sep = document.createElement('span');
         sep.className = 'wc-size-sep';
         sep.textContent = '×';
         row.appendChild(sep);
+
+        // ===== ЯЧЕЙКА ВЫСОТЫ =====
+        var hCell = document.createElement('div');
+        hCell.className = 'wc-size-cell';
 
         var hInput = document.createElement('input');
         hInput.type = 'number';
@@ -278,44 +303,48 @@ var WC = {
         hInput.value = this.state[comp.id].height_mm;
         hInput.dataset.field = 'height';
         hInput.dataset.componentId = comp.id;
+
         hInput.addEventListener('input', () => {
             this.state[comp.id].height_mm = parseFloat(hInput.value) || 0;
             this.updateSizePreview();
             this.markDirty();
-        });
-        hInput.addEventListener('blur', () => {
-            this.validateSizeField(comp, 'height', hInput, field);
+            this.validateSizeField(comp, 'height', hInput, hCell);
+            this.scheduleAutoRecalc();
         });
         hInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); hInput.blur(); }
         });
-        row.appendChild(hInput);
+        hCell.appendChild(hInput);
+        row.appendChild(hCell);
 
         field.appendChild(row);
 
-        // --- Обработчик изменения выпадающего списка ---
+        // --- Обработчик выбора пресета/своего размера ---
         select.addEventListener('change', () => {
             var value = select.value;
             if (value === 'custom') {
-                // Показываем поля. Подставляем в них текущие значения, чтобы было что править.
+                // Показываем поля ввода. Подставляем текущие значения,
+                // чтобы клиент мог их сразу править.
                 row.classList.remove('wc-hidden');
                 wInput.value = this.state[comp.id].width_mm;
                 hInput.value = this.state[comp.id].height_mm;
             } else {
-                // Пресет: берём данные из option.
+                // Пресет — берём ширину/высоту из data-атрибутов.
                 var opt = select.options[select.selectedIndex];
                 var pw = parseFloat(opt.dataset.w);
                 var ph = parseFloat(opt.dataset.h);
                 this.state[comp.id].width_mm = pw;
                 this.state[comp.id].height_mm = ph;
-                // Скрываем поля.
+                // Скрываем поля (значения всё равно берутся из state).
                 row.classList.add('wc-hidden');
                 this.updateSizePreview();
             }
             this.markDirty();
+            // Смена пресета — тоже триггер автопересчёта.
+            this.scheduleAutoRecalc();
         });
 
-        // Подсказка о диапазоне (без лишних нулей).
+        // Подсказка о допустимом диапазоне размеров.
         var hint = document.createElement('div');
         hint.className = 'wc-hint';
         hint.textContent = 'от ' + this.formatMm(comp.size.min_width_mm) + '×' + this.formatMm(comp.size.min_height_mm) +
@@ -325,9 +354,8 @@ var WC = {
         return field;
     },
 
-
     /**
-     * Блок печати: выпадающий список комбинаций (color_single, bw_duplex и т.п.).
+     * Блок выбора комбинации печати (color_single, bw_duplex и т.п.).
      */
     buildPrintBlock: function (comp) {
         var field = document.createElement('div');
@@ -355,7 +383,7 @@ var WC = {
     },
 
     /**
-     * Блок бумаги: выпадающий список.
+     * Блок бумаги (выпадающий список).
      */
     buildPaperBlock: function (comp) {
         var field = document.createElement('div');
@@ -369,7 +397,7 @@ var WC = {
         comp.papers.forEach(p => {
             var o = document.createElement('option');
             o.value = p.id;
-            o.textContent = p.name;
+            o.textContent = p.name;   // здесь уже клиентское название, если задано
             select.appendChild(o);
         });
         select.value = this.state[comp.id].paper_id;
@@ -383,14 +411,13 @@ var WC = {
     },
 
     /**
-     * Блок ламинации: галочка «с ламинацией» + (если включена)
-     * сторона и плёнка.
+     * Блок ламинации: галочка «С ламинацией» + выбор стороны и плёнки.
      */
     buildLaminationBlock: function (comp) {
         var field = document.createElement('div');
         field.className = 'wc-field';
 
-        // Галочка «с ламинацией».
+        // Галочка «С ламинацией».
         var chk = document.createElement('label');
         chk.className = 'wc-checkbox';
 
@@ -405,7 +432,7 @@ var WC = {
 
         field.appendChild(chk);
 
-        // Контейнер с дополнительными полями — показываем только если галочка.
+        // Дополнительные поля (сторона, плёнка) — видимы, только если галочка.
         var extra = document.createElement('div');
         extra.style.display = this.state[comp.id].lamination_enabled ? 'block' : 'none';
         extra.style.marginTop = '0.75rem';
@@ -448,7 +475,7 @@ var WC = {
             comp.lamination.films.forEach(f => {
                 var o = document.createElement('option');
                 o.value = f.id;
-                o.textContent = f.name;
+                o.textContent = f.name;   // клиентское название, если задано
                 filmSelect.appendChild(o);
             });
             filmSelect.value = this.state[comp.id].film_id;
@@ -474,7 +501,7 @@ var WC = {
     },
 
     /**
-     * Блок дополнительных работ: чекбоксы.
+     * Блок опциональных работ (галочки).
      */
     buildWorksBlock: function (comp) {
         var field = document.createElement('div');
@@ -499,8 +526,7 @@ var WC = {
                 } else {
                     st.work_ids = st.work_ids.filter(id => id !== wid);
                 }
-                // Перерисовываем SVG-превью: некоторые работы могут
-                // менять внешний вид изделия (например, скругление углов).
+                // Работа может влиять на превью (например, скругление углов).
                 this.updateSizePreview();
                 this.markDirty();
             });
@@ -518,16 +544,16 @@ var WC = {
 
 
     // ========================================================================
-    // ТИРАЖ: СЕЛЕКТ ПРЕСЕТОВ + ПОЛЕ ВВОДА
+    // 4. ТИРАЖ: СЕЛЕКТ ПРЕСЕТОВ + ПОЛЕ ВВОДА
     // ========================================================================
 
     /**
      * Строит блок тиража:
      * - выпадающий список: [пресет1, пресет2, ..., «Свой тираж»];
      * - поле ввода (показывается только при выборе «Свой тираж»);
-     * - подсказка под полем с диапазоном.
+     * - подсказка о диапазоне.
      *
-     * По умолчанию выбирается первый пресет.
+     * Тираж округляется до кратного circulation_step только при blur/Enter.
      */
     buildCirculationBlock: function () {
         var calc = this.options.calculator;
@@ -536,7 +562,7 @@ var WC = {
         var minCirc = calc.min_circulation;
         var maxCirc = calc.max_circulation;
 
-        // Контейнер полей тиража.
+        // Контейнер полей тиража (объявлен в HTML).
         var wrap = document.getElementById('wc-circulation-container');
         wrap.innerHTML = '';
 
@@ -561,15 +587,12 @@ var WC = {
 
         wrap.appendChild(select);
 
-        // Значение по умолчанию для тиража.
+        // Значение по умолчанию.
         var defaultCirc = calc.default_circulation || minCirc;
-        // Если дефолт не входит в список пресетов, добавим его туда.
+        // Если дефолт не входит в список пресетов — добавляем и сортируем.
         if (presets.indexOf(defaultCirc) === -1) {
-            // Добавляем пресет так, чтобы не сломать сортировку.
-            // (Он уже прошёл валидацию при сохранении в админке, так что кратен шагу.)
             presets.push(defaultCirc);
             presets.sort(function (a, b) { return a - b; });
-            // Перестраиваем опции селекта.
             select.innerHTML = '';
             presets.forEach(function (v) {
                 var o = document.createElement('option');
@@ -600,7 +623,7 @@ var WC = {
 
         wrap.appendChild(inputWrap);
 
-        // === 3. Подсказка ===
+        // === 3. Подсказка о диапазоне ===
         var hint = document.createElement('div');
         hint.className = 'wc-hint';
         hint.id = 'wc-circulation-hint';
@@ -610,47 +633,47 @@ var WC = {
         // === 4. Обработчики ===
         var self = this;
 
+        // Смена пресета.
         select.addEventListener('change', function () {
             if (select.value === 'custom') {
+                // Показываем поле ручного ввода.
                 inputWrap.style.display = 'block';
                 input.value = presets.length ? presets[0] : minCirc;
             } else {
+                // Пресет выбран — поле скрываем, значение округляем.
                 inputWrap.style.display = 'none';
                 self.applyCirculationRounding(parseInt(select.value, 10));
             }
             self.markDirty();
         });
 
-        // Пока клиент печатает — ничего не делаем со значением.
-        // Иначе нельзя ввести многозначное число: после первой цифры
-        // оно бы сразу округлилось. Только помечаем форму как изменённую.
+        // Ввод в поле тиража: state обновляем только при blur — это принципиально,
+        // иначе нельзя ввести многозначное число (после первой цифры
+        // значение бы сразу округлилось и убежало). При input только
+        // помечаем форму изменённой.
         input.addEventListener('input', function () {
             self.markDirty();
         });
 
-        // Когда клиент ушёл из поля (blur) или нажал Enter (который
-        // превращается в blur) — округляем значение, подставляем его
-        // в поле и при необходимости показываем всплывающую подсказку.
+        // Blur/Enter: округляем до кратного и записываем в state.
         input.addEventListener('blur', function () {
             var v = parseInt(input.value, 10);
 
-            // Если поле пустое или содержит мусор — подставляем минимум.
+            // Пустое или мусор — подставляем минимум.
             if (isNaN(v)) {
                 input.value = self.options.calculator.min_circulation;
                 self.state.circulation = self.options.calculator.min_circulation;
                 return;
             }
 
-            // Округляем. Метод applyCirculationRounding сохранит
-            // округлённое значение в state и покажет подсказку,
-            // если значение изменилось.
+            // Округляем с временной подсказкой, если значение изменилось.
             self.applyCirculationRounding(v);
 
             // Подставляем округлённое значение в поле.
             input.value = self.state.circulation;
         });
 
-        // Enter = завершить ввод, как будто ушли из поля.
+        // Enter = завершить ввод (превращается в blur).
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -658,16 +681,15 @@ var WC = {
             }
         });
 
-        // Ставим в селект значение по умолчанию.
+        // Ставим значение по умолчанию в селект.
         select.value = defaultCirc;
-        // И применяем округление (это запишет корректное значение в state).
+        // И применяем округление (записывает корректное значение в state).
         this.applyCirculationRounding(defaultCirc);
     },
 
     /**
-     * Округляет тираж до ближайшего кратного шагу и показывает подсказку,
-     * если округление произошло.
-     * Записывает итоговое значение в this.state.circulation.
+     * Округляет тираж до ближайшего кратного шагу.
+     * Если значение изменилось — показывает ВРЕМЕННУЮ подсказку.
      */
     applyCirculationRounding: function (value) {
         var step = this.options.calculator.circulation_step || 1;
@@ -686,108 +708,128 @@ var WC = {
 
         this.state.circulation = rounded;
 
-        // Подсказка об округлении (всплывающая на 3 секунды).
+        // Если значение изменилось — всплывающая подсказка на 3 секунды.
         if (original !== rounded) {
             var circField = document.querySelector('.wc-field-circulation');
-            this.showFieldHint(circField, 'Тираж изменён: количество должно быть кратно ' + step + ' шт.');
+            this.flashFieldHint(circField, 'Тираж изменён: количество должно быть кратно ' + step + ' шт.');
         }
-    },
-
-    /**
-     * Проверяет размер (ширину или высоту) на попадание в диапазон.
-     * Если значение меньше минимума — подставляет минимум и показывает подсказку.
-     * Если больше максимума — подставляет максимум и показывает подсказку.
-     * Если значение пустое/некорректное — подставляет минимум.
-     *
-     * @param {Object} comp       — компонент (содержит size.min_width_mm и т.д.).
-     * @param {string} dimension  — 'width' или 'height'.
-     * @param {HTMLInputElement} input — само поле ввода.
-     * @param {HTMLElement} fieldWrap  — .wc-field, рядом с которым показываем подсказку.
-     */
-    validateSizeField: function (comp, dimension, input, fieldWrap) {
-        var minVal, maxVal, label;
-        if (dimension === 'width') {
-            minVal = comp.size.min_width_mm;
-            maxVal = comp.size.max_width_mm;
-            label = 'Ширина';
-        } else {
-            minVal = comp.size.min_height_mm;
-            maxVal = comp.size.max_height_mm;
-            label = 'Высота';
-        }
-
-        var v = parseFloat(input.value);
-
-        // --- 1. Пустое или некорректное значение — подставляем минимум ---
-        if (isNaN(v)) {
-            input.value = minVal;
-            this.state[comp.id][dimension + '_mm'] = minVal;
-            this.updateSizePreview();
-            this.markDirty();
-            return;
-        }
-
-        // --- 2. Меньше минимума — подставляем минимум + подсказка ---
-        if (v < minVal) {
-            input.value = minVal;
-            this.state[comp.id][dimension + '_mm'] = minVal;
-            this.updateSizePreview();
-            this.markDirty();
-            this.showFieldHint(
-                fieldWrap,
-                label + ' не может быть меньше ' + this.formatMm(minVal) + ' мм'
-            );
-            return;
-        }
-
-        // --- 3. Больше максимума — подставляем максимум + подсказка ---
-        if (v > maxVal) {
-            input.value = maxVal;
-            this.state[comp.id][dimension + '_mm'] = maxVal;
-            this.updateSizePreview();
-            this.markDirty();
-            this.showFieldHint(
-                fieldWrap,
-                label + ' не может быть больше ' + this.formatMm(maxVal) + ' мм'
-            );
-            return;
-        }
-
-        // --- 4. Значение в пределах — просто фиксируем в state ---
-        this.state[comp.id][dimension + '_mm'] = v;
-        this.updateSizePreview();
-    },
-
-
-    /**
-     * Показывает всплывающую подсказку над указанным .wc-field на 3 секунды.
-     * В зелёных тонах проекта.
-     *
-     * @param {HTMLElement} anchorField — элемент .wc-field, рядом с которым
-     *                                     показываем подсказку.
-     * @param {string} message          — текст подсказки.
-     */
-    showFieldHint: function (anchorField, message) {
-        if (!anchorField) return;
-
-        // Убираем предыдущую подсказку внутри этого поля, если есть.
-        var old = anchorField.querySelector('.wc-field-hint');
-        if (old) old.parentNode.removeChild(old);
-
-        var hint = document.createElement('div');
-        hint.className = 'wc-field-hint';
-        hint.textContent = message;
-        anchorField.appendChild(hint);
-
-        // Автоскрытие через 3 секунды.
-        setTimeout(function () {
-            if (hint.parentNode) hint.parentNode.removeChild(hint);
-        }, 3000);
     },
 
 
     // ========================================================================
-    // 4. МНОГОСТРАНИЧНЫЕ ПОЛЯ
+    // 5. ВАЛИДАЦИЯ И ПОДСКАЗКИ
+    // ========================================================================
+
+    /**
+     * Проверяет размер (ширину или высоту).
+     * НЕ подставляет граничное значение, а только подсвечивает поле
+     * красной рамкой и показывает постоянную подсказку.
+     *
+     * @returns {boolean} — true, если значение валидно.
+     */
+    validateSizeField: function (comp, dimension, input, fieldWrap) {
+        var minVal, maxVal, label, labelAccusative;
+        if (dimension === 'width') {
+            minVal = comp.size.min_width_mm;
+            maxVal = comp.size.max_width_mm;
+            label = 'Ширина';                 // для подсказок «Ширина не может…»
+            labelAccusative = 'ширину';       // для «Введите ширину»
+        } else {
+            minVal = comp.size.min_height_mm;
+            maxVal = comp.size.max_height_mm;
+            label = 'Высота';
+            labelAccusative = 'высоту';
+        }
+
+        var v = parseFloat(input.value);
+        var hintText = '';
+
+        if (isNaN(v)) {
+            hintText = 'Введите ' + labelAccusative;
+        } else if (v < minVal) {
+            hintText = label + ' не может быть меньше ' + this.formatMm(minVal) + ' мм';
+        } else if (v > maxVal) {
+            hintText = label + ' не может быть больше ' + this.formatMm(maxVal) + ' мм';
+        }
+
+        if (hintText) {
+            // Ошибка: подсветка + постоянная подсказка.
+            fieldWrap.classList.add('wc-has-error');
+            this.showFieldHint(fieldWrap, hintText);
+            return false;
+        }
+
+        // Ошибки нет: снимаем подсветку и убираем подсказку.
+        fieldWrap.classList.remove('wc-has-error');
+        this.hideFieldHint(fieldWrap);
+        return true;
+    },
+
+    /**
+     * Показывает ПОСТОЯННУЮ подсказку под элементом.
+     * Если подсказка уже есть — обновляем текст, не пересоздавая DOM
+     * (иначе мигало бы при каждом нажатии клавиши).
+     */
+    showFieldHint: function (anchorField, message) {
+        if (!anchorField) return;
+        var hint = anchorField.querySelector('.wc-field-hint');
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'wc-field-hint';
+            anchorField.appendChild(hint);
+        }
+        hint.textContent = message;
+    },
+
+    /**
+     * Убирает постоянную подсказку под элементом.
+     */
+    hideFieldHint: function (anchorField) {
+        if (!anchorField) return;
+        var hint = anchorField.querySelector('.wc-field-hint');
+        if (hint) hint.parentNode.removeChild(hint);
+    },
+
+    /**
+     * Показывает ВРЕМЕННУЮ подсказку (автоскрытие через 3 секунды).
+     * Используется для подсказки об округлении тиража.
+     */
+    flashFieldHint: function (anchorField, message) {
+        if (!anchorField) return;
+        var hint = anchorField.querySelector('.wc-field-hint');
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'wc-field-hint';
+            anchorField.appendChild(hint);
+        }
+        hint.textContent = message;
+        // Сбрасываем предыдущий таймер — если подсказка мигнула ещё раз,
+        // отсчёт начинается заново.
+        clearTimeout(hint._hideTimer);
+        hint._hideTimer = setTimeout(function () {
+            if (hint.parentNode) hint.parentNode.removeChild(hint);
+        }, 3000);
+    },
+
+    /**
+     * Запускает отложенный автопересчёт (debounce).
+     * При каждом новом вызове таймер перезапускается — срабатывает
+     * только последнее изменение. Классический debounce на 1 секунду.
+     */
+    scheduleAutoRecalc: function (delay) {
+        var self = this;
+        delay = delay || 1000;
+        clearTimeout(this._debounceTimer);
+        this._debounceTimer = setTimeout(function () {
+            if (self.state.needsRecalc && !self.state.recalcInProgress) {
+                self.onCalculate();
+            }
+        }, delay);
+    },
+
+
+    // ========================================================================
+    // 6. МНОГОСТРАНИЧНЫЕ ПОЛЯ (для брошюр)
     // ========================================================================
 
     /**
@@ -798,7 +840,7 @@ var WC = {
         var wrap = document.getElementById('wc-multipage-fields');
         wrap.style.display = 'block';
 
-        // Найдём компонент, у которого задан binding (обычно первый).
+        // Ищем компонент, у которого задан binding (обычно первый/обложка).
         var bindingComp = null;
         for (var i = 0; i < this.options.components.length; i++) {
             var c = this.options.components[i];
@@ -806,7 +848,7 @@ var WC = {
         }
         if (!bindingComp) return;
 
-        // --- Ориентация ---
+        // --- Ориентация брошюры ---
         var orientSelect = document.getElementById('wc-booklet-orientation');
         orientSelect.innerHTML = '';
         if (bindingComp.multipage.allow_portrait) {
@@ -823,7 +865,7 @@ var WC = {
         }
         orientSelect.addEventListener('change', () => this.markDirty());
 
-        // --- Скрепление ---
+        // --- Способ скрепления ---
         var bindSelect = document.getElementById('wc-binding');
         bindSelect.innerHTML = '';
         var opt = document.createElement('option');
@@ -832,7 +874,7 @@ var WC = {
         bindSelect.appendChild(opt);
         bindSelect.addEventListener('change', () => this.markDirty());
 
-        // --- Страницы ---
+        // --- Количество страниц ---
         var pagesInput = document.getElementById('wc-total-pages');
         pagesInput.min = bindingComp.multipage.min_pages;
         pagesInput.max = bindingComp.multipage.max_pages;
@@ -842,35 +884,32 @@ var WC = {
         pagesInput.addEventListener('input', () => this.markDirty());
     },
 
+
     // ========================================================================
-    // 5. ОБЩИЕ ОБРАБОТЧИКИ
+    // 7. ОБЩИЕ ОБРАБОТЧИКИ
     // ========================================================================
 
     setupGeneralHandlers: function () {
-        // Кнопка "Рассчитать".
-        document.getElementById('wc-calc-btn').addEventListener('click', () => this.onCalculate());
+        // Кнопка «Добавить в корзину» — внутри блока #wc-result.
+        // Навешиваем через делегирование, потому что содержимое #wc-result
+        // перерисовывается после каждого расчёта.
+        var resultBox = document.getElementById('wc-result');
+        if (resultBox) {
+            resultBox.addEventListener('click', function (e) {
+                if (e.target.closest('.wc-result-add-to-cart')) {
+                    alert('Кнопка будет работать на основном сайте bukva-a.ru');
+                }
+            });
+        }
 
-        // Кнопка "Добавить в корзину".
-        document.getElementById('wc-add-to-cart-btn').addEventListener('click', () => {
-            alert('Кнопка будет работать на основном сайте bukva-a.ru');
-        });
-
-        // ===== Автопересчёт по blur и Enter =====
-        // Логика (вариант C):
-        //  - при изменении любого поля ставится флаг needsRecalc;
-        //  - при уходе фокуса из поля (focusout, который срабатывает
-        //    при клике мимо или при переходе на другое поле) запускается
-        //    пересчёт, если флаг стоит;
-        //  - при Enter в поле принудительно эмулируется blur.
         var self = this;
         var form = document.getElementById('wc-form');
 
         if (form) {
-            // focusout всплывает (в отличие от blur), поэтому можно
-            // навесить один обработчик на всю форму.
+            // (1) Быстрый пересчёт при уходе фокуса из поля.
+            // focusout всплывает, поэтому один обработчик на всю форму.
             form.addEventListener('focusout', function () {
-                // Небольшая задержка, чтобы клик по кнопке «Рассчитать»
-                // успел обработаться и не было двойного запроса.
+                // Небольшая задержка, чтобы клик по кнопке не превратился в лишний запрос.
                 setTimeout(function () {
                     if (self.state.needsRecalc && !self.state.recalcInProgress) {
                         self.onCalculate();
@@ -878,59 +917,87 @@ var WC = {
                 }, 150);
             });
 
-            // Enter в любом поле = завершение ввода (как blur).
-            // Обработчик на поле тиража уже делает blur — здесь подстраховка
-            // для остальных полей (input с числом, текстом и т.п.).
+            // (2) Enter в любом поле = завершение ввода (как blur).
             form.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') {
-                    // Для checkbox и кнопок Enter — это обычное действие, не трогаем.
+                    // Для checkbox и кнопок Enter — это обычное действие, не мешаем.
                     if (e.target.type === 'checkbox' || e.target.type === 'button') return;
                     e.preventDefault();
                     e.target.blur();
                 }
             });
+
+            // (3) Debounce-автопересчёт: любое input или change
+            // перезапускает таймер на 1 секунду. Срабатывает только
+            // последнее изменение. Работает для всех полей формы.
+            form.addEventListener('input', function () {
+                self.scheduleAutoRecalc();
+            });
+            form.addEventListener('change', function () {
+                self.scheduleAutoRecalc();
+            });
         }
     },
 
+
     // ========================================================================
-    // 6. РАСЧЁТ
+    // 8. РАСЧЁТ
     // ========================================================================
+
+    /**
+     * Проверяет валидность формы перед отправкой запроса.
+     * Возвращает true, если можно отправлять.
+     */
+    checkFormValidity: function () {
+        // 1. Тираж в диапазоне?
+        var circulation = this.state.circulation;
+        var min = this.options.calculator.min_circulation;
+        var max = this.options.calculator.max_circulation;
+        if (!circulation || circulation < min || circulation > max) {
+            return false;
+        }
+
+        // 2. Размеры всех компонентов в диапазоне?
+        for (var i = 0; i < this.options.components.length; i++) {
+            var comp = this.options.components[i];
+            var st = this.state[comp.id];
+            if (st.width_mm < comp.size.min_width_mm || st.width_mm > comp.size.max_width_mm ||
+                st.height_mm < comp.size.min_height_mm || st.height_mm > comp.size.max_height_mm) {
+                return false;
+            }
+        }
+
+        return true;
+    },
 
     /**
      * Собирает payload из состояния и отправляет на сервер.
      */
     onCalculate: function () {
-        // Защита от параллельных запросов: если расчёт уже идёт — выходим.
+        // Защита от параллельных запросов.
         if (this.state.recalcInProgress) {
             return;
         }
-        // Снимаем флаг «есть изменения» — как только расчёт стартует,
-        // считаем, что актуальность соблюдается. Если придут новые
-        // изменения, флаг снова встанет в markDirty().
+
+        // Проверяем валидность: если что-то не так — не отправляем запрос,
+        // оставляем «Ожидание расчёта». Когда клиент исправит,
+        // debounce или focusout вызовут onCalculate() снова.
+        if (!this.checkFormValidity()) {
+            this.resetResult();
+            return;
+        }
+
+        // Снимаем флаг «есть изменения» — актуальность соблюдается.
         this.state.needsRecalc = false;
         this.state.recalcInProgress = true;
 
         // Тираж берём из state — он уже округлён до кратного шагу.
         var circulation = this.state.circulation;
-        var min = this.options.calculator.min_circulation;
-        var max = this.options.calculator.max_circulation;
-        if (!circulation || circulation < min || circulation > max) {
-            this.showError('Тираж должен быть от ' + min + ' до ' + max + ' шт.');
-            this.state.recalcInProgress = false;
-            return;
-        }
 
-        // Собираем компоненты.
+        // Собираем компоненты в payload.
         var components = [];
-        var missing = null;
         this.options.components.forEach(comp => {
             var st = this.state[comp.id];
-            // Проверка размера.
-            if (st.width_mm < comp.size.min_width_mm || st.width_mm > comp.size.max_width_mm ||
-                st.height_mm < comp.size.min_height_mm || st.height_mm > comp.size.max_height_mm) {
-                missing = 'Размер компонента "' + comp.name + '" вне допустимого диапазона';
-                return;
-            }
             var item = {
                 component_id: comp.id,
                 print_combo: st.print_combo,
@@ -946,11 +1013,6 @@ var WC = {
             }
             components.push(item);
         });
-        if (missing) {
-            this.showError(missing);
-            this.state.recalcInProgress = false;
-            return;
-        }
 
         // Payload.
         var payload = {
@@ -964,12 +1026,6 @@ var WC = {
             payload.booklet_orientation = document.getElementById('wc-booklet-orientation').value;
             payload.binding_id = parseInt(document.getElementById('wc-binding').value, 10);
         }
-
-        // Кнопка — в состояние «считаю».
-        var btn = document.getElementById('wc-calc-btn');
-        var originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Считаю…';
 
         // Отправляем.
         fetch(this.config.priceUrl, {
@@ -994,37 +1050,63 @@ var WC = {
             this.showError('Ошибка сети при расчёте');
         })
         .finally(() => {
-            btn.disabled = false;
-            btn.textContent = originalText;
             this.state.recalcInProgress = false;
         });
     },
 
+
     // ========================================================================
-    // 7. ОТОБРАЖЕНИЕ РЕЗУЛЬТАТА
+    // 9. ОТОБРАЖЕНИЕ РЕЗУЛЬТАТА
     // ========================================================================
 
     /**
-     * Рисует блок результата в сайдбаре.
+     * Плавно «проявляет» блок результата после подмены содержимого.
+     * Использует Web Animations API — работает в Chrome, Firefox, Safari, Edge.
+     * Анимация короткая (220 мс) и не мешает восприятию цифр.
+     */
+    animateResult: function () {
+        var box = document.getElementById('wc-result');
+        if (!box || !box.animate) return;   // на всякий случай проверяем поддержку
+        box.animate(
+            [
+                { opacity: 0.4, transform: 'translateY(4px)' },
+                { opacity: 1,   transform: 'translateY(0)'   }
+            ],
+            { duration: 220, easing: 'ease-out' }
+        );
+    },
+
+
+
+    /**
+     * Рисует блок результата.
+     * Структура:
+     *   - крупно: цена за тираж,
+     *   - мельче: цена за штуку,
+     *   - зелёная кнопка «Добавить в корзину»,
+     *   - детали (тираж, масса, объём, стек).
      */
     showResult: function (data, circulation) {
         var box = document.getElementById('wc-result');
         var html = '';
 
-        // Цена за штуку — крупно, общая — мельче.
-        html += '<div class="wc-result-price">' + this.formatPrice(data.price_per_unit) + '</div>';
-        html += '<div class="wc-result-per-unit">за штуку</div>';
+        // Цена за тираж (крупно) и за штуку (мельче).
+        html += '<div class="wc-result-price">' + this.formatPrice(data.total_price) + '</div>';
+        html += '<div class="wc-result-per-unit">' + this.formatPrice(data.price_per_unit) + ' за штуку</div>';
 
+        // Кнопка «Добавить в корзину» — активна, когда есть расчёт.
+        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart">'
+             +  'Добавить в корзину'
+             +  '</button>';
+
+        // Детали (без «Общей суммы» — она крупно выше).
         html += '<div class="wc-result-details">';
         html += '<div class="row"><span>Тираж:</span><span>' + circulation + ' шт.</span></div>';
-        html += '<div class="row"><span>Общая сумма:</span><span>' + this.formatPrice(data.total_price) + '</span></div>';
         html += '<div class="row"><span>Масса:</span><span>' + this.formatMass(data.total_mass_g) + '</span></div>';
         html += '<div class="row"><span>Объём:</span><span>' + this.formatVolume(data.total_volume_cm3) + '</span></div>';
         html += '</div>';
 
-
-        // ===== Серверные работы (для отладки) =====
-        // Показываем отдельно работы с trigger='always' и trigger='lamination'.
+        // Отладочные строки: серверные работы (always и lamination).
         if (data.components && data.components.length) {
             var alwaysOn = [];
             var laminationOn = [];
@@ -1052,8 +1134,7 @@ var WC = {
             }
         }
 
-
-        // Стек.
+        // Стопка (если сервер её посчитал).
         if (data.stacks && data.stacks.length) {
             html += '<div class="wc-result-details" style="margin-top: 0.5rem;">';
             data.stacks.forEach(function (s) {
@@ -1065,12 +1146,13 @@ var WC = {
         }
 
         box.innerHTML = html;
+        // Плавное проявление после смены содержимого.
+        this.animateResult();
     },
 
     /**
-     * Помечает форму как «изменённую»: устанавливает флаг needsRecalc,
-     * чтобы при следующем blur/Enter сработал автопересчёт.
-     * Заодно сбрасывает отображение старой цены в placeholder.
+     * Помечает форму как «изменённую» и сбрасывает цену в «Ожидание расчёта».
+     * Вызывается из обработчиков всех полей при изменении.
      */
     markDirty: function () {
         this.state.needsRecalc = true;
@@ -1078,58 +1160,100 @@ var WC = {
     },
 
     /**
-     * Сбрасывает результат в состояние «не рассчитано».
+     * Показывает «Ожидание расчёта»: знак вопроса + серая неактивная кнопка.
      */
     resetResult: function () {
         var box = document.getElementById('wc-result');
-        box.innerHTML = '<div class="wc-result-placeholder">Заполните параметры и нажмите «Рассчитать»</div>';
+        var html = '';
+        html += '<div class="wc-result-price wc-result-price-pending">?</div>';
+        html += '<div class="wc-result-per-unit wc-result-per-unit-pending">Ожидание расчёта</div>';
+        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart" disabled>'
+             +  'Добавить в корзину'
+             +  '</button>';
+        box.innerHTML = html;
         this.lastResult = null;
+        // Плавное проявление знака вопроса при переходе в «Ожидание расчёта».
+        this.animateResult();
     },
 
     /**
-     * Показывает ошибку в блоке результата.
+     * Показывает текстовую ошибку в блоке результата
+     * (например, при сетевой ошибке).
      */
     showError: function (message) {
         var box = document.getElementById('wc-result');
         box.innerHTML = '<div class="wc-result-error">' + message + '</div>';
+        this.animateResult();
     },
 
+
     // ========================================================================
-    // 8. ВИЗУАЛИЗАЦИЯ РАЗМЕРА (SVG)
+    // 10. ВИЗУАЛИЗАЦИЯ РАЗМЕРА (SVG)
     // ========================================================================
 
-    /**
-     * Рисует прямоугольник изделия в масштабе, с размерными линиями
-     * сверху (ширина) и справа (высота).
+     /**
+     * Рисует прямоугольник изделия в масштабе, с размерными линиями.
      *
-     * Как устроено:
-     * - Прямоугольник вписывается в доступную область, сохраняя пропорции.
-     * - Сверху — горизонтальная размерная линия с засечками и подписью ширины.
-     * - Справа — вертикальная размерная линия с засечками и подписью высоты
-     *   (повёрнута на +90°, читается сверху вниз).
-     * - Если выбрана опция «Скругление углов» — прямоугольник рисуется
-     *   со скруглениями (радиус 4 мм в реальном размере).
+     * ИЗМЕНЕНИЕ: SVG-структура создаётся один раз, а при последующих
+     * вызовах мы только обновляем атрибуты (x, y, width, height, x1, y1, ...).
+     * CSS-transition на этих атрибутах (см. calculator.css) сглаживает
+     * изменения — прямоугольник «плывёт» от старого размера к новому,
+     * без мигания и полной перерисовки.
      */
     updateSizePreview: function () {
         var svg = document.getElementById('wc-size-preview');
         if (!svg) return;
 
-        // Находим первый компонент.
+        // Первый компонент — обычно единственный для одностраничных изделий.
         var firstId = this.options.components.length ? this.options.components[0].id : null;
         if (!firstId) return;
-        var comp = null;
-        for (var i = 0; i < this.options.components.length; i++) {
-            if (this.options.components[i].id === firstId) { comp = this.options.components[i]; break; }
-        }
+        var comp = this.componentsById[firstId];
         if (!comp) return;
 
         var st = this.state[firstId];
-        var w = st.width_mm || 1;
-        var h = st.height_mm || 1;
+        var w = st.width_mm || 0;
+        var h = st.height_mm || 0;
 
-        // ==== ЛЕЙАУТ ====
-        // Отступы от краёв viewBox 200×200. Сверху и справа больше —
-        // там размещаются размерные линии и подписи.
+        // ===== Проверка валидности размеров =====
+        // Если размер вне допустимого диапазона — НЕ показываем сообщение
+        // сразу. Ждём 2 секунды: пока клиент печатает, промежуточные
+        // значения могут быть невалидными (например, он стёр «0» в «90»
+        // и собирается ввести «5»). Если за 2 секунды он не завершил ввод —
+        // показываем сообщение и стираем превью. Как только значение
+        // станет валидным — таймер отменяется, рисуется превью.
+        var isValid = (
+            w >= comp.size.min_width_mm && w <= comp.size.max_width_mm &&
+            h >= comp.size.min_height_mm && h <= comp.size.max_height_mm
+        );
+
+        if (!isValid) {
+            var self = this;
+            clearTimeout(this._previewErrorTimer);
+            this._previewErrorTimer = setTimeout(function () {
+                // Показываем заглушку только если размер всё ещё невалидный.
+                var stNow = self.state[firstId];
+                var wNow = stNow.width_mm || 0;
+                var hNow = stNow.height_mm || 0;
+                var stillInvalid = !(
+                    wNow >= comp.size.min_width_mm && wNow <= comp.size.max_width_mm &&
+                    hNow >= comp.size.min_height_mm && hNow <= comp.size.max_height_mm
+                );
+                if (stillInvalid) {
+                    svg.innerHTML = '<text x="100" y="100" text-anchor="middle" ' +
+                                    'font-size="12" fill="#999" font-style="italic">' +
+                                    'Введите допустимые значения</text>';
+                }
+            }, 2000);
+            return;
+        }
+
+        // Значение валидное: отменяем таймер ошибки (если он был запущен),
+        // чтобы через 2 секунды не мигнула заглушка поверх нормального превью.
+        clearTimeout(this._previewErrorTimer);
+        this._previewErrorTimer = null;
+
+        // Отступы от краёв viewBox 200×200.
+        // Сверху и справа больше — там размещаются размерные линии.
         var padLeft = 20;
         var padRight = 40;
         var padTop = 35;
@@ -1138,7 +1262,7 @@ var WC = {
         var availW = 200 - padLeft - padRight;
         var availH = 200 - padTop - padBottom;
 
-        // Масштаб — вписываем изделие в доступную область, сохраняя пропорции.
+        // Масштаб с сохранением пропорций.
         var scaleW = availW / w;
         var scaleH = availH / h;
         var scale = Math.min(scaleW, scaleH);
@@ -1149,7 +1273,7 @@ var WC = {
         var x = padLeft + (availW - rw) / 2;
         var y = padTop + (availH - rh) / 2;
 
-        // ==== Скругление углов ====
+        // Проверяем, выбрана ли работа с эффектом rounded_corners.
         var hasRoundedCorners = false;
         if (comp.works && st.work_ids && st.work_ids.length) {
             comp.works.forEach(function (work) {
@@ -1161,79 +1285,130 @@ var WC = {
         }
         var radiusPx = hasRoundedCorners ? (4 * scale) : 0;
 
-        // ==== Единый серый цвет для размерных линий и подписей ====
-        // Совпадает с цветом подписей полей формы (#555).
+        // Серый цвет для размерных линий (совпадает с подписями полей формы).
         var dimColor = '#555';
 
-        // ==== Сборка SVG ====
-        var svgContent = '';
-
-        // 1. Прямоугольник изделия.
-        svgContent += '<rect x="' + x + '" y="' + y + '" width="' + rw + '" height="' + rh +
-                      '" rx="' + radiusPx + '" ry="' + radiusPx + '" ' +
-                      'fill="#eaf6ef" stroke="#0B8661" stroke-width="1.5" />';
-
-        // 2. Размерная линия по ширине (сверху).
         var dimY = y - 15;
         var tick = 4;
-
-        svgContent += '<line x1="' + x + '" y1="' + dimY + '" x2="' + (x + rw) + '" y2="' + dimY +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<line x1="' + x + '" y1="' + (dimY - tick) + '" x2="' + x + '" y2="' + (dimY + tick) +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<line x1="' + (x + rw) + '" y1="' + (dimY - tick) + '" x2="' + (x + rw) + '" y2="' + (dimY + tick) +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<text x="' + (x + rw / 2) + '" y="' + (dimY - 6) +
-                      '" text-anchor="middle" font-size="11" fill="' + dimColor + '">' +
-                      Math.round(w) + ' мм</text>';
-
-        // 3. Размерная линия по высоте (справа).
-        //    Подпись повёрнута на +90°, поэтому читается сверху вниз.
         var dimX = x + rw + 15;
 
-        svgContent += '<line x1="' + dimX + '" y1="' + y + '" x2="' + dimX + '" y2="' + (y + rh) +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<line x1="' + (dimX - tick) + '" y1="' + y + '" x2="' + (dimX + tick) + '" y2="' + y +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<line x1="' + (dimX - tick) + '" y1="' + (y + rh) + '" x2="' + (dimX + tick) + '" y2="' + (y + rh) +
-                      '" stroke="' + dimColor + '" stroke-width="1" />';
-        svgContent += '<text x="' + (dimX + 10) + '" y="' + (y + rh / 2) +
-                      '" text-anchor="middle" font-size="11" fill="' + dimColor + '" ' +
-                      'transform="rotate(90, ' + (dimX + 10) + ', ' + (y + rh / 2) + ')">' +
-                      Math.round(h) + ' мм</text>';
+        // ===== 1. Создаём скелет SVG один раз =====
+        // Порядок элементов:
+        //   rect        — прямоугольник изделия
+        //   line[0..2]  — размерная линия ширины + две засечки
+        //   line[3..5]  — размерная линия высоты + две засечки
+        //   text[0]     — подпись ширины
+        //   text[1]     — подпись высоты
+        if (!svg.querySelector('rect')) {
+            var html = '';
+            html += '<rect fill="#eaf6ef" stroke="#0B8661" stroke-width="1.5" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<line stroke="' + dimColor + '" stroke-width="1" />';
+            html += '<text text-anchor="middle" font-size="11" fill="' + dimColor + '"></text>';
+            html += '<text text-anchor="middle" font-size="11" fill="' + dimColor + '"></text>';
+            svg.innerHTML = html;
+        }
 
-        svg.innerHTML = svgContent;
+        var rect = svg.querySelector('rect');
+        var lines = svg.querySelectorAll('line');
+        var texts = svg.querySelectorAll('text');
+
+        // ===== 2. Обновляем атрибуты — CSS transition сам сгладит переход =====
+
+        // Прямоугольник изделия.
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', rw);
+        rect.setAttribute('height', rh);
+        rect.setAttribute('rx', radiusPx);
+        rect.setAttribute('ry', radiusPx);
+
+        // Размерная линия ширины (сверху).
+        lines[0].setAttribute('x1', x);
+        lines[0].setAttribute('y1', dimY);
+        lines[0].setAttribute('x2', x + rw);
+        lines[0].setAttribute('y2', dimY);
+
+        // Левая засечка.
+        lines[1].setAttribute('x1', x);
+        lines[1].setAttribute('y1', dimY - tick);
+        lines[1].setAttribute('x2', x);
+        lines[1].setAttribute('y2', dimY + tick);
+
+        // Правая засечка.
+        lines[2].setAttribute('x1', x + rw);
+        lines[2].setAttribute('y1', dimY - tick);
+        lines[2].setAttribute('x2', x + rw);
+        lines[2].setAttribute('y2', dimY + tick);
+
+        // Размерная линия высоты (справа).
+        lines[3].setAttribute('x1', dimX);
+        lines[3].setAttribute('y1', y);
+        lines[3].setAttribute('x2', dimX);
+        lines[3].setAttribute('y2', y + rh);
+
+        // Верхняя засечка.
+        lines[4].setAttribute('x1', dimX - tick);
+        lines[4].setAttribute('y1', y);
+        lines[4].setAttribute('x2', dimX + tick);
+        lines[4].setAttribute('y2', y);
+
+        // Нижняя засечка.
+        lines[5].setAttribute('x1', dimX - tick);
+        lines[5].setAttribute('y1', y + rh);
+        lines[5].setAttribute('x2', dimX + tick);
+        lines[5].setAttribute('y2', y + rh);
+
+        // Подпись ширины (сверху).
+        texts[0].setAttribute('x', x + rw / 2);
+        texts[0].setAttribute('y', dimY - 6);
+        texts[0].textContent = Math.round(w) + ' мм';
+
+        // Подпись высоты (справа, повёрнута).
+        texts[1].setAttribute('x', dimX + 10);
+        texts[1].setAttribute('y', y + rh / 2);
+        texts[1].setAttribute('transform', 'rotate(90, ' + (dimX + 10) + ', ' + (y + rh / 2) + ')');
+        texts[1].textContent = Math.round(h) + ' мм';
     },
 
 
     // ========================================================================
-    // 9. ФОРМАТИРОВАНИЕ
+    // 11. ФОРМАТИРОВАНИЕ
     // ========================================================================
+
     /**
-     * Форматирует размер в миллиметрах: убирает лишние нули после запятой.
-     * Примеры:
+     * Форматирует миллиметры: убирает лишние нули.
      *   90       → "90"
-     *   90.0     → "90"
      *   90.00    → "90"
      *   90.5     → "90.5"
-     *   90.50    → "90.5"
      *   85.25    → "85.25"
      */
     formatMm: function (v) {
-        // Округляем до 2 знаков и убираем хвостовые нули/точку.
         var s = (Math.round(v * 100) / 100).toString();
         return s;
     },
 
-
+    /**
+     * Форматирует цену: "1234,56 ₽".
+     */
     formatPrice: function (v) {
         return (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' ₽';
     },
 
+    /**
+     * Форматирует массу: граммы → килограммы с 3 знаками.
+     */
     formatMass: function (grams) {
         return (grams / 1000).toFixed(3).replace('.', ',') + ' кг';
     },
 
+    /**
+     * Форматирует объём: см³ → литры с 3 знаками.
+     */
     formatVolume: function (cm3) {
         return (cm3 / 1000).toFixed(3).replace('.', ',') + ' л';
     }
