@@ -498,6 +498,18 @@ class WebCalculatorComponentWork(models.Model):
         help_text='Визуальный эффект, отображаемый на схеме в калькуляторе',
     )
 
+    # ===== ОТОБРАЖЕНИЕ КОЛИЧЕСТВА В КАЛЬКУЛЯТОРЕ =====
+    # Если True — в публичном калькуляторе под этой работой показывается
+    # строка «Количество» (пресеты + «Свой вариант»). Стоимость работы
+    # при расчёте умножается на это количество. По умолчанию 1.
+    show_quantity = models.BooleanField(
+        verbose_name='Отображать количество',
+        default=False,
+        help_text='Показывать в калькуляторе поле выбора количества для этой работы. '
+                  'Стоимость работы умножается на выбранное количество.',
+    )
+
+
 
     # Порядок отображения (для опциональных работ — в каком порядке идут галочки).
     order = models.PositiveIntegerField(
@@ -674,3 +686,44 @@ class WebCalculatorComponentFilm(models.Model):
 
     def __str__(self):
         return self.customer_name or self.material.name    
+
+
+# ============================================================================
+# МОДЕЛЬ 8: ПРЕСЕТ КОЛИЧЕСТВА
+# ============================================================================
+
+class WebCalculatorQuantityPreset(models.Model):
+    """
+    Готовый пресет количества для работ с флагом show_quantity.
+    Например: 1, 2, 3, 5, 10.
+    Клиент выбирает одно из значений или вводит своё («Свой вариант»).
+    """
+
+    # Ссылка на веб-калькулятор.
+    calculator = models.ForeignKey(
+        WebCalculator,
+        verbose_name='Калькулятор',
+        on_delete=models.CASCADE,
+        related_name='quantity_presets',
+    )
+
+    # Значение количества.
+    value = models.PositiveIntegerField(
+        verbose_name='Количество (шт.)',
+        validators=[MinValueValidator(1)],
+    )
+
+    # Порядок сортировки в выпадающем списке.
+    order = models.PositiveIntegerField(
+        verbose_name='Порядок',
+        default=0,
+    )
+
+    class Meta:
+        ordering = ['calculator', 'order', 'value']
+        unique_together = ['calculator', 'value']
+        verbose_name = 'Пресет количества'
+        verbose_name_plural = 'Пресеты количества'
+
+    def __str__(self):
+        return f"{self.value} шт."

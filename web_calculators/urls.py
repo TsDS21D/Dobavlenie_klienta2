@@ -15,4 +15,9 @@ urlpatterns = [
     # API: опции и расчёт.
     path('api/<slug:slug>/options/', views.web_calculator_options_api, name='options_api'),
     path('api/<slug:slug>/price/', views.web_calculator_price_api, name='price_api'),
+
+    # API: создание просчёта из веб-калькулятора (только для сотрудников).
+    path('api/<slug:slug>/create-proschet/',
+         views.web_calculator_create_proschet_api,
+         name='create_proschet_api'),
 ]

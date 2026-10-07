@@ -125,7 +125,8 @@ var WC = {
                 lamination_enabled: false,
                 lamination_side: (comp.lamination && comp.lamination.sides.length) ? comp.lamination.sides[0].value : 'single',
                 film_id: (comp.lamination && comp.lamination.films.length) ? comp.lamination.films[0].id : null,
-                work_ids: []
+                work_ids: [],
+                work_quantities: {}    // ID работы (строкой) → количество (число)
             };
             // Рендерим блок компонента и добавляем в контейнер.
             container.appendChild(this.buildComponentBlock(comp));
@@ -192,6 +193,12 @@ var WC = {
         // Always-on работы в форме не показываем, но они участвуют в расчёте.
         if (comp.works.length) {
             block.appendChild(this.buildWorksBlock(comp));
+        }
+
+        // 6. Блок «Количество макетов» — для работ с флагом show_quantity.
+        // Идёт после галочек, одним подблоком.
+        if (comp.quantity_works && comp.quantity_works.length) {
+            block.appendChild(this.buildQuantityWorksBlock(comp));
         }
 
         return block;
@@ -507,28 +514,33 @@ var WC = {
         var field = document.createElement('div');
         field.className = 'wc-field';
 
-        var label = document.createElement('label');
-        label.textContent = 'Дополнительные работы';
-        field.appendChild(label);
+        var self = this;
 
-        comp.works.forEach(w => {
+        comp.works.forEach(function (w) {
+            // Строка работы: чекбокс + название + (опционально) иконка «?».
+            // Оборачиваем в div, потому что рядом с label будет ещё иконка,
+            // а label не может содержать интерактивные элементы внутри себя
+            // (клик по ним срабатывал бы как переключение чекбокса).
+            var row = document.createElement('div');
+            row.className = 'wc-work-row';
+
             var wrap = document.createElement('label');
             wrap.className = 'wc-checkbox';
 
             var input = document.createElement('input');
             input.type = 'checkbox';
             input.value = w.id;
-            input.addEventListener('change', () => {
-                var st = this.state[comp.id];
+            input.addEventListener('change', function () {
+                var st = self.state[comp.id];
                 var wid = w.id;
                 if (input.checked) {
                     if (st.work_ids.indexOf(wid) === -1) st.work_ids.push(wid);
                 } else {
-                    st.work_ids = st.work_ids.filter(id => id !== wid);
+                    st.work_ids = st.work_ids.filter(function (id) { return id !== wid; });
                 }
                 // Работа может влиять на превью (например, скругление углов).
-                this.updateSizePreview();
-                this.markDirty();
+                self.updateSizePreview();
+                self.markDirty();
             });
             wrap.appendChild(input);
 
@@ -536,12 +548,210 @@ var WC = {
             span.textContent = w.name;
             wrap.appendChild(span);
 
-            field.appendChild(wrap);
+            row.appendChild(wrap);
+
+            // ===== Иконка «?» — только для работы «Скругление углов» =====
+            if (w.name === 'Скругление углов') {
+                var hintIcon = document.createElement('span');
+                hintIcon.className = 'wc-work-hint-icon';
+                hintIcon.textContent = '?';
+                hintIcon.title = 'Что это?';
+                hintIcon.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var wasOpen = !!row.querySelector('.wc-field-hint');
+                    // Закрываем все открытые подсказки (и работ, и количества).
+                    document.querySelectorAll('.wc-work-row .wc-field-hint').forEach(function (h) {
+                        if (h.parentNode) h.parentNode.removeChild(h);
+                    });
+                    if (wasOpen) return;    // повторный клик — просто закрыли
+
+                    var hint = document.createElement('div');
+                    hint.className = 'wc-field-hint';
+                    hint.textContent = 'Скругление четырёх углов, радиус скругления 4 мм.';
+                    row.appendChild(hint);
+                });
+                row.appendChild(hintIcon);
+            }
+
+            field.appendChild(row);
         });
 
         return field;
     },
 
+
+
+    /**
+     * Блок «Количество макетов» — по строке на каждую работу с флагом
+     * show_quantity. Внутри строки: подпись, выпадающий список пресетов
+     * (или «Свой вариант») и, если выбран «Свой вариант», — числовое поле.
+     *
+     * По умолчанию количество = 1.
+     */
+    buildQuantityWorksBlock: function (comp) {
+        var field = document.createElement('div');
+        field.className = 'wc-field';
+        field.style.marginTop = '0.6rem';
+
+        var self = this;
+        var calc = this.options.calculator;
+        var presets = calc.quantity_presets || [];
+
+        comp.quantity_works.forEach(function (qw) {
+            var workIdStr = String(qw.id);
+
+            // Инициализация количества в state (дефолт 1).
+            if (typeof self.state[comp.id].work_quantities[workIdStr] === 'undefined') {
+                self.state[comp.id].work_quantities[workIdStr] = qw.default_quantity || 1;
+            }
+
+            // Обёртка одной строки.
+            var row = document.createElement('div');
+            row.className = 'wc-quantity-row';
+            row.style.marginBottom = '0.6rem';
+
+            // Подпись + иконка «?».
+            var labelLine = document.createElement('div');
+            labelLine.className = 'wc-quantity-label-line';
+
+            var label = document.createElement('label');
+            label.textContent = 'Количество макетов';
+            labelLine.appendChild(label);
+
+            // Иконка «?» — по клику показывает/скрывает подсказку.
+            var hintIcon = document.createElement('span');
+            hintIcon.className = 'wc-quantity-hint-icon';
+            hintIcon.textContent = '?';
+            hintIcon.title = 'Что это?';
+            labelLine.appendChild(hintIcon);
+
+            row.appendChild(labelLine);
+
+            // Выпадающий список.
+            var select = document.createElement('select');
+            select.className = 'wc-quantity-select';
+
+            // Пресеты.
+            if (presets.length) {
+                presets.forEach(function (v) {
+                    var o = document.createElement('option');
+                    o.value = v;
+                    o.textContent = v + ' шт.';
+                    select.appendChild(o);
+                });
+            }
+            // Опция «Свой вариант».
+            var customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = 'Свой вариант';
+            select.appendChild(customOpt);
+
+            row.appendChild(select);
+
+            // Поле ручного ввода (скрыто, если выбран пресет).
+            var inputWrap = document.createElement('div');
+            inputWrap.className = 'wc-quantity-input-wrap';
+            inputWrap.style.display = 'none';
+            inputWrap.style.marginTop = '0.4rem';
+
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.min = 1;
+            input.step = 1;
+            input.value = self.state[comp.id].work_quantities[workIdStr];
+            inputWrap.appendChild(input);
+            row.appendChild(inputWrap);
+
+            // Если пресетов нет — сразу показываем поле ручного ввода.
+            if (!presets.length) {
+                select.value = 'custom';
+                inputWrap.style.display = 'block';
+            } else {
+                // Если текущее значение совпадает с пресетом — выбираем его.
+                var initialVal = self.state[comp.id].work_quantities[workIdStr];
+                var matched = false;
+                Array.from(select.options).forEach(function (o) {
+                    if (o.value !== 'custom' && parseInt(o.value, 10) === initialVal) {
+                        select.value = o.value;
+                        matched = true;
+                    }
+                });
+                // Не нашли в пресетах — переключаемся на «Свой вариант».
+                if (!matched) {
+                    select.value = 'custom';
+                    inputWrap.style.display = 'block';
+                    input.value = initialVal;
+                }
+            }
+
+            // ===== Обработчики =====
+            // Смена пресета.
+            select.addEventListener('change', function () {
+                if (select.value === 'custom') {
+                    // Показываем поле ручного ввода и подставляем текущее значение.
+                    inputWrap.style.display = 'block';
+                    input.value = self.state[comp.id].work_quantities[workIdStr];
+                } else {
+                    // Выбран пресет — скрываем поле, пишем в state.
+                    inputWrap.style.display = 'none';
+                    self.state[comp.id].work_quantities[workIdStr] = parseInt(select.value, 10);
+                }
+                self.markDirty();
+                self.scheduleAutoRecalc();
+            });
+
+            // Ввод в поле.
+            input.addEventListener('input', function () {
+                var v = parseInt(input.value, 10);
+                if (!isNaN(v) && v >= 1) {
+                    self.state[comp.id].work_quantities[workIdStr] = v;
+                }
+                self.markDirty();
+            });
+
+            // Blur/Enter — нормализуем значение.
+            input.addEventListener('blur', function () {
+                var v = parseInt(input.value, 10);
+                if (isNaN(v) || v < 1) {
+                    v = 1;
+                    input.value = 1;
+                }
+                self.state[comp.id].work_quantities[workIdStr] = v;
+            });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+
+            // Клик по «?» — toggle подсказки. Перед открытием
+            // закрываем все остальные открытые подсказки во всех строках,
+            // чтобы не было нескольких тултипов одновременно.
+            hintIcon.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var wasOpen = !!row.querySelector('.wc-field-hint');
+                document.querySelectorAll('.wc-quantity-row .wc-field-hint').forEach(function (h) {
+                    if (h.parentNode) h.parentNode.removeChild(h);
+                });
+                if (wasOpen) return;    // повторный клик — просто закрыли
+
+                var hint = document.createElement('div');
+                hint.className = 'wc-field-hint';
+                hint.textContent = 'Количество уникальных макетов в тираже. ' +
+                    'Если у вас 200 одинаковых визиток — это 1 макет. ' +
+                    'Если по 100 шт. с разными данными для двух человек — это 2 макета.';
+                row.appendChild(hint);
+            });
+
+
+
+
+            field.appendChild(row);
+        });
+
+        return field;
+    },
 
     // ========================================================================
     // 4. ТИРАЖ: СЕЛЕКТ ПРЕСЕТОВ + ПОЛЕ ВВОДА
@@ -824,15 +1034,40 @@ var WC = {
      * Запускает отложенный автопересчёт (debounce).
      * При каждом новом вызове таймер перезапускается — срабатывает
      * только последнее изменение. Классический debounce на 1 секунду.
+     *
+     * ДОПОЛНЕНИЕ: перед расчётом округляем ручной тираж до кратного,
+     * если открыт «Свой тираж». Так уже в момент ПЕРВОГО (автоматического)
+     * пересчёта клиент видит округлённое значение и в поле, и в цене,
+     * и в подписи «Тираж: …» — без необходимости жать Enter или уходить
+     * из поля.
      */
     scheduleAutoRecalc: function (delay) {
         var self = this;
         delay = delay || 1000;
         clearTimeout(this._debounceTimer);
         this._debounceTimer = setTimeout(function () {
-            if (self.state.needsRecalc && !self.state.recalcInProgress) {
-                self.onCalculate();
+            if (!self.state.needsRecalc || self.state.recalcInProgress) {
+                return;
             }
+
+            // Если открыт ручной ввод тиража — округляем значение
+            // до кратного circulation_step перед расчётом.
+            var inputWrap = document.getElementById('wc-circulation-input-wrap');
+            var circInput = document.getElementById('wc-circulation-input');
+            if (inputWrap && inputWrap.style.display === 'block' && circInput) {
+                var v = parseInt(circInput.value, 10);
+                if (!isNaN(v) && v > 0) {
+                    // applyCirculationRounding:
+                    //   - округляет до ближайшего кратного,
+                    //   - записывает значение в state,
+                    //   - показывает временную подсказку, если изменилось.
+                    self.applyCirculationRounding(v);
+                    // Подставляем округлённое значение в поле.
+                    circInput.value = self.state.circulation;
+                }
+            }
+
+            self.onCalculate();
         }, delay);
     },
 
@@ -899,19 +1134,20 @@ var WC = {
     // ========================================================================
 
     setupGeneralHandlers: function () {
-        // Кнопка «Добавить в корзину» — внутри блока #wc-result.
+        var self = this;
+
+        // Кнопка «Создать просчёт» — внутри блока #wc-result.
         // Навешиваем через делегирование, потому что содержимое #wc-result
         // перерисовывается после каждого расчёта.
         var resultBox = document.getElementById('wc-result');
         if (resultBox) {
             resultBox.addEventListener('click', function (e) {
-                if (e.target.closest('.wc-result-add-to-cart')) {
-                    alert('Кнопка будет работать на основном сайте bukva-a.ru');
+                if (e.target.closest('.wc-result-create-proschet')) {
+                    self.onCreateProschet();
                 }
             });
         }
 
-        var self = this;
         var form = document.getElementById('wc-form');
 
         if (form) {
@@ -946,6 +1182,15 @@ var WC = {
                 self.scheduleAutoRecalc();
             });
         }
+        // Клик мимо иконки «?» — закрыть все открытые подсказки
+        // (и у «Количество макетов», и у работ). На клик по самой
+        // иконке не реагируем — у неё собственный обработчик со stopPropagation().
+        document.addEventListener('click', function () {
+            document.querySelectorAll('.wc-quantity-row .wc-field-hint, .wc-work-row .wc-field-hint')
+                .forEach(function (h) {
+                    if (h.parentNode) h.parentNode.removeChild(h);
+                });
+        });
     },
 
 
@@ -1003,38 +1248,8 @@ var WC = {
         // Тираж берём из state — он уже округлён до кратного шагу.
         var circulation = this.state.circulation;
 
-        // Собираем компоненты в payload.
-        var components = [];
-        this.options.components.forEach(comp => {
-            var st = this.state[comp.id];
-            var item = {
-                component_id: comp.id,
-                print_combo: st.print_combo,
-                paper_id: st.paper_id,
-                width_mm: st.width_mm,
-                height_mm: st.height_mm,
-                lamination_enabled: st.lamination_enabled,
-                work_ids: st.work_ids
-            };
-            if (st.lamination_enabled) {
-                item.lamination_side = st.lamination_side;
-                item.film_id = st.film_id;
-            }
-            components.push(item);
-        });
-
-        // Payload.
-        var payload = {
-            circulation: circulation,
-            components: components
-        };
-
-        // Многостраничные поля.
-        if (this.options.calculator.product_type === 'multipage') {
-            payload.total_pages = parseInt(document.getElementById('wc-total-pages').value, 10);
-            payload.booklet_orientation = document.getElementById('wc-booklet-orientation').value;
-            payload.binding_id = parseInt(document.getElementById('wc-binding').value, 10);
-        }
+        // Собираем payload (та же функция, что и для create-proschet).
+        var payload = this._buildPayload();
 
         // Отправляем.
         fetch(this.config.priceUrl, {
@@ -1103,9 +1318,9 @@ var WC = {
         html += '<div class="wc-result-price">' + this.formatPrice(data.total_price) + '</div>';
         html += '<div class="wc-result-per-unit">' + this.formatPrice(data.price_per_unit) + ' за штуку</div>';
 
-        // Кнопка «Добавить в корзину» — активна, когда есть расчёт.
-        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart">'
-             +  'Добавить в корзину'
+        // Кнопка «Создать просчёт» — активна, когда есть расчёт.
+        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet">'
+             +  'Создать просчёт'
              +  '</button>';
 
         // Детали (без «Общей суммы» — она крупно выше).
@@ -1142,6 +1357,42 @@ var WC = {
                 html += '</div>';
             }
         }
+
+        // Работы с количеством (например, «Обработка макета»).
+        // Выводим строкой: «Обработка макета × 3 = 300 ₽».
+        //
+        // ВАЖНО: работа с trigger='always' приходит и в c.works, и в
+        // c.always_on_works — одна и та же. Дедуплицируем по паре
+        // (component_id, work_id), чтобы не задваивать строку.
+        if (data.components && data.components.length) {
+            var quantityWorks = [];
+            var seen = {};
+            data.components.forEach(function (c) {
+                var allWorks = (c.works || []).concat(c.always_on_works || []);
+                allWorks.forEach(function (w) {
+                    if (!w.show_quantity) return;
+                    var key = c.component_id + ':' + w.id;
+                    if (seen[key]) return;
+                    seen[key] = true;
+                    quantityWorks.push({
+                        name: w.name,
+                        quantity: w.quantity || 1,
+                        cost: w.cost || 0,
+                        component: c.name
+                    });
+                });
+            });
+            if (quantityWorks.length) {
+                html += '<div class="wc-result-details" style="margin-top: 0.5rem;">';
+                quantityWorks.forEach(function (qw) {
+                    var costText = (Math.round(qw.cost * 100) / 100).toFixed(2).replace('.', ',') + ' ₽';
+                    var line = qw.name + ' × ' + qw.quantity + ' = ' + costText;
+                    html += '<div class="row"><span>' + line + '</span></div>';
+                });
+                html += '</div>';
+            }
+        }
+
 
         // Стопка (если сервер её посчитал).
         if (data.stacks && data.stacks.length) {
@@ -1193,8 +1444,8 @@ var WC = {
         var html = '';
         html += '<div class="wc-result-price wc-result-price-pending">?</div>';
         html += '<div class="wc-result-per-unit wc-result-per-unit-pending">Ожидание расчёта</div>';
-        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart" disabled>'
-             +  'Добавить в корзину'
+        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet" disabled>'
+             +  'Создать просчёт'
              +  '</button>';
         box.innerHTML = html;
         this.lastResult = null;
@@ -1438,6 +1689,108 @@ var WC = {
      */
     formatVolume: function (cm3) {
         return (cm3 / 1000).toFixed(3).replace('.', ',') + ' л';
+    },
+
+
+    // ========================================================================
+    // 12. СОЗДАНИЕ ПРОСЧЁТА (для сотрудников)
+    // ========================================================================
+
+    /**
+     * Возвращает CSRF-токен из meta-тега.
+     */
+    getCsrfToken: function () {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    },
+
+    /**
+     * Собирает payload для запросов (price или create-proschet).
+     * Используется и в onCalculate, и в onCreateProschet.
+     */
+    _buildPayload: function () {
+        var circulation = this.state.circulation;
+
+        var components = [];
+        this.options.components.forEach(function (comp) {
+            var st = this.state[comp.id];
+            var item = {
+                component_id: comp.id,
+                print_combo: st.print_combo,
+                paper_id: st.paper_id,
+                width_mm: st.width_mm,
+                height_mm: st.height_mm,
+                lamination_enabled: st.lamination_enabled,
+                work_ids: st.work_ids,
+                work_quantities: st.work_quantities
+            };
+            if (st.lamination_enabled) {
+                item.lamination_side = st.lamination_side;
+                item.film_id = st.film_id;
+            }
+            components.push(item);
+        }, this);
+
+        var payload = {
+            circulation: circulation,
+            components: components
+        };
+
+        if (this.options.calculator.product_type === 'multipage') {
+            payload.total_pages = parseInt(document.getElementById('wc-total-pages').value, 10);
+            payload.booklet_orientation = document.getElementById('wc-booklet-orientation').value;
+            payload.binding_id = parseInt(document.getElementById('wc-binding').value, 10);
+        }
+
+        return payload;
+    },
+
+    /**
+     * Отправляет payload на create-proschet. При успехе — редирект
+     * на страницу калькулятора с созданным просчётом.
+     */
+    onCreateProschet: function () {
+        if (this.state.recalcInProgress) return;
+
+        if (!this.checkFormValidity()) {
+            this.showError('Заполните форму корректно перед созданием просчёта');
+            return;
+        }
+
+        var payload = this._buildPayload();
+        var btn = document.querySelector('.wc-result-create-proschet');
+        var originalText = btn ? btn.textContent : '';
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Создание…';
+        }
+
+        var self = this;
+        fetch(this.config.createProschetUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': this.getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                self.showError(data.error || 'Не удалось создать просчёт');
+                if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                return;
+            }
+            // Успех — переходим на страницу калькулятора с созданным просчётом.
+            window.location.href = '/calculator/?proschet_id=' + data.proschet_id;
+        })
+        .catch(function (err) {
+            console.error(err);
+            self.showError('Ошибка сети при создании просчёта');
+            if (btn) { btn.disabled = false; btn.textContent = originalText; }
+        });
     }
 
 };

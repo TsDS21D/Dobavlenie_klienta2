@@ -11,6 +11,9 @@
 
     <!-- Стили страницы-калькулятора. -->
     <link rel="stylesheet" href="{% static 'web_calculators/css/calculator.css' %}">
+
+    <!-- CSRF-токен для AJAX-запросов (создание просчёта). -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body>
 
@@ -99,7 +102,8 @@
         window.WC_CONFIG = {
             slug: "{{ calculator.slug|escapejs }}",
             optionsUrl: "{% url 'web_calculators:options_api' calculator.slug %}",
-            priceUrl: "{% url 'web_calculators:price_api' calculator.slug %}"
+            priceUrl: "{% url 'web_calculators:price_api' calculator.slug %}",
+            createProschetUrl: "{% url 'web_calculators:create_proschet_api' calculator.slug %}"
         };
     </script>
 

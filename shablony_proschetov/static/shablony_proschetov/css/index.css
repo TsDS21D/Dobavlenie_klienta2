@@ -97,48 +97,27 @@ shablony_proschetov/static/shablony_proschetov/css/index.css
 
 /* ==================== МАКЕТ ==================== */
 
-/* Двухколоночный макет: слева — дерево, справа — превью */
+/* Двухколоночный макет: слева — узкое дерево (280px), справа — превью.
+   Дерево больше никогда не расширяется — содержимое категорий
+   показывается в отдельной всплывающей панели. */
 .tpl-layout {
     display: grid;
-    grid-template-columns: 380px 1fr;
+    grid-template-columns: 280px 1fr;
     gap: 1.5rem;
     align-items: start;
     position: relative;
-    transition: grid-template-columns 0.2s ease;
 }
 
-/* Когда в дереве есть раскрытая категория — левая колонка расширяется.
-   Правая колонка сжимается, эффект «накрытия» — за счёт тени на панели. */
-.tpl-layout.has-expanded {
-    grid-template-columns: 620px 1fr;
-}
-
-.tpl-layout.has-expanded .tpl-tree-pane {
-    background: #ffffff;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-}
-
-/* Левая колонка (дерево) */
-.tpl-tree-pane {
-    background: #fafafa;/* Левая колонка (дерево) */
+/* Левая колонка (дерево). Фиксированная высота с прокруткой,
+   если дерево длинное. Никакого расширения. */
 .tpl-tree-pane {
     background: #fafafa;
     border: 1px solid #ececec;
     border-radius: 12px;
     padding: 1rem;
-    /* Убираем ограничение высоты и обрезку — при раскрытии дерево
-       должно «выезжать» за границы ячейки и накрывать правую панель. */
-    overflow: visible;
-    max-height: none;
+    max-height: 70vh;
+    overflow-y: auto;
     position: relative;
-    z-index: 10;
-    transition: box-shadow 0.2s ease, background 0.2s ease;
-}
-    border: 1px solid #ececec;
-    border-radius: 12px;
-    padding: 1rem;
-    max-height: 70vh;                   /* ограничиваем высоту */
-    overflow-y: auto;                   /* прокрутка при большом дереве */
 }
 
 /* Правая колонка (превью) */
@@ -572,32 +551,22 @@ shablony_proschetov/static/shablony_proschetov/css/index.css
     min-height: 60px;
 }
 
-/* ==================== СВОРАЧИВАНИЕ ДЕРЕВА ==================== */
+/* ==================== РАСКРЫТИЕ ВЕТОК В ДЕРЕВЕ ==================== */
 
-/* Дочерние категории и шаблоны внутри узла скрыты по умолчанию.
-   Показываются только у раскрытой категории. */
+/* Дети скрыты по умолчанию. */
 .tpl-tree-node > .tpl-tree-children,
 .tpl-tree-node > .tpl-templates-list {
     display: none;
 }
 
+/* Когда узел раскрыт (.expanded) — показываем его детей инлайн. */
 .tpl-tree-node.expanded > .tpl-tree-children,
 .tpl-tree-node.expanded > .tpl-templates-list {
     display: block;
 }
 
-/* Название категории: при расширенной панели разрешаем перенос строк —
-   длинные названия будут видны целиком. */
-.tpl-layout.has-expanded .tpl-category-name,
-.tpl-layout.has-expanded .tpl-template-name {
-    white-space: normal;
-    word-break: break-word;
-    overflow: visible;
-    text-overflow: clip;
-}
-
-/* Иконка-индикатор раскрытия: маленький треугольник справа от названия. */
-.tpl-tree-node > .tpl-category-row .tpl-category-name::after {
+/* Индикатор: ▸ у свёрнутой категории с содержимым, ▾ у раскрытой. */
+.tpl-tree-node.has-children > .tpl-category-row .tpl-category-name::after {
     content: ' ▸';
     color: #999;
     font-weight: normal;
@@ -607,4 +576,204 @@ shablony_proschetov/static/shablony_proschetov/css/index.css
 .tpl-tree-node.expanded > .tpl-category-row .tpl-category-name::after {
     content: ' ▾';
     color: #0B8661;
+}
+
+/* Активная подкатегория, для которой открыта панель. */
+.tpl-category-row.active {
+    background: #eaf6ef;
+}
+
+
+/* ==================== ВСПЛЫВАЮЩАЯ ПАНЕЛЬ КАТЕГОРИИ ==================== */
+
+.tpl-category-popup {
+    position: absolute;
+    top: 0;
+    /* Левая позиция = ширина дерева (280px) + gap (1.5rem = 24px) = 304px. */
+    left: 304px;
+    width: 340px;.tpl-category-popup {
+    position: absolute;
+    /* top устанавливается динамически в JS — панель появляется
+       на уровне той категории, к которой относится. */
+    top: 0;
+    /* Левая позиция = ширина дерева (280px) + gap (1.5rem = 24px) = 304px. */
+    left: 304px;
+    width: 340px;
+    /* Ограничиваем высоту: не выше 70% окна и не выше остатка от top
+       до нижнего края окна — чтобы панель не «уезжала» за экран. */
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+    animation: tplPopupIn 0.15s ease-out;
+}
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+    animation: tplPopupIn 0.15s ease-out;
+}
+
+@keyframes tplPopupIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.tpl-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid #ececec;
+    background: #fafafa;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    /* Шапка «прилипает» при прокрутке панели. */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.tpl-popup-back {
+    background: transparent;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    color: #555;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.tpl-popup-back:hover {
+    background: #eaf6ef;
+    border-color: #0B8661;
+    color: #0B8661;
+}
+.tpl-popup-back[disabled] {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.tpl-popup-breadcrumbs {
+    flex: 1;
+    font-size: 0.8rem;
+    color: #555;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tpl-popup-breadcrumbs .tpl-crumb {
+    color: #0B8661;
+    cursor: pointer;
+    text-decoration: none;
+}
+.tpl-popup-breadcrumbs .tpl-crumb:hover {
+    text-decoration: underline;
+}
+.tpl-popup-breadcrumbs .tpl-crumb-sep {
+    color: #aaa;
+    margin: 0 0.25rem;
+}
+
+.tpl-popup-close {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    color: #888;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0.2rem;
+}
+.tpl-popup-close:hover {
+    color: #333;
+}
+
+.tpl-popup-body {
+    padding: 0.6rem 0.85rem 0.9rem;
+}
+
+.tpl-popup-section-title {
+    font-size: 0.72rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0.7rem 0 0.4rem;
+}
+.tpl-popup-section-title:first-child {
+    margin-top: 0;
+}
+
+.tpl-popup-subcat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #333;
+    transition: background 0.15s;
+}
+.tpl-popup-subcat:hover {
+    background: #eaf6ef;
+}
+.tpl-popup-subcat i {
+    color: #0B8661;
+    flex: 0 0 auto;
+}
+.tpl-popup-subcat .tpl-popup-subcat-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tpl-popup-subcat .tpl-popup-subcat-count {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.tpl-popup-template {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #333;
+    transition: background 0.15s, color 0.15s;
+}
+.tpl-popup-template:hover {
+    background: #eaf6ef;
+}
+.tpl-popup-template.active {
+    background: #0B8661;
+    color: #ffffff;
+}
+.tpl-popup-template.active i {
+    color: #ffffff;
+}
+.tpl-popup-template i {
+    color: #666;
+    flex: 0 0 auto;
+}
+.tpl-popup-template .tpl-popup-template-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tpl-popup-empty {
+    color: #999;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
 }

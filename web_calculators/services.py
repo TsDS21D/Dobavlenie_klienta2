@@ -19,8 +19,12 @@ VichisliniyaMultipageModel, Laminate, AdditionalWork — создаются в �
 import math
 from decimal import Decimal, InvalidOperation
 
+# ===== ИМПОРТЫ DJANGO =====
+from django.db import transaction
+
 # ===== ИМПОРТЫ МОДЕЛЕЙ =====
 from calculator.models_lamination import Laminate
+from calculator.models_list_proschet import Proschet, PrintComponent, AdditionalWork
 from vichisliniya_listov.models import VichisliniyaListovModel
 from vichisliniya_listov.multipage_models import VichisliniyaMultipageModel
 from print_price.utils import calculate_price_for_printer_and_copies
@@ -74,6 +78,11 @@ def get_options(calculator):
         p.value for p in calculator.circulation_presets.all().order_by('order', 'value')
     ]
 
+    # Пресеты количества (для работ с флагом show_quantity).
+    quantity_presets = [
+        p.value for p in calculator.quantity_presets.all().order_by('order', 'value')
+    ]
+
     components_data = []
     for comp in calculator.components.all().order_by('order', 'id'):
         # Собираем разрешённые комбинации печати.
@@ -118,12 +127,14 @@ def get_options(calculator):
         # в расчёте. Отправляем их отдельным списком для отладки.
         optional_works = []
         always_on_works = []
+        quantity_works = []
         for cw in comp.works.all().select_related('work').order_by('order', 'id'):
             item = {
                 'id': cw.work.id,
                 'name': cw.work.name,
                 'trigger': cw.trigger,
                 'preview_effect': cw.preview_effect,
+                'show_quantity': cw.show_quantity,
             }
             if cw.trigger == 'optional':
                 optional_works.append(item)
@@ -131,6 +142,15 @@ def get_options(calculator):
                 # И 'always', и 'lamination' — не показываем в форме,
                 # но возвращаем клиенту для отладки.
                 always_on_works.append(item)
+
+            # Работы, для которых в калькуляторе нужна строка «Количество».
+            # Отдельный список — JS рендерит по нему отдельный подблок.
+            if cw.show_quantity:
+                quantity_works.append({
+                    'id': cw.work.id,
+                    'name': cw.work.name,
+                    'default_quantity': 1,
+                })
 
         # Пресеты размеров.
         presets = [
@@ -169,6 +189,7 @@ def get_options(calculator):
             'lamination': lamination_data,
             'works': optional_works,
             'always_on_works': always_on_works,
+            'quantity_works': quantity_works,
             'size': {
                 'min_width_mm': float(comp.min_width_mm),
                 'max_width_mm': float(comp.max_width_mm),
@@ -191,6 +212,7 @@ def get_options(calculator):
             'circulation_step': calculator.circulation_step,
             'default_circulation': calculator.default_circulation,
             'circulation_presets': circulation_presets,
+            'quantity_presets': quantity_presets,
         },
         'components': components_data,
     }
@@ -415,6 +437,7 @@ def _calculate_component(calculator, comp, comp_in, circulation,
     client_lamination_on = bool(comp_in.get('lamination_enabled')) and comp.lamination_enabled
 
     provided_ids = set(comp_in.get('work_ids') or [])
+    provided_quantities = comp_in.get('work_quantities') or {}
     processed_work_ids = set()      # защита от дубликатов
 
     for cw in comp.works.all().select_related('work').order_by('order', 'id'):
@@ -434,15 +457,33 @@ def _calculate_component(calculator, comp, comp_in, circulation,
             continue
         processed_work_ids.add(work.id)
 
-        cost = _calc_work_cost(work, Decimal(sheets_count), cuts_count, circulation)
+        # 9.3. Количество работы. Если у работы стоит флаг show_quantity —
+        # количество берём из work_quantities (по ключу-строке ID работы).
+        # Если клиент не прислал значение — по умолчанию 1.
+        work_qty = 1
+        if cw.show_quantity:
+            raw = provided_quantities.get(str(work.id))
+            if raw is not None:
+                try:
+                    work_qty = int(raw)
+                    if work_qty < 1:
+                        work_qty = 1
+                except (ValueError, TypeError):
+                    work_qty = 1
+
+        cost = _calc_work_cost(
+            work, Decimal(sheets_count), cuts_count, circulation, quantity=work_qty,
+        )
         works_cost += cost
 
         entry = {
             'id': work.id,
             'name': work.name,
             'cost': float(cost),
+            'quantity': work_qty,
             'trigger': cw.trigger,
             'preview_effect': cw.preview_effect,
+            'show_quantity': cw.show_quantity,
         }
         works_list.append(entry)
         # Для отладки в результат отдаём все не-опциональные работы.
@@ -824,7 +865,7 @@ def _calc_lamination(comp, side, film, sheets_count):
 # РАСЧЁТ ДОПОЛНИТЕЛЬНОЙ РАБОТЫ
 # ============================================================================
 
-def _calc_work_cost(work, sheets_count, cuts_count, circulation):
+def _calc_work_cost(work, sheets_count, cuts_count, circulation, quantity=1):
     """
     Считает стоимость одной дополнительной работы БЕЗ создания объекта
     AdditionalWork. Это принципиально: модель AdditionalWork при расчёте
@@ -832,9 +873,10 @@ def _calc_work_cost(work, sheets_count, cuts_count, circulation):
     (мы работаем без записи в БД). Поэтому расчёт делается напрямую,
     по тем же формулам, что и в AdditionalWork.recalculate_price.
 
+    quantity — количество копий работы (по умолчанию 1).
     Возвращает Decimal — итоговую стоимость работы.
     """
-    qty = 1                                       # количество копий работы
+    qty = quantity if quantity and quantity >= 1 else 1   # количество копий работы
     items = work.default_items_per_sheet or 1     # изделий на листе
     lines = work.default_lines_count or 1         # линий реза по умолчанию
     formula = work.formula_type                   # тип формулы (1–6)
@@ -971,3 +1013,242 @@ def _to_decimal(value, field_name):
         return Decimal(str(value))
     except (InvalidOperation, ValueError, TypeError):
         raise OrderCalculationError(f'Поле "{field_name}" должно быть числом', 'invalid_field', {'field': field_name})
+
+
+
+# ============================================================================
+# ПУБЛИЧНЫЙ ВХОД: СОЗДАНИЕ ПРОСЧЁТА ИЗ ВЕБ-КАЛЬКУЛЯТОРА (для сотрудников)
+# ============================================================================
+
+@transaction.atomic
+def create_proschet_from_webcalc(calculator, data, user=None):
+    """
+    Создаёт реальный просчёт (calculator.Proschet) со всеми вложенными
+    объектами на основе данных от публичного калькулятора.
+
+    В отличие от calculate_price — ПИШЕТ В БД. Используется только
+    сотрудниками (is_staff) — по кнопке «Создать просчёт» в веб-калькуляторе.
+
+    Аргументы:
+        calculator — экземпляр WebCalculator.
+        data       — словарь из JSON-запроса (формат как у calculate_price).
+        user       — пользователь (пока не используется, оставлен для будущего).
+
+    Возвращает:
+        созданный экземпляр Proschet.
+
+    Логика (по образцу create_proschet_from_template):
+    1. Проверить тираж, разобрать параметры многостраничности.
+    2. Создать Proschet.
+    3. Для каждого компонента:
+       a) валидировать печать, бумагу, размеры;
+       b) создать PrintComponent;
+       c) создать VichisliniyaListovModel и пересчитать размещение;
+       d) при product_type='multipage' — VichisliniyaMultipageModel;
+       e) Laminate — если ламинация включена;
+       f) AdditionalWork — только для работ, влияющих на цену;
+       g) финальный пересчёт цены компонента.
+    """
+    # --- 1. Тираж и общие параметры заказа ---
+    circulation = _validate_circulation(calculator, data.get('circulation'))
+
+    total_pages = data.get('total_pages')
+    booklet_orientation = data.get('booklet_orientation')
+
+    components_in = data.get('components') or []
+    if not isinstance(components_in, list) or not components_in:
+        raise OrderCalculationError(
+            'Поле "components" обязательно и должно содержать хотя бы один компонент',
+            'bad_request',
+        )
+
+    comps_by_id = {c.id: c for c in calculator.components.all()}
+    provided_ids = set()
+
+    # --- 2. Корневой просчёт ---
+    # title = название калькулятора (например, «Простые визитки»).
+    # source_template оставляем пустым — просчёт создан не из шаблона.
+    proschet = Proschet.objects.create(
+        title=calculator.name,
+        circulation=circulation,
+    )
+
+    # --- 3. Перебираем компоненты из payload ---
+    for comp_in in components_in:
+        comp_id = comp_in.get('component_id')
+        if comp_id not in comps_by_id:
+            raise OrderCalculationError(
+                f'Компонент id={comp_id} не относится к этому калькулятору',
+                'unknown_component',
+                {'component_id': comp_id},
+            )
+        if comp_id in provided_ids:
+            raise OrderCalculationError(
+                f'Компонент id={comp_id} передан дважды',
+                'duplicate_component',
+                {'component_id': comp_id},
+            )
+        provided_ids.add(comp_id)
+
+        comp = comps_by_id[comp_id]
+
+        # 3.1. Параметры печати (color/bw + single/duplex).
+        print_type, printing_mode = _validate_print_combination(comp, comp_in)
+
+        # 3.2. Бумага.
+        paper = _get_allowed_paper(comp, comp_in.get('paper_id'))
+
+        # 3.3. Размеры изделия.
+        width_mm = _to_decimal(comp_in.get('width_mm'), 'width_mm')
+        height_mm = _to_decimal(comp_in.get('height_mm'), 'height_mm')
+        _validate_size(comp, width_mm, height_mm)
+
+        # 3.4. Ламинация: валидируем ДО создания объектов, чтобы при ошибке
+        # не оставлять мусор в БД (хотя @transaction.atomic всё равно откатит).
+        lamination_on = bool(comp_in.get('lamination_enabled')) and comp.lamination_enabled
+        lamination_side = None
+        film = None
+        if lamination_on:
+            lamination_side = comp_in.get('lamination_side', 'single')
+            _validate_lamination_side(comp, lamination_side)
+            film = _get_allowed_film(comp, comp_in.get('film_id'))
+            if not comp.laminator:
+                raise OrderCalculationError(
+                    f'У компонента "{comp.name}" не задан ламинатор',
+                    'no_laminator',
+                )
+
+        # 3.5. Печатный компонент.
+        component = PrintComponent.objects.create(
+            proschet=proschet,
+            printer=comp.printer,
+            paper=paper,
+            print_type=print_type,
+            printing_mode=printing_mode,
+        )
+
+        # 3.6. Одностраничный расчёт листов.
+        vich_data = VichisliniyaListovModel(
+            vichisliniya_listov_print_component=component,
+            vichisliniya_listov_vyleta=comp.vyleta_mm if comp.vyleta_mm is not None else 4,
+            vichisliniya_listov_color='4+0',
+            vichisliniya_listov_item_width=width_mm,
+            vichisliniya_listov_item_height=height_mm,
+            vichisliniya_listov_fit_selected_orientation='auto',
+        )
+        if component.printer and component.printer.sheet_format and component.printer.margin_mm is not None:
+            vich_data.calculate_fitting(
+                component.printer.sheet_format.width_mm,
+                component.printer.sheet_format.height_mm,
+                component.printer.margin_mm,
+            )
+        vich_data.vichisliniya_listov_calculate_list_count(circulation)
+        vich_data.save()
+
+        # 3.7. Многостраничный режим (только для multipage-калькуляторов).
+        if calculator.product_type == 'multipage' and comp.binding:
+            if total_pages is None:
+                raise OrderCalculationError('Не указано количество страниц', 'missing_total_pages')
+            try:
+                total_pages_int = int(total_pages)
+            except (ValueError, TypeError):
+                raise OrderCalculationError('Количество страниц должно быть целым числом', 'invalid_total_pages')
+            if total_pages_int < comp.min_pages or total_pages_int > comp.max_pages:
+                raise OrderCalculationError(
+                    f'Количество страниц должно быть от {comp.min_pages} до {comp.max_pages}',
+                    'total_pages_out_of_range',
+                    {'min': comp.min_pages, 'max': comp.max_pages, 'provided': total_pages_int},
+                )
+            if booklet_orientation not in ('portrait', 'landscape'):
+                raise OrderCalculationError(
+                    'booklet_orientation должен быть portrait или landscape',
+                    'invalid_booklet_orientation',
+                )
+            if booklet_orientation == 'portrait' and not comp.allow_booklet_portrait:
+                raise OrderCalculationError('Портретная ориентация недоступна', 'orientation_not_allowed')
+            if booklet_orientation == 'landscape' and not comp.allow_booklet_landscape:
+                raise OrderCalculationError('Альбомная ориентация недоступна', 'orientation_not_allowed')
+
+            mp = VichisliniyaMultipageModel(
+                print_component=component,
+                binding=comp.binding,
+                total_pages=total_pages_int,
+                copies=circulation,
+                finished_width=width_mm,
+                finished_height=height_mm,
+                vyleta=comp.vyleta_mm if comp.vyleta_mm is not None else 4,
+                color='4+0',
+                booklet_orientation=booklet_orientation,
+                is_active=True,
+            )
+            mp.calculate_sheet_count()
+            mp.save()
+
+        # 3.8. Ламинация.
+        if lamination_on:
+            lamination = Laminate.objects.create(
+                print_component=component,
+                is_enabled=True,
+                side=lamination_side,
+                laminator=comp.laminator,
+                film=film,
+            )
+            lamination.recalculate_price(component.get_sheet_count())
+            lamination.save()
+
+        # 3.9. Дополнительные работы.
+        # Берём только те, которые влияют на цену:
+        #   always     — всегда;
+        #   lamination — если у компонента включена ламинация;
+        #   optional   — если ID работы пришёл в work_ids.
+        provided_work_ids = set(comp_in.get('work_ids') or [])
+        provided_quantities = comp_in.get('work_quantities') or {}
+
+        for cw in comp.works.all().select_related('work').order_by('order', 'id'):
+            work = cw.work
+
+            if cw.trigger == 'always':
+                is_selected = True
+            elif cw.trigger == 'lamination':
+                is_selected = lamination_on
+            else:  # 'optional' и любое неизвестное значение
+                is_selected = work.id in provided_work_ids
+
+            if not is_selected:
+                continue
+
+            # Количество работы: если флаг show_quantity — берём из payload,
+            # иначе по умолчанию 1.
+            work_qty = 1
+            if cw.show_quantity:
+                raw = provided_quantities.get(str(work.id))
+                if raw is not None:
+                    try:
+                        work_qty = max(1, int(raw))
+                    except (ValueError, TypeError):
+                        work_qty = 1
+
+            # AdditionalWork.save() сам подставит title, cost, markup_percent,
+            # price, formula_type, lines_count, items_per_sheet из work
+            # и пересчитает total_price.
+            AdditionalWork.objects.create(
+                print_component=component,
+                work=work,
+                quantity=work_qty,
+            )
+
+        # 3.10. Финальный пересчёт цены компонента — когда уже созданы
+        # все вложенные объекты (листы, ламинация, работы).
+        component.recalculate_price()
+
+    # --- 4. Проверка, что пришли все компоненты калькулятора ---
+    missing = set(comps_by_id.keys()) - provided_ids
+    if missing:
+        names = ', '.join(comps_by_id[i].name for i in missing)
+        raise OrderCalculationError(
+            f'Не указаны обязательные компоненты: {names}',
+            'missing_components',
+            {'missing_ids': list(missing)},
+        )
+
+    return proschet

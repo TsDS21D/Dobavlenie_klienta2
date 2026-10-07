@@ -2,18 +2,18 @@
 shablony_proschetov/static/shablony_proschetov/js/index.js
 Интерактив страницы справочника шаблонов.
 
-Реализовано на этом шаге (ШАГ 5.3):
-- клик по шаблону → превью справа;
-- кнопка "+ Категория" → создание корневой категории;
-- кнопка "+" рядом с категорией → создание подкатегории;
-- кнопка "✎" рядом с категорией → переименование;
-- кнопка "✕" рядом с категорией → удаление (с подтверждением);
-- модальное окно для ввода названия (общая для трёх сценариев).
-
-Что будет дальше:
-- поиск по дереву (ШАГ 5.4);
-- создание/удаление/переименование шаблонов и кнопка
-  "Создать просчёт из шаблона" (ШАГ 6).
+ОСНОВНЫЕ СЦЕНАРИИ:
+- клик по категории → открывается всплывающая панель со списком её
+  подкатегорий и шаблонов; дерево остаётся фиксированным (280px);
+- клик по подкатегории внутри панели — заходим «внутрь» (панель
+  перерисовывается содержимым подкатегории, добавляется запись в стек);
+- кнопка «← Назад» и хлебные крошки — навигация по стеку;
+- клик по шаблону (в дереве или панели) → превью справа;
+- поиск → результаты показываются в той же панели;
+- клик мимо панели и дерева — панель закрывается;
+- кнопки «+» / «✎» / «✕» / «+ Категория» / «Переименовать шаблон» /
+  «Удалить шаблон» / «Создать просчёт из шаблона» / «Сохранить шаблон»
+  работают как раньше.
 */
 
 "use strict";
@@ -27,6 +27,11 @@ var tplApp = {
 
     // Колбэк, который вызовется при подтверждении модалки.
     modalOnConfirm: null,
+
+    // Стек открытых категорий в панели.
+    // Каждый элемент: { id: <string>, name: <string> }.
+    // Нужен для кнопки «Назад» и хлебных крошек.
+    popupStack: [],
 
     // ------------------------------------------------------------------
     // Инициализация.
@@ -42,7 +47,7 @@ var tplApp = {
             });
         });
 
-        // Поле поиска по дереву.
+        // Поле поиска.
         const searchInput = document.getElementById('tpl-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', function () {
@@ -50,21 +55,23 @@ var tplApp = {
             });
         }
 
-        // Кнопка "Создать просчёт из шаблона" в блоке превью.
+        // Кнопка «Создать просчёт из шаблона».
         const createProschetBtn = document.getElementById('tpl-btn-create-proschet');
         if (createProschetBtn) {
             createProschetBtn.addEventListener('click', function () {
                 tplApp.createProschetFromCurrentTemplate();
             });
         }
-        // Кнопка "Переименовать / изменить комментарий" в превью шаблона.
+
+        // Кнопка «Переименовать / изменить комментарий».
         const renameTemplateBtn = document.getElementById('tpl-btn-rename-template');
         if (renameTemplateBtn) {
             renameTemplateBtn.addEventListener('click', function () {
                 tplApp.openRenameTemplateModal();
             });
         }
-        // Кнопка "Удалить шаблон" в превью.
+
+        // Кнопка «Удалить шаблон».
         const deleteTemplateBtn = document.getElementById('tpl-btn-delete-template');
         if (deleteTemplateBtn) {
             deleteTemplateBtn.addEventListener('click', function () {
@@ -72,7 +79,7 @@ var tplApp = {
             });
         }
 
-        // "+ Категория" в панели инструментов — создать корневую категорию.
+        // «+ Категория» в панели инструментов — корневая категория.
         const addRootBtn = document.getElementById('tpl-btn-add-root-category');
         if (addRootBtn) {
             addRootBtn.addEventListener('click', function () {
@@ -80,10 +87,10 @@ var tplApp = {
             });
         }
 
-        // Кнопки на каждом узле: + (подкатегория), ✎ (переименовать), ✕ (удалить).
+        // Мини-кнопки на узлах дерева: + (подкатегория), ✎ (переименовать), ✕ (удалить).
         document.querySelectorAll('.tpl-btn-add-sub').forEach(function (btn) {
             btn.addEventListener('click', function (e) {
-                e.stopPropagation();     // чтобы клик не всплыл до шаблона/категории
+                e.stopPropagation();
                 const catId = btn.getAttribute('data-category-id');
                 tplApp.openCreateCategoryModal(catId);
             });
@@ -109,17 +116,22 @@ var tplApp = {
         document.getElementById('tpl-modal-close').addEventListener('click', function () { tplApp.closeModal(); });
         document.getElementById('tpl-modal-cancel').addEventListener('click', function () { tplApp.closeModal(); });
         document.getElementById('tpl-modal-confirm').addEventListener('click', function () { tplApp.confirmModal(); });
-        // Enter в поле ввода = подтверждение.
         document.getElementById('tpl-modal-input').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') tplApp.confirmModal();
             if (e.key === 'Escape') tplApp.closeModal();
         });
-        // Клик по фону модалки закрывает её.
         document.getElementById('tpl-modal-overlay').addEventListener('click', function (e) {
             if (e.target === this) tplApp.closeModal();
         });
+
+        // Кнопки всплывающей панели категории.
+        const popupClose = document.getElementById('tpl-popup-close');
+        if (popupClose) {
+            popupClose.addEventListener('click', function () { tplApp.closePopup(); });
+        }
+
+
         // Панель сохранения просчёта как шаблона.
-        // Если она есть — навешиваем обработчики.
         const savePanel = document.getElementById('tpl-save-panel');
         if (savePanel) {
             const btnConfirm = document.getElementById('tpl-save-confirm');
@@ -128,74 +140,250 @@ var tplApp = {
                 tplApp.saveCurrentProschetAsTemplate();
             });
             if (btnCancel) btnCancel.addEventListener('click', function () {
-                // Отмена — просто уходим со страницы с чистым URL.
                 window.location.href = '/shablony/';
             });
         }
-        // Навешиваем обработчики сворачивания/разворачивания на категории.
-        tplApp.setupTreeToggle();
 
-        // Восстанавливаем выделение последнего шаблона (если он сохранён в localStorage).
-        tplApp.restoreLastSelectedTemplate();        
+        // Обработчики клика по категориям (открытие панели).
+        tplApp.setupTreeClick();
+
+        // Клик вне панели и вне дерева — закрываем панель.
+        // ВАЖНО: используем e.composedPath() вместо e.target.closest(...).
+        // composedPath() фиксирует путь события в момент его возникновения
+        // и НЕ ломается, если во время обработки элемента уже не стало в DOM.
+        // Раньше из-за этого панель закрывалась сразу после клика по
+        // подкатегории (элемент успевал перерисоваться до всплытия клика).
+        document.addEventListener('click', function (e) {
+            var path = (e.composedPath && e.composedPath()) || [];
+
+            // Проверяем, был ли клик внутри панели или дерева.
+            var insidePopup = path.some(function (el) {
+                return el && el.id === 'tpl-category-popup';
+            });
+            var insideTree = path.some(function (el) {
+                return el && el.classList && el.classList.contains('tpl-tree-pane');
+            });
+
+            if (insidePopup || insideTree) return;
+
+            tplApp.closePopup();
+        });
+
+        // Восстанавливаем выделение последнего шаблона.
+        tplApp.restoreLastSelectedTemplate();
     },
 
     // ==================================================================
-    // СВОРАЧИВАНИЕ / РАЗВОРАЧИВАНИЕ ДЕРЕВА
+    // ДЕРЕВО: КЛИК ПО КАТЕГОРИИ → ПАНЕЛЬ
     // ==================================================================
 
     /**
-     * Навешивает обработчики клика на строки категорий.
-     * Клик по строке (кроме мини-кнопок +/✎/✕) переключает .expanded у узла.
-     * На верхнем уровне (level=0) — аккордеон: раскрыта только одна.
+     * Вешаем обработчик клика на строку каждой категории.
+     *
+     * Логика (инлайн-раскрытие + панель для подкатегорий):
+     * - Клик по КОРНЕВОЙ категории (level=0) — раскрывает её ветку инлайн
+     *   (подкатегории и шаблоны видны прямо в дереве). Аккордеон: при
+     *   раскрытии одной корневой остальные сворачиваются. Панель закрывается.
+     * - Клик по ПОДКАТЕГОРИИ (level>=1) — открывает всплывающую панель
+     *   с шаблонами этой подкатегории (без раскрытия ветки в дереве).
      */
-    setupTreeToggle: function () {
+    setupTreeClick: function () {
         document.querySelectorAll('.tpl-category-row').forEach(function (row) {
             row.addEventListener('click', function (e) {
-                // Клики по мини-кнопкам не должны сворачивать/разворачивать.
+                // Клики по мини-кнопкам +/✎/✕ не должны ничего делать.
                 if (e.target.closest('.tpl-node-actions')) return;
 
                 var node = row.closest('.tpl-tree-node');
                 if (!node) return;
 
-                var level = parseInt(node.getAttribute('data-node-level'), 10);
-                var isExpanded = node.classList.contains('expanded');
+                var level = parseInt(node.getAttribute('data-node-level'), 10) || 0;
 
-                // Аккордеон на верхнем уровне: сворачиваем все остальные корневые.
-                if (level === 0 && !isExpanded) {
-                    document.querySelectorAll('.tpl-tree-node[data-node-level="0"].expanded').forEach(function (other) {
-                        if (other !== node) other.classList.remove('expanded');
-                    });
-                }
+                // Для корневой категории — аккордеон + toggle ветки.
+                if (level === 0) {
+                    if (!node.classList.contains('expanded')) {
+                        // Сворачиваем все другие корневые.
+                        document.querySelectorAll('.tpl-tree-node[data-node-level="0"].expanded')
+                            .forEach(function (other) {
+                                if (other !== node) other.classList.remove('expanded');
+                            });
+                    }
+                    node.classList.toggle('expanded');
 
-                // Переключаем состояние текущего узла.
-                node.classList.toggle('expanded');
-
-                // Проверяем, есть ли хоть один раскрытый корневой узел.
-                // Если да — добавляем .has-expanded на макет (панель расширяется).
-                var anyExpanded = document.querySelector('.tpl-tree-node[data-node-level="0"].expanded') !== null;
-                var layout = document.querySelector('.tpl-layout');
-                if (layout) {
-                    if (anyExpanded) {
-                        layout.classList.add('has-expanded');
-                    } else {
-                        layout.classList.remove('has-expanded');
+                    // Если ветка свернулась повторным кликом — закрываем панель.
+                    if (!node.classList.contains('expanded')) {
+                        tplApp.closePopup();
+                        return;
                     }
                 }
+
+                // И для корневой, и для подкатегории — открываем панель
+                // с прямыми шаблонами этой категории.
+                tplApp.openCategoryPanel(node);
+            });
+        });
+
+        // Помечаем узлы с вложенным содержимым классом has-children —
+        // для индикатора ▸/▾ рядом с именем.
+        document.querySelectorAll('.tpl-tree-node').forEach(function (node) {
+            var hasChildren = node.querySelector(':scope > .tpl-tree-children') !== null;
+            var hasTemplates = node.querySelector(':scope > .tpl-templates-list') !== null;
+            if (hasChildren || hasTemplates) {
+                node.classList.add('has-children');
+            }
+        });
+    },
+
+    // ==================================================================
+    // ПАНЕЛЬ: РЕНДЕР И НАВИГАЦИЯ
+    // ==================================================================
+
+    /**
+     * Открывает всплывающую панель с прямыми шаблонами указанной
+     * категории (любого уровня — корневой или подкатегории).
+     *
+     * @param {HTMLElement} node — DOM-узел .tpl-tree-node.
+     */
+    openCategoryPanel: function (node) {
+        var popup = document.getElementById('tpl-category-popup');
+        var body = document.getElementById('tpl-popup-body');
+        var crumbs = document.getElementById('tpl-popup-breadcrumbs');
+        if (!popup || !body || !crumbs) return;
+
+        // Собираем путь от корня до этой подкатегории — для хлебных крошек.
+        var path = this.getCategoryPath(node);
+
+        // Собираем прямые шаблоны этой подкатегории (без подкатегорий).
+        var templates = [];
+        var tplList = node.querySelector(':scope > .tpl-templates-list');
+        if (tplList) {
+            tplList.querySelectorAll(':scope > .tpl-template-item').forEach(function (el) {
+                var id = el.getAttribute('data-template-id');
+                var nameEl = el.querySelector('.tpl-template-name');
+                templates.push({
+                    id: id,
+                    name: nameEl ? nameEl.textContent : ''
+                });
+            });
+        }
+
+        // ===== Рендер тела панели =====
+        var html = '';
+        if (templates.length) {
+            html += '<div class="tpl-popup-section-title">Шаблоны</div>';
+            templates.forEach(function (t) {
+                var active = (String(t.id) === String(tplApp.currentTemplateId)) ? ' active' : '';
+                html += '<div class="tpl-popup-template' + active + '" data-template-id="' + t.id + '">' +
+                            '<i class="fas fa-file-alt"></i>' +
+                            '<span class="tpl-popup-template-name">' + t.name + '</span>' +
+                        '</div>';
+            });
+        } else {
+            html += '<div class="tpl-popup-empty">В этой категории пока нет шаблонов.</div>';
+        }
+        body.innerHTML = html;
+
+        // ===== Хлебные крошки =====
+        var crumbHtml = '';
+        path.forEach(function (item, idx) {
+            if (idx > 0) crumbHtml += '<span class="tpl-crumb-sep">›</span>';
+            crumbHtml += '<span>' + item.name + '</span>';
+        });
+        crumbs.innerHTML = crumbHtml;
+
+        // Кнопка «Назад» не нужна — в этом режиме только один уровень.
+        var backBtn = document.getElementById('tpl-popup-back');
+        if (backBtn) backBtn.style.display = 'none';
+
+        // ===== Позиционирование панели на уровне своей категории =====
+        // Вычисляем вертикальное смещение строки категории относительно
+        // контейнера .tpl-layout (у него position: relative). Панель
+        // открывается ровно напротив этой строки, а не сверху макета.
+        var rowEl = node.querySelector(':scope > .tpl-category-row');
+        if (rowEl) {
+            var layoutEl = document.querySelector('.tpl-layout');
+            if (layoutEl) {
+                var layoutRect = layoutEl.getBoundingClientRect();
+                var rowRect = rowEl.getBoundingClientRect();
+                var top = rowRect.top - layoutRect.top;
+
+                // Защита от «ухода» панели за нижний край окна:
+                // если панель в своей полной высоте не помещается снизу,
+                // поднимаем её на столько, чтобы нижний край панели остался
+                // внутри окна (не выше верхней границы .tpl-layout).
+                var maxAvailable = window.innerHeight - rowRect.top - 16;
+                if (maxAvailable < 200) {
+                    // Если места совсем мало — сдвигаем top настолько,
+                    // чтобы панель открылась выше строки.
+                    var wanted = Math.max(0, top - (200 - maxAvailable));
+                    top = wanted;
+                }
+                popup.style.top = top + 'px';
+            }
+        }
+
+        // Показываем панель.
+        popup.style.display = 'block';
+
+        // Подсветка активной подкатегории в дереве.
+        document.querySelectorAll('.tpl-category-row.active').forEach(function (r) {
+            r.classList.remove('active');
+        });
+        var row = node.querySelector(':scope > .tpl-category-row');
+        if (row) row.classList.add('active');
+
+        // Клик по шаблону в панели — превью справа.
+        body.querySelectorAll('.tpl-popup-template').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var tplId = el.getAttribute('data-template-id');
+                if (tplId) tplApp.selectTemplate(tplId);
             });
         });
     },
 
-    // ------------------------------------------------------------------
-    // Утилита: получить CSRF-токен из meta-тега.
-    // ------------------------------------------------------------------
+    /**
+     * Возвращает путь от корневой категории до указанного узла.
+     * Используется для хлебных крошек.
+     *
+     * @param {HTMLElement} node — .tpl-tree-node.
+     * @returns {Array<{id: string, name: string}>}
+     */
+    getCategoryPath: function (node) {
+        var path = [];
+        var current = node;
+        while (current && current.classList && current.classList.contains('tpl-tree-node')) {
+            var nameEl = current.querySelector(':scope > .tpl-category-row > .tpl-category-name');
+            path.unshift({
+                id: current.getAttribute('data-category-id'),
+                name: nameEl ? nameEl.textContent : '?'
+            });
+            var parent = current.parentElement;
+            current = parent ? parent.closest('.tpl-tree-node') : null;
+        }
+        return path;
+    },
+
+    /**
+     * Закрыть панель.
+     */
+    closePopup: function () {
+        var popup = document.getElementById('tpl-category-popup');
+        if (popup) popup.style.display = 'none';
+        this.popupStack = [];
+        // Снять подсветку активной категории.
+        document.querySelectorAll('.tpl-category-row.active').forEach(function (r) {
+            r.classList.remove('active');
+        });
+    },
+
+    // ==================================================================
+    // УТИЛИТЫ
+    // ==================================================================
+
     getCsrfToken: function () {
         const meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
     },
 
-    // ------------------------------------------------------------------
-    // Утилита: POST JSON на сервер и вернуть распарсенный JSON ответа.
-    // ------------------------------------------------------------------
     apiPost: function (url, payload) {
         return fetch(url, {
             method: 'POST',
@@ -206,10 +394,8 @@ var tplApp = {
             },
             body: JSON.stringify(payload || {})
         }).then(function (r) {
-            // Читаем JSON в любом случае: сервер возвращает ошибки тоже JSON-ом.
             return r.json().then(function (data) {
                 if (!r.ok) {
-                    // Прокидываем ошибку выше с сообщением из ответа.
                     throw new Error(data.error || ('HTTP ' + r.status));
                 }
                 return data;
@@ -221,27 +407,14 @@ var tplApp = {
     // МОДАЛЬНОЕ ОКНО
     // ==================================================================
 
-    /**
-     * Открывает модалку с заданным заголовком, значениями полей и колбэком.
-     *
-     * @param {string} title        — заголовок окна
-     * @param {string} value        — начальное значение поля «Название»
-     * @param {Function} onConfirm  — функция, вызываемая при подтверждении.
-     *                                 Принимает (name, comment).
-     * @param {string} mode         — 'category' (только название) или 'template' (название + комментарий)
-     * @param {string} commentValue — начальное значение комментария (для mode='template')
-     */
     openModal: function (title, value, onConfirm, mode, commentValue) {
         mode = mode || 'category';
 
-        // Заголовок.
         document.getElementById('tpl-modal-title').textContent = title;
 
-        // Поле названия.
         const nameInput = document.getElementById('tpl-modal-input');
         nameInput.value = value || '';
 
-        // Поле комментария — показываем/скрываем в зависимости от режима.
         const commentWrap = document.getElementById('tpl-modal-comment-wrapper');
         const commentInput = document.getElementById('tpl-modal-comment');
         if (mode === 'template') {
@@ -252,12 +425,10 @@ var tplApp = {
             commentInput.value = '';
         }
 
-        // Сброс ошибок и показ модалки.
         document.getElementById('tpl-modal-error').style.display = 'none';
         document.getElementById('tpl-modal-overlay').style.display = 'flex';
         setTimeout(function () { nameInput.focus(); nameInput.select(); }, 50);
 
-        // Колбэк для подтверждения.
         this.modalOnConfirm = onConfirm;
     },
 
@@ -287,14 +458,12 @@ var tplApp = {
     },
 
     showModalError: function (message) {
-        // Показываем ошибку прямо в модалке, если она ещё открыта.
         const overlay = document.getElementById('tpl-modal-overlay');
         if (overlay.style.display === 'flex') {
             const err = document.getElementById('tpl-modal-error');
             err.textContent = message;
             err.style.display = 'block';
         } else {
-            // Модалка уже закрыта — просто alert.
             alert(message);
         }
     },
@@ -303,10 +472,6 @@ var tplApp = {
     // КАТЕГОРИИ: СОЗДАНИЕ / ПЕРЕИМЕНОВАНИЕ / УДАЛЕНИЕ
     // ==================================================================
 
-    /**
-     * Открыть модалку создания категории.
-     * @param {string|null} parentId — id родителя или null для корневой.
-     */
     openCreateCategoryModal: function (parentId) {
         const title = parentId ? 'Новая подкатегория' : 'Новая категория';
         tplApp.openModal(title, '', function (name) {
@@ -321,8 +486,6 @@ var tplApp = {
         })
         .then(function (data) {
             console.log('✅ Категория создана:', data.category);
-            // Перезагружаем страницу — самый простой и надёжный способ
-            // отрисовать обновлённое дерево, не дублируя логику рендера.
             window.location.reload();
         })
         .catch(function (err) {
@@ -348,10 +511,25 @@ var tplApp = {
         });
     },
 
-    /**
-     * Открыть модалку переименования / изменения комментария шаблона.
-     * Данные берём из текущего превью (tplApp.currentTemplateData).
-     */
+    confirmDeleteCategory: function (catId, name) {
+        if (!window.confirm('Удалить категорию "' + name + '"?\n\n' +
+                            'Удалить можно только пустую категорию — без вложенных категорий и шаблонов.')) {
+            return;
+        }
+        this.apiPost('/shablony/api/category/' + catId + '/delete/', {})
+        .then(function () {
+            window.location.reload();
+        })
+        .catch(function (err) {
+            console.error('Ошибка удаления:', err);
+            alert(err.message);
+        });
+    },
+
+    // ==================================================================
+    // ШАБЛОНЫ: РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ
+    // ==================================================================
+
     openRenameTemplateModal: function () {
         if (!this.currentTemplateData) {
             alert('Сначала выберите шаблон');
@@ -369,11 +547,28 @@ var tplApp = {
         );
     },
 
-    /**
-     * Спрашивает подтверждение и удаляет текущий шаблон.
-     * После успеха — чистит запись о выделенном шаблоне в localStorage
-     * и перезагружает страницу, чтобы дерево обновилось.
-     */
+    updateTemplate: function (templateId, newName, newComment) {
+        this.apiPost('/shablony/api/template/' + templateId + '/update/', {
+            name: newName,
+            comment: newComment
+        })
+        .then(function (data) {
+            if (!data.success) throw new Error(data.error || 'Ошибка обновления');
+
+            try {
+                localStorage.setItem('tpl_last_selected_template_id', String(templateId));
+            } catch (e) {
+                console.warn('localStorage недоступен:', e);
+            }
+
+            window.location.reload();
+        })
+        .catch(function (err) {
+            console.error('Ошибка обновления шаблона:', err);
+            tplApp.showModalError(err.message);
+        });
+    },
+
     confirmDeleteTemplate: function () {
         if (!this.currentTemplateData) {
             alert('Сначала выберите шаблон');
@@ -381,7 +576,6 @@ var tplApp = {
         }
         const tpl = this.currentTemplateData;
 
-        // Подтверждение с явным предупреждением.
         if (!window.confirm(
             'Удалить шаблон «' + tpl.name + '»?\n\n' +
             'Будут удалены все сохранённые в нём компоненты, работы, ' +
@@ -395,16 +589,13 @@ var tplApp = {
         .then(function (data) {
             if (!data.success) throw new Error(data.error || 'Ошибка удаления');
 
-            // Чистим запись о выделенном шаблоне, чтобы при перезагрузке
-            // не пытались выделить уже удалённый.
             try {
                 const lastId = localStorage.getItem('tpl_last_selected_template_id');
                 if (lastId && String(lastId) === String(tpl.id)) {
                     localStorage.removeItem('tpl_last_selected_template_id');
                 }
-            } catch (e) { /* localStorage может быть недоступен — не страшно */ }
+            } catch (e) { /* пусто */ }
 
-            // Перезагружаем страницу — дерево обновится.
             window.location.reload();
         })
         .catch(function (err) {
@@ -413,216 +604,139 @@ var tplApp = {
         });
     },
 
-
-    /**
-     * Отправляет изменения шаблона на сервер и обновляет превью.
-     */
-    updateTemplate: function (templateId, newName, newComment) {
-        this.apiPost('/shablony/api/template/' + templateId + '/update/', {
-            name: newName,
-            comment: newComment
-        })
-        .then(function (data) {
-            if (!data.success) throw new Error(data.error || 'Ошибка обновления');
-
-            // ===== Запоминаем id обновлённого шаблона, =====
-            // чтобы после перезагрузки страницы автоматически
-            // выделить именно его в дереве.
-            try {
-                localStorage.setItem('tpl_last_selected_template_id', String(templateId));
-            } catch (e) {
-                console.warn('localStorage недоступен:', e);
-            }
-
-            // Обновляем превью локально (на случай, если перезагрузка задержится).
-            tplApp.currentTemplateData.name = data.template.name;
-            tplApp.currentTemplateData.comment = data.template.comment;
-            document.getElementById('tpl-preview-title').textContent = data.template.name;
-            document.getElementById('tpl-preview-comment').textContent = data.template.comment || '';
-
-            // Перезагружаем страницу — чтобы дерево тоже обновилось.
-            window.location.reload();
-        })
-        .catch(function (err) {
-            console.error('Ошибка обновления шаблона:', err);
-            tplApp.showModalError(err.message);
-        });
-    },
-
-
-    confirmDeleteCategory: function (catId, name) {
-        // Простое подтверждение. Можно заменить на красивую модалку позже.
-        if (!window.confirm('Удалить категорию "' + name + '"?\n\n' +
-                            'Удалить можно только пустую категорию — без вложенных категорий и шаблонов.')) {
-            return;
-        }
-        this.apiPost('/shablony/api/category/' + catId + '/delete/', {})
-        .then(function () {
-            window.location.reload();
-        })
-        .catch(function (err) {
-            console.error('Ошибка удаления:', err);
-            alert(err.message);
-        });
-    },
-
     // ==================================================================
     // ПОИСК ПО ДЕРЕВУ
     // ==================================================================
 
     /**
-     * Фильтрует дерево по строке запроса.
-     *
-     * Логика (вариант 2):
-     * 1. Если совпало имя ШАБЛОНА — показываем сам шаблон и всех его родителей.
-     * 2. Если совпало имя КАТЕГОРИИ — показываем:
-     *      - саму категорию и всех её родителей,
-     *      - всех её потомков (подкатегории любого уровня),
-     *      - все шаблоны внутри неё и внутри её потомков.
-     *    Так запрос «меловк» покажет не только категорию «Меловка 350 г/кв.м»,
-     *    но и все шаблоны, лежащие в ней (и в её подкатегориях).
-     * 3. Всё, что не попало в результаты, скрывается классом .tpl-hidden.
-     * 4. Пустой запрос — показываем дерево целиком.
-     *
-     * @param {string} query — текст из поля поиска.
+     * Поиск: собираем совпадения по шаблонам и категориям и показываем
+     * их в той же панели (отдельным списком, без стека).
      */
     search: function (query) {
         const q = (query || '').trim().toLowerCase();
-        const treePane = document.getElementById('tpl-tree-pane');
-        if (!treePane) return;
+        const popup = document.getElementById('tpl-category-popup');
+        const body = document.getElementById('tpl-popup-body');
+        const crumbs = document.getElementById('tpl-popup-breadcrumbs');
+        const backBtn = document.getElementById('tpl-popup-back');
 
-        // Сбрасываем прошлое состояние: убираем класс .tpl-hidden со всех элементов.
-        treePane.querySelectorAll('.tpl-hidden').forEach(function (el) {
-            el.classList.remove('tpl-hidden');
-        });
+        if (!popup || !body) return;
 
-        // Пустой запрос — сворачиваем все узлы (возвращаемся к «только корневые»).
+        // Пустой запрос — закрываем панель.
         if (!q) {
-            treePane.querySelectorAll('.tpl-tree-node.expanded').forEach(function (n) {
-                n.classList.remove('expanded');
-            });
-            var layout = document.querySelector('.tpl-layout');
-            if (layout) layout.classList.remove('has-expanded');
+            this.closePopup();
             return;
         }
 
-        // При непустом запросе раскрываем ВСЕ узлы — иначе поиск не найдёт
-        // элементы внутри свёрнутых веток.
-        treePane.querySelectorAll('.tpl-tree-node').forEach(function (node) {
-            node.classList.add('expanded');
-        });
-        var layout2 = document.querySelector('.tpl-layout');
-        if (layout2) layout2.classList.add('has-expanded');
+        // Сбрасываем стек — поиск не связан с навигацией по категориям.
+        this.popupStack = [];
 
-        // Наборы, которые нужно оставить видимыми.
-        const matchingTemplates = new Set();      // какие .tpl-template-item показываем
-        const visibleCategories = new Set();       // какие .tpl-tree-node показываем
+        // Собираем совпадения.
+        const matchedTemplates = [];
+        const matchedCategories = [];
 
-        // --- 1. ШАБЛОНЫ: совпадение по имени ---
-        treePane.querySelectorAll('.tpl-template-item').forEach(function (tpl) {
+        document.querySelectorAll('#tpl-tree-pane .tpl-template-item').forEach(function (tpl) {
             const nameEl = tpl.querySelector('.tpl-template-name');
             const name = (nameEl ? nameEl.textContent : '').toLowerCase();
             if (name.indexOf(q) !== -1) {
-                matchingTemplates.add(tpl);
+                matchedTemplates.push({
+                    id: tpl.getAttribute('data-template-id'),
+                    name: (nameEl ? nameEl.textContent : '')
+                });
             }
         });
 
-        // --- 2. КАТЕГОРИИ: совпадение по имени ---
-        // Собираем совпавшие категории в отдельный Set — нам нужно потом
-        // отдельно по каждой пройтись, чтобы добавить потомков и шаблоны.
-        const matchingCategories = new Set();
-        treePane.querySelectorAll('.tpl-tree-node').forEach(function (node) {
-            const nameEl = node.querySelector('.tpl-category-name');
+        document.querySelectorAll('#tpl-tree-pane .tpl-tree-node').forEach(function (node) {
+            const nameEl = node.querySelector(':scope > .tpl-category-row > .tpl-category-name');
             const name = (nameEl ? nameEl.textContent : '').toLowerCase();
             if (name.indexOf(q) !== -1) {
-                matchingCategories.add(node);
+                matchedCategories.push({
+                    id: node.getAttribute('data-category-id'),
+                    name: (nameEl ? nameEl.textContent : '')
+                });
             }
         });
 
-        // --- 3. Каждую совпавшую категорию «раскрываем целиком» ---
-        matchingCategories.forEach(function (catNode) {
-            // 3.1. Помечаем саму категорию и всех её предков как видимые.
-            tplApp.markCategoryAndAncestors(catNode, visibleCategories);
+        // Рендер тела панели.
+        let html = '';
 
-            // 3.2. Помечаем всех потомков (подкатегории любого уровня) как видимые.
-            //      querySelectorAll('.tpl-tree-node') внутри узла вернёт только потомков.
-            catNode.querySelectorAll('.tpl-tree-node').forEach(function (child) {
-                visibleCategories.add(child);
+        if (matchedCategories.length) {
+            html += '<div class="tpl-popup-section-title">Категории</div>';
+            matchedCategories.forEach(function (c) {
+                html += '<div class="tpl-popup-subcat" data-category-id="' + c.id + '">' +
+                            '<i class="fas fa-folder"></i>' +
+                            '<span class="tpl-popup-subcat-name">' + c.name + '</span>' +
+                        '</div>';
             });
-
-            // 3.3. Помечаем все шаблоны внутри этой категории и всех её потомков
-            //      как «найденные». Они будут показаны, даже если не совпали по имени.
-            catNode.querySelectorAll('.tpl-template-item').forEach(function (tpl) {
-                matchingTemplates.add(tpl);
-            });
-        });
-
-        // --- 4. Для каждого шаблона, попавшего в результаты, ---
-        //     помечаем его родительскую категорию и всех её предков как видимые.
-        //     Это нужно на случай, если шаблон совпал по имени, а его категория — нет.
-        matchingTemplates.forEach(function (tpl) {
-            const tplNode = tpl.closest('.tpl-tree-node');
-            if (tplNode) {
-                tplApp.markCategoryAndAncestors(tplNode, visibleCategories);
-            }
-        });
-
-        // --- 5. Скрываем все категории, не попавшие в visibleCategories ---
-        treePane.querySelectorAll('.tpl-tree-node').forEach(function (node) {
-            if (!visibleCategories.has(node)) {
-                node.classList.add('tpl-hidden');
-            }
-        });
-
-        // --- 6. Скрываем все шаблоны, кроме найденных ---
-        treePane.querySelectorAll('.tpl-template-item').forEach(function (tpl) {
-            if (!matchingTemplates.has(tpl)) {
-                tpl.classList.add('tpl-hidden');
-            }
-        });
-    },
-
-    /**
-     * Добавляет узел категории и всех его предков в переданный Set.
-     * Используется при поиске, чтобы совпавший узел не «терялся» в дереве.
-     *
-     * @param {HTMLElement} node — элемент .tpl-tree-node.
-     * @param {Set} visibleSet — множество, куда складываем видимые узлы.
-     */
-    markCategoryAndAncestors: function (node, visibleSet) {
-        let current = node;
-        // Идём вверх по дереву: пока текущий элемент — .tpl-tree-node.
-        while (current && current.classList && current.classList.contains('tpl-tree-node')) {
-            visibleSet.add(current);
-            // parentElement?.closest — находим ближайшего предка-категорию.
-            const parent = current.parentElement;
-            current = parent ? parent.closest('.tpl-tree-node') : null;
         }
+
+        if (matchedTemplates.length) {
+            html += '<div class="tpl-popup-section-title">Шаблоны</div>';
+            matchedTemplates.forEach(function (t) {
+                var active = (String(t.id) === String(tplApp.currentTemplateId)) ? ' active' : '';
+                html += '<div class="tpl-popup-template' + active + '" data-template-id="' + t.id + '">' +
+                            '<i class="fas fa-file-alt"></i>' +
+                            '<span class="tpl-popup-template-name">' + t.name + '</span>' +
+                        '</div>';
+            });
+        }
+
+        if (!matchedCategories.length && !matchedTemplates.length) {
+            html += '<div class="tpl-popup-empty">Ничего не найдено.</div>';
+        }
+
+        body.innerHTML = html;
+
+        // Хлебные крошки — надпись «Результаты поиска».
+        if (crumbs) {
+            crumbs.innerHTML = '<span>Результаты поиска</span>';
+        }
+
+        // Кнопка «Назад» в режиме поиска не нужна.
+        if (backBtn) {
+            backBtn.style.display = 'none';
+        }
+
+        // Показать панель.
+        popup.style.display = 'block';
+
+        // Клик по категории из результатов — программно кликаем по этой
+        // категории в дереве, чтобы сработала та же логика (раскрытие
+        // корневой / открытие панели подкатегории).
+        body.querySelectorAll('.tpl-popup-subcat').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var catId = el.getAttribute('data-category-id');
+                var node = document.querySelector('.tpl-tree-node[data-category-id="' + catId + '"]');
+                if (node) {
+                    var row = node.querySelector(':scope > .tpl-category-row');
+                    if (row) row.click();
+                }
+            });
+        });
+
+        // Клик по шаблону — превью.
+        body.querySelectorAll('.tpl-popup-template').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var tplId = el.getAttribute('data-template-id');
+                if (tplId) tplApp.selectTemplate(tplId);
+            });
+        });
     },
 
     // ==================================================================
     // СОЗДАНИЕ ПРОСЧЁТА ИЗ ТЕКУЩЕГО ШАБЛОНА
     // ==================================================================
 
-    /**
-     * Берёт текущий выбранный шаблон и создаёт на его основе реальный просчёт.
-     * После успеха — редирект в калькулятор с параметром ?proschet_id=<id>,
-     * чтобы калькулятор сразу открыл и выделил этот просчёт.
-     */
     createProschetFromCurrentTemplate: function () {
-        // 1. Проверяем, что шаблон выбран.
         if (!this.currentTemplateId) {
             alert('Сначала выберите шаблон в дереве слева');
             return;
         }
         const tplName = this.currentTemplateData ? this.currentTemplateData.name : 'без названия';
 
-        // 2. Спрашиваем подтверждение.
         if (!window.confirm('Создать новый просчёт из шаблона «' + tplName + '»?')) {
             return;
         }
 
-        // 3. Отправляем POST-запрос.
         const url = '/shablony/api/template/' + this.currentTemplateId + '/create-proschet/';
         this.apiPost(url, {})
             .then(function (data) {
@@ -630,10 +744,6 @@ var tplApp = {
                     throw new Error(data.error || 'Ошибка создания просчёта');
                 }
                 console.log('✅ Просчёт создан:', data.proschet_id);
-
-                // 4. Редирект в калькулятор с параметром proschet_id.
-                //    Калькулятор должен прочитать этот параметр и выделить
-                //    соответствующий просчёт (это будет дописано в ШАГЕ 6.3).
                 window.location.href = '/calculator/?proschet_id=' + data.proschet_id;
             })
             .catch(function (err) {
@@ -646,12 +756,6 @@ var tplApp = {
     // СОХРАНЕНИЕ ПРОСЧЁТА КАК ШАБЛОНА
     // ==================================================================
 
-    /**
-     * Отправляет на сервер данные из панели сохранения: id просчёта,
-     * название, комментарий, id категории.
-     * После успеха — редирект на чистый /shablony/ (чтобы скрыть панель
-     * и увидеть обновлённое дерево с новым шаблоном).
-     */
     saveCurrentProschetAsTemplate: function () {
         const panel = document.getElementById('tpl-save-panel');
         if (!panel) return;
@@ -665,7 +769,6 @@ var tplApp = {
         const comment     = commentEl ? commentEl.value.trim() : '';
         const categoryId  = categoryEl ? categoryEl.value : '';
 
-        // Валидация на клиенте.
         if (!name) {
             alert('Введите название шаблона');
             if (nameEl) nameEl.focus();
@@ -677,10 +780,8 @@ var tplApp = {
             return;
         }
 
-        // Подтверждение.
         if (!window.confirm('Сохранить просчёт как шаблон "' + name + '"?')) return;
 
-        // POST на сервер.
         this.apiPost('/shablony/api/save-from-proschet/', {
             proschet_id: proschetId,
             name: name,
@@ -698,24 +799,30 @@ var tplApp = {
         });
     },
 
-
-
     // ==================================================================
-    // ШАБЛОНЫ: ПРЕВЬЮ (без изменений с ШАГА 5.1)
+    // ПРЕВЬЮ ВЫБРАННОГО ШАБЛОНА
     // ==================================================================
 
     selectTemplate: function (templateId) {
+        // Снимаем подсветку со всех шаблонов в дереве и в панели.
         document.querySelectorAll('.tpl-template-item.active').forEach(function (el) {
             el.classList.remove('active');
         });
+        document.querySelectorAll('.tpl-popup-template.active').forEach(function (el) {
+            el.classList.remove('active');
+        });
+
+        // Подсвечиваем выбранный в дереве.
         const selected = document.querySelector('.tpl-template-item[data-template-id="' + templateId + '"]');
         if (selected) selected.classList.add('active');
 
+        // И в панели.
+        const selectedPopup = document.querySelector('.tpl-popup-template[data-template-id="' + templateId + '"]');
+        if (selectedPopup) selectedPopup.classList.add('active');
+
         this.currentTemplateId = templateId;
 
-        // ===== Запоминаем выделение в localStorage. =====
-        // При следующей загрузке страницы (в том числе после перезагрузки)
-        // мы выделим этот же шаблон автоматически.
+        // Запоминаем выделение в localStorage.
         try {
             localStorage.setItem('tpl_last_selected_template_id', String(templateId));
         } catch (e) {
@@ -724,11 +831,7 @@ var tplApp = {
 
         this.loadPreview(templateId);
     },
-    /**
-     * Восстанавливает выделение последнего выбранного шаблона.
-     * Берёт id из localStorage; если такой шаблон есть в дереве — выделяет его
-     * и подгружает превью. Вызывается при загрузке страницы.
-     */
+
     restoreLastSelectedTemplate: function () {
         let lastId = null;
         try {
@@ -738,10 +841,8 @@ var tplApp = {
         }
         if (!lastId) return;
 
-        // Есть ли такой шаблон на странице?
         const el = document.querySelector('.tpl-template-item[data-template-id="' + lastId + '"]');
         if (!el) {
-            // Шаблона больше нет (удалён, перенесён) — чистим запись.
             try { localStorage.removeItem('tpl_last_selected_template_id'); } catch (e) {}
             return;
         }
@@ -749,7 +850,6 @@ var tplApp = {
         console.log('🔁 Восстанавливаем выделение шаблона id=' + lastId);
         this.selectTemplate(lastId);
     },
-
 
     loadPreview: function (templateId) {
         const url = '/shablony/api/template/' + templateId + '/preview/';

@@ -173,6 +173,23 @@ shablony_proschetov/templates/shablony_proschetov/index.html
             {% endif %}
         </aside>
 
+        <!-- ==================== ВСПЛЫВАЮЩАЯ ПАНЕЛЬ СОДЕРЖИМОГО КАТЕГОРИИ ==================== -->
+        <!-- Открывается по клику на категорию. Позиционируется абсолютно
+             относительно .tpl-layout (position: relative на нём). Показывает
+             шаблоны и подкатегории выбранной категории. -->
+        <div id="tpl-category-popup" class="tpl-category-popup" style="display: none;">
+            <!-- Шапка панели: «Назад», хлебные крошки, «Закрыть». -->
+            <div class="tpl-popup-header">
+                <button type="button" id="tpl-popup-back" class="tpl-popup-back" title="Назад">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="tpl-popup-breadcrumbs" id="tpl-popup-breadcrumbs"></div>
+                <button type="button" id="tpl-popup-close" class="tpl-popup-close" title="Закрыть">×</button>
+            </div>
+            <!-- Тело панели — наполняется JS. -->
+            <div class="tpl-popup-body" id="tpl-popup-body"></div>
+        </div>
+
         <!-- ПРАВАЯ КОЛОНКА: превью выбранного шаблона -->
         <section class="tpl-preview-pane" id="tpl-preview-pane">
 

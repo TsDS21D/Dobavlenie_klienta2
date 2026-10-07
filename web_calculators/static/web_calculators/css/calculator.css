@@ -256,11 +256,13 @@ body {
     padding: 0.9rem 1rem;
 }
 
-/* ==================== КНОПКА "ДОБАВИТЬ В КОРЗИНУ" В РЕЗУЛЬТАТЕ ==================== */
+/* ==================== КНОПКА "СОЗДАТЬ ПРОСЧЁТ" В РЕЗУЛЬТАТЕ ==================== */
 
-.wc-result-add-to-cart {
+.wc-result-create-proschet {
     width: 100%;
-    margin: 0.8rem 0 1rem;
+    /* Верхний отступ отделяет от «7,68 ₽ за штуку»,
+       нижний — отодвигает кнопку от пунктирной линии блока деталей. */
+    margin: 1rem 0 1.4rem;
     padding: 0.6rem 1rem;
     font-size: 1.1rem;
     transition: background-color 0.2s ease, opacity 0.2s ease;
@@ -560,4 +562,130 @@ body {
     .wc-field-circulation {
         padding: 0;
     }
+}
+
+/* ==================== БЛОК «КОЛИЧЕСТВО МАКЕТОВ» ==================== */
+
+.wc-quantity-row label {
+    display: block;
+    font-size: 1.05rem;
+    color: #555;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+}
+
+.wc-quantity-select {
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-family: inherit;
+    background: white;
+    color: #333;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wc-quantity-select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
+}
+
+.wc-quantity-input-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-family: inherit;
+    background: white;
+    color: #333;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wc-quantity-input-wrap input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
+}
+
+/* ==================== ИКОНКА «?» У «КОЛИЧЕСТВО МАКЕТОВ» ==================== */
+
+/* Строка получает position: relative, чтобы вложенный .wc-field-hint
+   (position: absolute, top: 100%) позиционировался именно под ней. */
+.wc-quantity-row {
+    position: relative;
+}
+
+/* Подпись + иконка «?» в одну строку. */
+.wc-quantity-label-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.3rem;
+}
+
+.wc-quantity-label-line label {
+    margin-bottom: 0;
+}
+
+/* Круглая иконка «?» рядом с подписью. */
+.wc-quantity-hint-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #b9d9c7;
+    color: #0B8661;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.wc-quantity-hint-icon:hover {
+    background: #0B8661;
+    color: #fff;
+}
+
+/* ==================== ИКОНКА «?» У РАБОТ ==================== */
+
+/* Строка работы: чекбокс с подписью + опциональная иконка «?». */
+.wc-work-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.wc-work-row .wc-checkbox {
+    padding: 0.3rem 0;
+}
+
+/* Круглая иконка «?» — тот же вид, что у «Количество макетов». */
+.wc-work-hint-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #b9d9c7;
+    color: #0B8661;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.wc-work-hint-icon:hover {
+    background: #0B8661;
+    color: #fff;
 }

@@ -30,6 +30,7 @@ from .models import (
     WebCalculatorComponentFilm,
     WebCalculatorComponentPaper,
     WebCalculatorComponentWork,
+    WebCalculatorQuantityPreset,
     WebCalculatorSizePreset,
 )
 
@@ -62,7 +63,7 @@ class WebCalculatorComponentWorkInline(NestedTabularInline):
     """
     model = WebCalculatorComponentWork
     extra = 1
-    fields = ('order', 'work', 'trigger', 'preview_effect')
+    fields = ('order', 'work', 'trigger', 'preview_effect', 'show_quantity')
     ordering = ('order', 'id')
     autocomplete_fields = ('work',)
     verbose_name = 'Работа'
@@ -178,6 +179,19 @@ class WebCalculatorCirculationPresetInline(NestedTabularInline):
     verbose_name = 'Пресет тиража'
     verbose_name_plural = 'Пресеты тиража'
 
+
+class WebCalculatorQuantityPresetInline(NestedTabularInline):
+    """
+    Inline пресетов количества для работ с флагом show_quantity.
+    Tabular — пресеты удобнее видеть таблицей.
+    """
+    model = WebCalculatorQuantityPreset
+    extra = 1
+    fields = ('order', 'value')
+    ordering = ('order', 'value')
+    verbose_name = 'Пресет количества'
+    verbose_name_plural = 'Пресеты количества'
+
 # ============================================================================
 # РЕГИСТРАЦИЯ: ВЕБ-КАЛЬКУЛЯТОР
 # ============================================================================
@@ -205,7 +219,11 @@ class WebCalculatorAdmin(NestedModelAdmin):
     list_editable = ('order', 'is_active')                       # быстрая правка прямо из списка
     readonly_fields = ('created_at', 'updated_at')
     prepopulated_fields = {'slug': ('name',)}                    # slug автоматически из названия
-    inlines = [WebCalculatorCirculationPresetInline, WebCalculatorComponentInline]
+    inlines = [
+        WebCalculatorCirculationPresetInline,
+        WebCalculatorQuantityPresetInline,
+        WebCalculatorComponentInline,
+    ]
 
     fieldsets = (
         ('Основное', {
@@ -297,8 +315,8 @@ class WebCalculatorComponentWorkAdmin(admin.ModelAdmin):
     """
     Отдельная админка работ веб-калькуляторов — для поиска.
     """
-    list_display = ('id', 'component', 'work', 'trigger', 'preview_effect', 'order')
-    list_filter = ('trigger', 'preview_effect', 'work')
+    list_display = ('id', 'component', 'work', 'trigger', 'preview_effect', 'show_quantity', 'order')
+    list_filter = ('trigger', 'preview_effect', 'show_quantity', 'work')
     search_fields = ('component__name', 'component__calculator__name', 'work__name')
     autocomplete_fields = ('component', 'work')
 
@@ -328,3 +346,13 @@ class WebCalculatorComponentFilmAdmin(admin.ModelAdmin):
     list_filter = ('component__calculator',)
     search_fields = ('component__name', 'component__calculator__name', 'material__name', 'customer_name')
     autocomplete_fields = ('component', 'material')
+
+@admin.register(WebCalculatorQuantityPreset)
+class WebCalculatorQuantityPresetAdmin(admin.ModelAdmin):
+    """
+    Отдельная админка пресетов количества — для поиска и обслуживания.
+    """
+    list_display = ('id', 'calculator', 'value', 'order')
+    list_filter = ('calculator',)
+    search_fields = ('calculator__name', 'calculator__slug')
+    autocomplete_fields = ('calculator',)
