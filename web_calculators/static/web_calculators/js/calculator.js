@@ -67,15 +67,21 @@ var WC = {
         console.log('🚀 Инициализация страницы-калькулятора', this.config);
 
         // Определяем, открыты ли мы внутри iframe. Если да — это режим
-        // встраивания на bukva-a.ru: показываем кнопку «Добавить в корзину».
+        // встраивания на bukva-a.ru: показываем кнопку «Добавить в корзину»,
+        // скрываем собственный логотип и заголовок, убираем фон/тень обёртки,
+        // и сообщаем родителю нашу высоту, чтобы он подогнал iframe.
         try {
             this.isEmbedded = (window.self !== window.top);
         } catch (e) {
-            // Если браузер запретил доступ к window.top (нестандартные настройки
-            // безопасности) — считаем, что мы НЕ в iframe.
             this.isEmbedded = false;
         }
         console.log('🖼️ Режим встраивания (iframe):', this.isEmbedded);
+
+        // Применяем встроенный режим: класс на <body>, скрытие шапки,
+        // отслеживание высоты и отправка её родителю.
+        if (this.isEmbedded) {
+            this._setupEmbeddedMode();
+        }
 
         // Загружаем опции с сервера.
         this.loadOptions()
@@ -1834,6 +1840,69 @@ var WC = {
      *   2) получение product_id созданного товара;
      *   3) window.parent.postMessage(...).
      */
+    /**
+     * Настраивает страницу для работы внутри iframe на bukva-a.ru:
+     *   1. Вешает класс wc-embedded на <body> — CSS убирает фон и тень обёртки.
+     *   2. Прячет .wc-header (логотип и заголовок «Визитки») — у клиента уже есть
+     *      шапка сайта, дублирование не нужно.
+     *   3. Сообщает родителю (bukva-a.ru) текущую высоту страницы, чтобы
+     *      родитель мог выставить iframe.style.height ровно под контент.
+     *   4. Ставит ResizeObserver: как только контент меняет высоту
+     *      (раскрылся блок ламинации, показалась ошибка и т.п.) — снова шлём.
+     */
+    _setupEmbeddedMode: function () {
+        var self = this;
+
+        // 1. Класс на body: CSS сам применит нужные стили.
+        document.body.classList.add('wc-embedded');
+
+        // 2. Скрыть нашу шапку — логотип и заголовок.
+        var header = document.querySelector('.wc-header');
+        if (header) header.style.display = 'none';
+
+        // 3. Первая отправка высоты — после того, как DOM отрисуется.
+        //    requestAnimationFrame гарантирует, что размеры уже посчитаны.
+        requestAnimationFrame(function () {
+            self._sendHeightToParent();
+        });
+
+        // 4. Следим за изменениями высоты. ResizeObserver поддерживается
+        //    во всех современных браузерах (Chrome, Firefox, Safari, Edge).
+        if (typeof ResizeObserver !== 'undefined') {
+            var observer = new ResizeObserver(function () {
+                self._sendHeightToParent();
+            });
+            observer.observe(document.body);
+        } else {
+            // Запасной вариант для очень старых браузеров: раз в секунду проверяем.
+            setInterval(function () {
+                self._sendHeightToParent();
+            }, 1000);
+        }
+    },
+
+    /**
+     * Отправляет родительскому окну (bukva-a.ru) текущую высоту body.
+     * Формат сообщения: { type: 'mg-resize', height: <число> }.
+     * Родитель слушает 'message' и подгоняет iframe.style.height.
+     *
+     * ВАЖНО: targetOrigin жёстко зашит на https://bukva-a.ru —
+     * это защита от того, что сообщение уйдёт неизвестно куда.
+     * Если открыто не в iframe — просто ничего не делаем.
+     */
+    _sendHeightToParent: function () {
+        if (!this.isEmbedded) return;
+        var height = document.documentElement.scrollHeight;
+        try {
+            window.parent.postMessage(
+                { type: 'mg-resize', height: height },
+                'https://bukva-a.ru'
+            );
+        } catch (e) {
+            console.warn('postMessage to parent failed:', e);
+        }
+    },
+
     onAddToCart: function () {
         console.log('🛒 «Добавить в корзину» нажата (режим iframe, пока заглушка)');
         alert('Корзина скоро заработает. Пока это тест режима встраивания.');

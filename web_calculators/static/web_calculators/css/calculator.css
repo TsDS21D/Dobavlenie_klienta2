@@ -689,3 +689,34 @@ body {
     background: #0B8661;
     color: #fff;
 }
+
+
+/* ==================== РЕЖИМ ВСТРАИВАНИЯ (iframe на bukva-a.ru) ==================== */
+/*
+   Когда страница открыта внутри iframe, JS добавляет класс wc-embedded на <body>.
+   В этом режиме:
+     - убираем фон-текстуру и внешние отступы — фон и рамка приходят от родителя;
+     - убираем тень и скругление у .wc-page — не нужен «блок в блоке»;
+     - скрываем нашу шапку (логотип и заголовок) — у клиента уже есть шапка сайта.
+*/
+
+body.wc-embedded {
+    background: transparent !important;
+    padding: 0 !important;
+    overflow-y: hidden !important;  /* убираем лишний внутренний скролл */
+}
+
+body.wc-embedded .wc-page {
+    /* Ограничение по ширине сохраняем — если iframe окажется шире 1200px,
+       колонки не растянутся, а контент отцентрируется. */
+    max-width: 1200px;
+    margin: 0 auto;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0.5rem 0;
+}
+
+/* На всякий случай — если .wc-header окажется видимой до срабатывания JS. */
+body.wc-embedded .wc-header {
+    display: none;
+}
