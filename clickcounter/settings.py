@@ -124,6 +124,15 @@ DATABASES = {
     }
 }
 
+# ===== MOGUTA API (bukva-a.ru) =====
+# Используется приложением web_calculators для создания товаров в каталоге
+# интернет-магазина bukva-a.ru через Moguta API.
+MOGUTA_URL = os.environ.get('MOGUTA_URL', 'https://bukva-a.ru')
+MOGUTA_TOKEN = os.environ.get('MOGUTA_TOKEN', '')
+MOGUTA_SECRET = os.environ.get('MOGUTA_SECRET', '')
+MOGUTA_CATEGORY_ID = int(os.environ.get('MOGUTA_CATEGORY_ID', '0'))
+
+
 # ===== ВАЛИДАЦИЯ ПАРОЛЕЙ =====
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

@@ -32,6 +32,12 @@ var WC = {
     // URL из шаблона (window.WC_CONFIG, задан инлайн-скриптом в calculator.html).
     config: window.WC_CONFIG || {},
 
+    // true, если страница открыта внутри iframe на чужом сайте (bukva-a.ru).
+    // В этом режиме кнопка «Создать просчёт» заменяется на «Добавить в корзину»,
+    // а по клику JS шлёт postMessage родителю — там товар добавляется в корзину Moguta.
+    // Определяется в init().
+    isEmbedded: false,
+
     // Данные от API options (полная структура).
     options: null,
 
@@ -59,6 +65,17 @@ var WC = {
      */
     init: function () {
         console.log('🚀 Инициализация страницы-калькулятора', this.config);
+
+        // Определяем, открыты ли мы внутри iframe. Если да — это режим
+        // встраивания на bukva-a.ru: показываем кнопку «Добавить в корзину».
+        try {
+            this.isEmbedded = (window.self !== window.top);
+        } catch (e) {
+            // Если браузер запретил доступ к window.top (нестандартные настройки
+            // безопасности) — считаем, что мы НЕ в iframe.
+            this.isEmbedded = false;
+        }
+        console.log('🖼️ Режим встраивания (iframe):', this.isEmbedded);
 
         // Загружаем опции с сервера.
         this.loadOptions()
@@ -1145,6 +1162,9 @@ var WC = {
                 if (e.target.closest('.wc-result-create-proschet')) {
                     self.onCreateProschet();
                 }
+                if (e.target.closest('.wc-result-add-to-cart')) {
+                    self.onAddToCart();
+                }
             });
         }
 
@@ -1318,10 +1338,18 @@ var WC = {
         html += '<div class="wc-result-price">' + this.formatPrice(data.total_price) + '</div>';
         html += '<div class="wc-result-per-unit">' + this.formatPrice(data.price_per_unit) + ' за штуку</div>';
 
-        // Кнопка «Создать просчёт» — активна, когда есть расчёт.
-        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet">'
-             +  'Создать просчёт'
-             +  '</button>';
+        // Кнопка в зависимости от режима:
+        //  - вне iframe (сотрудник): «Создать просчёт»;
+        //  - внутри iframe (клиент на bukva-a.ru): «Добавить в корзину».
+        if (this.isEmbedded) {
+            html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart">'
+                 +  'Добавить в корзину'
+                 +  '</button>';
+        } else {
+            html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet">'
+                 +  'Создать просчёт'
+                 +  '</button>';
+        }
 
         // Детали (без «Общей суммы» — она крупно выше).
         html += '<div class="wc-result-details">';
@@ -1444,9 +1472,15 @@ var WC = {
         var html = '';
         html += '<div class="wc-result-price wc-result-price-pending">?</div>';
         html += '<div class="wc-result-per-unit wc-result-per-unit-pending">Ожидание расчёта</div>';
-        html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet" disabled>'
-             +  'Создать просчёт'
-             +  '</button>';
+        if (this.isEmbedded) {
+            html += '<button type="button" class="wc-btn wc-btn-primary wc-result-add-to-cart" disabled>'
+                 +  'Добавить в корзину'
+                 +  '</button>';
+        } else {
+            html += '<button type="button" class="wc-btn wc-btn-primary wc-result-create-proschet" disabled>'
+                 +  'Создать просчёт'
+                 +  '</button>';
+        }
         box.innerHTML = html;
         this.lastResult = null;
 
@@ -1791,6 +1825,18 @@ var WC = {
             self.showError('Ошибка сети при создании просчёта');
             if (btn) { btn.disabled = false; btn.textContent = originalText; }
         });
+    },
+
+    /**
+     * Режим iframe (клиент на bukva-a.ru): по клику «Добавить в корзину»
+     * на Шаге 2 просто показываем заглушку. На Шаге 5 здесь будет:
+     *   1) fetch POST /web-calc/api/<slug>/add-to-cart/;
+     *   2) получение product_id созданного товара;
+     *   3) window.parent.postMessage(...).
+     */
+    onAddToCart: function () {
+        console.log('🛒 «Добавить в корзину» нажата (режим iframe, пока заглушка)');
+        alert('Корзина скоро заработает. Пока это тест режима встраивания.');
     }
 
 };
