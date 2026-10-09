@@ -1408,6 +1408,124 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
         weight_kg = round(float(mass_g) / 1000.0, 3)
 
     # ---------------------------------------------------------------
+    # 4.5. Характеристики товара для отображения под названием в корзине.
+    # Moguta при добавлении товара в корзину автоматически подтягивает
+    # характеристики из товара и выводит их как property_html.
+    # Передаём только то, что не видно из названия.
+    # ---------------------------------------------------------------
+    properties_list = []
+
+    # Имя компонента как префикс — только если компонентов больше одного.
+    def _pname(comp_name):
+        return f'{comp_name}: ' if len(components_in) > 1 else ''
+
+    for comp_in in components_in:
+        comp = comps_by_id.get(comp_in.get('component_id'))
+        if not comp:
+            continue
+        prefix = _pname(comp.name)
+
+        # Размер
+        w = comp_in.get('width_mm')
+        h = comp_in.get('height_mm')
+        if w and h:
+            properties_list.append({
+                'name':  f'{prefix}Размер',
+                'type':  'string',
+                'value': f'{int(round(float(w)))} × {int(round(float(h)))} мм',
+            })
+
+        # Тираж
+        properties_list.append({
+            'name':  f'{prefix}Тираж',
+            'type':  'string',
+            'value': f'{circulation} шт.',
+        })
+
+        # Печать
+        combo = comp_in.get('print_combo')
+        if combo and combo in combo_texts:
+            properties_list.append({
+                'name':  f'{prefix}Печать',
+                'type':  'string',
+                'value': combo_texts[combo].capitalize(),
+            })
+
+        # Бумага
+        if comp_in.get('paper_id'):
+            try:
+                paper = Material.objects.get(id=comp_in['paper_id'])
+                properties_list.append({
+                    'name':  f'{prefix}Бумага',
+                    'type':  'string',
+                    'value': paper.name,
+                })
+            except Material.DoesNotExist:
+                pass
+
+        # Ламинация — только если включена
+        if comp_in.get('lamination_enabled') and comp.lamination_enabled:
+            side = comp_in.get('lamination_side', 'single')
+            side_text = 'односторонняя' if side == 'single' else 'двусторонняя'
+            film_name = ''
+            if comp_in.get('film_id'):
+                try:
+                    film = Material.objects.get(id=comp_in['film_id'])
+                    film_name = film.name
+                except Material.DoesNotExist:
+                    pass
+            laminator_name = comp.laminator.name if comp.laminator else ''
+            parts = [p for p in [film_name, laminator_name, side_text] if p]
+            properties_list.append({
+                'name':  f'{prefix}Ламинация',
+                'type':  'string',
+                'value': ', '.join(parts),
+            })
+
+        # Дополнительные работы — ищем «Скругление углов» и «Обработка макета»
+        work_ids = comp_in.get('work_ids') or []
+        work_quantities = comp_in.get('work_quantities') or {}
+        for cw in comp.works.all().select_related('work'):
+            work = cw.work
+            is_on = (
+                cw.trigger == 'always'
+                or (cw.trigger == 'lamination' and comp_in.get('lamination_enabled'))
+                or (cw.trigger == 'optional' and work.id in work_ids)
+            )
+            if not is_on:
+                continue
+
+            # Скругление углов — только отметка «да», без значения, если не включено.
+            if work.name == 'Скругление углов':
+                properties_list.append({
+                    'name':  f'{prefix}Скругление углов',
+                    'type':  'string',
+                    'value': 'да',
+                })
+
+            # Количество макетов — из работ с флагом show_quantity.
+            if cw.show_quantity:
+                qty = int(work_quantities.get(str(work.id), 1))
+                properties_list.append({
+                    'name':  f'{prefix}Количество макетов',
+                    'type':  'string',
+                    'value': f'{qty} шт.',
+                })
+
+    # Вес — общий для всего заказа.
+    if mass_g:
+        properties_list.append({
+            'name':  'Вес',
+            'type':  'string',
+            'value': f'{int(round(float(mass_g)))} г',
+        })
+
+    # Объём — общий, если посчитан. Ищем его в результате calculate_price?
+    # Пока пропускаем, потому что volume_cm3 не передаётся в build_product_for_webcalc.
+    # Если нужно — допишем позже.
+
+
+    # ---------------------------------------------------------------
     # 5. Итоговый словарь для Moguta API.
     # ---------------------------------------------------------------
     return {
@@ -1427,4 +1545,5 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
         'activity':          1,
         'unit':              'шт.',
         'currency_iso':      'RUR',
+        'property':          properties_list,
     }

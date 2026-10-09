@@ -173,7 +173,11 @@ class MogutaClient:
         Ищет товар по артикулу (code).
         Возвращает dict с данными товара или None, если не найден.
         """
-        data = self._request('getProduct', {'code': [code]})
+        data = self._request('getProduct', {
+            'code': [code],
+            'property': True,
+            'variants': True,
+        })
         response = data.get('response') or {}
 
         if isinstance(response, str):
