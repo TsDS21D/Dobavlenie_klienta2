@@ -1903,9 +1903,79 @@ var WC = {
         }
     },
 
+    /**
+     * Режим iframe: клик по «Добавить в корзину» на bukva-a.ru.
+     *
+     * Последовательность:
+     *   1. Проверяем, что форма валидна.
+     *   2. Собираем payload (те же параметры, что для расчёта цены).
+     *   3. Отправляем POST на /web-calc/api/<slug>/add-to-cart/.
+     *      Django создаёт товар в каталоге bukva-a.ru через Moguta API
+     *      и возвращает его product_id.
+     *   4. Через postMessage передаём родительской странице (bukva-a.ru)
+     *      id товара. Родитель сам добавит его в корзину Moguta.
+     */
     onAddToCart: function () {
-        console.log('🛒 «Добавить в корзину» нажата (режим iframe, пока заглушка)');
-        alert('Корзина скоро заработает. Пока это тест режима встраивания.');
+        if (this.state.recalcInProgress) return;
+
+        if (!this.checkFormValidity()) {
+            this.showError('Заполните форму корректно перед добавлением в корзину');
+            return;
+        }
+
+        var payload = this._buildPayload();
+        var btn = document.querySelector('.wc-result-add-to-cart');
+        var originalText = btn ? btn.textContent : 'Добавить в корзину';
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Добавляем…';
+        }
+
+        var self = this;
+        // URL эндпоинта add-to-cart: подставляем slug из конфига.
+        var url = '/web-calc/api/' + this.config.slug + '/add-to-cart/';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+                // CSRF не нужен — на Django у этого эндпоинта @csrf_exempt
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                self.showError(data.error || 'Не удалось создать товар');
+                if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                return;
+            }
+
+            // Успех: отдаём product_id родителю через postMessage.
+            try {
+                window.parent.postMessage(
+                    {
+                        type: 'mg-add-to-cart',
+                        productId: data.product_id,
+                        productTitle: data.product_title,
+                        price: data.price
+                    },
+                    'https://bukva-a.ru'
+                );
+            } catch (e) {
+                console.error('postMessage to parent failed:', e);
+            }
+
+            // Возвращаем кнопку в исходное состояние.
+            if (btn) { btn.disabled = false; btn.textContent = originalText; }
+        })
+        .catch(function (err) {
+            console.error(err);
+            self.showError('Ошибка сети при добавлении в корзину');
+            if (btn) { btn.disabled = false; btn.textContent = originalText; }
+        });
     }
 
 };
