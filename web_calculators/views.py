@@ -18,11 +18,10 @@ from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.cache import never_cache
-from django.contrib.auth.decorators import login_required
-
-# ===== ИМПОРТЫ НАШИХ МОДУЛЕЙ =====
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth.decorators import login_required, user_passes_test
 
+# ===== ИМПОРТЫ НАШИХ МОДУЛЕЙ =====
 from .models import WebCalculator
 from .services import (
     get_options,
@@ -37,16 +36,27 @@ from .services import (
 # ============================================================================
 
 @never_cache
+@xframe_options_exempt
 def web_calculator_view(request, slug):
     """
     Публичная страница калькулятора на нашем домене.
     Пока служит для тестирования API: рисует форму, дёргает API через JS,
     отображает результат. На боевом сайте этот HTML будет встроен в bukva-a.ru.
+
+    @xframe_options_exempt убирает заголовок X-Frame-Options для этой вью,
+    чтобы страницу можно было встроить в iframe на bukva-a.ru.
+    Дополнительно мы сами ставим Content-Security-Policy: frame-ancestors —
+    более точный современный способ указать, кто может встраивать страницу.
     """
     calculator = get_object_or_404(WebCalculator, slug=slug, is_active=True)
-    return render(request, 'web_calculators/calculator.html', {
+    response = render(request, 'web_calculators/calculator.html', {
         'calculator': calculator,
     })
+    # Разрешаем встраивать только с bukva-a.ru (и со своего домена — на случай тестов).
+    response['Content-Security-Policy'] = (
+        "frame-ancestors 'self' https://bukva-a.ru https://www.bukva-a.ru"
+    )
+    return response
 
 
 # ============================================================================
