@@ -1411,10 +1411,15 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
     # 5. Итоговый словарь для Moguta API.
     # ---------------------------------------------------------------
     return {
-        'title':             title[:200],  # ограничение длины поля в Moguta
+        'title':             title[:200],
         'code':              code,
         'price':             f'{price:.2f}',
-        'count':             -1,           # «неограниченно» в Moguta
+        # price_course — цена в основной валюте магазина. Moguta использует
+        # именно это поле при добавлении товара в корзину. Если передать только
+        # price, корзина покажет 0 руб. Значение совпадает с price, потому что
+        # валюта товара = валюта магазина (RUR).
+        'price_course':      f'{price:.2f}',
+        'count':             -1,
         'cat_id':            settings.MOGUTA_CATEGORY_ID,
         'description':       description,
         'short_description': short_description,
