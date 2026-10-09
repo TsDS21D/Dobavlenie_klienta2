@@ -20,4 +20,9 @@ urlpatterns = [
     path('api/<slug:slug>/create-proschet/',
          views.web_calculator_create_proschet_api,
          name='create_proschet_api'),
+
+    # API: добавление товара в корзину Moguta (публичный, через iframe на bukva-a.ru).
+    path('api/<slug:slug>/add-to-cart/',
+         views.web_calculator_add_to_cart_api,
+         name='add_to_cart_api'),
 ]

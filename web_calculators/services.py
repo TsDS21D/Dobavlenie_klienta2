@@ -1252,3 +1252,174 @@ def create_proschet_from_webcalc(calculator, data, user=None):
         )
 
     return proschet
+
+
+# ============================================================================
+# СБОРКА ТОВАРА ДЛЯ MOGUTA (bukva-a.ru)
+# ============================================================================
+
+def build_product_for_webcalc(calculator, payload, price, mass_g=None):
+    """
+    Собирает словарь товара для Moguta API на основе параметров,
+    выбранных в веб-калькуляторе.
+
+    Аргументы:
+        calculator — экземпляр WebCalculator.
+        payload    — dict параметров от клиента (как в calculate_price).
+        price      — итоговая цена за весь тираж (число).
+        mass_g     — общая масса заказа в граммах (опционально).
+
+    Возвращает:
+        dict, готовый для передачи в MogutaClient.import_product().
+
+    Логика:
+      - title — «{название калькулятора}, {размер}, {тираж} шт., {печать}, {бумага}».
+      - code — уникальный артикул CALC-<slug>-<timestamp>.
+      - price — цена за весь тираж (count будет -1, т.к. это не штучный товар).
+      - count — «-1» (в Moguta это значит «неограниченно»).
+      - cat_id — id категории «Калькулятор онлайн» из настроек.
+      - description — читаемый HTML со всеми параметрами заказа.
+      - weight — масса в кг (граммы / 1000).
+    """
+    import time
+    from django.conf import settings
+    from sklad.models import Material
+
+    circulation = int(payload.get('circulation', 0))
+    components_in = payload.get('components') or []
+    comps_by_id = {c.id: c for c in calculator.components.all()}
+
+    # ---------------------------------------------------------------
+    # Расшифровка комбинации печати — словарь, чтобы не повторяться.
+    # ---------------------------------------------------------------
+    combo_texts = {
+        'color_single': 'цветная односторонняя',
+        'color_duplex': 'цветная двусторонняя',
+        'bw_single':    'ч/б односторонняя',
+        'bw_duplex':    'ч/б двусторонняя',
+    }
+
+    # ---------------------------------------------------------------
+    # 1. Собираем название товара по первому компоненту.
+    # ---------------------------------------------------------------
+    first_data = components_in[0] if components_in else {}
+    first_comp = comps_by_id.get(first_data.get('component_id'))
+
+    title_parts = [calculator.name]
+    if first_comp:
+        w = first_data.get('width_mm')
+        h = first_data.get('height_mm')
+        if w and h:
+            # Округляем до целых — размеры в мм не нужны с копейками.
+            title_parts.append(f"{int(round(float(w)))}×{int(round(float(h)))} мм")
+    title_parts.append(f"{circulation} шт.")
+
+    combo = first_data.get('print_combo')
+    if combo and combo in combo_texts:
+        title_parts.append(combo_texts[combo])
+
+    if first_data.get('paper_id'):
+        try:
+            paper = Material.objects.get(id=first_data['paper_id'])
+            title_parts.append(paper.name)
+        except Material.DoesNotExist:
+            pass
+
+    title = ', '.join(title_parts)
+
+    # ---------------------------------------------------------------
+    # 2. Собираем HTML-описание со всеми параметрами.
+    # ---------------------------------------------------------------
+    lines = [f'<h3>{title}</h3>', '<ul>']
+
+    for comp_in in components_in:
+        comp = comps_by_id.get(comp_in.get('component_id'))
+        if not comp:
+            continue
+
+        w = comp_in.get('width_mm')
+        h = comp_in.get('height_mm')
+        combo = comp_in.get('print_combo', '')
+        combo_text = combo_texts.get(combo, combo)
+
+        # Если компонентов больше одного — показываем имя компонента.
+        if len(components_in) > 1:
+            lines.append(f'<li><b>Компонент:</b> {comp.name}</li>')
+
+        if w and h:
+            lines.append(f'<li><b>Размер:</b> {w} × {h} мм</li>')
+        if combo_text:
+            lines.append(f'<li><b>Печать:</b> {combo_text}</li>')
+
+        # Бумага
+        if comp_in.get('paper_id'):
+            try:
+                paper = Material.objects.get(id=comp_in['paper_id'])
+                lines.append(f'<li><b>Бумага:</b> {paper.name}</li>')
+            except Material.DoesNotExist:
+                pass
+
+        # Ламинация
+        if comp_in.get('lamination_enabled') and comp.lamination_enabled:
+            side = comp_in.get('lamination_side', 'single')
+            side_text = 'односторонняя' if side == 'single' else 'двусторонняя'
+            film_name = ''
+            if comp_in.get('film_id'):
+                try:
+                    film = Material.objects.get(id=comp_in['film_id'])
+                    film_name = film.name
+                except Material.DoesNotExist:
+                    pass
+            laminator_name = comp.laminator.name if comp.laminator else '—'
+            lines.append(
+                f'<li><b>Ламинация:</b> {laminator_name}, {film_name}, {side_text}</li>'
+            )
+
+        # Дополнительные работы (учитывая триггеры)
+        work_ids = comp_in.get('work_ids') or []
+        work_quantities = comp_in.get('work_quantities') or {}
+        for cw in comp.works.all().select_related('work'):
+            work = cw.work
+            is_on = (
+                cw.trigger == 'always'
+                or (cw.trigger == 'lamination' and comp_in.get('lamination_enabled'))
+                or (cw.trigger == 'optional' and work.id in work_ids)
+            )
+            if not is_on:
+                continue
+            qty = int(work_quantities.get(str(work.id), 1))
+            lines.append(f'<li><b>Работа:</b> {work.name} × {qty}</li>')
+
+    lines.append('</ul>')
+    lines.append(f'<p><b>Итоговая цена:</b> {price:.2f} ₽</p>')
+    description = '\n'.join(lines)
+
+    # ---------------------------------------------------------------
+    # 3. Короткое описание и артикул.
+    # ---------------------------------------------------------------
+    short_description = f'{title}. Цена: {price:.2f} ₽'
+    code = f'CALC-{calculator.slug}-{int(time.time())}'
+
+    # ---------------------------------------------------------------
+    # 4. Вес — переводим граммы в килограммы.
+    # ---------------------------------------------------------------
+    weight_kg = 0.0
+    if mass_g:
+        weight_kg = round(float(mass_g) / 1000.0, 3)
+
+    # ---------------------------------------------------------------
+    # 5. Итоговый словарь для Moguta API.
+    # ---------------------------------------------------------------
+    return {
+        'title':             title[:200],  # ограничение длины поля в Moguta
+        'code':              code,
+        'price':             f'{price:.2f}',
+        'count':             -1,           # «неограниченно» в Moguta
+        'cat_id':            settings.MOGUTA_CATEGORY_ID,
+        'description':       description,
+        'short_description': short_description,
+        'weight':            weight_kg,
+        'activity':          1,
+        'unit':              'шт.',
+        'currency_iso':      'RUR',
+    }

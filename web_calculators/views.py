@@ -23,10 +23,12 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 
 # ===== ИМПОРТЫ НАШИХ МОДУЛЕЙ =====
 from .models import WebCalculator
+from .moguta import get_client, MogutaError
 from .services import (
     get_options,
     calculate_price,
     create_proschet_from_webcalc,
+    build_product_for_webcalc,
     OrderCalculationError,
 )
 
@@ -174,4 +176,101 @@ def web_calculator_create_proschet_api(request, slug):
         'proschet_id': proschet.id,
         'proschet_number': proschet.number,
         'proschet_title': proschet.title,
+    })
+
+
+# ============================================================================
+# API: ДОБАВЛЕНИЕ ТОВАРА В КОРЗИНУ MOGUTA (bukva-a.ru)
+# ============================================================================
+
+@csrf_exempt
+@require_POST
+def web_calculator_add_to_cart_api(request, slug):
+    """
+    POST /web-calc/api/<slug>/add-to-cart/
+
+    Создаёт товар в каталоге bukva-a.ru через Moguta API и возвращает
+    его product_id. Дальше JS внутри iframe передаст этот id родителю
+    на bukva-a.ru, а тот добавит товар в корзину через POST /cart.
+
+    Публичный эндпоинт — CSRF отключён (@csrf_exempt), потому что
+    запросы идут с чужого домена (bukva-a.ru).
+    """
+    calculator = get_object_or_404(WebCalculator, slug=slug, is_active=True)
+
+    # Разбор JSON.
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON в теле запроса',
+            'error_code': 'bad_json',
+        }, status=400)
+
+    # 1. Считаем цену — используем существующую логику.
+    try:
+        result = calculate_price(calculator, payload)
+    except OrderCalculationError as e:
+        return JsonResponse(e.to_dict(), status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Внутренняя ошибка расчёта: {e}',
+            'error_code': 'internal_error',
+        }, status=500)
+
+    # 2. Собираем данные товара для Moguta.
+    try:
+        product_data = build_product_for_webcalc(
+            calculator,
+            payload,
+            price=result['total_price'],
+            mass_g=result['total_mass_g'],
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Ошибка формирования товара: {e}',
+            'error_code': 'build_error',
+        }, status=500)
+
+    # 3. Создаём товар в Moguta через API.
+    try:
+        client = get_client()
+        client.import_product(product_data)
+        # importProduct не возвращает id — получаем его отдельным запросом.
+        created = client.get_product_by_code(product_data['code'])
+        product_id = created.get('id') if created else None
+        if not product_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Товар создан, но не удалось получить его id',
+                'error_code': 'product_id_not_found',
+            }, status=500)
+    except MogutaError as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Ошибка Moguta API: {e}',
+            'error_code': 'moguta_error',
+        }, status=502)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Внутренняя ошибка при обращении к Moguta: {e}',
+            'error_code': 'internal_error',
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'product_id': product_id,
+        'product_code': product_data['code'],
+        'product_title': product_data['title'],
+        'price': result['total_price'],
     })
