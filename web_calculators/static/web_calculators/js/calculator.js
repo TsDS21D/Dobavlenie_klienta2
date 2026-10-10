@@ -1894,17 +1894,24 @@ var WC = {
         // Если страница открыта НЕ внутри iframe — отправлять некому, выходим.
         if (!this.isEmbedded) return;
 
-        // Высоту берём у document.body, а не у documentElement.
-        // documentElement.scrollHeight = max(контент, высота вьюпорта iframe).
-        // Так как родитель прибавляет к этой высоте ещё 10 px и ставит её
-        // в iframe, вьюпорт внутри растёт → scrollHeight снова растёт →
-        // бесконечный цикл. body.scrollHeight возвращает именно высоту
-        // контента (без влияния вьюпорта) — цикл разрывается.
-        var height = document.body.scrollHeight;
+        // Высоту считаем через getBoundingClientRect().height —
+        // это фактическая высота содержимого <body>, не зависящая
+        // от высоты вьюпорта iframe. body.scrollHeight так не умеет:
+        // когда контент короче вьюпорта, он возвращает высоту вьюпорта,
+        // и получается цикл (родитель увеличивает iframe → iframe снова
+        // возвращает бо́льшую высоту → родитель снова увеличивает).
+        var height = Math.ceil(document.body.getBoundingClientRect().height);
+
+        // Не отправляем одно и то же значение повторно. Иначе каждое
+        // срабатывание ResizeObserver (а он ловит любые изменения, включая
+        // изменение высоты iframe со стороны родителя) будет отправлять
+        // postMessage заново.
+        if (this._lastSentHeight === height) {
+            return;
+        }
+        this._lastSentHeight = height;
 
         // Определяем origin родителя ДИНАМИЧЕСКИ (см. _getParentOrigin ниже).
-        // Раньше здесь было жёстко 'https://bukva-a.ru', и если родитель
-        // открыт как 'https://www.bukva-a.ru' — postMessage молча отбрасывался.
         var targetOrigin = this._getParentOrigin();
 
         try {
