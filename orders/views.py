@@ -563,6 +563,10 @@ def api_product_details(request, product_id):
             'position': comp.position,
             'printer_name': comp.printer.name if comp.printer else None,
             'paper_name': comp.paper.name if comp.paper else None,
+            # ===== Размеры печатного листа принтера (для раскладки) =====
+            'sheet_width': float(comp.printer.sheet_format.width_mm) if (comp.printer and comp.printer.sheet_format) else None,
+            'sheet_height': float(comp.printer.sheet_format.height_mm) if (comp.printer and comp.printer.sheet_format) else None,
+            'margin': float(comp.printer.margin_mm) if (comp.printer and comp.printer.margin_mm is not None) else None,            
             'print_type': comp.print_type,
             'print_type_display': comp.get_print_type_display(),
             'printing_mode': comp.printing_mode,

@@ -316,7 +316,11 @@ orders/static/orders/js/detail.js
                 '</div>';
 
         body.innerHTML = html;
+        // Рисуем все canvas-схемы для компонентов.
+        drawComponentVisualizations(product.components || []);
 
+        // Обработчик на кнопку.
+        var btn = body.querySelector('.order-btn-create-proschet');
         // Обработчик на кнопку.
         var btn = body.querySelector('.order-btn-create-proschet');
         if (btn) {
@@ -362,7 +366,6 @@ orders/static/orders/js/detail.js
                         '<div class="order-section-body">' +
                             '<span>Изделие: ' + v.item_width + '×' + v.item_height + ' мм</span>' +
                             '<span>Зазор: ' + v.vyleta + ' мм</span>' +
-                            '<span>Цветность: ' + escapeHtml(v.color) + '</span>' +
                             '<span>На листе: ' + v.fit_total + ' шт.</span>' +
                             '<span>Листов: ' + v.list_count + '</span>' +
                             '<span>Резов: ' + v.cuts_count + '</span>' +
@@ -430,11 +433,177 @@ orders/static/orders/js/detail.js
             html += '</tbody></table></div>';
         }
 
+        // ===== Схема размещения на листе (уменьшенные canvas) =====
+        // Рисуем две схемы: лицевую и оборотную, как в секции «Вычисления листов».
+        // Canvas уменьшен в 2 раза (200×150 вместо 400×300), стилизация такая же.
+        html += '<div class="order-component-visualization">';
+        html += '  <div class="order-viz-title">Схема размещения на листе</div>';
+        html += '  <div class="order-dual-canvas">';
+        html += '    <div class="order-canvas-side">';
+        html += '      <div class="order-canvas-title">Лицевая сторона</div>';
+        html += '      <canvas class="order-viz-canvas" ' +
+                    'id="order-canvas-front-' + comp.id + '" ' +
+                    'data-component-id="' + comp.id + '" ' +
+                    'data-side="front" ' +
+                    'width="200" height="150"></canvas>';
+        html += '    </div>';
+        html += '    <div class="order-canvas-side">';
+        html += '      <div class="order-canvas-title">Оборотная сторона</div>';
+        html += '      <canvas class="order-viz-canvas" ' +
+                    'id="order-canvas-back-' + comp.id + '" ' +
+                    'data-component-id="' + comp.id + '" ' +
+                    'data-side="back" ' +
+                    'width="200" height="150"></canvas>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '  <p class="order-canvas-note">* Схематичное отображение. Масштаб может не соблюдаться.</p>';
+        html += '</div>';
+
         html += '</div>';    // закрываем .order-component
         return html;
     }
 
+    // ========================================================================
+    // 4b. РИСОВАНИЕ СХЕМ РАСКЛАДКИ НА ЛИСТЕ
+    // ========================================================================
 
+    /**
+     * Рисует canvas-схемы для всех компонентов.
+     * Вызывается после вставки HTML в DOM.
+     * @param {Array} components — массив компонентов из API.
+     */
+    function drawComponentVisualizations(components) {
+        components.forEach(function (comp) {
+            var frontCanvas = document.getElementById('order-canvas-front-' + comp.id);
+            var backCanvas = document.getElementById('order-canvas-back-' + comp.id);
+            if (!frontCanvas || !backCanvas) return;
+
+            // Тип печати определяет цвет заливки, режим — заполнение оборотной стороны.
+            var printType = comp.print_type || 'color';
+            var fillBack = (comp.printing_mode === 'duplex');
+
+            drawComponentCanvasSide(frontCanvas, comp, true, printType);
+            drawComponentCanvasSide(backCanvas, comp, fillBack, printType);
+        });
+    }
+
+    /**
+     * Рисует одну сторону листа для одного компонента.
+     * Логика повторяет drawPlacementForSide из vichisliniya_listov.js,
+     * но работает вне объекта vichisliniyaListov — все данные берёт из
+     * объекта компонента (пришедшего с /orders/api/product/<id>/details/).
+     *
+     * @param {HTMLCanvasElement} canvas — элемент canvas.
+     * @param {Object} comp — компонент из API (с sheet_width, sheet_height,
+     *                        margin, print_type, printing_mode, vichisliniya).
+     * @param {boolean} fill — заливать ли изделия цветом (лицо — да, оборот — только при duplex).
+     * @param {string} printType — 'color' | 'bw'.
+     */
+    function drawComponentCanvasSide(canvas, comp, fill, printType) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // ===== Проверяем наличие данных =====
+        var v = comp.vichisliniya;
+        if (!v) {
+            ctx.font = '11px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Нет данных о раскладке', 10, 20);
+            return;
+        }
+        if (!comp.sheet_width || !comp.sheet_height || comp.margin === null || comp.margin === undefined) {
+            ctx.font = '11px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Нет данных о листе', 10, 20);
+            return;
+        }
+
+        // ===== Размеры и ориентация =====
+        var orientation = v.fit_selected_orientation;
+        var itemW, itemH, fitH, fitV;
+        if (orientation === 'landscape') {
+            itemW = v.item_width;
+            itemH = v.item_height;
+            fitH = v.fit_horizontal;
+            fitV = v.fit_vertical;
+        } else if (orientation === 'portrait') {
+            // При портретной ориентации изделие повёрнуто — меняем местами.
+            itemW = v.item_height;
+            itemH = v.item_width;
+            fitH = v.fit_horizontal;
+            fitV = v.fit_vertical;
+        } else {
+            ctx.font = '11px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Ориентация не выбрана', 10, 20);
+            return;
+        }
+
+        if (fitH === 0 || fitV === 0) {
+            ctx.font = '11px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('Изделия не помещаются', 10, 20);
+            return;
+        }
+
+        var gap = v.vyleta || 0;
+        var margin = comp.margin;
+        var sheetW = comp.sheet_width;
+        var sheetH = comp.sheet_height;
+
+        // ===== Масштаб =====
+        var padding = 8;
+        var scale = Math.min(
+            (canvas.width - 2 * padding) / sheetW,
+            (canvas.height - 2 * padding) / sheetH
+        );
+
+        ctx.save();
+        ctx.translate(padding, padding);
+
+        // 1. Контур листа.
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+        // 2. Печатная область (пунктир).
+        ctx.strokeStyle = '#aaa';
+        ctx.setLineDash([3, 2]);
+        ctx.strokeRect(
+            margin * scale,
+            margin * scale,
+            (sheetW - 2 * margin) * scale,
+            (sheetH - 2 * margin) * scale
+        );
+        ctx.setLineDash([]);
+
+        // 3. Цвета — как в калькуляторе.
+        var fillColor, strokeColor;
+        if (printType === 'color') {
+            fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
+            strokeColor = fill ? '#2980b9' : '#a0c4ff';
+        } else {
+            fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
+            strokeColor = fill ? '#999999' : '#cccccc';
+        }
+        ctx.fillStyle = fillColor;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 0.4;
+
+        // 4. Рисуем изделия сеткой.
+        for (var row = 0; row < fitV; row++) {
+            for (var col = 0; col < fitH; col++) {
+                var x = margin + col * (itemW + gap);
+                var y = margin + row * (itemH + gap);
+                if (fill) {
+                    ctx.fillRect(x * scale, y * scale, itemW * scale, itemH * scale);
+                }
+                ctx.strokeRect(x * scale, y * scale, itemW * scale, itemH * scale);
+            }
+        }
+
+        ctx.restore();
+    }
     // ========================================================================
     // 5. СОЗДАНИЕ ПРОСЧЁТА ИЗ ИЗДЕЛИЯ
     // ========================================================================

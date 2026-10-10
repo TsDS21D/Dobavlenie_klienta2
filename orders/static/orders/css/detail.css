@@ -558,3 +558,70 @@ orders/static/orders/css/detail.css
     color: #999;                        /* Серый. */
     font-style: italic;                 /* Курсив. */
 }
+
+
+
+
+/* ==================== СХЕМА РАСКЛАДКИ НА ЛИСТЕ (в карточке изделия) ==================== */
+
+/* Контейнер блока «Схема размещения на листе». */
+.order-component-visualization {
+    margin-top: 0.75rem;                /* Отступ от предыдущего блока. */
+    padding: 0.75rem 0.9rem;            /* Внутренние отступы. */
+    background: #fff;                   /* Белый фон. */
+    border: 1px solid #e9ecef;          /* Тонкая серая рамка. */
+    border-radius: 6px;                 /* Скругление. */
+}
+
+/* Заголовок блока «Схема размещения на листе». */
+.order-viz-title {
+    font-size: 0.9rem;                  /* Размер. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #333;                        /* Тёмно-серый. */
+    margin-bottom: 0.5rem;              /* Отступ до canvas. */
+}
+
+/* Контейнер с двумя canvas (лицо / оборот), как в калькуляторе. */
+.order-dual-canvas {
+    display: flex;                      /* В строку. */
+    flex-wrap: wrap;                    /* Разрешаем перенос, если не влезает. */
+    justify-content: center;            /* По центру. */
+    gap: 1rem;                          /* Отступ между сторонами. */
+    margin: 0.4rem 0;                   /* Небольшой вертикальный отступ. */
+}
+
+/* Одна сторона листа (canvas + подпись). */
+.order-canvas-side {
+    text-align: center;                 /* Подпись по центру. */
+    flex: 0 0 auto;                     /* Не растягивается. */
+}
+
+/* Подпись «Лицевая сторона» / «Оборотная сторона». */
+.order-canvas-title {
+    font-size: 0.8rem;                  /* Мелко. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #2c3e50;                     /* Тёмно-синий. */
+    background: #f0f0f0;                /* Светло-серый фон. */
+    display: inline-block;              /* По ширине содержимого. */
+    padding: 2px 10px;                  /* Отступы. */
+    border-radius: 12px;                /* Скруглённый бейдж. */
+    margin-bottom: 4px;                 /* Отступ до canvas. */
+}
+
+/* Сам canvas — уменьшенный, чтобы не доминировал в карточке. */
+.order-viz-canvas {
+    max-width: 100%;                    /* Не вылезает за контейнер. */
+    height: auto;                       /* Сохраняет пропорции. */
+    border: 1px solid #ddd;             /* Тонкая серая рамка. */
+    background: #f8f9fa;                /* Светло-серый фон. */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Мягкая тень. */
+}
+
+/* Примечание под схемой. */
+.order-canvas-note {
+    margin: 0.3rem 0 0 0;               /* Небольшой отступ сверху. */
+    font-size: 0.7rem;                  /* Мелкий шрифт. */
+    color: #7f8c8d;                     /* Серый. */
+    font-style: italic;                 /* Курсив. */
+    text-align: center;                 /* По центру. */
+}
