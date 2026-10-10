@@ -243,6 +243,10 @@ def web_calculator_add_to_cart_api(request, slug):
     try:
         client = get_client()
         client.import_product(product_data)
+        # Вызываем второй раз — теперь Moguta пойдёт в ветку «обновление»
+        # и привяжет значения характеристик к товару (createProductStringProp
+        # работает корректно только в этой ветке).
+        client.import_product(product_data)
         # importProduct не возвращает id — получаем его отдельным запросом.
         created = client.get_product_by_code(product_data['code'])
         product_id = created.get('id') if created else None
@@ -273,4 +277,8 @@ def web_calculator_add_to_cart_api(request, slug):
         'product_code': product_data['code'],
         'product_title': product_data['title'],
         'price': result['total_price'],
+        # Характеристики товара — их родительская страница передаст
+        # в POST при добавлении товара в корзину Moguta, чтобы они
+        # отобразились под названием.
+        'properties': product_data.get('property', []),
     })

@@ -1960,7 +1960,8 @@ var WC = {
                         type: 'mg-add-to-cart',
                         productId: data.product_id,
                         productTitle: data.product_title,
-                        price: data.price
+                        price: data.price,
+                        properties: data.properties || []
                     },
                     'https://bukva-a.ru'
                 );
