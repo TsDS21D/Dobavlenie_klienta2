@@ -703,7 +703,17 @@ body {
 body.wc-embedded {
     background: transparent !important;
     padding: 0 !important;
-    overflow-y: hidden !important;  /* убираем лишний внутренний скролл */
+    /* Убираем min-height: 100vh из общего правила body.
+       Иначе body всегда растягивается до высоты вьюпорта iframe,
+       getBoundingClientRect().height возвращает эту высоту,
+       родитель увеличивает iframe — и цикл повторяется. */
+    min-height: 0 !important;
+    overflow-y: hidden !important;
+}
+
+/* Дополнительная страховка: html тоже не должен иметь min-height. */
+html.wc-embedded {
+    min-height: 0 !important;
 }
 
 body.wc-embedded .wc-page {

@@ -1853,8 +1853,11 @@ var WC = {
     _setupEmbeddedMode: function () {
         var self = this;
 
-        // 1. Класс на body: CSS сам применит нужные стили.
+        // 1. Класс на body И на html: CSS применит нужные стили
+        //    к обоим, чтобы ни одно из них не растягивалось
+        //    до min-height: 100vh (иначе iframe растёт бесконечно).
         document.body.classList.add('wc-embedded');
+        document.documentElement.classList.add('wc-embedded');
 
         // 2. Скрыть нашу шапку — логотип и заголовок.
         var header = document.querySelector('.wc-header');
