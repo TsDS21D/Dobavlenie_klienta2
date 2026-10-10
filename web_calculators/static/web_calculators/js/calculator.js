@@ -1894,10 +1894,13 @@ var WC = {
         // Если страница открыта НЕ внутри iframe — отправлять некому, выходим.
         if (!this.isEmbedded) return;
 
-        // Высота документа — её мы сообщаем родителю, чтобы он подогнал
-        // <iframe> по контенту. scrollHeight учитывает всё содержимое,
-        // даже если что-то выходит за пределы видимой области.
-        var height = document.documentElement.scrollHeight;
+        // Высоту берём у document.body, а не у documentElement.
+        // documentElement.scrollHeight = max(контент, высота вьюпорта iframe).
+        // Так как родитель прибавляет к этой высоте ещё 10 px и ставит её
+        // в iframe, вьюпорт внутри растёт → scrollHeight снова растёт →
+        // бесконечный цикл. body.scrollHeight возвращает именно высоту
+        // контента (без влияния вьюпорта) — цикл разрывается.
+        var height = document.body.scrollHeight;
 
         // Определяем origin родителя ДИНАМИЧЕСКИ (см. _getParentOrigin ниже).
         // Раньше здесь было жёстко 'https://bukva-a.ru', и если родитель
