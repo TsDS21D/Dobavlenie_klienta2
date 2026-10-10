@@ -1,0 +1,132 @@
+<!--
+orders/templates/orders/detail.html
+Страница одного заказа — карточка с шапкой и списком изделий.
+
+Структура:
+1. Шапка заказа: номер, клиент, даты, общая стоимость.
+2. Комментарий — редактируется инлайн (двойной клик).
+3. Кнопка «← К списку заказов».
+4. Контейнер под карточки изделий (пока пустой — карточки сделаем
+   следующим шагом, сейчас здесь только «изделий пока нет» либо простой
+   перечень).
+
+Стиль — как у секции «Цена» в калькуляторе: белый блок со скруглением
+и тенью, зелёный акцент #0B8661.
+-->
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/detail.css' %}">
+{% endblock %}
+
+{% block content %}
+
+    <!-- ==================== ВЕРХНЯЯ ПАНЕЛЬ ==================== -->
+    <div class="order-topbar">
+        <a href="{% url 'orders:index' %}" class="order-back-link">
+            ← К списку заказов
+        </a>
+    </div>
+
+    <!-- ==================== КАРТОЧКА ЗАКАЗА ==================== -->
+    <div class="order-card">
+
+        <!-- ===== ШАПКА ===== -->
+        <div class="order-card-header">
+            <h1 class="order-number">{{ order.number }}</h1>
+
+            <div class="order-header-right">
+                <div class="order-total-label">Общая стоимость:</div>
+                <div class="order-total-value">{{ order.formatted_total_price }}</div>
+            </div>
+        </div>
+
+        <!-- ===== ИНФОРМАЦИОННЫЙ БЛОК ===== -->
+        <div class="order-info-grid">
+            <div class="order-info-item">
+                <span class="order-info-label">Клиент:</span>
+                <span class="order-info-value">{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="order-info-label">Создан:</span>
+                <span class="order-info-value">{{ order.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="order-info-label">Обновлён:</span>
+                <span class="order-info-value">{{ order.updated_at|date:"d.m.Y H:i" }}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="order-info-label">Изделий:</span>
+                <span class="order-info-value">{{ products|length }}</span>
+            </div>
+        </div>
+
+        <!-- ===== КОММЕНТАРИЙ (инлайн-редактирование) ===== -->
+        <div class="order-comment-block">
+            <div class="order-comment-label">Комментарий:</div>
+            <div class="order-comment-value"
+                 id="order-comment-display"
+                 data-order-id="{{ order.id }}"
+                 data-original-value="{{ order.comment }}"
+                 title="Двойной клик для редактирования">
+                {% if order.comment %}{{ order.comment }}{% else %}<span class="order-comment-empty">— (двойной клик, чтобы добавить) —</span>{% endif %}
+            </div>
+            <!-- Скрытое поле ввода: показывается при редактировании. -->
+            <input type="text"
+                   class="order-comment-input"
+                   id="order-comment-input"
+                   style="display: none;"
+                   maxlength="500"
+                   placeholder="Введите комментарий">
+        </div>
+
+    </div>
+
+    <!-- ==================== СПИСОК ИЗДЕЛИЙ ==================== -->
+    <h2 class="order-products-title">Изделия</h2>
+
+    {% if not products %}
+        <div class="order-products-empty">
+            В этом заказе пока нет изделий.
+        </div>
+    {% else %}
+        <div class="order-products-list">
+            {% for product in products %}
+                <div class="order-product-card" data-product-id="{{ product.id }}">
+                    <div class="order-product-header">
+                        <div class="order-product-title">
+                            #{{ product.id }} — {{ product.title }}
+                        </div>
+                        <div class="order-product-price">
+                            {{ product.formatted_total_price }}
+                        </div>
+                    </div>
+                    <div class="order-product-meta">
+                        <span>Тираж: <b>{{ product.circulation }}</b></span>
+                        <span>Добавлено: {{ product.created_at|date:"d.m.Y H:i" }}</span>
+                        {% if product.source_proschet %}
+                            <span>Из просчёта: <b>{{ product.source_proschet.number }}</b></span>
+                        {% endif %}
+                    </div>
+                    <!-- Кнопку «Создать просчёт из изделия» и разворот состава
+                         добавим на следующем шаге. Пока — заглушка-контейнер. -->
+                    <div class="order-product-body" data-product-body="{{ product.id }}">
+                        <!-- Следующим шагом здесь будет:
+                             - состав (компоненты, работы, ламинация, вычисления);
+                             - кнопка «Создать просчёт из изделия». -->
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'orders/js/detail.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,56 @@
+<!--
+orders/templates/orders/index.html
+Главная страница приложения "Заказы".
+Наследуется от orders/base.html.
+-->
+{% extends "orders/base.html" %}
+
+{% load static %}
+
+{% block title %}Заказы{% endblock %}
+
+{% block content %}
+    <!-- Заголовок страницы. -->
+    <h1>Заказы</h1>
+
+    <!-- Если заказов нет — показываем сообщение. -->
+    {% if not orders %}
+        <p class="orders-empty">Заказов пока нет.</p>
+    {% else %}
+        <!-- Таблица заказов. -->
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Номер</th>
+                    <th>Клиент</th>
+                    <th>Изделий</th>
+                    <th>Стоимость</th>
+                    <th>Создан</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr class="orders-row-clickable"
+                        data-order-id="{{ order.id }}"
+                        title="Открыть карточку заказа">
+                        <!-- Номер заказа (ORD-N). -->
+                        <td>{{ order.number }}</td>
+                        <!-- Имя клиента (может быть пустым). -->
+                        <td>{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}</td>
+                        <!-- Число не удалённых изделий в заказе. -->
+                        <td>{{ order.products.count }}</td>
+                        <!-- Итоговая стоимость (свойство, вычисляется на лету). -->
+                        <td>{{ order.formatted_total_price }}</td>
+                        <!-- Дата создания. -->
+                        <td>{{ order.created_at }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'orders/js/index.js' %}"></script>
+{% endblock %}

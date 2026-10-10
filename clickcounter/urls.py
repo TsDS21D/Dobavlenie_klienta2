@@ -85,6 +85,8 @@ urlpatterns = [
      include(('spravochnik_dopolnitelnyh_rabot.urls',
               'spravochnik_dopolnitelnyh_rabot'),
      namespace='spravochnik_dopolnitelnyh_rabot')),
+    # НОВОЕ ПРИЛОЖЕНИЕ: orders (Заказы и изделия)
+    path('orders/', include(('orders.urls', 'orders'), namespace='orders')),
 ]
 
 # В режиме отладки добавляем обслуживание статических и медиа файлов

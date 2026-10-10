@@ -1,0 +1,240 @@
+/*
+orders/static/orders/css/base.css
+Базовые стили приложения "Заказы".
+
+Общие правила (body, .container, h1) взяты по образцу приложений counter
+и sheet_formats — чтобы страницы orders выглядели в едином стиле системы:
+    - фоновая текстура,
+    - белый блок .container со скруглением 20px и тенью,
+    - боковые навигационные панели приложений.
+Стили навигационных панелей (.app-nav-container, .nav-panel, .nav-btn и т.д.)
+взяты из sheet_formats/css/index.css — это «канон» панелей для проекта.
+*/
+
+/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
+/* Всегда показываем скроллбар — устраняет горизонтальный «прыжок» при изменении высоты. */
+html {
+    overflow-y: scroll;
+}
+
+/* Сброс стандартных отступов и использование border-box. */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Стили для <body>: шрифт, фон-текстура, отступы, минимальная высота. */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
+    min-height: 100vh;
+    padding: 2rem;
+    color: #333;
+}
+
+/* ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== */
+
+/* Белый блок со скруглением и тенью — «подложка» под контент всех страниц. */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ==================== ЗАГОЛОВКИ ==================== */
+
+h1 {
+    color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+/* ==================== СПИСОК ЗАКАЗОВ ==================== */
+
+/* Сообщение «заказов пока нет». */
+.orders-empty {
+    color: #777;
+    font-style: italic;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+/* Таблица заказов. */
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-table th,
+.orders-table td {
+    border: 1px solid #ddd;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.orders-table th {
+    background: #f5f5f5;
+    font-weight: bold;
+}
+
+/* ==================== НАВИГАЦИОННЫЕ ПАНЕЛИ ПРИЛОЖЕНИЙ ==================== */
+/* Контейнер всех панелей — фиксирован в правом верхнем углу. */
+.app-nav-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
+}
+
+/* Одна панель приложения. */
+.nav-panel {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 60px;
+}
+
+/* Левая часть панели — название и описание приложения. */
+.nav-info {
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
+}
+
+.nav-info strong {
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+.nav-info div {
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Общий стиль кнопок в панелях. */
+.nav-btn {
+    padding: 8px 15px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    font-size: 0.85rem !important;
+    min-width: 80px !important;
+    width: 80px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    line-height: normal !important;
+    margin: 0 !important;
+}
+
+/* Кнопка выхода — красная. */
+.nav-btn-logout {
+    background: #f44336 !important;
+    color: white !important;
+}
+
+/* Активная кнопка — зелёная (фирменный цвет проекта). */
+.nav-btn-active {
+    background: #0B8661 !important;
+    color: white !important;
+}
+
+/* Неактивная кнопка — серая. */
+.nav-btn-inactive {
+    background: #e0e0e0 !important;
+    color: #333 !important;
+}
+
+/* Наведение. */
+.nav-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ссылка-кнопка центрируется flex'ом. */
+a.nav-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+/* Планшеты: контейнер — на всю ширину, панель — в поток. */
+@media (max-width: 1024px) {
+    body { padding: 1.5rem; }
+    .container { max-width: 100%; }
+}
+
+@media (max-width: 768px) {
+    body { padding: 1rem; }
+    .container { padding: 2rem; border-radius: 15px; }
+    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; flex-direction: column; }
+    h2 { font-size: 1.3rem; margin-bottom: 1.25rem; }
+
+    /* Панель убирается из фиксированного положения и становится обычным блоком. */
+    .app-nav-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
+    .nav-info strong { white-space: normal; }
+}
+
+@media (max-width: 480px) {
+    body { padding: 0.5rem; }
+    .container { padding: 1.5rem; border-radius: 12px; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+    .nav-panel { padding: 10px 12px; min-height: 55px; }
+    .nav-info strong { font-size: 0.9rem; }
+    .nav-btn {
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+        min-width: 70px !important;
+        width: 70px !important;
+    }
+}

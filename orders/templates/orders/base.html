@@ -1,0 +1,37 @@
+<!--
+orders/templates/orders/base.html
+Базовый шаблон приложения "Заказы".
+Подключает общую панель приложений и определяет блоки для дочерних шаблонов.
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Кодировка — UTF-8. -->
+    <meta charset="UTF-8">
+    <!-- Корректное отображение на мобильных. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Заголовок страницы: дочерние шаблоны могут его переопределить. -->
+    <title>{% block title %}Заказы{% endblock %} - Система управления</title>
+    <!-- CSRF-токен для AJAX-запросов (сохранение комментария и др.). -->
+    <meta name="csrf-token" content="{{ csrf_token }}">    
+    <!-- Загружаем тег static для работы с CSS/JS. -->
+    {% load static %}
+    <!-- CSS приложения orders. -->
+    <link rel="stylesheet" href="{% static 'orders/css/base.css' %}">
+    <!-- Дополнительные CSS дочерних шаблонов. -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Общая панель приложений из counter (как в других разделах проекта). -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"orders" %}
+
+    <!-- Основной контейнер страницы. -->
+    <div class="container">
+        <!-- Блок контента — сюда вставляется содержимое дочерних шаблонов. -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Дополнительные JS дочерних шаблонов. -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

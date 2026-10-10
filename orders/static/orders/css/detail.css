@@ -1,0 +1,471 @@
+/*
+orders/static/orders/css/detail.css
+Стили страницы карточки заказа.
+Ориентир — секция «Цена» в calculator и общий стиль системы:
+    - белый блок со скруглением 12px и мягкой тенью;
+    - зелёный акцент #0B8661;
+    - серые тонкие рамки #e0e0e0;
+    - внутренние отступы 1–1.5rem.
+*/
+
+/* ==================== ВЕРХНЯЯ ПАНЕЛЬ ==================== */
+
+/* Полоска над карточкой заказа: содержит ссылку «← К списку заказов». */
+.order-topbar {
+    margin-bottom: 1rem;                /* Отступ до карточки заказа. */
+}
+
+/* Ссылка «← К списку заказов». */
+.order-back-link {
+    color: #0B8661;                     /* Фирменный зелёный. */
+    text-decoration: none;              /* Без подчёркивания. */
+    font-weight: 500;                   /* Чуть жирнее обычного. */
+    font-size: 0.95rem;                 /* Размер шрифта. */
+    transition: opacity 0.15s ease;     /* Плавное изменение при наведении. */
+}
+.order-back-link:hover {
+    opacity: 0.75;                      /* При наведении — слегка приглушается. */
+}
+
+/* ==================== КАРТОЧКА ЗАКАЗА ==================== */
+
+/* Белая карточка с шапкой, инфо-блоком и комментарием. */
+.order-card {
+    background: #fff;                   /* Белый фон. */
+    border-radius: 12px;                /* Скругление. */
+    padding: 1.5rem;                    /* Внутренние отступы. */
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08); /* Мягкая тень. */
+    margin-bottom: 1.5rem;              /* Отступ до блока «Изделия». */
+}
+
+/* ==================== ШАПКА КАРТОЧКИ ==================== */
+
+/* Верхняя строка: номер слева, стоимость справа. */
+.order-card-header {
+    display: flex;                      /* Flex, чтобы развести по краям. */
+    justify-content: space-between;     /* Номер — слева, стоимость — справа. */
+    align-items: center;                /* Выравнивание по вертикали. */
+    padding-bottom: 1rem;               /* Отступ до серой линии. */
+    border-bottom: 1px solid #e0e0e0;   /* Тонкая серая линия. */
+    margin-bottom: 1rem;                /* Отступ после линии. */
+}
+
+/* Номер заказа (ORD-N). */
+.order-number {
+    font-size: 1.6rem;                  /* Крупно. */
+    color: #0B8661;                     /* Зелёный акцент. */
+    font-weight: 700;                   /* Жирный. */
+    margin: 0;                          /* Убираем внешние отступы. */
+    font-family: 'Courier New', monospace; /* Моноширинный — как в counter. */
+}
+
+/* Правая часть шапки — блок со стоимостью. */
+.order-header-right {
+    text-align: right;                  /* Текст по правому краю. */
+}
+
+/* Подпись «Общая стоимость:». */
+.order-total-label {
+    font-size: 0.85rem;                 /* Мелко. */
+    color: #888;                        /* Серый. */
+    margin-bottom: 0.15rem;             /* Отступ до значения. */
+}
+
+/* Значение стоимости. */
+.order-total-value {
+    font-size: 1.4rem;                  /* Крупно. */
+    font-weight: 700;                   /* Жирный. */
+    color: #0B8661;                     /* Зелёный. */
+}
+
+/* ==================== ИНФОРМАЦИОННЫЙ БЛОК ==================== */
+
+/* Сетка 2×2 с полями «клиент», «создан», «обновлён», «изделий». */
+.order-info-grid {
+    display: grid;                      /* Сетка. */
+    grid-template-columns: 1fr 1fr;     /* Две равные колонки. */
+    gap: 0.5rem 1.5rem;                 /* Расстояние: по вертикали 0.5rem, по горизонтали 1.5rem. */
+    margin-bottom: 1.25rem;             /* Отступ до блока комментария. */
+}
+
+/* Одна строка «label: value». */
+.order-info-item {
+    display: flex;                      /* Лейбл и значение в одну строку. */
+    align-items: baseline;              /* Выравнивание по базовой линии. */
+    gap: 0.4rem;                        /* Небольшой отступ между ними. */
+    font-size: 0.95rem;                 /* Обычный размер. */
+}
+
+/* Подпись поля — серый, не тянется. */
+.order-info-label {
+    color: #888;                        /* Серый. */
+    flex-shrink: 0;                     /* Не сжимается при переносе. */
+}
+
+/* Значение поля — тёмное, жирное. */
+.order-info-value {
+    color: #333;                        /* Тёмно-серый. */
+    font-weight: 600;                   /* Полужирный. */
+}
+
+/* ==================== КОММЕНТАРИЙ ЗАКАЗА ==================== */
+
+/* Блок «Комментарий: …». */
+.order-comment-block {
+    border-top: 1px solid #e0e0e0;      /* Тонкая серая линия сверху — отделяет от инфо-блока. */
+    padding-top: 1rem;                  /* Отступ после линии. */
+}
+
+/* Подпись «Комментарий:». */
+.order-comment-label {
+    font-size: 0.9rem;                  /* Мелко. */
+    color: #888;                        /* Серый. */
+    margin-bottom: 0.3rem;              /* Отступ до значения. */
+}
+
+/* Значение комментария — редактируемое поле. */
+.order-comment-value {
+    display: block;                     /* Блочный, чтобы растянуться по ширине. */
+    padding: 0.5rem 0.75rem;            /* Внутренние отступы. */
+    background: #fafafa;                /* Светло-серый фон. */
+    border: 1px dashed transparent;     /* Прозрачная рамка — при наведении станет видимой. */
+    border-radius: 6px;                 /* Скругление. */
+    font-size: 1rem;                    /* Размер шрифта. */
+    color: #333;                        /* Цвет текста. */
+    min-height: 2.2rem;                 /* Минимальная высота, чтобы блок не схлопывался. */
+    line-height: 1.4;                   /* Межстрочный интервал. */
+    cursor: pointer;                    /* Курсор-указатель (можно кликнуть, чтобы редактировать). */
+    transition: border-color 0.15s ease, background 0.15s ease; /* Плавные изменения. */
+    word-break: break-word;             /* Длинные слова переносятся. */
+}
+.order-comment-value:hover {
+    border-color: #b9d9c7;              /* При наведении — светло-зелёная рамка. */
+    background: #f0f9f5;                /* И слегка зелёный фон — намёк, что можно редактировать. */
+}
+
+/* Плейсхолдер, когда комментария нет. */
+.order-comment-empty {
+    color: #999;                        /* Серый. */
+    font-style: italic;                 /* Курсив. */
+}
+
+/* Поле ввода при редактировании. */
+.order-comment-input {
+    width: 100%;                        /* На всю ширину. */
+    padding: 0.5rem 0.75rem;            /* Внутренние отступы. */
+    border: 2px solid #0B8661;          /* Зелёная рамка — акцент, что идёт редактирование. */
+    border-radius: 6px;                 /* Скругление. */
+    font-size: 1rem;                    /* Как у display. */
+    font-family: inherit;               /* Наследуем шрифт. */
+    color: #333;                        /* Цвет текста. */
+    outline: none;                      /* Убираем стандартную обводку. */
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.15); /* Мягкое свечение. */
+    box-sizing: border-box;             /* Ширина включает padding и border. */
+}
+
+/* ==================== СПИСОК ИЗДЕЛИЙ ==================== */
+
+/* Заголовок «Изделия». */
+.order-products-title {
+    font-size: 1.2rem;                  /* Размер. */
+    color: #333;                        /* Тёмно-серый. */
+    margin: 0 0 0.75rem 0;              /* Отступ снизу. */
+}
+
+/* Сообщение «в этом заказе пока нет изделий». */
+.order-products-empty {
+    padding: 1.5rem;                    /* Внутренние отступы. */
+    background: #f9f9f9;                /* Светло-серый фон. */
+    border-radius: 8px;                 /* Скругление. */
+    text-align: center;                 /* По центру. */
+    color: #888;                        /* Серый. */
+    font-style: italic;                 /* Курсив. */
+}
+
+/* Список карточек изделий. */
+.order-products-list {
+    display: flex;                      /* Колонкой. */
+    flex-direction: column;             /* Сверху вниз. */
+    gap: 0.75rem;                       /* Отступ между карточками. */
+}
+
+/* Одна карточка изделия. */
+.order-product-card {
+    background: #fff;                   /* Белый фон. */
+    border: 1px solid #e0e0e0;          /* Тонкая серая рамка. */
+    border-radius: 10px;                /* Скругление. */
+    padding: 1rem 1.25rem;              /* Внутренние отступы. */
+    transition: box-shadow 0.15s ease;  /* Плавная тень при наведении. */
+}
+.order-product-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); /* При наведении — лёгкая тень. */
+}
+
+/* Верхняя строка карточки: название слева, цена справа. */
+.order-product-header {
+    display: flex;                      /* Flex. */
+    justify-content: space-between;     /* Разводим по краям. */
+    align-items: baseline;              /* По базовой линии. */
+    gap: 1rem;                          /* Отступ на случай сжатия. */
+    margin-bottom: 0.4rem;              /* Отступ до метаданных. */
+}
+
+/* Название изделия. */
+.order-product-title {
+    font-size: 1.05rem;                 /* Чуть крупнее обычного. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #333;                        /* Тёмно-серый. */
+}
+
+/* Цена изделия (замороженная). */
+.order-product-price {
+    font-size: 1.1rem;                  /* Крупнее. */
+    font-weight: 700;                   /* Жирный. */
+    color: #0B8661;                     /* Зелёный акцент. */
+}
+
+/* Строка с метаданными (тираж, дата, источник). */
+.order-product-meta {
+    display: flex;                      /* В строку. */
+    flex-wrap: wrap;                    /* Разрешаем перенос, если не влезает. */
+    gap: 0.3rem 1rem;                   /* Расстояние между элементами. */
+    font-size: 0.9rem;                  /* Мелко. */
+    color: #777;                        /* Серый. */
+}
+
+/* Жирные значения в метаданных. */
+.order-product-meta b {
+    color: #333;                        /* Потемнее. */
+}
+
+/* Тело карточки изделия — сюда позже добавим состав и кнопки. */
+.order-product-body {
+    margin-top: 0.75rem;                /* Отступ от метаданных. */
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    /* На мобильных карточка заказа — с меньшими отступами. */
+    .order-card {
+        padding: 1rem;
+    }
+    /* Шапка — вертикально. */
+    .order-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .order-header-right {
+        text-align: left;
+    }
+    /* Сетка инфо — в одну колонку. */
+    .order-info-grid {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+    /* Верхняя строка изделия — тоже вертикально. */
+    .order-product-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+    }
+}
+
+
+
+/* ==================== РАСКРЫТОЕ СОСТОЯНИЕ КАРТОЧКИ ИЗДЕЛИЯ ==================== */
+
+/* Клик по заголовку карточки изделия раскрывает/сворачивает её. */
+.order-product-card.expanded {
+    border-color: #0B8661;              /* Зелёная рамка — маркер активного состояния. */
+    box-shadow: 0 6px 18px rgba(11, 134, 97, 0.12); /* Чуть заметнее тень. */
+}
+
+/* Тело карточки (состав) — по умолчанию скрыто, раскрывается JS. */
+.order-product-body {
+    margin-top: 0.75rem;                /* Отступ от метаданных до состава. */
+    padding-top: 0.75rem;               /* Внутренний отступ сверху. */
+    border-top: 1px solid #e0e0e0;      /* Тонкая серая линия — визуально отделяем от шапки. */
+}
+
+/* Состояние «Загрузка состава…». */
+.order-product-loading {
+    padding: 1rem;                      /* Внутренние отступы. */
+    text-align: center;                 /* По центру. */
+    color: #888;                        /* Серый. */
+    font-style: italic;                 /* Курсив. */
+}
+
+/* Сообщение об ошибке загрузки состава. */
+.order-product-error {
+    padding: 1rem;                      /* Внутренние отступы. */
+    text-align: center;                 /* По центру. */
+    color: #e74c3c;                     /* Красный. */
+}
+
+/* Сообщение «в изделии нет компонентов». */
+.order-product-empty {
+    padding: 1rem;                      /* Внутренние отступы. */
+    text-align: center;                 /* По центру. */
+    color: #888;                        /* Серый. */
+    font-style: italic;                 /* Курсив. */
+}
+
+/* ==================== ОДИН КОМПОНЕНТ ==================== */
+
+/* Карточка одного компонента внутри раскрытого изделия. */
+.order-component {
+    background: #fafafa;                /* Светло-серый фон, чтобы выделить блок. */
+    border: 1px solid #eee;             /* Очень светлая рамка. */
+    border-radius: 8px;                 /* Скругление. */
+    padding: 0.9rem 1rem;               /* Внутренние отступы. */
+    margin-bottom: 0.75rem;             /* Отступ между компонентами. */
+}
+
+/* Строка заголовка компонента: номер и цена по краям. */
+.order-component-header {
+    display: flex;                      /* Flex. */
+    justify-content: space-between;     /* По краям. */
+    align-items: baseline;              /* По базовой линии. */
+    margin-bottom: 0.6rem;              /* Отступ до параметров. */
+}
+
+/* Заголовок «Компонент #N (KP-x)». */
+.order-component-title {
+    font-size: 1rem;                    /* Размер. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #0B8661;                     /* Зелёный акцент. */
+}
+
+/* Цена за весь тираж компонента. */
+.order-component-price {
+    font-size: 1.05rem;                 /* Чуть крупнее. */
+    font-weight: 700;                   /* Жирный. */
+    color: #333;                        /* Тёмный. */
+}
+
+/* Блок с основными параметрами (сетка label: value). */
+.order-component-info {
+    display: grid;                      /* Сетка. */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Авто-колонки от 180px. */
+    gap: 0.25rem 1rem;                  /* Расстояния. */
+    font-size: 0.9rem;                  /* Мелко. */
+    color: #444;                        /* Тёмно-серый. */
+    margin-bottom: 0.5rem;              /* Отступ до следующих секций. */
+}
+
+.order-component-info b {
+    color: #333;                        /* Жирный текст — чуть темнее. */
+}
+
+/* ==================== СЕКЦИИ ВНУТРИ КОМПОНЕНТА ==================== */
+
+/* Общий контейнер секции (расчёт листов, ламинация, работы). */
+.order-component-section {
+    margin-top: 0.6rem;                 /* Отступ сверху от предыдущего блока. */
+    padding-top: 0.5rem;                /* Внутренний отступ сверху. */
+    border-top: 1px dashed #ddd;        /* Пунктирная линия — визуальный разделитель. */
+}
+
+/* Заголовок секции (например, «Ламинация»). */
+.order-section-title {
+    font-size: 0.9rem;                  /* Мелко. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #555;                        /* Средне-серый. */
+    margin-bottom: 0.3rem;              /* Отступ до тела. */
+}
+
+/* Тело секции — параметры в виде span-ов. */
+.order-section-body {
+    display: flex;                      /* В строку. */
+    flex-wrap: wrap;                    /* С переносом. */
+    gap: 0.3rem 1rem;                   /* Расстояния. */
+    font-size: 0.88rem;                 /* Мелкий шрифт. */
+    color: #444;                        /* Цвет текста. */
+}
+
+/* Значок «Активен» для многостраничного режима. */
+.order-section-badge {
+    display: inline-block;              /* В строку. */
+    background: #0B8661;                /* Фирменный зелёный. */
+    color: #fff;                        /* Белый текст. */
+    padding: 0.1rem 0.5rem;             /* Отступы. */
+    border-radius: 10px;                /* Скругление. */
+    font-size: 0.75rem;                 /* Мелко. */
+    font-weight: 600;                   /* Полужирный. */
+}
+
+/* ==================== ТАБЛИЦА ДОПОЛНИТЕЛЬНЫХ РАБОТ ==================== */
+
+.order-works-table {
+    width: 100%;                        /* На всю ширину. */
+    border-collapse: collapse;          /* Без двойных рамок. */
+    font-size: 0.85rem;                 /* Мелкий шрифт. */
+    margin-top: 0.3rem;                 /* Отступ сверху. */
+}
+
+.order-works-table th,
+.order-works-table td {
+    border: 1px solid #e0e0e0;          /* Тонкая серая рамка. */
+    padding: 0.35rem 0.5rem;            /* Внутренние отступы. */
+    text-align: left;                   /* По левому краю. */
+}
+
+.order-works-table th {
+    background: #f0f0f0;                /* Светло-серый фон. */
+    font-weight: 600;                   /* Полужирный. */
+    color: #555;                        /* Средне-серый текст. */
+}
+
+/* ==================== ИТОГ ПО ИЗДЕЛИЮ ==================== */
+
+/* Строка с итоговой стоимостью изделия. */
+.order-product-total {
+    display: flex;                      /* В строку. */
+    justify-content: space-between;     /* По краям. */
+    align-items: baseline;              /* По базовой линии. */
+    padding: 0.6rem 0.9rem;             /* Внутренние отступы. */
+    margin-top: 0.6rem;                 /* Отступ сверху. */
+    background: #f0f9f5;                /* Светло-зелёный фон. */
+    border: 1px solid #b9d9c7;          /* Зелёная рамка. */
+    border-radius: 8px;                 /* Скругление. */
+    font-size: 1rem;                    /* Размер текста. */
+    color: #333;                        /* Тёмный. */
+}
+
+.order-product-total b {
+    color: #0B8661;                     /* Жирное значение — зелёное. */
+    font-size: 1.1rem;                  /* Крупнее. */
+}
+
+/* ==================== КНОПКА «СОЗДАТЬ ПРОСЧЁТ ИЗ ИЗДЕЛИЯ» ==================== */
+
+.order-product-actions {
+    margin-top: 0.75rem;                /* Отступ сверху. */
+    text-align: right;                  /* По правому краю. */
+}
+
+.order-btn-create-proschet {
+    padding: 0.6rem 1.2rem;             /* Внутренние отступы. */
+    background: #0B8661;                /* Фирменный зелёный. */
+    color: #fff;                        /* Белый текст. */
+    border: none;                       /* Без рамки. */
+    border-radius: 6px;                 /* Скругление. */
+    font-size: 0.95rem;                 /* Размер шрифта. */
+    font-weight: 600;                   /* Полужирный. */
+    cursor: pointer;                    /* Курсор-указатель. */
+    transition: background 0.15s ease, transform 0.15s ease; /* Плавность. */
+    font-family: inherit;               /* Наследуем шрифт. */
+}
+
+.order-btn-create-proschet:hover {
+    background: #0a6e51;                /* Темнее при наведении. */
+    transform: translateY(-1px);        /* Лёгкий подъём. */
+}
+
+.order-btn-create-proschet:disabled {
+    background: #b9d9c7;                /* Светло-зелёный (недоступно). */
+    cursor: not-allowed;                /* Курсор «недоступно». */
+    transform: none;                    /* Без анимации. */
+}
