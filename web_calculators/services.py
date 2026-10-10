@@ -1258,32 +1258,37 @@ def create_proschet_from_webcalc(calculator, data, user=None):
 # СБОРКА ТОВАРА ДЛЯ MOGUTA (bukva-a.ru)
 # ============================================================================
 
-def build_product_for_webcalc(calculator, payload, price, mass_g=None):
+def build_product_for_webcalc(calculator, payload, proschet, price=None, mass_g=None):
     """
     Собирает словарь товара для Moguta API на основе параметров,
     выбранных в веб-калькуляторе.
 
-    Аргументы:
+    АРГУМЕНТЫ:
         calculator — экземпляр WebCalculator.
         payload    — dict параметров от клиента (как в calculate_price).
-        price      — итоговая цена за весь тираж (число).
+        proschet   — экземпляр Proschet (уже сохранённый в БД). Его номер
+                     становится артикулом товара в Moguta, а его итоговая
+                     цена — ценой товара.
+        price      — устаревший параметр, оставлен для совместимости.
+                     Если передан, используется только для логирования.
+                     Цена товара берётся из proschet.total_price.
         mass_g     — общая масса заказа в граммах (опционально).
 
-    Возвращает:
+    ВОЗВРАЩАЕТ:
         dict, готовый для передачи в MogutaClient.import_product().
 
-    Логика:
-      - title — «{название калькулятора}, {размер}, {тираж} шт., {печать}, {бумага}».
-      - code — уникальный артикул CALC-<slug>-<timestamp>.
-      - price — цена за весь тираж (count будет -1, т.к. это не штучный товар).
-      - count — «-1» (в Moguta это значит «неограниченно»).
-      - cat_id — id категории «Калькулятор онлайн» из настроек.
-      - description — читаемый HTML со всеми параметрами заказа.
-      - weight — масса в кг (граммы / 1000).
+    ЧТО ИЗМЕНИЛОСЬ:
+        - code = proschet.number (например, "PR-42"). Больше не генерируется
+          на основе timestamp. Это нужно, чтобы при открытии корзины на
+          bukva-a.ru плагин мог найти товар по префиксу "PR-" и обновить
+          его актуальную цену через API beauty-print.ru.
+        - Цена товара берётся из proschet.total_price (актуальная цена
+          просчёта), а не из аргумента price.
     """
     import time
     from django.conf import settings
     from sklad.models import Material
+    from decimal import Decimal
 
     circulation = int(payload.get('circulation', 0))
     components_in = payload.get('components') or []
@@ -1310,7 +1315,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
         w = first_data.get('width_mm')
         h = first_data.get('height_mm')
         if w and h:
-            # Округляем до целых — размеры в мм не нужны с копейками.
             title_parts.append(f"{int(round(float(w)))}×{int(round(float(h)))} мм")
     title_parts.append(f"{circulation} шт.")
 
@@ -1328,7 +1332,29 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
     title = ', '.join(title_parts)
 
     # ---------------------------------------------------------------
-    # 2. Собираем HTML-описание со всеми параметрами.
+    # 2. Цена товара — берём из просчёта. Это гарантирует, что цена
+    # в корзине совпадает с ценой просчёта, и при последующем
+    # пересчёте через API не будет «скачков».
+    # ---------------------------------------------------------------
+    actual_price = float(proschet.total_price)
+
+    # Если был передан price и он отличается — логируем, чтобы видеть
+    # расхождения между calculate_price и proschet.total_price.
+    if price is not None:
+        try:
+            if abs(float(price) - actual_price) > 0.01:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "Расхождение цен для просчёта %s: calculate_price=%s, "
+                    "proschet.total_price=%s",
+                    proschet.number, price, actual_price,
+                )
+        except (ValueError, TypeError):
+            pass
+
+    # ---------------------------------------------------------------
+    # 3. Собираем HTML-описание со всеми параметрами.
     # ---------------------------------------------------------------
     lines = [f'<h3>{title}</h3>', '<ul>']
 
@@ -1342,7 +1368,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
         combo = comp_in.get('print_combo', '')
         combo_text = combo_texts.get(combo, combo)
 
-        # Если компонентов больше одного — показываем имя компонента.
         if len(components_in) > 1:
             lines.append(f'<li><b>Компонент:</b> {comp.name}</li>')
 
@@ -1351,7 +1376,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
         if combo_text:
             lines.append(f'<li><b>Печать:</b> {combo_text}</li>')
 
-        # Бумага
         if comp_in.get('paper_id'):
             try:
                 paper = Material.objects.get(id=comp_in['paper_id'])
@@ -1359,7 +1383,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             except Material.DoesNotExist:
                 pass
 
-        # Ламинация
         if comp_in.get('lamination_enabled') and comp.lamination_enabled:
             side = comp_in.get('lamination_side', 'single')
             side_text = 'односторонняя' if side == 'single' else 'двусторонняя'
@@ -1375,7 +1398,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                 f'<li><b>Ламинация:</b> {laminator_name}, {film_name}, {side_text}</li>'
             )
 
-        # Дополнительные работы (учитывая триггеры)
         work_ids = comp_in.get('work_ids') or []
         work_quantities = comp_in.get('work_quantities') or {}
         for cw in comp.works.all().select_related('work'):
@@ -1391,31 +1413,29 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             lines.append(f'<li><b>Работа:</b> {work.name} × {qty}</li>')
 
     lines.append('</ul>')
-    lines.append(f'<p><b>Итоговая цена:</b> {price:.2f} ₽</p>')
+    lines.append(f'<p><b>Номер просчёта:</b> {proschet.number}</p>')
+    lines.append(f'<p><b>Итоговая цена:</b> {actual_price:.2f} ₽</p>')
     description = '\n'.join(lines)
 
     # ---------------------------------------------------------------
-    # 3. Короткое описание и артикул.
+    # 4. Короткое описание и артикул.
     # ---------------------------------------------------------------
-    short_description = f'{title}. Цена: {price:.2f} ₽'
-    code = f'CALC-{calculator.slug}-{int(time.time())}'
+    short_description = f'{title}. Цена: {actual_price:.2f} ₽'
+    # code = "PR-42" — номер просчёта в БД beauty-print.ru.
+    code = proschet.number
 
     # ---------------------------------------------------------------
-    # 4. Вес — переводим граммы в килограммы.
+    # 5. Вес — переводим граммы в килограммы.
     # ---------------------------------------------------------------
     weight_kg = 0.0
     if mass_g:
         weight_kg = round(float(mass_g) / 1000.0, 3)
 
     # ---------------------------------------------------------------
-    # 4.5. Характеристики товара для отображения под названием в корзине.
-    # Moguta при добавлении товара в корзину автоматически подтягивает
-    # характеристики из товара и выводит их как property_html.
-    # Передаём только то, что не видно из названия.
+    # 6. Характеристики товара для отображения под названием в корзине.
     # ---------------------------------------------------------------
     properties_list = []
 
-    # Имя компонента как префикс — только если компонентов больше одного.
     def _pname(comp_name):
         return f'{comp_name}: ' if len(components_in) > 1 else ''
 
@@ -1425,7 +1445,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             continue
         prefix = _pname(comp.name)
 
-        # Размер
         w = comp_in.get('width_mm')
         h = comp_in.get('height_mm')
         if w and h:
@@ -1435,14 +1454,12 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                 'value': f'{int(round(float(w)))} × {int(round(float(h)))} мм',
             })
 
-        # Тираж
         properties_list.append({
             'name':  f'{prefix}Тираж',
             'type':  'string',
             'value': f'{circulation} шт.',
         })
 
-        # Печать
         combo = comp_in.get('print_combo')
         if combo and combo in combo_texts:
             properties_list.append({
@@ -1451,7 +1468,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                 'value': combo_texts[combo].capitalize(),
             })
 
-        # Бумага
         if comp_in.get('paper_id'):
             try:
                 paper = Material.objects.get(id=comp_in['paper_id'])
@@ -1463,7 +1479,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             except Material.DoesNotExist:
                 pass
 
-        # Ламинация — только если включена
         if comp_in.get('lamination_enabled') and comp.lamination_enabled:
             side = comp_in.get('lamination_side', 'single')
             side_text = 'односторонняя' if side == 'single' else 'двусторонняя'
@@ -1482,7 +1497,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                 'value': ', '.join(parts),
             })
 
-        # Дополнительные работы — ищем «Скругление углов» и «Обработка макета»
         work_ids = comp_in.get('work_ids') or []
         work_quantities = comp_in.get('work_quantities') or {}
         for cw in comp.works.all().select_related('work'):
@@ -1495,7 +1509,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             if not is_on:
                 continue
 
-            # Скругление углов — только отметка «да», без значения, если не включено.
             if work.name == 'Скругление углов':
                 properties_list.append({
                     'name':  f'{prefix}Скругление углов',
@@ -1503,7 +1516,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                     'value': 'да',
                 })
 
-            # Количество макетов — из работ с флагом show_quantity.
             if cw.show_quantity:
                 qty = int(work_quantities.get(str(work.id), 1))
                 properties_list.append({
@@ -1512,7 +1524,6 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
                     'value': f'{qty} шт.',
                 })
 
-    # Вес — общий для всего заказа.
     if mass_g:
         properties_list.append({
             'name':  'Вес',
@@ -1520,23 +1531,21 @@ def build_product_for_webcalc(calculator, payload, price, mass_g=None):
             'value': f'{int(round(float(mass_g)))} г',
         })
 
-    # Объём — общий, если посчитан. Ищем его в результате calculate_price?
-    # Пока пропускаем, потому что volume_cm3 не передаётся в build_product_for_webcalc.
-    # Если нужно — допишем позже.
-
+    # Добавляем номер просчёта в характеристики — полезно в админке Moguta.
+    properties_list.append({
+        'name':  'Номер просчёта',
+        'type':  'string',
+        'value': proschet.number,
+    })
 
     # ---------------------------------------------------------------
-    # 5. Итоговый словарь для Moguta API.
+    # 7. Итоговый словарь для Moguta API.
     # ---------------------------------------------------------------
     return {
         'title':             title[:200],
         'code':              code,
-        'price':             f'{price:.2f}',
-        # price_course — цена в основной валюте магазина. Moguta использует
-        # именно это поле при добавлении товара в корзину. Если передать только
-        # price, корзина покажет 0 руб. Значение совпадает с price, потому что
-        # валюта товара = валюта магазина (RUR).
-        'price_course':      f'{price:.2f}',
+        'price':             f'{actual_price:.2f}',
+        'price_course':      f'{actual_price:.2f}',
         'count':             -1,
         'cat_id':            settings.MOGUTA_CATEGORY_ID,
         'description':       description,

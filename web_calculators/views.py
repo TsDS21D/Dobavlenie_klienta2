@@ -189,12 +189,25 @@ def web_calculator_add_to_cart_api(request, slug):
     """
     POST /web-calc/api/<slug>/add-to-cart/
 
-    Создаёт товар в каталоге bukva-a.ru через Moguta API и возвращает
-    его product_id. Дальше JS внутри iframe передаст этот id родителю
-    на bukva-a.ru, а тот добавит товар в корзину через POST /cart.
+    Создаёт РЕАЛЬНЫЙ просчёт (Proschet) в БД beauty-print.ru, затем —
+    товар в каталоге bukva-a.ru через Moguta API с артикулом PR-N
+    (номер просчёта). Возвращает product_id и характеристики товара.
+
+    Дальше JS внутри iframe передаст product_id родителю на bukva-a.ru,
+    а тот добавит товар в корзину через POST /cart.
 
     Публичный эндпоинт — CSRF отключён (@csrf_exempt), потому что
     запросы идут с чужого домена (bukva-a.ru).
+
+    ЧТО ИЗМЕНИЛОСЬ:
+        Раньше эндпоинт НЕ создавал просчёт в БД — просто считал цену
+        в памяти и слал товар в Moguta с code=CALC-<slug>-<timestamp>.
+        Теперь:
+          1. Создаётся Proschet в БД (это «якорь» для пересчёта цен).
+          2. code товара = proschet.number (например, "PR-42").
+          3. Цена товара = proschet.total_price (актуальная цена просчёта).
+        Благодаря этому при открытии корзины на bukva-a.ru плагин
+        найдёт товар по префиксу "PR-" и запросит актуальную цену.
     """
     calculator = get_object_or_404(WebCalculator, slug=slug, is_active=True)
 
@@ -208,7 +221,9 @@ def web_calculator_add_to_cart_api(request, slug):
             'error_code': 'bad_json',
         }, status=400)
 
-    # 1. Считаем цену — используем существующую логику.
+    # ===== 1. Считаем цену — для логирования и как быстрый чек валидации =====
+    # Если payload некорректен, calculate_price бросит OrderCalculationError,
+    # и мы вернём клиенту понятную ошибку (не создавая просчёт в БД).
     try:
         result = calculate_price(calculator, payload)
     except OrderCalculationError as e:
@@ -222,11 +237,31 @@ def web_calculator_add_to_cart_api(request, slug):
             'error_code': 'internal_error',
         }, status=500)
 
-    # 2. Собираем данные товара для Moguta.
+    # ===== 2. Создаём РЕАЛЬНЫЙ просчёт в БД =====
+    # Это «якорь», по которому потом будем пересчитывать актуальную цену
+    # (когда клиент откроет корзину на bukva-a.ru).
+    try:
+        proschet = create_proschet_from_webcalc(calculator, payload, user=None)
+    except OrderCalculationError as e:
+        # Ошибки валидации — возвращаем клиенту как есть.
+        return JsonResponse(e.to_dict(), status=400)
+    except Exception as e:
+        # Внутренняя ошибка — логируем, отдаём 500.
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Ошибка создания просчёта: {e}',
+            'error_code': 'proschet_creation_error',
+        }, status=500)
+
+    # ===== 3. Собираем данные товара для Moguta =====
+    # Передаём proschet — из него берётся номер (code) и итоговая цена.
     try:
         product_data = build_product_for_webcalc(
             calculator,
             payload,
+            proschet=proschet,
             price=result['total_price'],
             mass_g=result['total_mass_g'],
         )
@@ -239,13 +274,14 @@ def web_calculator_add_to_cart_api(request, slug):
             'error_code': 'build_error',
         }, status=500)
 
-    # 3. Создаём товар в Moguta через API.
+    # ===== 4. Создаём товар в Moguta через API =====
     try:
         client = get_client()
+        # Первый вызов — создаёт товар.
         client.import_product(product_data)
-        # Вызываем второй раз — теперь Moguta пойдёт в ветку «обновление»
-        # и привяжет значения характеристик к товару (createProductStringProp
-        # работает корректно только в этой ветке).
+        # Второй вызов — Moguta идёт в ветку «обновление» и корректно
+        # привязывает значения характеристик (createProductStringProp
+        # работает только в этой ветке).
         client.import_product(product_data)
         # importProduct не возвращает id — получаем его отдельным запросом.
         created = client.get_product_by_code(product_data['code'])
@@ -271,14 +307,14 @@ def web_calculator_add_to_cart_api(request, slug):
             'error_code': 'internal_error',
         }, status=500)
 
+    # ===== 5. Успех — возвращаем данные клиенту =====
     return JsonResponse({
         'success': True,
         'product_id': product_id,
-        'product_code': product_data['code'],
+        'product_code': product_data['code'],       # например, "PR-42"
         'product_title': product_data['title'],
-        'price': result['total_price'],
-        # Характеристики товара — их родительская страница передаст
-        # в POST при добавлении товара в корзину Moguta, чтобы они
-        # отобразились под названием.
+        'price': float(proschet.total_price),
+        'proschet_id': proschet.id,
+        'proschet_number': proschet.number,
         'properties': product_data.get('property', []),
     })
