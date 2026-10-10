@@ -270,6 +270,38 @@ class Product(models.Model):
         help_text='Замороженная стоимость изделия на момент создания'
     )
 
+    # ===== ЗАМОРОЖЕННЫЕ МАССА И ОБЪЁМ =====
+    # Считаются один раз при создании изделия через общую функцию
+    # calculator.utils_mass_volume.calculate_mass_and_volume — чтобы
+    # формулы жили в одном месте, а результат не менялся с течением времени.
+
+    # Общая масса изделия (г) на момент создания — с учётом +2% на краску/упаковку.
+    frozen_total_mass_g = models.DecimalField(
+        verbose_name='Общая масса, г',
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Замороженная масса изделия (г) на момент создания'
+    )
+
+    # Общий объём изделия (см³) на момент создания.
+    frozen_total_volume_cm3 = models.DecimalField(
+        verbose_name='Общий объём, см³',
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Замороженный объём изделия (см³) на момент создания'
+    )
+
+    # Список стопок по компонентам — снимок на момент создания.
+    # Хранится как JSON: [{label, width_mm, height_mm, stack_height_mm, valid}, ...].
+    frozen_stacks = models.JSONField(
+        verbose_name='Размеры стопок',
+        default=list,
+        blank=True,
+        help_text='Замороженный список стопок по компонентам на момент создания'
+    )
+
     # Метка создания изделия.
     created_at = models.DateTimeField(
         verbose_name='Дата создания',
@@ -440,6 +472,25 @@ class ProductPrintComponent(models.Model):
         default=Decimal('0.00'),
         help_text='Цена бумаги за лист на момент создания изделия'
     )
+
+    # Плотность бумаги (г/м²) — снимок, для расчёта массы.
+    paper_density = models.DecimalField(
+        verbose_name='Плотность бумаги, г/м²',
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Плотность бумаги (г/м²) на момент создания изделия'
+    )
+
+    # Толщина бумаги (мм) — снимок, для расчёта объёма и размера стопки.
+    paper_thickness = models.DecimalField(
+        verbose_name='Толщина бумаги, мм',
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('0.0000'),
+        help_text='Толщина бумаги (мм) на момент создания изделия'
+    )
+
 
     # Метка создания снимка.
     created_at = models.DateTimeField(
@@ -680,6 +731,17 @@ class ProductLaminate(models.Model):
         decimal_places=2,
         default=Decimal('0.00')
     )
+    # Толщина плёнки (мкм) — снимок, для расчёта массы/объёма и размера стопки.
+    film_thickness = models.DecimalField(
+        verbose_name='Толщина плёнки, мкм',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Толщина плёнки (мкм) на момент создания изделия'
+    )
+
+
 
     # Общая стоимость ламинации для всего тиража — снимок.
     total_price = models.DecimalField(

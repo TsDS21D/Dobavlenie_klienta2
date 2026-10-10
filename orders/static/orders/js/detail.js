@@ -100,6 +100,20 @@ orders/static/orders/js/detail.js
     }
 
 
+    /**
+     * Форматирует число размера стопки: убирает лишние нули после запятой.
+     *   90.0    → "90"
+     *   90.5    → "90.5"
+     *   400.00  → "400"
+     */
+    function formatStackNumber(v) {
+        var n = parseFloat(v);
+        if (isNaN(n)) return '—';
+        var r = Math.round(n * 10) / 10;
+        return (r % 1 === 0) ? String(r) : r.toFixed(1);
+    }    
+
+
     // ========================================================================
     // 3. ИНЛАЙН-РЕДАКТИРОВАНИЕ КОММЕНТАРИЯ
     // ========================================================================
@@ -239,6 +253,53 @@ orders/static/orders/js/detail.js
         } else {
             html += '<div class="order-product-empty">В изделии нет компонентов.</div>';
         }
+
+        // ===== Масса и объём (замороженные при создании изделия) =====
+        // Формат — как в секции «Масса и объём» калькулятора:
+        // масса в кг с 3 знаками, объём в литрах с 3 знаками.
+        var massG = parseFloat(product.frozen_total_mass_g) || 0;
+        var volumeCm3 = parseFloat(product.frozen_total_volume_cm3) || 0;
+        var massKg = (massG / 1000).toFixed(3);
+        var volumeL = (volumeCm3 / 1000).toFixed(3);
+
+        var stacks = product.frozen_stacks || [];
+
+        html += '<div class="order-product-mass-volume">';
+        html += '  <div class="order-mv-title">Масса и объём</div>';
+        html += '  <div class="order-mv-row">';
+        html += '    <span class="order-mv-label">Общая масса:</span>';
+        html += '    <span class="order-mv-value">' + massKg + ' кг</span>';
+        html += '  </div>';
+        html += '  <div class="order-mv-row">';
+        html += '    <span class="order-mv-label">Общий объём:</span>';
+        html += '    <span class="order-mv-value">' + volumeL + ' л</span>';
+        html += '  </div>';
+
+        // Размер стопки — по каждому компоненту.
+        if (stacks.length) {
+            html += '  <div class="order-mv-stacks">';
+            html += '    <div class="order-mv-stacks-title">Размер стопки</div>';
+            stacks.forEach(function (s) {
+                if (!s.valid) {
+                    html += '<div class="order-mv-stack-row order-mv-stack-empty">' +
+                                escapeHtml(s.label) + ': размеры не заданы' +
+                            '</div>';
+                    return;
+                }
+                // Форматируем: без лишних .0 для целых.
+                var w = formatStackNumber(s.width_mm);
+                var h = formatStackNumber(s.height_mm);
+                var sh = formatStackNumber(s.stack_height_mm);
+                var sizeText = w + ' × ' + h + ' × ' + sh + ' мм';
+                html += '<div class="order-mv-stack-row">' +
+                            '<span class="order-mv-stack-label">' + escapeHtml(s.label) + '</span>' +
+                            '<span class="order-mv-stack-value">' + sizeText + '</span>' +
+                        '</div>';
+            });
+            html += '  </div>';
+        }
+
+        html += '</div>';
 
         // ===== Итоговая строка =====
         html += '<div class="order-product-total">' +

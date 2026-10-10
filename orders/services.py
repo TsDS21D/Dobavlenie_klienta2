@@ -125,22 +125,33 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
         # (цена бумаги за лист из справочника на текущий момент).
         frozen_material_price = comp.material_price_per_unit
 
-        # Создаём ProductPrintComponent со всеми полями-копиями.
+        # Снимок плотности и толщины бумаги — для расчёта массы/объёма
+        # в карточке изделия. Если бумага не выбрана — сохраняем нули.
+        frozen_paper_density = Decimal('0.00')
+        frozen_paper_thickness = Decimal('0.0000')
+        if comp.paper:
+            if comp.paper.density is not None:
+                frozen_paper_density = Decimal(str(comp.paper.density))
+            if comp.paper.paper_thickness is not None:
+                frozen_paper_thickness = Decimal(str(comp.paper.paper_thickness))
+
         product_component = ProductPrintComponent.objects.create(
-            product=product,                       # Ссылка на изделие
-            position=position,                     # Порядковый номер (1, 2, 3...)
-            number=comp.number or '',              # Номер из просчёта (KP-N)
-            printer=comp.printer,                  # Ссылка на принтер (FK)
-            paper=comp.paper,                      # Ссылка на бумагу (FK)
-            print_type=comp.print_type,            # color / bw
-            printing_mode=comp.printing_mode,      # single / duplex
-            color_mode=comp.color_mode,            # '4+0' и т.п.
-            price_per_sheet=comp.price_per_sheet,  # Замороженная цена за лист
-            is_price_calculated=comp.is_price_calculated,   # Флаг (как есть)
-            total_circulation_price=comp.total_circulation_price,  # Замороженная сумма
-            sheet_count=frozen_sheet_count,        # ЗАМОРОЖЕННЫЙ sheet_count
-            runs_count=frozen_runs_count,          # ЗАМОРОЖЕННЫЙ runs_count
-            material_price=frozen_material_price,  # ЗАМОРОЖЕННАЯ цена бумаги
+            product=product,
+            position=position,
+            number=comp.number or '',
+            printer=comp.printer,
+            paper=comp.paper,
+            print_type=comp.print_type,
+            printing_mode=comp.printing_mode,
+            color_mode=comp.color_mode,
+            price_per_sheet=comp.price_per_sheet,
+            is_price_calculated=comp.is_price_calculated,
+            total_circulation_price=comp.total_circulation_price,
+            sheet_count=frozen_sheet_count,
+            runs_count=frozen_runs_count,
+            material_price=frozen_material_price,
+            paper_density=frozen_paper_density,
+            paper_thickness=frozen_paper_thickness,
         )
 
         # ===== 3b. Копируем одностраничный расчёт листов =====
@@ -212,17 +223,23 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
             lam_src = None
 
         if lam_src is not None:
+            # Снимок толщины плёнки — для расчёта массы/объёма.
+            frozen_film_thickness = None
+            if lam_src.film and lam_src.film.thickness is not None:
+                frozen_film_thickness = Decimal(str(lam_src.film.thickness))
+
             ProductLaminate.objects.create(
                 product_component=product_component,
                 is_enabled=lam_src.is_enabled,
                 side=lam_src.side,
                 laminator=lam_src.laminator,
                 film=lam_src.film,
-                laminator_cost=lam_src.laminator_cost,       # ЗАМОРОЖЕНО
-                laminator_markup=lam_src.laminator_markup,   # ЗАМОРОЖЕНО
-                laminator_price=lam_src.laminator_price,     # ЗАМОРОЖЕНО
-                film_price=lam_src.film_price,               # ЗАМОРОЖЕНО
-                total_price=lam_src.total_price,             # ЗАМОРОЖЕНО
+                laminator_cost=lam_src.laminator_cost,
+                laminator_markup=lam_src.laminator_markup,
+                laminator_price=lam_src.laminator_price,
+                film_price=lam_src.film_price,
+                total_price=lam_src.total_price,
+                film_thickness=frozen_film_thickness,
             )
 
         # ===== 3e. Копируем все не удалённые дополнительные работы =====
@@ -243,7 +260,12 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
                 is_deleted=False,
             )
 
-    # --- Шаг 4. Возвращаем созданные объекты ---
+    # --- Шаг 4. Считаем и замораживаем массу/объём/стопки ---
+    # Делаем это ПОСЛЕ создания всех компонентов и ламинаций, чтобы
+    # общая функция mass_volume видела всю структуру изделия.
+    _freeze_mass_volume(product)
+
+    # --- Шаг 5. Возвращаем созданные объекты ---
     # Кортеж (order, product) удобен вызывающему коду: он сразу знает,
     # куда редиректить пользователя и что показать.
     return order, product
@@ -301,6 +323,16 @@ def add_product_to_order(proschet, order):
         frozen_runs_count = comp.runs_count
         frozen_material_price = comp.material_price_per_unit
 
+        # Снимок плотности и толщины бумаги — для расчёта массы/объёма
+        # в карточке изделия. Если бумага не выбрана — сохраняем нули.
+        frozen_paper_density = Decimal('0.00')
+        frozen_paper_thickness = Decimal('0.0000')
+        if comp.paper:
+            if comp.paper.density is not None:
+                frozen_paper_density = Decimal(str(comp.paper.density))
+            if comp.paper.paper_thickness is not None:
+                frozen_paper_thickness = Decimal(str(comp.paper.paper_thickness))
+
         product_component = ProductPrintComponent.objects.create(
             product=product,
             position=position,
@@ -316,6 +348,8 @@ def add_product_to_order(proschet, order):
             sheet_count=frozen_sheet_count,
             runs_count=frozen_runs_count,
             material_price=frozen_material_price,
+            paper_density=frozen_paper_density,
+            paper_thickness=frozen_paper_thickness,
         )
 
         # ===== 2b. Одностраничный расчёт листов =====
@@ -376,6 +410,11 @@ def add_product_to_order(proschet, order):
             lam_src = None
 
         if lam_src is not None:
+            # Снимок толщины плёнки — для расчёта массы/объёма.
+            frozen_film_thickness = None
+            if lam_src.film and lam_src.film.thickness is not None:
+                frozen_film_thickness = Decimal(str(lam_src.film.thickness))
+
             ProductLaminate.objects.create(
                 product_component=product_component,
                 is_enabled=lam_src.is_enabled,
@@ -387,6 +426,7 @@ def add_product_to_order(proschet, order):
                 laminator_price=lam_src.laminator_price,
                 film_price=lam_src.film_price,
                 total_price=lam_src.total_price,
+                film_thickness=frozen_film_thickness,
             )
 
         # ===== 2e. Дополнительные работы =====
@@ -407,7 +447,10 @@ def add_product_to_order(proschet, order):
                 is_deleted=False,
             )
 
-    # --- Шаг 3. Возвращаем созданное изделие ---
+    # --- Шаг 3. Считаем и замораживаем массу/объём/стопки ---
+    _freeze_mass_volume(product)
+
+    # --- Шаг 4. Возвращаем созданное изделие ---
     return product
 
 
@@ -585,3 +628,84 @@ def create_proschet_from_product(product):
     # --- Шаг 4. Возвращаем созданный просчёт ---
     return proschet
 
+
+
+# ============================================================================
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ЗАМОРОЗИТЬ МАССУ/ОБЪЁМ/СТОПКИ В ИЗДЕЛИИ
+# ============================================================================
+
+def _freeze_mass_volume(product):
+    """
+    Считает массу, объём и размеры стопок по вложенным снимкам изделия
+    и сохраняет результат в поля frozen_* модели Product.
+
+    Использует ОБЩУЮ функцию calculator.utils_mass_volume.calculate_mass_and_volume —
+    ту же, что применяется в секции «Масса и объём» калькулятора.
+    Так формулы живут в одном месте, а изделие получает «замороженные» числа.
+
+    Аргумент:
+        product — экземпляр Product (уже с созданными components/lamination).
+
+    Ничего не возвращает — сохраняет поля product.save().
+    """
+
+    # Импортируем здесь, чтобы избежать циклического импорта:
+    # utils_mass_volume внутри себя ничего из orders не импортирует,
+    # но лучше держать импорт локальным.
+    from calculator.utils_mass_volume import calculate_mass_and_volume
+
+    # --- Собираем данные в формате, который ждёт общая функция ---
+    # Она ожидает словарь с ключами 'proschet', 'print_components', 'laminations'.
+    # Изделие хранит свои данные в собственных моделях-снимках.
+
+    # Компоненты.
+    components_data = []
+    laminations_data = []
+
+    for comp in product.components.order_by('position', 'id'):
+        # Определяем размеры изделия — берём из vichisliniya или multipage.
+        item_width = 0.0
+        item_height = 0.0
+        vich = getattr(comp, 'vichisliniya', None)
+        if vich is not None:
+            item_width = float(vich.item_width)
+            item_height = float(vich.item_height)
+        else:
+            mp = getattr(comp, 'multipage', None)
+            if mp is not None:
+                item_width = float(mp.finished_width)
+                item_height = float(mp.finished_height)
+
+        components_data.append({
+            'id': comp.id,
+            'number': comp.number or '',
+            'printer_name': comp.printer.name if comp.printer else '',
+            'paper_density': float(comp.paper_density) if comp.paper_density is not None else 0.0,
+            'paper_thickness': float(comp.paper_thickness) if comp.paper_thickness is not None else 0.0,
+            'item_width': item_width,
+            'item_height': item_height,
+        })
+
+        # Ламинация — если есть и включена.
+        lam = getattr(comp, 'lamination', None)
+        if lam is not None:
+            laminations_data.append({
+                'component_id': comp.id,
+                'is_enabled': lam.is_enabled,
+                'side': lam.side,
+                'film_thickness': float(lam.film_thickness) if lam.film_thickness is not None else None,
+                'film_name': lam.film.name if lam.film else '',
+            })
+
+    # --- Вызываем общую функцию ---
+    result = calculate_mass_and_volume({
+        'proschet': {'circulation': product.circulation},
+        'print_components': components_data,
+        'laminations': laminations_data,
+    })
+
+    # --- Сохраняем результат в поля-снимки ---
+    product.frozen_total_mass_g = Decimal(str(result['total_mass_g']))
+    product.frozen_total_volume_cm3 = Decimal(str(result['total_volume_cm3']))
+    product.frozen_stacks = result['stacks']
+    product.save(update_fields=['frozen_total_mass_g', 'frozen_total_volume_cm3', 'frozen_stacks'])

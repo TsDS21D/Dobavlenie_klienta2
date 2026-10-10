@@ -226,14 +226,45 @@ function massa_i_obyom_recalculate() {
     .then(data => {
         if (signal.aborted || !data) return;
         if (data.success) {
-            // Выполняем расчёт на основе полученных данных
-            const result = massa_i_obyom_calculateFromData(data);
+            let result;
+
+            if (data.mass_volume) {
+                // ===== Серверный расчёт (единый источник правды) =====
+                // Поля приходят в snake_case — конвертируем в camelCase,
+                // который ожидает massa_i_obyom_updateDisplay.
+                const mv = data.mass_volume;
+                result = {
+                    paperMass: mv.paper_mass_g,
+                    filmMass: mv.film_mass_g,
+                    totalMass: mv.total_mass_g,
+                    paperVolume: mv.paper_volume_cm3,
+                    filmVolume: mv.film_volume_cm3,
+                    totalVolume: mv.total_volume_cm3,
+                    stacks: (mv.stacks || []).map(function (s) {
+                        return {
+                            label: s.label,
+                            widthMm: s.width_mm,
+                            heightMm: s.height_mm,
+                            stackHeightMm: s.stack_height_mm,
+                            valid: s.valid
+                        };
+                    })
+                };
+                console.log('📊 Масса/объём получены с сервера:', result);
+            } else {
+                // ===== Резерв: старый JS-расчёт =====
+                // Оставлен на случай, если сервер почему-то не прислал
+                // блок mass_volume (например, старая версия endpoint).
+                console.warn('⚠️ mass_volume не пришёл — считаем на клиенте (резервный режим)');
+                result = massa_i_obyom_calculateFromData(data);
+            }
+
             // Обновляем интерфейс
             massa_i_obyom_updateDisplay(result);
             // Показываем контейнер с результатами
             massa_i_obyom_showResults();
 
-            // ===== НОВОЕ: отправляем событие с данными массы и объёма =====
+            // ===== Отправляем событие с данными массы и объёма =====
             massa_i_obyom_dispatchUpdateEvent(result.totalMass, result.totalVolume);
         } else {
             console.error('Ошибка загрузки данных:', data.message);

@@ -1730,6 +1730,19 @@ def get_proschet_price_data(request, proschet_id):
         total_print_price = sum(comp.total_circulation_price for comp in components)
         total_price = total_print_price + total_works_sum
 
+        # ===== ЕДИНЫЙ РАСЧЁТ МАССЫ, ОБЪЁМА И РАЗМЕРА СТОПОК =====
+        # Вызываем общую утилиту calculator.utils_mass_volume, чтобы
+        # формулы жили в одном месте. Тот же самый расчёт вызывается
+        # при создании изделия (см. orders/services.py).
+        from .utils_mass_volume import calculate_mass_and_volume
+        mass_volume = calculate_mass_and_volume({
+            'proschet': {
+                'circulation': proschet.circulation,
+            },
+            'print_components': components_data,
+            'laminations': laminations_data,
+        })
+
         return JsonResponse({
             'success': True,
             'proschet': {
@@ -1741,6 +1754,7 @@ def get_proschet_price_data(request, proschet_id):
             'print_components': components_data,
             'additional_works': all_works,
             'laminations': laminations_data,
+            'mass_volume': mass_volume,
             'summary': {
                 'print_components_total': str(total_print_price),
                 'formatted_print_components_total': f"{total_print_price:.2f} ₽",

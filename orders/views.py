@@ -595,6 +595,10 @@ def api_product_details(request, product_id):
             'created_at': product.created_at.strftime('%d.%m.%Y %H:%M'),
             'source_proschet_number': product.source_proschet.number if product.source_proschet else None,
             'source_template_name': product.source_template.name if product.source_template else None,
+            # ===== ЗАМОРОЖЕННЫЕ МАССА / ОБЪЁМ / СТОПКИ =====
+            'frozen_total_mass_g': float(product.frozen_total_mass_g),
+            'frozen_total_volume_cm3': float(product.frozen_total_volume_cm3),
+            'frozen_stacks': product.frozen_stacks or [],
             'components': components_data,
         }
     })
