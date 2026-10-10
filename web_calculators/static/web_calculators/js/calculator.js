@@ -1891,16 +1891,70 @@ var WC = {
      * Если открыто не в iframe — просто ничего не делаем.
      */
     _sendHeightToParent: function () {
+        // Если страница открыта НЕ внутри iframe — отправлять некому, выходим.
         if (!this.isEmbedded) return;
+
+        // Высота документа — её мы сообщаем родителю, чтобы он подогнал
+        // <iframe> по контенту. scrollHeight учитывает всё содержимое,
+        // даже если что-то выходит за пределы видимой области.
         var height = document.documentElement.scrollHeight;
+
+        // Определяем origin родителя ДИНАМИЧЕСКИ (см. _getParentOrigin ниже).
+        // Раньше здесь было жёстко 'https://bukva-a.ru', и если родитель
+        // открыт как 'https://www.bukva-a.ru' — postMessage молча отбрасывался.
+        var targetOrigin = this._getParentOrigin();
+
         try {
+            // Отправляем родителю сообщение с типом 'mg-resize'
+            // и вычисленной высотой. Родитель (см. vizitkicalc.php)
+            // слушает 'message' и подгоняет iframe.style.height.
             window.parent.postMessage(
                 { type: 'mg-resize', height: height },
-                'https://bukva-a.ru'
+                targetOrigin
             );
         } catch (e) {
+            // Если postMessage упал (например, экзотический браузер
+            // или запрет на cross-origin) — пишем в консоль, но не падаем.
             console.warn('postMessage to parent failed:', e);
         }
+    },
+
+    /**
+     * Возвращает origin родительской страницы (например, 'https://www.bukva-a.ru').
+     *
+     * Зачем нужен этот метод:
+     *   При вызове window.parent.postMessage(msg, targetOrigin) браузер
+     *   сверяет targetOrigin с реальным origin родителя. Если они
+     *   не совпадают ХОТЯ БЫ ОДНИМ СИМВОЛОМ (например, у нас 'https://bukva-a.ru',
+     *   а родитель на 'https://www.bukva-a.ru') — сообщение молча
+     *   отбрасывается: ни ошибки, ни предупреждения, вообще ничего.
+     *   Поэтому вместо жёсткой строки берём origin из document.referrer —
+     *   это URL страницы, с которой загружен наш iframe.
+     *
+     * Логика:
+     *   1. Если document.referrer непустой — парсим его через new URL()
+     *      и берём .origin (получится, например, 'https://www.bukva-a.ru').
+     *   2. Если referrer пустой (некоторые браузеры/настройки приватности
+     *      его не отдают) или битый (не парсится) — возвращаем fallback
+     *      'https://www.bukva-a.ru' — именно на этом домене сейчас сайт.
+     *      В будущем, если сайт переедет на другой домен, поменять здесь.
+     */
+    _getParentOrigin: function () {
+        try {
+            // document.referrer — строка URL родителя. У нас получится
+            // что-то вроде 'https://www.bukva-a.ru/vizitkicalc'.
+            if (document.referrer) {
+                // new URL() парсит строку и даёт доступ к отдельным частям.
+                // .origin — это схема + домен + порт, т.е. именно то,
+                // что нужно вторым аргументом postMessage.
+                return new URL(document.referrer).origin;
+            }
+        } catch (e) {
+            // Если URL битый и new URL() бросил исключение —
+            // просто проваливаемся к fallback ниже.
+        }
+        // Резервный вариант: основной домен сайта с www.
+        return 'https://www.bukva-a.ru';
     },
 
     /**
@@ -1955,17 +2009,45 @@ var WC = {
 
             // Успех: отдаём product_id родителю через postMessage.
             try {
+                // window.parent — это окно bukva-a.ru, внутри которого
+                // крутится наш iframe. postMessage — единственный способ
+                // передать туда данные (напрямую к родителю обратиться
+                // нельзя — это cross-origin).
                 window.parent.postMessage(
                     {
+                        // Тип сообщения — родитель по нему понимает,
+                        // что пора запускать addProductToMogutaCart.
                         type: 'mg-add-to-cart',
+
+                        // ID товара, который только что создан в каталоге
+                        // Moguta на стороне Django. Именно по нему родитель
+                        // сделает POST /cart и товар попадёт в корзину.
                         productId: data.product_id,
+
+                        // Название товара — родитель может показать его
+                        // в уведомлении или всплывающем сообщении.
                         productTitle: data.product_title,
+
+                        // Цена за весь тираж — передаётся как информационное поле.
                         price: data.price,
+
+                        // Характеристики товара (размер, тираж, печать, бумага
+                        // и т.п.). Родитель отправит их в Moguta вместе
+                        // с добавлением в корзину — они появятся под названием.
+                        // Если Django не прислал — подставляем пустой массив,
+                        // чтобы родитель не упал на .forEach(undefined).
                         properties: data.properties || []
                     },
-                    'https://bukva-a.ru'
+                    // Раньше здесь было жёстко 'https://bukva-a.ru'.
+                    // Из-за этого сообщение не доходило до родителя,
+                    // открытого на 'https://www.bukva-a.ru' — браузер
+                    // молча отбрасывал его. Теперь берём origin динамически
+                    // (см. _getParentOrigin выше).
+                    this._getParentOrigin()
                 );
             } catch (e) {
+                // Ошибка отправки postMessage (крайне редко) —
+                // просто логируем, не роняя весь обработчик.
                 console.error('postMessage to parent failed:', e);
             }
 
