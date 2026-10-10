@@ -1864,3 +1864,143 @@ def update_component_price(request):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Внутренняя ошибка: {str(e)}'}, status=500)
+
+
+
+# ============================================================================
+# API ДЛЯ BUKVA-A.RU: АКТУАЛЬНЫЕ ЦЕНЫ ПРОСЧЁТОВ
+# ============================================================================
+
+# Импортируем наш новый сервисный модуль и утилиту сравнения строк
+# с постоянным временем (защита от timing-атак на секретный ключ).
+from .services_webcalc import calculate_prices_for_codes
+import hmac
+
+
+@csrf_exempt
+@require_POST
+def api_get_webcalc_prices(request):
+    """
+    POST /calculator/api/get-webcalc-prices/
+
+    Принимает JSON: {"codes": ["PR-1", "PR-2", ...]}
+    Заголовки:
+        Content-Type: application/json
+        X-Beauty-Secret: <секретный ключ>
+
+    Возвращает JSON:
+        {
+            "success": true,
+            "prices": {
+                "PR-1": {"available": true,  "total_price": 1500.0, "currency": "RUR"},
+                "PR-2": {"available": false, "error": "not_found", ...}
+            }
+        }
+
+    ИЛИ при ошибке авторизации (401):
+        {"success": false, "error": "unauthorized"}
+
+    Безопасность:
+        1. Проверка секретного ключа из заголовка X-Beauty-Secret.
+           Сравнение через hmac.compare_digest — защита от timing-атак.
+        2. Проверка IP-адреса клиента по списку BUKVA_ALLOWED_IPS.
+           Если список пуст — проверка отключается.
+        3. CSRF отключён (@csrf_exempt), потому что запрос приходит
+           с чужого домена (bukva-a.ru). Защита — только на ключе и IP.
+
+    ВАЖНО:
+        - Endpoint НЕ пишет в БД. Все пересчёты выполняются в памяти.
+        - Возвращаемая цена — итоговая за весь тираж, не за штуку.
+    """
+    # ===== Шаг 1. Проверка секретного ключа =====
+    from django.conf import settings
+
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+    # Если ключ вообще не задан в настройках — отвечаем 500.
+    # Это значит, что разработчик забыл добавить BUKVA_API_SECRET в .env.
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+            'message': 'Секретный ключ BUKVA_API_SECRET не задан в настройках',
+        }, status=500)
+
+    # Читаем секрет из заголовка (не из тела — так безопаснее, тело
+    # не светится в логах nginx/apache по умолчанию).
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    # hmac.compare_digest сравнивает байтовые строки постоянное время.
+    # Обычное == прерывается на первом несовпадении, что даёт атакующему
+    # информацию о правильных префиксах ключа. compare_digest лишён этого.
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+            'message': 'Неверный секретный ключ',
+        }, status=401)
+
+    # ===== Шаг 2. Проверка IP-адреса =====
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+    # Если список пуст — проверка IP отключена. Это допустимо, если
+    # ключ достаточно длинный и случайный, но менее безопасно.
+    if allowed_ips:
+        # X-Forwarded-For может содержать несколько IP через запятую
+        # (если перед нами стоит прокси). Берём первый — это IP клиента.
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'forbidden',
+                'message': f'IP {client_ip} не разрешён',
+            }, status=403)
+
+    # ===== Шаг 3. Разбор тела запроса =====
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'bad_json',
+            'message': 'Некорректный JSON в теле запроса',
+        }, status=400)
+
+    # ===== Шаг 4. Извлекаем список кодов =====
+    codes = payload.get('codes')
+    if not isinstance(codes, list):
+        return JsonResponse({
+            'success': False,
+            'error': 'bad_request',
+            'message': 'Поле "codes" обязательно и должно быть массивом',
+        }, status=400)
+
+    # Защита от огромных запросов (DoS через пересчёт тысячи просчётов).
+    # В реальной корзине клиента редко больше 20 позиций.
+    if len(codes) > 100:
+        return JsonResponse({
+            'success': False,
+            'error': 'too_many_codes',
+            'message': 'Максимум 100 кодов за один запрос',
+        }, status=400)
+
+    # ===== Шаг 5. Пересчёт =====
+    # Оборачиваем в try/except, чтобы одна битая запись не уронила весь
+    # ответ. Утилита calculate_prices_for_codes уже не бросает исключения,
+    # но на всякий случай.
+    try:
+        prices = calculate_prices_for_codes(codes)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': 'internal_error',
+            'message': f'Ошибка пересчёта: {e}',
+        }, status=500)
+
+    # ===== Шаг 6. Ответ =====
+    return JsonResponse({
+        'success': True,
+        'prices': prices,
+    })    

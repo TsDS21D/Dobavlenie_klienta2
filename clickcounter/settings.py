@@ -106,8 +106,6 @@ CHANNEL_LAYERS = {
 
 # ===== БАЗА ДАННЫХ (PostgreSQL) =====
 # Все параметры берутся из переменных окружения.
-# На сервере .env содержит DB_NAME=clickcounter_prod.
-# Локально в .env — DB_NAME=clickcounter_dev.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -131,6 +129,24 @@ MOGUTA_URL = os.environ.get('MOGUTA_URL', 'https://bukva-a.ru')
 MOGUTA_TOKEN = os.environ.get('MOGUTA_TOKEN', '')
 MOGUTA_SECRET = os.environ.get('MOGUTA_SECRET', '')
 MOGUTA_CATEGORY_ID = int(os.environ.get('MOGUTA_CATEGORY_ID', '0'))
+
+
+# ===== BUKVA-A.RU: ОБРАТНАЯ ИНТЕГРАЦИЯ (актуальные цены) =====
+# Плагин на bukva-a.ru вызывает наш API /calculator/api/get-webcalc-prices/,
+# когда клиент открывает корзину. По кодам товаров (PR-XXXX) мы возвращаем
+# актуальные цены просчётов.
+
+# Секретный ключ, который проверяется в API. Передаётся в заголовке
+# X-Beauty-Secret. Если не задан — API отвечает 500.
+BUKVA_API_SECRET = os.environ.get('BUKVA_API_SECRET', '')
+
+# Список разрешённых IP-адресов (через запятую). Если пусто —
+# проверка IP отключается, остаётся только проверка ключа.
+# Список разбираем в массив, чтобы удобно проверять "in".
+BUKVA_ALLOWED_IPS = [
+    ip.strip() for ip in os.environ.get('BUKVA_ALLOWED_IPS', '').split(',')
+    if ip.strip()
+]
 
 
 # ===== ВАЛИДАЦИЯ ПАРОЛЕЙ =====

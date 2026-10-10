@@ -94,4 +94,9 @@ urlpatterns = [
     # === Ламинация ===
     path('get-lamination/<int:component_id>/', views.get_lamination_data, name='get_lamination_data'),
     path('update-lamination/', views.update_lamination, name='update_lamination'),
+    # ===== API для сайта bukva-a.ru: получение актуальных цен просчётов =====
+    # Вызывается с сайта bukva-a.ru, когда клиент открывает корзину.
+    # Принимает список кодов просчётов (PR-XXXX), возвращает актуальные цены.
+    # Защищён секретным ключом (X-Beauty-Secret) и whitelist'ом IP-адресов.
+    path('api/get-webcalc-prices/', views.api_get_webcalc_prices, name='api_get_webcalc_prices'),
 ]
