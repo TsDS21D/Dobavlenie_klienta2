@@ -553,6 +553,14 @@ def api_product_details(request, product_id):
                 'vyleta': mp.vyleta,
                 'color': mp.color,
                 'booklet_orientation': mp.booklet_orientation,
+                # ===== Поля размещения страниц — нужны для отрисовки раскладки =====
+                'fit_horizontal': mp.fit_horizontal,
+                'fit_vertical': mp.fit_vertical,
+                'fit_total': mp.fit_total,
+                'fit_landscape_total': mp.fit_landscape_total,
+                'fit_portrait_total': mp.fit_portrait_total,
+                'fit_selected_orientation': mp.fit_selected_orientation,
+                # ===== Результат и признак активности =====
                 'sheet_count': float(mp.sheet_count),
                 'is_active': mp.is_active,
             }

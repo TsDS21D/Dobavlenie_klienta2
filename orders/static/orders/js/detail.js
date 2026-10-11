@@ -358,8 +358,16 @@ orders/static/orders/js/detail.js
                     '<span><b>Бумага, ₽/лист:</b> ' + escapeHtml(comp.formatted_material_price) + '</span>' +
                 '</div>';
 
-        // Одностраничный расчёт.
-        if (comp.vichisliniya) {
+        // Определяем, какой режим расчёта листов был активен при
+        // создании изделия. Если в снимке есть comp.multipage —
+        // значит, при создании был активен многостраничный режим,
+        // и в калькуляторе цена считалась именно по нему. Тогда
+        // одностраничный блок показывать не надо.
+        var isMultipageActive = !!comp.multipage;
+
+        // Одностраничный расчёт — показываем ТОЛЬКО если многостраничный
+        // НЕ активен.
+        if (comp.vichisliniya && !isMultipageActive) {
             var v = comp.vichisliniya;
             html += '<div class="order-component-section">' +
                         '<div class="order-section-title">Расчёт листов (одностраничный)</div>' +
@@ -469,8 +477,14 @@ orders/static/orders/js/detail.js
 
     /**
      * Рисует canvas-схемы для всех компонентов.
-     * Вызывается после вставки HTML в DOM.
-     * @param {Array} components — массив компонентов из API.
+     * Для каждого компонента выбирает режим раскладки:
+     *   • если есть comp.multipage — рисуем МНОГОСТРАНИЧНУЮ раскладку
+     *     (та же логика, что в vichisliniya_listov_multipage.js:
+     *      для «скрепки» — развороты, для «пружины» — страницы с
+     *      маркерами перфорации, для остальных — просто страницы);
+     *   • иначе — ОДНОСТРАНИЧНУЮ (как в vichisliniya_listov.js).
+     *
+     * @param {Array} components — компоненты из API.
      */
     function drawComponentVisualizations(components) {
         components.forEach(function (comp) {
@@ -478,70 +492,64 @@ orders/static/orders/js/detail.js
             var backCanvas = document.getElementById('order-canvas-back-' + comp.id);
             if (!frontCanvas || !backCanvas) return;
 
-            // Тип печати определяет цвет заливки, режим — заполнение оборотной стороны.
             var printType = comp.print_type || 'color';
             var fillBack = (comp.printing_mode === 'duplex');
 
-            drawComponentCanvasSide(frontCanvas, comp, true, printType);
-            drawComponentCanvasSide(backCanvas, comp, fillBack, printType);
+            // Режим: многостраничный (если есть снимок multipage) или
+            // одностраничный.
+            if (comp.multipage) {
+                drawComponentMultipageSide(frontCanvas, comp, true, printType);
+                drawComponentMultipageSide(backCanvas, comp, fillBack, printType);
+            } else {
+                drawComponentSinglePageSide(frontCanvas, comp, true, printType);
+                drawComponentSinglePageSide(backCanvas, comp, fillBack, printType);
+            }
         });
     }
 
+
+    // ========================================================================
+    // ОДНОСТРАНИЧНАЯ РАСКЛАДКА (как в vichisliniya_listov.js)
+    // ========================================================================
+
     /**
-     * Рисует одну сторону листа для одного компонента.
-     * Логика повторяет drawPlacementForSide из vichisliniya_listov.js,
-     * но работает вне объекта vichisliniyaListov — все данные берёт из
-     * объекта компонента (пришедшего с /orders/api/product/<id>/details/).
-     *
-     * @param {HTMLCanvasElement} canvas — элемент canvas.
-     * @param {Object} comp — компонент из API (с sheet_width, sheet_height,
-     *                        margin, print_type, printing_mode, vichisliniya).
-     * @param {boolean} fill — заливать ли изделия цветом (лицо — да, оборот — только при duplex).
-     * @param {string} printType — 'color' | 'bw'.
+     * Рисует одну сторону листа для ОДНОСТРАНИЧНОГО изделия.
+     * Логика копирует drawPlacementForSide из vichisliniya_listov.js,
+     * только работает вне объекта vichisliniyaListov и берёт данные
+     * из объекта компонента.
      */
-    function drawComponentCanvasSide(canvas, comp, fill, printType) {
+    function drawComponentSinglePageSide(canvas, comp, fill, printType) {
         var ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // ===== Проверяем наличие данных =====
         var v = comp.vichisliniya;
         if (!v) {
-            ctx.font = '11px Arial';
-            ctx.fillStyle = '#999';
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
             ctx.fillText('Нет данных о раскладке', 10, 20);
             return;
         }
-        if (!comp.sheet_width || !comp.sheet_height || comp.margin === null || comp.margin === undefined) {
-            ctx.font = '11px Arial';
-            ctx.fillStyle = '#999';
+        if (!comp.sheet_width || !comp.sheet_height ||
+            comp.margin === null || comp.margin === undefined) {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
             ctx.fillText('Нет данных о листе', 10, 20);
             return;
         }
 
-        // ===== Размеры и ориентация =====
         var orientation = v.fit_selected_orientation;
         var itemW, itemH, fitH, fitV;
         if (orientation === 'landscape') {
-            itemW = v.item_width;
-            itemH = v.item_height;
-            fitH = v.fit_horizontal;
-            fitV = v.fit_vertical;
+            itemW = v.item_width; itemH = v.item_height;
+            fitH = v.fit_horizontal; fitV = v.fit_vertical;
         } else if (orientation === 'portrait') {
-            // При портретной ориентации изделие повёрнуто — меняем местами.
-            itemW = v.item_height;
-            itemH = v.item_width;
-            fitH = v.fit_horizontal;
-            fitV = v.fit_vertical;
+            itemW = v.item_height; itemH = v.item_width;
+            fitH = v.fit_horizontal; fitV = v.fit_vertical;
         } else {
-            ctx.font = '11px Arial';
-            ctx.fillStyle = '#999';
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
             ctx.fillText('Ориентация не выбрана', 10, 20);
             return;
         }
-
         if (fitH === 0 || fitV === 0) {
-            ctx.font = '11px Arial';
-            ctx.fillStyle = '#999';
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
             ctx.fillText('Изделия не помещаются', 10, 20);
             return;
         }
@@ -551,7 +559,6 @@ orders/static/orders/js/detail.js
         var sheetW = comp.sheet_width;
         var sheetH = comp.sheet_height;
 
-        // ===== Масштаб =====
         var padding = 8;
         var scale = Math.min(
             (canvas.width - 2 * padding) / sheetW,
@@ -561,23 +568,17 @@ orders/static/orders/js/detail.js
         ctx.save();
         ctx.translate(padding, padding);
 
-        // 1. Контур листа.
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 0.8;
+        // Контур листа.
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 0.8;
         ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
 
-        // 2. Печатная область (пунктир).
-        ctx.strokeStyle = '#aaa';
-        ctx.setLineDash([3, 2]);
-        ctx.strokeRect(
-            margin * scale,
-            margin * scale,
-            (sheetW - 2 * margin) * scale,
-            (sheetH - 2 * margin) * scale
-        );
+        // Пунктир печатной области.
+        ctx.strokeStyle = '#aaa'; ctx.setLineDash([3, 2]);
+        ctx.strokeRect(margin * scale, margin * scale,
+                       (sheetW - 2 * margin) * scale, (sheetH - 2 * margin) * scale);
         ctx.setLineDash([]);
 
-        // 3. Цвета — как в калькуляторе.
+        // Цвет заливки/контура.
         var fillColor, strokeColor;
         if (printType === 'color') {
             fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
@@ -586,19 +587,354 @@ orders/static/orders/js/detail.js
             fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
             strokeColor = fill ? '#999999' : '#cccccc';
         }
-        ctx.fillStyle = fillColor;
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 0.4;
+        ctx.fillStyle = fillColor; ctx.strokeStyle = strokeColor; ctx.lineWidth = 0.4;
 
-        // 4. Рисуем изделия сеткой.
+        // Сетка изделий.
         for (var row = 0; row < fitV; row++) {
             for (var col = 0; col < fitH; col++) {
                 var x = margin + col * (itemW + gap);
                 var y = margin + row * (itemH + gap);
-                if (fill) {
-                    ctx.fillRect(x * scale, y * scale, itemW * scale, itemH * scale);
-                }
+                if (fill) ctx.fillRect(x * scale, y * scale, itemW * scale, itemH * scale);
                 ctx.strokeRect(x * scale, y * scale, itemW * scale, itemH * scale);
+            }
+        }
+
+        ctx.restore();
+    }
+
+
+    // ========================================================================
+    // МНОГОСТРАНИЧНАЯ РАСКЛАДКА (как в vichisliniya_listov_multipage.js)
+    // ========================================================================
+
+    /**
+     * Рисует одну сторону листа для МНОГОСТРАНИЧНОГО изделия.
+     * Определяет, использовать ли логику «скрепки» (развороты) или
+     * «обычных страниц» (с маркерами пружины при необходимости).
+     */
+    function drawComponentMultipageSide(canvas, comp, fill, printType) {
+        var mp = comp.multipage;
+        if (!mp) return;
+
+        // Определяем способ скрепления по названию.
+        var bindingName = (mp.binding_name || '').toLowerCase();
+        var isStapled = (bindingName === 'скрепка');
+        var isPunched = (bindingName === 'пружина');
+
+        if (isStapled) {
+            drawComponentSpread(canvas, comp, fill, printType);
+        } else {
+            drawComponentPages(canvas, comp, fill, printType, isPunched);
+        }
+    }
+
+    /**
+     * Раскладка «скрепка» — рисуем развороты.
+     * Логика копирует drawSpreadOnCanvas из vichisliniya_listov_multipage.js.
+     */
+    function drawComponentSpread(canvas, comp, fill, printType) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        var mp = comp.multipage;
+        if (!comp.sheet_width || !comp.sheet_height ||
+            comp.margin === null || comp.margin === undefined) {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
+            ctx.fillText('Нет данных о листе', 10, 20);
+            return;
+        }
+
+        var margin = comp.margin;
+        var sheetW = comp.sheet_width;
+        var sheetH = comp.sheet_height;
+        var gap = mp.vyleta || 0;
+        var pageW = mp.finished_width;
+        var pageH = mp.finished_height;
+
+        // Размер разворота зависит от ориентации брошюры.
+        var spreadWidthBase, spreadHeightBase;
+        if (mp.booklet_orientation === 'portrait') {
+            spreadWidthBase = pageW * 2;
+            spreadHeightBase = pageH;
+        } else {
+            spreadWidthBase = pageW;
+            spreadHeightBase = pageH * 2;
+        }
+
+        // Выбранная ориентация размещения: если «portrait», разворот повёрнут.
+        var spreadWidth, spreadHeight;
+        if (mp.fit_selected_orientation === 'landscape') {
+            spreadWidth = spreadWidthBase;
+            spreadHeight = spreadHeightBase;
+        } else {
+            spreadWidth = spreadHeightBase;
+            spreadHeight = spreadWidthBase;
+        }
+
+        var fitH = mp.fit_horizontal;
+        var fitV = mp.fit_vertical;
+        if (fitH === 0 || fitV === 0) {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
+            ctx.fillText('Развороты не помещаются', 10, 20);
+            return;
+        }
+
+        var padding = 8;
+        var scale = Math.min(
+            (canvas.width - 2 * padding) / sheetW,
+            (canvas.height - 2 * padding) / sheetH
+        );
+
+        ctx.save();
+        ctx.translate(padding, padding);
+
+        // Контур листа.
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 0.8;
+        ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+        // Пунктир печатной области.
+        ctx.strokeStyle = '#aaa'; ctx.setLineDash([3, 2]);
+        ctx.strokeRect(margin * scale, margin * scale,
+                       (sheetW - 2 * margin) * scale, (sheetH - 2 * margin) * scale);
+        ctx.setLineDash([]);
+
+        // Цвета.
+        var fillColor, strokeColor;
+        if (printType === 'color') {
+            fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
+            strokeColor = fill ? '#2980b9' : '#a0c4ff';
+        } else {
+            fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
+            strokeColor = fill ? '#999999' : '#cccccc';
+        }
+        ctx.fillStyle = fillColor; ctx.strokeStyle = strokeColor; ctx.lineWidth = 0.4;
+
+        // Как ориентированы страницы внутри разворота.
+        var originalPagePlacement = (mp.booklet_orientation === 'portrait')
+            ? 'horizontal' : 'vertical';
+        var isPortraitPlacement = (mp.fit_selected_orientation === 'portrait');
+        var effectivePagePlacement = isPortraitPlacement
+            ? (originalPagePlacement === 'horizontal' ? 'vertical' : 'horizontal')
+            : originalPagePlacement;
+        var effectivePageW = isPortraitPlacement ? pageH : pageW;
+        var effectivePageH = isPortraitPlacement ? pageW : pageH;
+
+        // Рисуем развороты сеткой.
+        for (var row = 0; row < fitV; row++) {
+            for (var col = 0; col < fitH; col++) {
+                var x = margin + col * (spreadWidth + gap);
+                var y = margin + row * (spreadHeight + gap);
+
+                if (effectivePagePlacement === 'horizontal') {
+                    // Две страницы рядом (вертикальная брошюра).
+                    var leftX = x;
+                    var rightX = x + effectivePageW;
+                    var pageY = y;
+                    if (fill) ctx.fillRect(leftX * scale, pageY * scale,
+                                           effectivePageW * scale, effectivePageH * scale);
+                    ctx.strokeRect(leftX * scale, pageY * scale,
+                                   effectivePageW * scale, effectivePageH * scale);
+                    if (fill) ctx.fillRect(rightX * scale, pageY * scale,
+                                           effectivePageW * scale, effectivePageH * scale);
+                    ctx.strokeRect(rightX * scale, pageY * scale,
+                                   effectivePageW * scale, effectivePageH * scale);
+
+                    // Пунктир сгиба + две скрепки (кружки).
+                    ctx.save();
+                    ctx.strokeStyle = '#e67e22'; ctx.fillStyle = '#e67e22';
+                    ctx.lineWidth = 0.8; ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo((x + effectivePageW) * scale, y * scale);
+                    ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale);
+                    ctx.stroke();
+                    var stapleY1 = y + effectivePageH * 0.25;
+                    var stapleY2 = y + effectivePageH * 0.75;
+                    ctx.beginPath();
+                    ctx.arc((x + effectivePageW) * scale, stapleY1 * scale, 1.8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc((x + effectivePageW) * scale, stapleY2 * scale, 1.8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    // Две страницы друг над другом (альбомная брошюра).
+                    var topY = y;
+                    var bottomY = y + effectivePageH;
+                    var pageX = x;
+                    if (fill) ctx.fillRect(pageX * scale, topY * scale,
+                                           effectivePageW * scale, effectivePageH * scale);
+                    ctx.strokeRect(pageX * scale, topY * scale,
+                                   effectivePageW * scale, effectivePageH * scale);
+                    if (fill) ctx.fillRect(pageX * scale, bottomY * scale,
+                                           effectivePageW * scale, effectivePageH * scale);
+                    ctx.strokeRect(pageX * scale, bottomY * scale,
+                                   effectivePageW * scale, effectivePageH * scale);
+
+                    // Пунктир сгиба + две скрепки.
+                    ctx.save();
+                    ctx.strokeStyle = '#e67e22'; ctx.fillStyle = '#e67e22';
+                    ctx.lineWidth = 0.8; ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(x * scale, (y + effectivePageH) * scale);
+                    ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale);
+                    ctx.stroke();
+                    var stapleX1 = x + effectivePageW * 0.25;
+                    var stapleX2 = x + effectivePageW * 0.75;
+                    ctx.beginPath();
+                    ctx.arc(stapleX1 * scale, (y + effectivePageH) * scale, 1.8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(stapleX2 * scale, (y + effectivePageH) * scale, 1.8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Раскладка страниц (не «скрепка»).
+     * Если isPunched — рисуем маркеры перфорации пружины.
+     * Логика копирует drawPlacementOnCanvas из vichisliniya_listov_multipage.js.
+     */
+    function drawComponentPages(canvas, comp, fill, printType, isPunched) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        var mp = comp.multipage;
+        if (!comp.sheet_width || !comp.sheet_height ||
+            comp.margin === null || comp.margin === undefined) {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
+            ctx.fillText('Нет данных о листе', 10, 20);
+            return;
+        }
+
+        var orientation = mp.fit_selected_orientation;
+        if (orientation === 'auto') {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
+            ctx.fillText('Ориентация не выбрана', 10, 20);
+            return;
+        }
+
+        var itemW, itemH, fitH, fitV;
+        if (orientation === 'landscape') {
+            itemW = mp.finished_width; itemH = mp.finished_height;
+            fitH = mp.fit_horizontal; fitV = mp.fit_vertical;
+        } else {
+            itemW = mp.finished_height; itemH = mp.finished_width;
+            fitH = mp.fit_horizontal; fitV = mp.fit_vertical;
+        }
+
+        if (fitH === 0 || fitV === 0) {
+            ctx.font = '11px Arial'; ctx.fillStyle = '#999';
+            ctx.fillText('Страницы не помещаются', 10, 20);
+            return;
+        }
+
+        var gap = mp.vyleta || 0;
+        var margin = comp.margin;
+        var sheetW = comp.sheet_width;
+        var sheetH = comp.sheet_height;
+
+        var padding = 8;
+        var scale = Math.min(
+            (canvas.width - 2 * padding) / sheetW,
+            (canvas.height - 2 * padding) / sheetH
+        );
+
+        ctx.save();
+        ctx.translate(padding, padding);
+
+        // Контур листа.
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 0.8;
+        ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+        // Пунктир печатной области.
+        ctx.strokeStyle = '#aaa'; ctx.setLineDash([3, 2]);
+        ctx.strokeRect(margin * scale, margin * scale,
+                       (sheetW - 2 * margin) * scale, (sheetH - 2 * margin) * scale);
+        ctx.setLineDash([]);
+
+        // Цвета.
+        var fillColor, strokeColor;
+        if (printType === 'color') {
+            fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
+            strokeColor = fill ? '#2980b9' : '#a0c4ff';
+        } else {
+            fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
+            strokeColor = fill ? '#999999' : '#cccccc';
+        }
+        ctx.fillStyle = fillColor; ctx.strokeStyle = strokeColor; ctx.lineWidth = 0.4;
+
+        // Первый проход: рисуем все страницы, запоминаем позиции для маркеров.
+        var pagePositions = [];
+        for (var row = 0; row < fitV; row++) {
+            for (var col = 0; col < fitH; col++) {
+                var x = margin + col * (itemW + gap);
+                var y = margin + row * (itemH + gap);
+                pagePositions.push({ x: x, y: y });
+                if (fill) ctx.fillRect(x * scale, y * scale, itemW * scale, itemH * scale);
+                ctx.strokeRect(x * scale, y * scale, itemW * scale, itemH * scale);
+            }
+        }
+
+        // Второй проход (только для пружины): маркеры перфорации.
+        if (isPunched) {
+            var isBookletPortrait = (mp.booklet_orientation === 'portrait');
+            var isRotated = (mp.fit_selected_orientation === 'portrait');
+            var side = 'left';
+            if (isBookletPortrait && !isRotated) side = 'left';
+            else if (isBookletPortrait && isRotated) side = 'top';
+            else if (!isBookletPortrait && !isRotated) side = 'bottom';
+            else side = 'left';
+
+            var numMarks = 8;
+            var markSize = 2.2;
+            ctx.fillStyle = '#555';
+
+            for (var i = 0; i < pagePositions.length; i++) {
+                var pos = pagePositions[i];
+                var left = pos.x * scale;
+                var right = (pos.x + itemW) * scale;
+                var top = pos.y * scale;
+                var bottom = (pos.y + itemH) * scale;
+                var m, j, step, xPos, yPos;
+
+                if (side === 'left') {
+                    var offsetX = Math.max(2, itemW * 0.1) * scale;
+                    var startY = top + (bottom - top) * 0.1;
+                    var endY = bottom - (bottom - top) * 0.1;
+                    step = (endY - startY) / (numMarks + 1);
+                    for (j = 1; j <= numMarks; j++) {
+                        yPos = startY + j * step;
+                        ctx.fillRect(left + offsetX - markSize / 2,
+                                     yPos - markSize / 2, markSize, markSize);
+                    }
+                } else if (side === 'top') {
+                    var offsetY = Math.max(2, itemH * 0.1) * scale;
+                    var startX = left + (right - left) * 0.1;
+                    var endX = right - (right - left) * 0.1;
+                    step = (endX - startX) / (numMarks + 1);
+                    for (j = 1; j <= numMarks; j++) {
+                        xPos = startX + j * step;
+                        ctx.fillRect(xPos - markSize / 2,
+                                     top + offsetY - markSize / 2,
+                                     markSize, markSize);
+                    }
+                } else {
+                    var offsetY2 = Math.max(2, itemH * 0.1) * scale;
+                    var startX2 = left + (right - left) * 0.1;
+                    var endX2 = right - (right - left) * 0.1;
+                    step = (endX2 - startX2) / (numMarks + 1);
+                    for (j = 1; j <= numMarks; j++) {
+                        xPos = startX2 + j * step;
+                        ctx.fillRect(xPos - markSize / 2,
+                                     bottom - offsetY2 - markSize / 2,
+                                     markSize, markSize);
+                    }
+                }
             }
         }
 

@@ -663,18 +663,34 @@ def _freeze_mass_volume(product):
     laminations_data = []
 
     for comp in product.components.order_by('position', 'id'):
-        # Определяем размеры изделия — берём из vichisliniya или multipage.
+        # Определяем размеры изделия и данные для формулы.
+        # Логика та же, что в calculator/views.py::get_proschet_price_data:
+        # если у компонента активен многостраничный режим — берём размеры
+        # страницы (finished_width/finished_height), иначе — размеры
+        # одностраничного изделия (item_width/item_height).
+        # ВАЖНО: в снимке наличие записи multipage означает, что при
+        # создании изделия многостраничный режим был активен.
+        #
+        # Также забираем sheet_count и fit_total — они нужны для расчёта
+        # «по фактически нарезанной бумаге» (N = sheet_count × fit_total).
         item_width = 0.0
         item_height = 0.0
-        vich = getattr(comp, 'vichisliniya', None)
-        if vich is not None:
-            item_width = float(vich.item_width)
-            item_height = float(vich.item_height)
+        sheet_count_for_mass = 0.0
+        fit_total_for_mass = 0
+
+        mp = getattr(comp, 'multipage', None)
+        if mp is not None:
+            item_width = float(mp.finished_width)
+            item_height = float(mp.finished_height)
+            sheet_count_for_mass = float(mp.sheet_count)
+            fit_total_for_mass = int(mp.fit_total or 0)
         else:
-            mp = getattr(comp, 'multipage', None)
-            if mp is not None:
-                item_width = float(mp.finished_width)
-                item_height = float(mp.finished_height)
+            vich = getattr(comp, 'vichisliniya', None)
+            if vich is not None:
+                item_width = float(vich.item_width)
+                item_height = float(vich.item_height)
+                sheet_count_for_mass = float(vich.list_count)
+                fit_total_for_mass = int(vich.fit_total or 0)
 
         components_data.append({
             'id': comp.id,
@@ -684,6 +700,8 @@ def _freeze_mass_volume(product):
             'paper_thickness': float(comp.paper_thickness) if comp.paper_thickness is not None else 0.0,
             'item_width': item_width,
             'item_height': item_height,
+            'sheet_count': sheet_count_for_mass,
+            'fit_total': fit_total_for_mass,
         })
 
         # Ламинация — если есть и включена.

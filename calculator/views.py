@@ -1582,13 +1582,15 @@ def get_proschet_price_data(request, proschet_id):
             'vichisliniya_listov_print_component_id',
             'vichisliniya_listov_list_count',
             'vichisliniya_listov_item_width',
-            'vichisliniya_listov_item_height'
+            'vichisliniya_listov_item_height',
+            'vichisliniya_listov_fit_total',
         )
         vich_dict = {
             item['vichisliniya_listov_print_component_id']: {
                 'list_count': item['vichisliniya_listov_list_count'],
                 'item_width': item['vichisliniya_listov_item_width'],
                 'item_height': item['vichisliniya_listov_item_height'],
+                'fit_total': item['vichisliniya_listov_fit_total'],
             }
             for item in vich_data_qs
         }
@@ -1660,6 +1662,13 @@ def get_proschet_price_data(request, proschet_id):
             else:
                 item_width = float(vich_dict.get(comp.id, {}).get('item_width', Decimal('0')))
                 item_height = float(vich_dict.get(comp.id, {}).get('item_height', Decimal('0')))
+            # fit_total — сколько единиц изделия помещается на одну
+            # сторону печатного листа. Нужно для расчёта массы/объёма
+            # и толщины стопки по фактически нарезанным единицам.
+            if multipage_obj and multipage_obj.is_active:
+                fit_total_used = multipage_obj.fit_total
+            else:
+                fit_total_used = int(vich_dict.get(comp.id, {}).get('fit_total', 0) or 0)
 
             components_data.append({
                 'id': comp.id,
@@ -1669,6 +1678,7 @@ def get_proschet_price_data(request, proschet_id):
                 'print_type': comp.print_type,
                 'print_type_display': comp.print_type_display_name,
                 'sheet_count': sheet_count_float,
+                'fit_total': fit_total_used,
                 'formatted_sheet_count_display': f"{sheet_count_float:,.2f}".replace(',', ' ') if sheet_count_float > 0 else "0.00",
                 'price_per_sheet': float(price_per_sheet),
                 'total_circulation_price': float(comp.total_circulation_price),
