@@ -437,6 +437,18 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 // Обновляем data-атрибут в строке списка.
                 updateRowDataAttribute(activeProschet.id, 'comment', activeProschet.comment);
 
+                // Обновляем ячейку комментария в списке просчётов —
+                // чтобы начало комментария появилось сразу, без перезагрузки.
+                const row = document.querySelector(
+                    '.list-proschet-row[data-proschet-id="' + activeProschet.id + '"]'
+                );
+                if (row) {
+                    const cell = row.querySelector('.col-comment');
+                    if (cell) {
+                        cell.textContent = activeProschet.comment || '—';
+                    }
+                }
+
                 showNotification('Комментарий обновлён', 'success');
                 notifyChange(activeProschet.id, 'comment');
             } else {

@@ -1012,14 +1012,24 @@ JavaScript секции «Список просчётов» новой стра�
                 return;
             }
 
-            // Если событие — «обновление» и это АКТИВНАЯ строка в нашем окне,
-            // подтягиваем её свежие данные, чтобы секция «Просчёт» обновилась.
+            // Если событие — «обновление»:
+            //   • если это активная строка — подтягиваем свежие данные
+            //     в секцию «Просчёт»;
+            //   • в любом случае перерисовываем таблицу, чтобы обновлённые
+            //     ячейки (комментарий, название, клиент) показали новые данные.
             if (data.event === 'updated' && data.proschet_id) {
                 const activeRow = document.querySelector(
                     '.list-proschet-row.selected[data-proschet-id="' + data.proschet_id + '"]'
                 );
                 if (activeRow) {
                     refreshProschetData(data.proschet_id);
+                }
+
+                // Перерисовка tbody (кроме случаев, когда пользователь
+                // прямо сейчас редактирует ячейку — иначе правка потеряется).
+                const editing = document.querySelector('.editing-cell');
+                if (!editing) {
+                    refreshTable();
                 }
             }
 

@@ -31,7 +31,7 @@ proschety/templates/proschety/sections/_proschet_rows.html
                 —
             {% endif %}
         </td>
-        <td class="col-comment">—</td>
+        <td class="col-comment">{{ proschet.comment|default:"—" }}</td>
         <td class="col-date">{{ proschet.formatted_created_at }}</td>
         <td class="col-actions">
             <button type="button"
