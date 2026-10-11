@@ -1,0 +1,38 @@
+<!--
+proschety/templates/proschety/sections/proschet_components.html
+Блок «Печатные компоненты» — стопка отдельных карточек под proschet-section.
+
+СТРУКТУРА:
+  - под секцией «Просчёт» идёт КОНТЕЙНЕР (id="proschet-components-list");
+  - JS добавляет в него по одной карточке (.proschet-component-card)
+    на каждый печатный компонент;
+  - если компонентов нет — показывается сообщение.
+
+КАРТОЧКА КОМПОНЕНТА:
+  - № (KP-N, моношрифт зелёный)
+  - Принтер (позже — смена двойным кликом)
+  - Бумага (название + цена мелко серым)
+  - Тип (Цветная / Ч/б — позже переключатель)
+  - Режим (Одно-/Двусторонний — позже переключатель)
+  - Действия (кнопка «×» — позже)
+-->
+
+<section class="proschet-components-section"
+         id="proschet-components-section"
+         style="display: none;">
+
+    <!-- Контейнер, куда JS складывает карточки компонентов -->
+    <div class="proschet-components-list"
+         id="proschet-components-list">
+        <!-- Карточки добавляет JS -->
+    </div>
+
+    <!-- Сообщение, если компонентов нет -->
+    <div class="proschet-components-empty"
+         id="proschet-components-empty"
+         style="display: none;">
+        <p>Печатных компонентов нет</p>
+        <small>Добавьте первый компонент через форму выше</small>
+    </div>
+
+</section>

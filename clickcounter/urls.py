@@ -87,6 +87,10 @@ urlpatterns = [
      namespace='spravochnik_dopolnitelnyh_rabot')),
     # НОВОЕ ПРИЛОЖЕНИЕ: orders (Заказы и изделия)
     path('orders/', include(('orders.urls', 'orders'), namespace='orders')),
+    # НОВОЕ ПРИЛОЖЕНИЕ: proschety (новая альтернативная страница «Просчёты»)
+    # Все URL, начинающиеся с /proschety/, обрабатываются в proschety.urls
+    # namespace='proschety' — для {% url 'proschety:index' %} в шаблонах
+    path('proschety/', include(('proschety.urls', 'proschety'), namespace='proschety')),
 ]
 
 # В режиме отладки добавляем обслуживание статических и медиа файлов

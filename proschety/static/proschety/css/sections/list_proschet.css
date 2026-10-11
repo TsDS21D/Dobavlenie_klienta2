@@ -1,0 +1,953 @@
+/*
+proschety/static/proschety/css/sections/list_proschet.css
+Стили секции «Список просчётов» новой страницы /proschety/.
+
+Дизайн:
+  - секция — белая карточка со скруглением 12px и мягкой тенью;
+  - заголовок с названием секции и кнопкой «Создать»;
+  - поле поиска с зелёным фокусом;
+  - таблица в скруглённой рамочке, строки разделены лёгким пунктиром;
+  - hover строки — светло-зелёный #eaf6ef;
+  - активная строка — светло-зелёный фон + зелёная полоска слева.
+
+Версия 2: уменьшены шрифты и внутренние отступы,
+чтобы секция выглядела компактнее.
+*/
+
+/* ==================== КОНТЕЙНЕР СЕКЦИИ ==================== */
+
+.list-proschet-section {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem 1.15rem 1.15rem;
+    margin-bottom: 1.15rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* ==================== ЗАГОЛОВОК СЕКЦИИ ==================== */
+
+.list-proschet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.list-proschet-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1rem;
+    color: #333333;
+    font-weight: 600;
+}
+
+/* Кнопка «Создать» */
+.list-proschet-btn-create {
+    padding: 0.4rem 0.9rem;
+    background: #0B8661;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.list-proschet-btn-create:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.35);
+}
+
+/* ==================== ПОИСК ==================== */
+
+/* Контейнер поиска — три поля в одну строку.
+   flex-wrap позволяет переносить поля на узких экранах. */
+.list-proschet-search-wrap {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+    flex-wrap: wrap;
+}
+
+/* Одно поле поиска. flex: 1 1 180px — каждое поле растягивается,
+   но не уже 180px, иначе переносится на новую строку. */
+.list-proschet-search {
+    flex: 1 1 180px;
+    min-width: 0;
+    padding: 0.4rem 0.75rem;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: #333333;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.list-proschet-search::placeholder {
+    color: #b0b0b0;
+}
+.list-proschet-search:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* ==================== ТАБЛИЦА ==================== */
+
+/* Внешняя обёртка — скруглённая рамка.
+   max-height рассчитан на «шапка + 5 строк» (по ~35px на строку).
+   Если строк больше — включается вертикальный скролл.
+   overflow: auto (а не hidden) — нужен, чтобы скролл работал;
+   скругление всё равно обрезает содержимое по углам. */
+.list-proschet-table-wrap {
+    border: 1px solid #ececec;
+    border-radius: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 225px;
+    background: #ffffff;
+}
+
+.list-proschet-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+}
+
+/* Заголовки столбцов — светло-серые, капс.
+   position: sticky — чтобы шапка не уезжала при скролле таблицы.
+   border-bottom заменён на box-shadow: inset — в связке с sticky
+   классический border-bottom в некоторых браузерах «отваливается». */
+.list-proschet-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: #fafafa;
+    color: #777777;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    box-shadow: inset 0 -1px 0 #ececec;
+}
+
+/* Строки данных — курсор-указатель и плавный hover */
+.list-proschet-table tbody tr {
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+/* Лёгкий пунктир между строками */
+.list-proschet-table tbody tr + tr td {
+    border-top: 1px dashed #f0f0f0;
+}
+
+/* Светло-зелёный hover */
+.list-proschet-table tbody tr:hover {
+    background: #eaf6ef;
+}
+
+.list-proschet-table tbody td {
+    padding: 0.5rem 0.75rem;
+    color: #333333;
+    vertical-align: middle;
+}
+
+/* Активная (выделенная) строка */
+.list-proschet-table tbody tr.selected {
+    background: #eaf6ef;
+    box-shadow: inset 3px 0 0 #0B8661;
+}
+
+/* Колонка «Номер» — моноширинный, зелёный */
+.list-proschet-table .col-number {
+    width: 10%;
+    font-family: 'Courier New', monospace;
+    color: #0B8661;
+    font-weight: 600;
+}
+
+/* Колонка «Название» — без фиксированной ширины, растягивается по остатку */
+
+/* Колонка «Клиент» — обычный размер, приглушённый цвет */
+.list-proschet-table .col-client {
+    width: 17%;
+    color: #555555;
+}
+
+/* Колонка «Комментарий» — приглушённый курсив, длинный текст усекается */
+.list-proschet-table .col-comment {
+    width: 22%;
+    color: #888888;
+    font-style: italic;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Колонка «Дата создания» — приглушённая, не переносится */
+.list-proschet-table .col-date {
+    width: 16%;
+    color: #888888;
+    white-space: nowrap;
+}
+
+/* ==================== СООБЩЕНИЕ «ПРОСЧЁТОВ НЕТ» ==================== */
+
+.list-proschet-empty {
+    padding: 1.4rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.list-proschet-empty p {
+    margin: 0 0 0.25rem 0;
+}
+.list-proschet-empty small {
+    color: #b0b0b0;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    .list-proschet-section {
+        padding: 0.85rem 0.85rem 1rem;
+    }
+    .list-proschet-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    /* На узких экранах поля поиска идут столбиком. */
+    .list-proschet-search-wrap {
+        flex-direction: column;
+    }
+
+    .list-proschet-table thead th,
+    .list-proschet-table tbody td {
+        padding: 0.4rem 0.55rem;
+        font-size: 0.8rem;
+    }
+    .list-proschet-table .col-date {
+        width: auto;
+    }
+}
+
+
+/* ==================== ИНЛАЙН-ФОРМА СОЗДАНИЯ ПРОСЧЁТА ==================== */
+
+/* Контейнер формы — светло-зелёная карточка с тонкой зелёной рамкой.
+   Без акцентной полоски слева — по просьбе пользователя. */
+.list-proschet-create-form {
+    background: #f0f9f5;
+    border: 1px solid #b9d9c7;
+    border-radius: 10px;
+    padding: 0.8rem 1.0rem;
+    margin-bottom: 0.9rem;
+}
+
+/* Одна строка формы (label + input/select). */
+.list-proschet-form-row {
+    margin-bottom: 0.7rem;
+}
+
+.list-proschet-form-row label {
+    display: block;
+    font-size: 0.82rem;
+    color: #555555;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+}
+
+/* Красная звёздочка у обязательного поля. */
+.list-proschet-form-row .required-mark {
+    color: #cf6b66;
+    margin-left: 0.1rem;
+}
+
+/* Поля ввода и выпадающий список. */
+.list-proschet-form-input {
+    width: 100%;
+    padding: 0.3rem 0.5rem;
+    border: 1.5px solid #b9d9c7;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: #333333;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.list-proschet-form-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* Кнопки в правом нижнем углу формы. */
+.list-proschet-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.list-proschet-btn-cancel {
+    padding: 0.4rem 0.9rem;
+    background: #e0e0e0;
+    color: #333333;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.list-proschet-btn-cancel:hover {
+    background: #c8c8c8;
+}
+
+.list-proschet-btn-submit {
+    padding: 0.4rem 0.9rem;
+    background: #0B8661;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.list-proschet-btn-submit:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.35);
+}
+.list-proschet-btn-submit:disabled {
+    background: #b9d9c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ==================== ПОЛЕ «ШАБЛОН» В ФОРМЕ ==================== */
+
+/* Контейнер поля: [readonly input] [кнопка «Выбрать»] [×] */
+.list-proschet-template-picker {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.list-proschet-template-picker .list-proschet-form-input {
+    flex: 1;
+    cursor: default;
+    background: #ffffff;
+    color: #333333;
+}
+.list-proschet-template-picker .list-proschet-form-input[readonly] {
+    background: #f7fdf9;      /* очень лёгкий оттенок — намёк «только для чтения» */
+}
+
+.list-proschet-btn-template-pick {
+    padding: 0.5rem 0.9rem;
+    background: #ffffff;
+    color: #0B8661;
+    border: 1.5px solid #0B8661;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.list-proschet-btn-template-pick:hover {
+    background: #eaf6ef;
+}
+
+.list-proschet-btn-template-clear {
+    padding: 0.5rem 0.7rem;
+    background: #ffffff;
+    color: #cf6b66;
+    border: 1.5px solid #cf6b66;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.list-proschet-btn-template-clear:hover {
+    background: #cf6b66;
+    color: #ffffff;
+}
+
+
+/* ==================== МОДАЛКА ВЫБОРА ШАБЛОНА ==================== */
+
+.list-proschet-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    font-family: inherit;
+}
+
+.list-proschet-modal {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 760px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.list-proschet-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.9rem 1.15rem;
+    border-bottom: 1px solid #ececec;
+}
+.list-proschet-modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #0B8661;
+}
+.list-proschet-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: #888888;
+    cursor: pointer;
+    padding: 0 0.4rem;
+}
+.list-proschet-modal-close:hover {
+    color: #333333;
+}
+
+.list-proschet-modal-body {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Левая колонка — дерево категорий. */
+.list-proschet-modal-tree {
+    border-right: 1px solid #ececec;
+    padding: 0.6rem 0.5rem;
+    overflow-y: auto;
+    background: #fafafa;
+}
+
+.list-proschet-modal-tree ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.list-proschet-modal-tree ul ul {
+    padding-left: 0.9rem;
+}
+
+.list-proschet-modal-tree .list-proschet-modal-cat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #333333;
+    transition: background 0.12s ease;
+}
+.list-proschet-modal-tree .list-proschet-modal-cat:hover {
+    background: #eaf6ef;
+}
+.list-proschet-modal-tree .list-proschet-modal-cat.active {
+    background: #eaf6ef;
+    color: #0B8661;
+    font-weight: 600;
+}
+.list-proschet-modal-tree .list-proschet-modal-cat i {
+    color: #0B8661;
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+}
+
+/* Правая колонка — шаблоны выбранной категории. */
+.list-proschet-modal-templates {
+    padding: 0.6rem 0.75rem;
+    overflow-y: auto;
+}
+
+.list-proschet-modal-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.88rem;
+}
+
+.list-proschet-modal-template {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ececec;
+    border-radius: 8px;
+    margin-bottom: 0.4rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #333333;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+.list-proschet-modal-template:hover {
+    background: #eaf6ef;
+    border-color: #b9d9c7;
+}
+.list-proschet-modal-template.selected {
+    background: #eaf6ef;
+    border-color: #0B8661;
+    color: #0B8661;
+    font-weight: 600;
+}
+.list-proschet-modal-template i {
+    color: #0B8661;
+    flex: 0 0 auto;
+}
+
+.list-proschet-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.75rem 1.15rem;
+    border-top: 1px solid #ececec;
+}
+
+
+/* ==================== INLINE-РЕДАКТИРОВАНИЕ НАЗВАНИЯ ==================== */
+
+/* Ячейка, доступная для редактирования — курсор и мягкая подсветка при hover. */
+.list-proschet-table .col-title.editable-cell {
+    cursor: text;
+}
+
+.list-proschet-table .col-title.editable-cell:hover {
+    background: #f0f9f5;
+}
+
+/* Режим редактирования — убираем padding у ячейки, чтобы input занял всё место. */
+.list-proschet-table .col-title.editing-cell {
+    padding: 0;
+}
+
+/* Поле ввода внутри ячейки — рамка и свечение как у других полей. */
+.list-proschet-inline-input {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: inherit;
+    color: #333333;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* Индикатор сохранения — курсивом серо-зелёным. */
+.list-proschet-inline-saving {
+    color: #0B8661;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.45rem 0.65rem;
+    display: inline-block;
+}
+
+/* ==================== КОЛОНКА «ДЕЙСТВИЯ» И КНОПКА УДАЛЕНИЯ ==================== */
+
+/* Узкая колонка справа, без текста в шапке. */
+.list-proschet-table .col-actions {
+    width: 5%;
+    text-align: right;
+    padding-left: 0;
+    padding-right: 0.75rem;
+}
+
+/* Кнопка-крестик. Небольшая, сдержанная, красная при наведении. */
+.list-proschet-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.list-proschet-btn-delete:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}
+.list-proschet-btn-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ==================== */
+
+/* Затемняющий оверлей — как у модалки выбора шаблона. */
+.list-proschet-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    font-family: inherit;
+}
+
+/* Компактная карточка в светло-розовых тонах.
+   rgba(255, 228, 225, 0.92) = «розовато-белый» на 92% непрозрачный:
+   карточка читается ярко, но сквозь неё чуть просвечивает фон. */
+.list-proschet-confirm {
+    background: rgba(244, 228, 227, 0.75);
+    border: 1px solid rgba(170, 100, 97, 0.45);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem 0.85rem;
+    width: 90%;
+    max-width: 340px;
+    box-shadow: 0 12px 36px rgba(122, 40, 35, 0.22);
+    animation: listProschetConfirmIn 0.15s ease-out;
+    backdrop-filter: blur(3px);
+}
+
+@keyframes listProschetConfirmIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Заголовок модалки — тёмно-красный. */
+.list-proschet-confirm-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #a03a35;
+    margin-bottom: 0.35rem;
+}
+
+/* Пояснительный текст — приглушённый, помельче. */
+.list-proschet-confirm-text {
+    font-size: 0.82rem;
+    color: #7a4441;
+    line-height: 1.35;
+    margin-bottom: 0.85rem;
+}
+
+/* Кнопки в правом нижнем углу. */
+.list-proschet-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.list-proschet-confirm-btn {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.12s ease;
+}
+
+/* «Отмена» — светлая серая. */
+.list-proschet-confirm-btn-no {
+    background: #ffffff;
+    color: #555555;
+    border: 1px solid #d0d0d0;
+}
+.list-proschet-confirm-btn-no:hover {
+    background: #f5f5f5;
+}
+
+/* «Удалить» — насыщенная красная. */
+.list-proschet-confirm-btn-yes {
+    background: #d9584f;
+    color: #ffffff;
+}
+.list-proschet-confirm-btn-yes:hover {
+    background: #bf4238;
+    transform: translateY(-1px);
+}
+/* ==================== ПЛАВАЮЩИЕ УВЕДОМЛЕНИЯ (WebSocket) ==================== */
+
+/* Контейнер фиксирован в левом нижнем углу.
+   Карточки позиционируются АБСОЛЮТНО внутри — это нужно, чтобы
+   можно было накладывать их друг на друга со сдвигом и менять z-index. */
+.proschety-toasts {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 1300;
+    width: 260px;
+    height: 0;                 /* высота контейнера = 0, карточки висят от нижней точки */
+    pointer-events: none;      /* сам контейнер не перехватывает клики */
+}
+
+/* Базовая карточка уведомления.
+   Абсолютное позиционирование — координаты задаёт JS через top.
+   transition — плавное «приподнимание» при клике. */
+.proschety-toast {
+    pointer-events: auto;
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-radius: 8px;
+    padding: 0.5rem 1.4rem 0.5rem 0.7rem;
+    backdrop-filter: blur(3px);
+    font-family: inherit;
+    font-size: 0.78rem;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: top 0.2s ease, box-shadow 0.2s ease;
+    animation: proschetyToastIn 0.18s ease-out;
+}
+
+/* Карточка «выдвинута на передний план» — приподнята и с усиленной тенью. */
+.proschety-toast.proschety-toast-raised {
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.30);
+    z-index: 9000 !important;
+}
+
+/* Удаление — розово-красные тона (как было). */
+.proschety-toast.proschety-toast-deleted {
+    background: rgba(244, 228, 227, 0.92);
+    border: 1px solid rgba(170, 100, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(122, 40, 35, 0.18);
+    color: #7a4441;
+}
+
+/* Создание — фирменные зелёные тона. */
+.proschety-toast.proschety-toast-created {
+    background: rgba(228, 244, 236, 0.92);
+    border: 1px solid rgba(11, 134, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(11, 134, 97, 0.20);
+    color: #0a6e51;
+}
+
+@keyframes proschetyToastIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Кнопка-крестик в правом верхнем углу уведомления. */
+.proschety-toast-close {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: inherit;                 /* наследует цвет тоста — либо красно-коричневый, либо зелёный */
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+}
+.proschety-toast-close:hover {
+    opacity: 1;
+}
+
+/* Жирное имя автора — по умолчанию тёмное, цвет задаётся модификатором. */
+.proschety-toast-actor {
+    font-weight: 700;
+}
+.proschety-toast.proschety-toast-deleted .proschety-toast-actor {
+    color: #a03a35;
+}
+.proschety-toast.proschety-toast-created .proschety-toast-actor {
+    color: #0a6e51;
+}
+
+/* Номер просчёта — моноширинный, чтобы «PR-95» читалось. */
+.proschety-toast-number {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+}
+.proschety-toast.proschety-toast-deleted .proschety-toast-number {
+    color: #a03a35;
+}
+.proschety-toast.proschety-toast-created .proschety-toast-number {
+    color: #0a6e51;
+}
+
+/* ==================== INLINE-РЕДАКТИРОВАНИЕ КЛИЕНТА ==================== */
+
+/* Ячейка клиента — курсор и подсветка при hover, как у названия. */
+.list-proschet-table .col-client.editable-cell {
+    cursor: pointer;
+}
+.list-proschet-table .col-client.editable-cell:hover {
+    background: #f0f9f5;
+}
+
+/* Режим редактирования — input/select внутри ячейки. */
+.list-proschet-table .col-client.editing-cell {
+    padding: 0;
+}
+
+.list-proschet-client-input {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: inherit;
+    color: #333333;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+
+/* ==================== КНОПКА «ОБНОВИТЬ» В УВЕДОМЛЕНИИ ==================== */
+
+/* Маленькая кнопка под текстом уведомления. Показывается только на верхнем
+   (самом новом) уведомлении в стеке — логика включения/выключения в JS.
+   Ширина — по содержимому (inline-block), не растягивается.
+   display: block без width — занимает ширину по контенту. */
+.proschety-toast-refresh {
+    display: block;
+    margin-top: 0.3rem;
+    padding: 0.15rem 0.5rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid currentColor;      /* цвет наследуется от модификатора тоста */
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    opacity: 0.9;
+    width: auto;                          /* по содержимому */
+}
+.proschety-toast-refresh:hover {
+    background: rgba(255, 255, 255, 0.95);
+    opacity: 1;
+}
+
+/* Скрытая кнопка — на всех уведомлениях, кроме верхнего. */
+.proschety-toast-refresh[hidden] {
+    display: none;
+}
+
+/* Уведомление об ИЗМЕНЕНИИ — голубые тона (обновление данных). */
+.proschety-toast.proschety-toast-updated {
+    background: rgba(220, 235, 248, 0.92);
+    border: 1px solid rgba(80, 140, 200, 0.45);
+    box-shadow: 0 8px 20px rgba(30, 80, 140, 0.20);
+    color: #1a5fa8;
+}
+.proschety-toast.proschety-toast-updated .proschety-toast-actor {
+    color: #14508a;
+}
+.proschety-toast.proschety-toast-updated .proschety-toast-number {
+    color: #14508a;
+}
+
+/* ==================== КРАТКОВРЕМЕННЫЕ УВЕДОМЛЕНИЯ СЛЕВА СВЕРХУ ==================== */
+
+.proschety-top-notifications {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1400;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 280px;
+    pointer-events: none;
+}
+
+.proschety-top-notification {
+    pointer-events: auto;
+    background: rgba(228, 244, 236, 0.94);   /* светло-зелёный, как «создано» */
+    border: 1px solid rgba(11, 134, 97, 0.45);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 8px 20px rgba(11, 134, 97, 0.18);
+    backdrop-filter: blur(3px);
+    color: #0a6e51;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    animation: proschetyTopNotifIn 0.2s ease-out;
+}
+
+/* Вариант для ошибки — красные тона, как «удалено» */
+.proschety-top-notification.proschety-top-notification-error {
+    background: rgba(244, 228, 227, 0.94);
+    border-color: rgba(170, 100, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(122, 40, 35, 0.18);
+    color: #a03a35;
+}
+
+/* Вариант для предупреждения — жёлтые тона */
+.proschety-top-notification.proschety-top-notification-warning {
+    background: rgba(252, 244, 224, 0.94);
+    border-color: rgba(200, 160, 80, 0.45);
+    box-shadow: 0 8px 20px rgba(140, 100, 30, 0.18);
+    color: #8a6a1a;
+}
+
+@keyframes proschetyTopNotifIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Уход — плавное исчезновение */
+.proschety-top-notification.proschety-top-notification-out {
+    animation: proschetyTopNotifOut 0.3s ease-in forwards;
+}
+@keyframes proschetyTopNotifOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-6px); }
+}

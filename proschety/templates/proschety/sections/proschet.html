@@ -1,0 +1,135 @@
+<!--
+proschety/templates/proschety/sections/proschet.html
+Секция «Просчёт» — основной блок страницы.
+
+СТРУКТУРА:
+  - когда ничего не выбрано — показываем сообщение «Выберите просчёт»;
+  - когда выбрано — grid из двух колонок:
+      • слева  — заголовок «Просчёт PR-NN — Название» и строка «Тираж: …»;
+      • справа — прямоугольник с полем «Комментарий» (полный текст,
+                 если длинный — с вертикальной прокруткой).
+
+ДАЛЬШЕ:
+  - сюда будут добавлены секции «Клиент», «Изделие», «Печатные компоненты»,
+    «Ламинация», «Вычисления листов», «Доп. работы», «Масса и объём», «Цена».
+
+Логика — в proschety/static/proschety/js/sections/proschet.js.
+-->
+
+<section class="proschet-section" id="proschet-section">
+
+    <!-- Сообщение, когда просчёт не выбран -->
+    <div class="proschet-section-empty" id="proschet-section-empty">
+        <p>Выберите просчёт в списке выше</p>
+        <small>Все параметры появятся здесь после выбора</small>
+    </div>
+
+    <!-- Grid с данными — показывается, когда просчёт выбран.
+         Три колонки: [Тираж + Скидка] [Комментарий] [PR-N + Название в 2 строки]. -->
+    <div class="proschet-section-body" id="proschet-section-body" style="display: none;">
+
+        <!-- Левая колонка: тираж и скидка в одну строку -->
+        <div class="proschet-section-info">
+            <div class="proschet-section-circulation">
+
+                <span class="proschet-section-field">
+                    <span class="proschet-section-field-label">Тираж:</span>
+                    <span class="proschet-section-field-value"
+                          id="proschet-section-circulation"
+                          data-editable="true"
+                          title="Двойной клик для редактирования">—</span>
+                </span>
+
+                <span class="proschet-section-field">
+                    <span class="proschet-section-field-label">Скидка:</span>
+                    <span class="proschet-section-field-value"
+                          id="proschet-section-discount">—</span>
+                </span>
+
+            </div>
+        </div>
+
+        <!-- Средняя колонка: комментарий -->
+        <div class="proschet-section-comment">
+            <span class="proschet-section-comment-label">Комментарий</span>
+            <div class="proschet-section-comment-body"
+                 id="proschet-section-comment-body"
+                 data-editable="true"
+                 title="Двойной клик для редактирования">—</div>
+        </div>
+
+        <!-- Правая колонка: номер и название просчёта в две строки, серым мелким -->
+        <div class="proschet-section-proschet-label">
+            <span class="proschet-section-proschet-number"
+                  id="proschet-section-proschet-number">—</span>
+            <span class="proschet-section-proschet-name"
+                  id="proschet-section-proschet-name">—</span>
+        </div>
+
+    </div>
+
+    <!-- ==================== УПРАВЛЕНИЕ ПЕЧАТНЫМИ КОМПОНЕНТАМИ ==================== -->
+    <!-- Показывается только когда просчёт выбран. Пока это визуальный каркас:
+         добавление компонента на сервер будет подключено на следующем шаге. -->
+    <div class="proschet-section-components"
+         id="proschet-section-components"
+         style="display: none;">
+
+        <!-- Разделитель — тонкая серая черта -->
+        <div class="proschet-section-divider"></div>
+
+        <!-- Строка управления: кнопка добавления + принтер + режим -->
+        <div class="proschet-section-components-row">
+
+            <!-- Кнопка «Добавить печатный компонент».
+                 По клику будет создавать компонент с выбранными параметрами
+                 (пока — визуальный каркас). -->
+            <button type="button"
+                    class="proschet-btn-add-component"
+                    id="proschet-btn-add-component"
+                    title="Добавить печатный компонент с выбранными параметрами">
+                + Добавить печатный компонент
+            </button>
+
+            <!-- Поле выбора принтера: подпись и селект — в одну строку -->
+            <div class="proschet-inline-field">
+                <label for="proschet-print-component-printer"
+                       class="proschet-inline-field-label">Принтер:</label>
+                <select id="proschet-print-component-printer"
+                        class="proschet-field-select">
+                    <option value="">— Выберите принтер —</option>
+                </select>
+            </div>
+
+            <!-- Поле выбора бумаги -->
+            <div class="proschet-inline-field">
+                <label for="proschet-print-component-paper"
+                       class="proschet-inline-field-label">Бумага:</label>
+                <select id="proschet-print-component-paper"
+                        class="proschet-field-select">
+                    <option value="">— Выберите бумагу —</option>
+                </select>
+            </div>
+
+            <!-- Переключатель режима: подпись и переключатель — в одну строку.
+                 Переключение — по двойному клику. Справа — подсказка. -->
+            <div class="proschet-inline-field">
+                <label class="proschet-inline-field-label">Режим:</label>
+                <div class="proschet-mode-switch" id="proschet-mode-switch" data-mode="single">
+                    <button type="button"
+                            class="proschet-mode-btn active"
+                            data-value="single"
+                            title="Двойной клик для выбора">Одностраничный</button>
+                    <button type="button"
+                            class="proschet-mode-btn"
+                            data-value="multi"
+                            title="Двойной клик для выбора">Многостраничный</button>
+                </div>
+                <span class="proschet-mode-hint">двойной клик<br>для переключения</span>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>

@@ -1,0 +1,48 @@
+<!--
+proschety/templates/proschety/base.html
+Базовый шаблон для приложения proschety.
+Самодостаточный, не наследует от calculator/base.html.
+Содержит всю необходимую структуру HTML, подключение базового CSS
+и точки расширения для дочерних шаблонов.
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Динамический заголовок страницы — дочерние шаблоны переопределяют -->
+    <title>{% block title %}Просчёты{% endblock %} — BUKVA A</title>
+
+    <!-- Загружаем тег static для ссылок на CSS/JS -->
+    {% load static %}
+
+    <!-- Основной CSS новой страницы -->
+    <link rel="stylesheet" href="{% static 'proschety/css/base.css' %}">
+
+    <!-- Дополнительные CSS из дочерних шаблонов -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!--
+    Боковая панель приложений — общая для всей системы.
+    counter/app_panels.html — тот же файл, что используют calculator,
+    orders, shablony_proschetov и другие приложения.
+    Передаём active_app='proschety', чтобы шаблон знал,
+    какой пункт панели подсветить. Пока такого пункта нет —
+    панель просто отрисуется без подсветки.
+    -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"proschety" %}
+
+    <!-- Основной белый контейнер страницы -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Точка подключения для JS дочерних шаблонов -->
+    {% block extra_js %}{% endblock %}
+
+</body>
+</html>

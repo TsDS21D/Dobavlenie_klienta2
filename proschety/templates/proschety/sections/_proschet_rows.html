@@ -1,0 +1,43 @@
+<!--
+proschety/templates/proschety/sections/_proschet_rows.html
+Партиал: только строки <tr> для tbody таблицы просчётов.
+Используется:
+  1. в list_proschet.html — через include-директиву при первом рендере;
+  2. view proschety.views.api_rows — возвращает ровно этот HTML
+     для AJAX-перерисовки после создания/удаления просчёта.
+
+Переменная контекста — proschets (список объектов Proschet).
+-->
+
+{% for proschet in proschets %}
+    <tr class="list-proschet-row"
+        data-proschet-id="{{ proschet.id }}"
+        data-circulation="{{ proschet.circulation|default:'' }}"
+        data-comment="{{ proschet.comment|default:'' }}"
+        data-client-discount="{% if proschet.client %}{{ proschet.client.discount|default:'' }}{% endif %}">
+        <td class="col-number">{{ proschet.number }}</td>
+        <td class="col-title editable-cell"
+            data-proschet-id="{{ proschet.id }}"
+            data-field="title"
+            data-original-value="{{ proschet.title }}">{{ proschet.title }}</td>
+        <td class="col-client editable-cell"
+            data-proschet-id="{{ proschet.id }}"
+            data-field="client"
+            data-client-id="{% if proschet.client %}{{ proschet.client.id }}{% endif %}"
+            data-original-value="{% if proschet.client %}{{ proschet.client.name }}{% else %}—{% endif %}">
+            {% if proschet.client %}
+                {{ proschet.client.name }}
+            {% else %}
+                —
+            {% endif %}
+        </td>
+        <td class="col-comment">—</td>
+        <td class="col-date">{{ proschet.formatted_created_at }}</td>
+        <td class="col-actions">
+            <button type="button"
+                    class="list-proschet-btn-delete"
+                    data-proschet-id="{{ proschet.id }}"
+                    title="Удалить просчёт">×</button>
+        </td>
+    </tr>
+{% endfor %}

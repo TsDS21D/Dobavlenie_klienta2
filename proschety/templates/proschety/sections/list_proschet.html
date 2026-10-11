@@ -1,0 +1,250 @@
+<!--
+proschety/templates/proschety/sections/list_proschet.html
+Секция «Список просчётов» новой страницы /proschety/.
+
+НА ЭТОМ ШАГЕ:
+  - реальные данные из БД (модель calculator.Proschet);
+  - список передаётся из view в контексте под именем proschets;
+  - сортировка «новые сверху» (order_by('-created_at')) задана во view;
+  - фильтр is_deleted=False — тоже во view.
+  - стили — в proschety/static/proschety/css/sections/list_proschet.css.
+
+КОЛОНКИ ТАБЛИЦЫ:
+  - Номер просчёта,
+  - Название просчёта,
+  - Клиент (из proschet.client.name, иначе «—»),
+  - Комментарий (поля в модели пока нет, всегда «—»),
+  - Дата создания (proschet.formatted_created_at).
+
+ЧТО БУДЕТ ДАЛЬШЕ (не в этом шаге):
+  - JS для поиска, создания, переименования, удаления;
+  - WebSocket-уведомление о появлении нового просчёта;
+  - подключение остальных секций (клиент, изделие, печатные
+    компоненты, ламинация, вычисления листов, доп. работы,
+    масса и объём, цена).
+-->
+
+<!-- ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ==================== -->
+<!-- Одна общая модалка. Показывается по клику на «×» в строке. -->
+<div class="list-proschet-confirm-overlay"
+     id="list-proschet-confirm-overlay"
+     style="display: none;">
+    <div class="list-proschet-confirm">
+        <div class="list-proschet-confirm-title">Удалить просчёт?</div>
+        <div class="list-proschet-confirm-text">
+            Просчёт пропадёт из списка.<br>
+            Его можно будет восстановить через админку.
+        </div>
+        <div class="list-proschet-confirm-actions">
+            <button type="button"
+                    class="list-proschet-confirm-btn list-proschet-confirm-btn-no"
+                    id="list-proschet-confirm-no">Отмена</button>
+            <button type="button"
+                    class="list-proschet-confirm-btn list-proschet-confirm-btn-yes"
+                    id="list-proschet-confirm-yes">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<section class="list-proschet-section" id="list-proschet-section">
+
+    <!-- Шапка секции: название + кнопка «Создать» -->
+    <div class="list-proschet-header">
+        <h2 class="list-proschet-title">
+            Список просчётов
+        </h2>
+
+        <div class="list-proschet-actions">
+            <button type="button"
+                    class="list-proschet-btn-create"
+                    id="list-proschet-create-btn">
+                Создать
+            </button>
+        </div>
+    </div>
+
+    <!-- Инлайн-форма создания нового просчёта.
+         Скрыта по умолчанию, показывается по клику на кнопку «Создать».
+         Поля: «Название» (обязательное) и «Клиент» (необязательное).
+         При успехе JS перезагружает страницу, и новая строка появляется в таблице сверху. -->
+    <div class="list-proschet-create-form"
+         id="list-proschet-create-form"
+         style="display: none;">
+        <form id="list-proschet-create-form-el">
+            {% csrf_token %}
+
+            <div class="list-proschet-form-row">
+                <label for="list-proschet-create-title">
+                    Название просчёта <span class="required-mark">*</span>
+                </label>
+                <input type="text"
+                       id="list-proschet-create-title"
+                       name="title"
+                       class="list-proschet-form-input"
+                       placeholder="Например: Визитки 1000 шт"
+                       minlength="3"
+                       maxlength="200">
+            </div>
+
+            <div class="list-proschet-form-row">
+                <label for="list-proschet-create-client">Клиент</label>
+                <select id="list-proschet-create-client"
+                        name="client"
+                        class="list-proschet-form-input">
+                    <option value="">— Не выбран —</option>
+                    {% for client in clients %}
+                        <option value="{{ client.id }}">
+                            {{ client.client_number }}: {{ client.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if is_admin %}
+            <div class="list-proschet-form-row">
+                <label for="list-proschet-create-template">Шаблон</label>
+                <div class="list-proschet-template-picker">
+                    <input type="text"
+                           id="list-proschet-create-template"
+                           class="list-proschet-form-input"
+                           readonly
+                           placeholder="Шаблон не выбран">
+                    <button type="button"
+                            class="list-proschet-btn-template-pick"
+                            id="list-proschet-template-pick">
+                        Выбрать
+                    </button>
+                    <button type="button"
+                            class="list-proschet-btn-template-clear"
+                            id="list-proschet-template-clear"
+                            title="Очистить выбор шаблона"
+                            style="display: none;">
+                        ×
+                    </button>
+                </div>
+                <!-- скрытое поле с id выбранного шаблона -->
+                <input type="hidden" id="list-proschet-create-template-id" value="">
+            </div>
+            {% endif %}
+
+
+            <div class="list-proschet-form-actions">
+                <button type="button"
+                        class="list-proschet-btn-cancel"
+                        id="list-proschet-create-cancel">
+                    Отмена
+                </button>
+                <button type="submit"
+                        class="list-proschet-btn-submit"
+                        id="list-proschet-create-submit">
+                    Создать просчёт
+                </button>
+            </div>
+        </form>
+    </div>
+
+
+    <!-- Поиск: три поля в одну строку.
+         - Общий   — ищет по всем колонкам строки (номер, название, клиент, дата).
+         - Название — только по колонке «Название».
+         - Клиент   — только по колонке «Клиент».
+         Фильтры работают одновременно (AND): строка видна, если подходит под все непустые запросы. -->
+    <div class="list-proschet-search-wrap">
+        <input type="text"
+               class="list-proschet-search"
+               id="list-proschet-search-input"
+               placeholder="Общий поиск...">
+        <input type="text"
+               class="list-proschet-search"
+               id="list-proschet-search-title"
+               placeholder="Поиск по названию...">
+        <input type="text"
+               class="list-proschet-search"
+               id="list-proschet-search-client"
+               placeholder="Поиск по клиенту...">
+    </div>
+
+    <!-- Таблица просчётов -->
+    <div class="list-proschet-table-wrap">
+        <table class="list-proschet-table">
+            <thead>
+                <tr>
+                    <th class="col-number">Номер</th>
+                    <th class="col-title">Название</th>
+                    <th class="col-client">Клиент</th>
+                    <th class="col-comment">Комментарий</th>
+                    <th class="col-date">Дата создания</th>
+                    <th class="col-actions"></th>
+                </tr>
+            </thead>
+            <tbody id="list-proschet-table-body">
+                {% include "proschety/sections/_proschet_rows.html" %}
+            </tbody>
+        </table>
+
+        <!-- Сообщение, если просчётов нет. Показывается только когда список пуст. -->
+        <div class="list-proschet-empty"
+             id="list-proschet-empty"
+             {% if proschets %}style="display: none;"{% endif %}>
+            <p>Просчётов пока нет</p>
+            <small>Нажмите «Создать», чтобы добавить первый просчёт</small>
+        </div>
+        <!-- Сообщение, если поиск не дал результатов.
+             Показывается JS-ом при непустом запросе и 0 видимых строк. -->
+        <div class="list-proschet-empty"
+             id="list-proschet-no-results"
+             style="display: none;">
+            <p>Ничего не найдено</p>
+            <small>Попробуйте изменить поисковый запрос</small>
+        </div>
+    </div>
+
+</section>
+
+{% if is_admin %}
+<!-- ==================== МОДАЛКА ВЫБОРА ШАБЛОНА ==================== -->
+<div class="list-proschet-modal-overlay"
+     id="list-proschet-template-modal"
+     style="display: none;">
+    <div class="list-proschet-modal">
+        <div class="list-proschet-modal-header">
+            <h3>Выбор шаблона</h3>
+            <button type="button"
+                    class="list-proschet-modal-close"
+                    id="list-proschet-template-modal-close"
+                    title="Закрыть">×</button>
+        </div>
+        <div class="list-proschet-modal-body">
+            <!-- Левая колонка — дерево категорий (наполняется JS). -->
+            <aside class="list-proschet-modal-tree"
+                   id="list-proschet-modal-tree">
+            </aside>
+            <!-- Правая колонка — шаблоны выбранной категории (наполняется JS). -->
+            <section class="list-proschet-modal-templates"
+                     id="list-proschet-modal-templates">
+                <div class="list-proschet-modal-empty">
+                    Выберите категорию слева
+                </div>
+            </section>
+        </div>
+        <div class="list-proschet-modal-footer">
+            <button type="button"
+                    class="list-proschet-btn-cancel"
+                    id="list-proschet-template-modal-cancel">
+                Отмена
+            </button>
+            <button type="button"
+                    class="list-proschet-btn-submit"
+                    id="list-proschet-template-modal-confirm"
+                    disabled>
+                Выбрать
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Данные для модалки — прокидываем из view как JSON. -->
+<script>
+    window.PROSHETY_CATEGORIES = {{ categories_json|safe }};
+    window.PROSHETY_TEMPLATES  = {{ templates_json|safe }};
+</script>

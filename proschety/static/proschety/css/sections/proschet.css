@@ -1,0 +1,632 @@
+/*
+proschety/static/proschety/css/sections/proschet.css
+Стили секции «Просчёт» новой страницы /proschety/.
+
+Внешне секция повторяет list-proschet-section:
+  - белая карточка, скругление 12px, тонкая серая рамка, мягкая тень;
+  - внутри grid из двух колонок: данные слева, комментарий справа.
+*/
+
+/* ==================== КОНТЕЙНЕР СЕКЦИИ ==================== */
+
+.proschet-section {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 0.6rem 0.85rem 0.7rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* Сообщение «выберите просчёт». */
+.proschet-section-empty {
+    padding: 1.6rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.proschet-section-empty p {
+    margin: 0 0 0.25rem 0;
+}
+.proschet-section-empty small {
+    color: #b0b0b0;
+}
+
+/* ==================== GRID С ДАННЫМИ ==================== */
+
+.proschet-section-body {
+    display: grid;
+    grid-template-columns: auto 1fr auto;    /* [Тираж+Скидка] [Комментарий] [PR-N] */
+    gap: 0.7rem;                              /* как между Тиражом и Скидкой */
+    align-items: center;
+}
+
+/* --- Левая колонка --- */
+.proschet-section-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+/* Правая колонка: номер и название просчёта в две строки, серым мелким. */
+.proschet-section-proschet-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.proschet-section-proschet-number {
+    font-family: 'Courier New', monospace;
+    color: #999999;
+    font-weight: 500;
+    font-size: 0.75rem;
+    line-height: 1.15;
+}
+
+.proschet-section-proschet-name {
+    color: #999999;
+    font-weight: 400;
+    font-size: 0.75rem;
+    line-height: 1.15;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.proschet-section-placeholder {
+    color: #999999;
+    font-style: italic;
+    font-weight: 400;
+}
+
+/* Строка с полями «Тираж» и «Скидка».
+   justify-content: space-between — первое поле прижато влево,
+   второе (Скидка) — вправо, ближе к блоку комментария. */
+.proschet-section-circulation {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+/* Одно поле: label + прямоугольник. */
+.proschet-section-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.proschet-section-field-label {
+    color: #888888;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Значение поля — серый прямоугольник с пунктиром (одинаков для тиража и скидки). */
+.proschet-section-field-value {
+    display: inline-block;
+    min-width: 3.2rem;
+    padding: 0.2rem 0.5rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333333;
+    text-align: center;
+}
+
+/* --- Правая колонка --- */
+.proschet-section-comment {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.proschet-section-comment-label {
+    font-size: 0.68rem;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    white-space: nowrap;    /* метка не переносится и не сжимается */
+    flex: 0 0 auto;
+}
+
+.proschet-section-comment-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: #555555;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    max-height: 4rem;     /* уменьшено вдвое — было 7rem */
+    min-height: 3rem;       /* тоже поджали — чтобы пустое поле не раздувало блок */
+}
+
+/* Режим редактирования — убираем padding у родителя.
+   Высоту родителя фиксирует JS на момент открытия (inline style),
+   поэтому при входе в редактирование ничего не «прыгает». */
+.proschet-section-comment-body.editing {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Когда комментарий пустой — показываем приглушённо. */
+.proschet-section-comment-body.proschet-section-comment-empty {
+    color: #b0b0b0;
+    font-style: italic;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    .proschet-section-body {
+        grid-template-columns: 1fr;      /* на узких экранах — колонки друг под другом */
+    }
+    .proschet-section-proschet-label {
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+/* ==================== РЕДАКТИРОВАНИЕ ПОЛЕЙ СЕКЦИИ «ПРОСЧЁТ» ==================== */
+
+/* Курсор «текст» и лёгкая подсветка при наведении на редактируемое поле. */
+.proschet-section-field-value[data-editable="true"],
+.proschet-section-comment-body[data-editable="true"] {
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+.proschet-section-field-value[data-editable="true"]:hover,
+.proschet-section-comment-body[data-editable="true"]:hover {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+
+/* Поле ввода тиража — компактное, в стиле «прямоугольника» вокруг значения. */
+.proschet-inline-input {
+    min-width: 4rem;
+    max-width: 8rem;
+    padding: 0.25rem 0.6rem;
+    background: #ffffff;
+    border: 2px solid #0B8661;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333333;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* Textarea комментария — на всю ширину блока, с автоувеличением. */
+.proschet-inline-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.4rem 0.6rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #333333;
+    outline: none;
+    resize: none;
+    overflow-y: auto;
+    /* Плавное изменение высоты при вводе текста. */
+    transition: height 0.15s ease-out;
+}
+
+/* Подсказка под полем ввода комментария. */
+.proschet-inline-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    color: #b0b0b0;
+    font-style: italic;
+    text-align: right;
+}
+
+/* Индикатор сохранения — курсивом, зелёным. */
+.proschet-inline-saving {
+    color: #0B8661;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    display: inline-block;
+}
+
+
+/* ==================== ПЛАВНОЕ ПОЯВЛЕНИЕ КОНТЕНТА КОММЕНТАРИЯ ==================== */
+
+/* Анимация плавного появления — применяется к контейнеру комментария
+   в момент переключения «текст ↔ textarea». */
+@keyframes proschetyCommentFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.proschet-section-comment-body.proschet-comment-fade-in {
+    animation: proschetyCommentFadeIn 0.52s ease-out;
+}
+
+/* ==================== БЛОК УПРАВЛЕНИЯ ПЕЧАТНЫМИ КОМПОНЕНТАМИ ==================== */
+
+/* Тонкая серая черта — разделитель между основными данными просчёта
+   и блоком управления печатными компонентами. */
+.proschet-section-divider {
+    margin: 0.9rem 0 0.75rem;
+    border-top: 1px solid #ececec;
+}
+
+/* Строка управления — все элементы в один ряд,
+   центрированы по вертикали, между ними отступы. */
+.proschet-section-components-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+/* Кнопка «Добавить печатный компонент» — светло-зелёная, компактная. */
+.proschet-btn-add-component {
+    flex: 0 0 auto;
+    padding: 0.3rem 0.7rem;
+    background: #eaf6ef;
+    color: #0B8661;
+    border: 1px solid #b9d9c7;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.proschet-btn-add-component:hover {
+    background: #d9efe2;
+    border-color: #0B8661;
+}
+.proschet-btn-add-component:active {
+    transform: translateY(1px);
+}
+
+/* Поле «Принтер» / «Режим» — подпись + контрол в одну строку. */
+.proschet-inline-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 0 0 auto;
+}
+
+.proschet-inline-field-label {
+    font-size: 0.75rem;
+    color: #555555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Поля выбора (принтер, бумага). */
+.proschet-field-select {
+    min-width: 150px;
+    max-width: 200px;
+    padding: 0.25rem 0.5rem;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    cursor: pointer;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.proschet-field-select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* ==================== ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ==================== */
+
+/* Ползунок из двух половин. Активная половина — зелёная. */
+.proschet-mode-switch {
+    display: inline-flex;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.proschet-mode-btn {
+    padding: 0.22rem 0.55rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #666666;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.proschet-mode-btn:hover {
+    background: #eaf6ef;
+    color: #0B8661;
+}
+
+/* Активная половина «Одностраничный» — зелёная. */
+.proschet-mode-btn.active[data-value="single"] {
+    background: #0B8661;
+    color: #ffffff;
+    font-weight: 600;
+}
+.proschet-mode-btn.active[data-value="single"]:hover {
+    background: #0B8661;
+    color: #ffffff;
+}
+
+/* Активная половина «Многостраничный» — синяя. */
+.proschet-mode-btn.active[data-value="multi"] {
+    background: #2a6fc9;
+    color: #ffffff;
+    font-weight: 600;
+}
+.proschet-mode-btn.active[data-value="multi"]:hover {
+    background: #2a6fc9;
+    color: #ffffff;
+}
+
+/* Подсказка под переключателем. */
+.proschet-field-hint {
+    font-size: 0.68rem;
+    color: #b0b0b0;
+    font-style: italic;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    .proschet-section-components-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .proschet-inline-field {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .proschet-field-select {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* Подсказка справа от переключателя режима.
+   В две строки, выравнена по вертикали с кнопками режима. */
+.proschet-mode-hint {
+    font-size: 0.62rem;
+    color: #b0b0b0;
+    font-style: italic;
+    line-height: 1.15;
+    align-self: center;
+    white-space: normal;
+}
+
+/* ==================== КАРТОЧКИ ПЕЧАТНЫХ КОМПОНЕНТОВ ==================== */
+
+/* Контейнер для карточек компонентов — БЕЗ собственной рамки и фона.
+   Видимая рамка — только у каждой карточки внутри. */
+.proschet-components-section {
+    margin-bottom: 1.15rem;
+}
+
+.proschet-components-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+/* Одна карточка компонента — всё в одну строку, как блок управления. */
+.proschet-component-card {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #ececec;
+    border-radius: 10px;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* Одностраничный компонент — светло-зелёный фон (как форма создания
+   просчёта, но ещё светлее). */
+.proschet-component-card--single {
+    background: #f5fcf8;
+    border-color: #d6ecdf;
+}
+.proschet-component-card--single:hover {
+    border-color: #b9d9c7;
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.06);
+}
+
+/* Многостраничный компонент — светло-голубой фон. */
+.proschet-component-card--multi {
+    background: #f2f7fc;
+    border-color: #d6e6f5;
+}
+.proschet-component-card--multi:hover {
+    border-color: #b7d2ec;
+    box-shadow: 0 4px 12px rgba(42, 111, 201, 0.07);
+}
+
+/* Номер компонента — мелкий, серый, стоит перед кнопкой удаления. */
+.proschet-component-number {
+    font-family: 'Courier New', monospace;
+    color: #999999;
+    font-weight: 500;
+    font-size: 0.72rem;
+    flex: 0 0 auto;
+}
+
+/* Селекты принтера и бумаги внутри карточки — компактнее,
+   чем в форме управления. */
+.proschet-component-card .proschet-field-select {
+    min-width: 120px;
+    max-width: 160px;
+}
+
+/* Цена бумаги — мелко серым, рядом с селектом. */
+.proschet-component-paper-price {
+    font-size: 0.7rem;
+    color: #999999;
+    font-weight: 400;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    margin-left: -0.4rem;   /* подтягиваем к селекту бумаги */
+}
+
+.proschet-component-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.proschet-component-delete-btn:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}
+
+/* Номер компонента — мелкий, серый, стоит перед кнопкой удаления
+   и «отжимается» вправо. */
+.proschet-component-number {
+    font-family: 'Courier New', monospace;
+    color: #999999;
+    font-weight: 500;
+    font-size: 0.72rem;
+    flex: 0 0 auto;
+    margin-left: auto;
+    margin-right: 0.35rem;
+}
+
+
+/* Сообщение «компонентов нет». */
+.proschet-components-empty {
+    padding: 1.4rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.proschet-components-empty p {
+    margin: 0 0 0.25rem 0;
+}
+.proschet-components-empty small {
+    color: #b0b0b0;
+}
+
+/* Бейджи типа печати (не используются в новой раскладке,
+   но оставим на будущее — не удаляем). */
+.proschet-components-badge-color,
+.proschet-components-badge-bw {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.proschet-components-badge-color {
+    background: #f3e7fd;
+    color: #7b3fb5;
+}
+.proschet-components-badge-bw {
+    background: #eeeeee;
+    color: #555555;
+}
+
+/* ==================== СЕЛЕКТ ПРИНТЕРА/БУМАГИ В КАРТОЧКЕ ==================== */
+
+/* «Заблокированный» селект выглядит как обычное значение внутри
+   серого прямоугольника с пунктирной рамкой — как поле «Тираж»
+   в секции «Просчёт». */
+.proschet-component-card .proschet-field-select.is-locked {
+    pointer-events: none;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    color: #333333;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 0.25rem 0.6rem;
+    cursor: default;
+    text-align: center;
+}
+
+/* Мягкая подсветка при наведении — намёк, что можно дважды кликнуть. */
+.proschet-component-card .proschet-inline-field[data-field]:hover .proschet-field-select.is-locked {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+
+/* Активный (разблокированный) селект — с зелёной рамкой и фокусом. */
+.proschet-component-card .proschet-field-select:not(.is-locked) {
+    background: #ffffff;
+    border: 2px solid #0B8661;
+    border-radius: 8px;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+    cursor: pointer;
+    padding: 0.2rem 0.55rem;
+}
+
+/* ==================== ПОЛЕ ТИРАЖА (акцент) ==================== */
+
+/* Значение тиража — бледно-зелёный фон, чуть больше по размеру,
+   чтобы визуально выделяться на фоне скидки и комментария. */
+#proschet-section-circulation {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+    min-width: 3rem;
+    padding: 0.15rem 0.7rem 0.3rem;
+    font-size: 1.25rem;
+    color: #0B8661;
+    font-weight: 600;
+    line-height: 1.15;
+}

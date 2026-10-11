@@ -1,0 +1,75 @@
+<!--
+proschety/templates/proschety/index.html
+Главная страница приложения «Просчёты».
+Наследует собственный base.html приложения proschety
+(НЕ calculator/base.html — это принципиально, чтобы не зависеть
+от вёрстки калькулятора).
+
+В каркасе пока только заголовок страницы. Секции будут
+подключаться отдельными директивами include на следующих шагах —
+по одной за раз, чтобы не переделывать большой кусок.
+-->
+
+{% extends "proschety/base.html" %}
+
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'proschety/css/sections/list_proschet.css' %}">
+<link rel="stylesheet" href="{% static 'proschety/css/sections/proschet.css' %}">
+{% endblock %}
+
+{% block title %}Просчёты{% endblock %}
+
+{% block content %}
+
+    <!-- Заголовок страницы с логотипом типографии -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png"
+             alt="Типография &quot;Буква А&quot;"
+             title="Типография &quot;Буква А&quot;"
+             width="130">
+        Просчёты
+    </h1>
+
+    <!--
+    Контейнер для секций страницы.
+    Здесь будут последовательно подключаться секции:
+    «Список просчётов», затем «Клиент», «Изделие» и т.д.
+    Начинаем со «Списка просчётов» — на следующем шаге.
+    -->
+    <div class="proschety-sections">
+        {% include "proschety/sections/list_proschet.html" %}
+        {% include "proschety/sections/proschet.html" %}
+        {% include "proschety/sections/proschet_components.html" %}
+    </div>
+    <!--
+    Контейнер для «плавающих» уведомлений о событиях в WebSocket
+    (например, что другой сотрудник создал или удалил просчёт).
+    Стили — в list_proschet.css, класс .proschety-toasts.
+    -->
+    <!--
+    Контейнер для «плавающих» уведомлений о событиях в WebSocket.
+    В data-session-key лежит ключ текущей сессии. JS сравнивает его
+    с actor_session_key входящих событий, чтобы не показывать
+    уведомление о своих же действиях.
+    -->
+    <div id="proschety-toasts"
+        class="proschety-toasts"
+        data-session-key="{{ session_key }}"></div>
+
+    <!--
+    Контейнер для кратковременных всплывающих сообщений (в правом верхнем углу
+    по смыслу, но фактически слева сверху — как договорились). Появляются
+    и исчезают автоматически. Не путать с уведомлениями слева снизу (те — про
+    события других сессий, эти — про свои действия).
+    -->
+    <div id="proschety-top-notifications"
+        class="proschety-top-notifications"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'proschety/js/sections/list_proschet.js' %}"></script>
+<script src="{% static 'proschety/js/sections/proschet.js' %}"></script>
+{% endblock %}

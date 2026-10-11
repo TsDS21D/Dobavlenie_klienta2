@@ -1,0 +1,240 @@
+/*
+proschety/static/proschety/css/base.css
+Базовые стили новой страницы «Просчёты».
+
+Взято из канона проекта (orders/base.css, sheet_formats/index.css):
+  - фоновая текстура,
+  - белый контейнер со скруглением 20px и мягкой тенью,
+  - фирменный зелёный #0B8661 для акцентов,
+  - системный шрифт.
+
+Отличие от orders/base.css — чуть компактнее по отступам
+(пользователь просил более аккуратный вид), и вынесены
+CSS-переменные в :root для переиспользования в секциях.
+*/
+
+/* ==================== CSS-ПЕРЕМЕННЫЕ ==================== */
+
+/*
+   Фирменные цвета и типовые радиусы — в одном месте, чтобы секции
+   (list_proschet.css и последующие) не хардкодили значения.
+*/
+:root {
+    --brand-green:       #0B8661;                 /* фирменный зелёный */
+    --brand-green-dark:  #0a6e51;                 /* зелёный темнее (hover) */
+    --brand-green-light: #eaf6ef;                 /* светло-зелёный (hover-фон) */
+    --brand-border:      #e0e0e0;                 /* серая рамка по умолчанию */
+    --brand-dashed:      #d6d6d6;                 /* лёгкий пунктир */
+    --brand-text:        #333333;                 /* основной тёмный текст */
+    --brand-muted:       #888888;                 /* приглушённый серый */
+    --radius-card:       12px;                    /* радиус карточек и секций */
+    --radius-input:      8px;                     /* радиус полей и кнопок */
+}
+
+/* ==================== БАЗА ==================== */
+
+/* Всегда показываем вертикальный скроллбар — нет «прыжка» при изменении высоты. */
+html {
+    overflow-y: scroll;
+}
+
+/* Сброс отступов и border-box по всему проекту. */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* <body>: шрифт, фоновая текстура, отступы, минимальная высота. */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
+    min-height: 100vh;
+    padding: 1.5rem;              /* компактнее, чем 2rem в orders */
+    color: var(--brand-text);
+    line-height: 1.45;
+}
+
+/* ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== */
+
+/*
+   Белый блок со скруглением и мягкой тенью — «подложка» под контент.
+   Отступы компактнее, чем в других приложениях (2rem вместо 3rem).
+*/
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 2rem 2.25rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+/* ==================== ЗАГОЛОВКИ ==================== */
+
+/* h1 — заголовок страницы: по центру, с логотипом (как в других приложениях). */
+h1 {
+    color: var(--brand-text);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+/* h2 — заголовок секции. */
+h2 {
+    color: var(--brand-text);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+/* Планшеты. */
+@media (max-width: 1024px) {
+    body { padding: 1.25rem; }
+    .container { max-width: 100%; }
+}
+
+/* Узкие экраны. */
+@media (max-width: 768px) {
+    body { padding: 1rem; }
+    .container { padding: 1.5rem; border-radius: 16px; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.25rem; flex-direction: column; gap: 0.5rem; }
+    h2 { font-size: 1.15rem; margin-bottom: 0.85rem; }
+}
+
+@media (max-width: 480px) {
+    body { padding: 0.5rem; }
+    .container { padding: 1.25rem; border-radius: 12px; }
+    h1 { font-size: 1.3rem; }
+    h2 { font-size: 1.05rem; }
+}
+
+
+
+/* ==================== БОКОВАЯ ПАНЕЛЬ ПРИЛОЖЕНИЙ ==================== */
+
+/*
+   Стили панелей-кнопок справа сверху. Взяты из orders/base.css —
+   это «канон» для всего проекта, чтобы новая страница визуально
+   не выбивалась из системы.
+*/
+
+/* Контейнер всех панелей — фиксирован в правом верхнем углу. */
+.app-nav-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 280px;
+}
+
+/* Одна панель приложения — белая карточка. */
+.nav-panel {
+    background: #ffffff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 60px;
+}
+
+/* Левая часть панели — название и описание приложения. */
+.nav-info {
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
+}
+.nav-info strong {
+    color: var(--brand-text);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+.nav-info div {
+    font-size: 0.8rem;
+    color: var(--brand-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Кнопки в панелях — «Открыть» / «На экране». */
+.nav-btn {
+    padding: 8px 15px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    font-size: 0.85rem !important;
+    min-width: 80px !important;
+    width: 80px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    line-height: normal !important;
+    margin: 0 !important;
+}
+
+/* Кнопка выхода — красная. */
+.nav-btn-logout {
+    background: #f44336 !important;
+    color: #ffffff !important;
+}
+
+/* Активная кнопка — зелёная (фирменный цвет). */
+.nav-btn-active {
+    background: var(--brand-green) !important;
+    color: #ffffff !important;
+}
+
+/* Неактивная — серая. */
+.nav-btn-inactive {
+    background: #e0e0e0 !important;
+    color: var(--brand-text) !important;
+}
+
+/* Наведение. */
+.nav-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ссылка-кнопка центрируется flex'ом. */
+a.nav-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* На узких экранах панель убирается из фиксированного положения
+   и становится обычным блоком сверху. */
+@media (max-width: 768px) {
+    .app-nav-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .nav-info strong { white-space: normal; }
+}

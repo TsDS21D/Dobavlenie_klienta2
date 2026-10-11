@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'mptt',                        # дерево категорий в справочнике шаблонов
     'channels',
     'counter',
+    'proschety',                   # новая альтернативная страница «Просчёты»
     'calculator',
     'product_templates',
     'directories',
@@ -75,6 +76,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'proschety.middleware.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'clickcounter.urls'

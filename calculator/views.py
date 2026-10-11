@@ -598,6 +598,10 @@ def get_print_components(request, proschet_id):
                 'formatted_markup_percent': f"{markup}%",
                 'profit_per_unit': str(profit),
                 'formatted_profit_per_unit': f"{profit:.2f} ₽",
+                # Признак многостраничного режима — нужен для подсветки
+                # карточки компонента на странице /proschety/ (зелёный = одно,
+                # голубой = много). Не влияет на другие страницы.
+                'is_multipage': bool(multipage_obj and multipage_obj.is_active),
             }
             components_data.append(component_data)
 
