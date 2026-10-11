@@ -275,27 +275,81 @@ orders/static/orders/js/detail.js
         html += '    <span class="order-mv-value">' + volumeL + ' л</span>';
         html += '  </div>';
 
-        // Размер стопки — по каждому компоненту.
+        // Размер стопки.
+        // Логика: если у изделия НЕСКОЛЬКО печатных компонентов —
+        // показываем суммарную высоту готовой стопки одной строкой
+        // + мелкую разбивку по компонентам ниже.
+        // Если компонент один — оставляем одну строку, как было.
+        var hasMultipleComponents = (stacks.length > 1);
+
         if (stacks.length) {
             html += '  <div class="order-mv-stacks">';
             html += '    <div class="order-mv-stacks-title">Размер стопки</div>';
-            stacks.forEach(function (s) {
-                if (!s.valid) {
-                    html += '<div class="order-mv-stack-row order-mv-stack-empty">' +
-                                escapeHtml(s.label) + ': размеры не заданы' +
-                            '</div>';
-                    return;
-                }
-                // Форматируем: без лишних .0 для целых.
-                var w = formatStackNumber(s.width_mm);
-                var h = formatStackNumber(s.height_mm);
-                var sh = formatStackNumber(s.stack_height_mm);
-                var sizeText = w + ' × ' + h + ' × ' + sh + ' мм';
-                html += '<div class="order-mv-stack-row">' +
-                            '<span class="order-mv-stack-label">' + escapeHtml(s.label) + '</span>' +
-                            '<span class="order-mv-stack-value">' + sizeText + '</span>' +
+
+            if (hasMultipleComponents) {
+                // ===== СУММАРНАЯ СТОПКА =====
+                // Складываем высоты всех валидных стопок. Ширину и высоту
+                // берём от первой валидной (у брошюры все компоненты —
+                // страницы одного размера).
+                var totalHeight = 0;
+                var totalWidth = null;
+                var totalDepth = null;
+                stacks.forEach(function (s) {
+                    if (s.valid && s.stack_height_mm != null) {
+                        totalHeight += s.stack_height_mm;
+                        if (totalWidth === null) totalWidth = s.width_mm;
+                        if (totalDepth === null) totalDepth = s.height_mm;
+                    }
+                });
+                var wTotal = formatStackNumber(totalWidth);
+                var hTotal = formatStackNumber(totalDepth);
+                var shTotal = formatStackNumber(totalHeight);
+                var sizeTotal = wTotal + ' × ' + hTotal + ' × ' + shTotal + ' мм';
+
+                html += '<div class="order-mv-stack-row order-mv-stack-total">' +
+                            '<span class="order-mv-stack-label">Готовая стопка (все компоненты изделия)</span>' +
+                            '<span class="order-mv-stack-value">' + sizeTotal + '</span>' +
                         '</div>';
-            });
+
+                // Мелкая разбивка по компонентам.
+                html += '<div class="order-mv-stack-breakdown">';
+                stacks.forEach(function (s) {
+                    if (!s.valid) {
+                        html += '<div class="order-mv-stack-subrow order-mv-stack-empty">' +
+                                    escapeHtml(s.label) + ': размеры не заданы' +
+                                '</div>';
+                        return;
+                    }
+                    var w = formatStackNumber(s.width_mm);
+                    var h = formatStackNumber(s.height_mm);
+                    var sh = formatStackNumber(s.stack_height_mm);
+                    var sizeText = w + ' × ' + h + ' × ' + sh + ' мм';
+                    html += '<div class="order-mv-stack-subrow">' +
+                                '<span class="order-mv-stack-sublabel">' + escapeHtml(s.label) + '</span>' +
+                                '<span class="order-mv-stack-subvalue">' + sizeText + '</span>' +
+                            '</div>';
+                });
+                html += '</div>';
+            } else {
+                // ===== ОДИН КОМПОНЕНТ — просто строка =====
+                stacks.forEach(function (s) {
+                    if (!s.valid) {
+                        html += '<div class="order-mv-stack-row order-mv-stack-empty">' +
+                                    escapeHtml(s.label) + ': размеры не заданы' +
+                                '</div>';
+                        return;
+                    }
+                    var w = formatStackNumber(s.width_mm);
+                    var h = formatStackNumber(s.height_mm);
+                    var sh = formatStackNumber(s.stack_height_mm);
+                    var sizeText = w + ' × ' + h + ' × ' + sh + ' мм';
+                    html += '<div class="order-mv-stack-row">' +
+                                '<span class="order-mv-stack-label">' + escapeHtml(s.label) + '</span>' +
+                                '<span class="order-mv-stack-value">' + sizeText + '</span>' +
+                            '</div>';
+                });
+            }
+
             html += '  </div>';
         }
 

@@ -524,7 +524,7 @@ function massa_i_obyom_renderStacks(stacks) {
     const container = document.getElementById('massa-i-obyom-stacks-container');
     const list = document.getElementById('massa-i-obyom-stacks-list');
 
-    // Если элементов нет в DOM (например, секция свёрнута или шаблон не обновлён) — выходим.
+    // Если элементов нет в DOM — выходим.
     if (!container || !list) return;
 
     // Если компонентов нет — скрываем блок и очищаем список.
@@ -534,32 +534,74 @@ function massa_i_obyom_renderStacks(stacks) {
         return;
     }
 
+    // Вспомогательная функция форматирования чисел:
+    // округляем до 1 знака после запятой; если получилось целое — без ".0".
+    const fmt = function (v) {
+        const r = Math.round(v * 10) / 10;
+        return (r % 1 === 0) ? String(r) : r.toFixed(1);
+    };
+
     // Собираем HTML всех строк.
     let html = '';
-    stacks.forEach(function (s) {
-        // Если у компонента не заданы размеры/толщина — выводим информативное сообщение.
-        if (!s.valid) {
-            html += '<li class="stack-empty">' +
-                        s.label + ': размеры или толщина не заданы' +
+
+    // Если компонентов БОЛЬШЕ ОДНОГО — показываем суммарную строку
+    // и мелкую разбивку по компонентам. Если один — только строку компонента.
+    const hasMultipleComponents = (stacks.length > 1);
+
+    if (hasMultipleComponents) {
+        // ===== СУММАРНАЯ СТОПКА =====
+        // Складываем высоты всех валидных стопок. Ширину и высоту
+        // берём от первой валидной (для брошюры все компоненты — одного размера).
+        let totalHeight = 0;
+        let totalWidth = null;
+        let totalDepth = null;
+        stacks.forEach(function (s) {
+            if (s.valid && s.stackHeightMm != null) {
+                totalHeight += s.stackHeightMm;
+                if (totalWidth === null) totalWidth = s.widthMm;
+                if (totalDepth === null) totalDepth = s.heightMm;
+            }
+        });
+        if (totalWidth !== null && totalDepth !== null) {
+            const sizeTotal = fmt(totalWidth) + ' × ' + fmt(totalDepth) + ' × ' + fmt(totalHeight) + ' мм';
+            html += '<li class="massa-i-obyom-stack-total">' +
+                        '<span class="stack-label">Готовая стопка (все компоненты изделия)</span>' +
+                        '<span class="stack-value">' + sizeTotal + '</span>' +
                     '</li>';
-            return;
         }
 
-        // Вспомогательная функция форматирования чисел:
-        // округляем до 1 знака после запятой; если получилось целое — без ".0".
-        const fmt = function (v) {
-            const r = Math.round(v * 10) / 10;
-            return (r % 1 === 0) ? String(r) : r.toFixed(1);
-        };
-
-        // Формируем строку вида "300 × 400 × 310 мм".
-        const sizeText = fmt(s.widthMm) + ' × ' + fmt(s.heightMm) + ' × ' + fmt(s.stackHeightMm) + ' мм';
-
-        html += '<li>' +
-                    '<span class="stack-label">' + s.label + '</span>' +
-                    '<span class="stack-value">' + sizeText + '</span>' +
-                '</li>';
-    });
+        // ===== РАЗБИВКА ПО КОМПОНЕНТАМ =====
+        html += '<li class="massa-i-obyom-stack-breakdown">';
+        stacks.forEach(function (s) {
+            if (!s.valid) {
+                html += '<div class="massa-i-obyom-stack-subrow stack-empty">' +
+                            s.label + ': размеры или толщина не заданы' +
+                        '</div>';
+                return;
+            }
+            const sizeText = fmt(s.widthMm) + ' × ' + fmt(s.heightMm) + ' × ' + fmt(s.stackHeightMm) + ' мм';
+            html += '<div class="massa-i-obyom-stack-subrow">' +
+                        '<span class="massa-i-obyom-stack-sublabel">' + s.label + '</span>' +
+                        '<span class="massa-i-obyom-stack-subvalue">' + sizeText + '</span>' +
+                    '</div>';
+        });
+        html += '</li>';
+    } else {
+        // ===== ОДИН КОМПОНЕНТ — просто строка =====
+        stacks.forEach(function (s) {
+            if (!s.valid) {
+                html += '<li class="stack-empty">' +
+                            s.label + ': размеры или толщина не заданы' +
+                        '</li>';
+                return;
+            }
+            const sizeText = fmt(s.widthMm) + ' × ' + fmt(s.heightMm) + ' × ' + fmt(s.stackHeightMm) + ' мм';
+            html += '<li>' +
+                        '<span class="stack-label">' + s.label + '</span>' +
+                        '<span class="stack-value">' + sizeText + '</span>' +
+                    '</li>';
+        });
+    }
 
     // Записываем HTML в список и показываем контейнер.
     list.innerHTML = html;

@@ -358,3 +358,64 @@ calculator/static/calculator/css/sections/massa_i_obyom.css
         font-size: 0.72rem;
     }
 }
+
+
+
+/* ===== СУММАРНАЯ СТОПКА И РАЗБИВКА ПО КОМПОНЕНТАМ ===== */
+
+/* Строка с суммарной высотой готовой стопки (когда компонентов >1). */
+.massa-i-obyom-stacks-list .massa-i-obyom-stack-total {
+    padding: 0.35rem 0;                       /* Чуть больше вертикальный отступ. */
+    border-bottom: 1px dashed #b9d9c7;        /* Пунктир — отделяем от разбивки. */
+    margin-bottom: 0.2rem;                    /* Небольшой отступ до разбивки. */
+}
+
+/* Подпись «Готовая стопка (все компоненты изделия)» — зелёная, жирная. */
+.massa-i-obyom-stacks-list .massa-i-obyom-stack-total .stack-label {
+    color: #0B8661;                           /* Фирменный зелёный. */
+    font-weight: 700;                         /* Жирный. */
+    white-space: normal;                      /* Разрешаем перенос длинной подписи. */
+}
+
+/* Значение суммарной высоты — зелёное, жирное, чуть крупнее. */
+.massa-i-obyom-stacks-list .massa-i-obyom-stack-total .stack-value {
+    color: #0B8661;                           /* Фирменный зелёный. */
+    font-weight: 700;                         /* Жирный. */
+    font-size: 0.85rem;                       /* Крупнее обычного. */
+}
+
+/* Контейнер разбивки по компонентам.
+   Перебиваем display: flex из общего правила li — нам нужен блок. */
+.massa-i-obyom-stacks-list .massa-i-obyom-stack-breakdown {
+    display: block;                           /* Не flex, а блок. */
+    padding: 0;                               /* Убираем padding от общего li. */
+    border-bottom: none;                      /* Убираем нижний пунктир общего li. */
+}
+
+/* Одна мелкая строка разбивки (название компонента + размер). */
+.massa-i-obyom-stack-subrow {
+    display: flex;                            /* В строку. */
+    justify-content: space-between;           /* По краям. */
+    align-items: baseline;                    /* По базовой линии. */
+    gap: 0.6rem;                              /* Отступ на случай сжатия. */
+    padding: 0.15rem 0 0.15rem 0.8rem;        /* Небольшой отступ слева для «вложенности». */
+    font-size: 0.72rem;                       /* Мелко. */
+    border-bottom: none;                      /* Никаких линий под строками. */
+}
+
+/* Подпись мелкой строки (название компонента). */
+.massa-i-obyom-stack-sublabel {
+    color: #888;                              /* Приглушённый серый. */
+    flex: 1;                                  /* Растягивается, если значение короткое. */
+    overflow: hidden;                         /* Обрезаем длинные названия. */
+    text-overflow: ellipsis;                  /* … */
+    white-space: nowrap;                      /* В одну строку. */
+}
+
+/* Значение мелкой строки (размер). */
+.massa-i-obyom-stack-subvalue {
+    color: #555;                              /* Потемнее, чем подпись. */
+    font-weight: 600;                         /* Полужирный — но не так, как главный. */
+    font-family: 'Courier New', monospace;    /* Моноширинный, как у основных значений. */
+    white-space: nowrap;                      /* Не переносим. */
+}
