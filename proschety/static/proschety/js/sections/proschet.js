@@ -135,6 +135,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
             addComponentBtn.addEventListener('click', handleAddComponent);
         }
 
+        // Кнопка-стрелка под полем «Тираж»: разворачивает/сворачивает
+        // блок добавления печатного компонента. По умолчанию блок скрыт.
+        const toggleComponentsBtn = document.getElementById('proschet-toggle-components');
+        if (toggleComponentsBtn) {
+            toggleComponentsBtn.addEventListener('click', handleToggleComponentsClick);
+        }
+
         // Удаление печатного компонента: делегированный клик по крестику
         // внутри любой карточки. Обработчик вешаем на контейнер
         // #proschet-components-section — он живёт всё время, а карточки
@@ -172,9 +179,11 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
     function handleProschetSelected(event) {
         const d = event.detail || {};
+        const prevId = activeProschet ? String(activeProschet.id) : null;
+        const newId  = String(d.proschetId || '');
 
         activeProschet = {
-            id:          String(d.proschetId || ''),
+            id:          newId,
             number:      d.proschetNumber || '',
             title:       d.proschetTitle  || '',
             circulation: d.proschetCirculation || '',
@@ -184,8 +193,19 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
         renderAll();
 
-        // Загружаем таблицу печатных компонентов для этого просчёта.
-        loadComponents(activeProschet.id);
+        // Загружаем печатные компоненты. Когда они придут — смотрим:
+        //   • ни одного компонента → раскрываем блок добавления,
+        //     чтобы сразу можно было добавить первый;
+        //   • хотя бы один есть → блок остаётся скрытым.
+        //
+        // Так делаем ТОЛЬКО при смене просчёта — при обновлении данных
+        // того же самого (например, после WebSocket-события) состояние
+        // блока не трогаем, иначе он будет «моргать».
+        loadComponents(activeProschet.id).then(function (components) {
+            if (prevId === newId) return;
+            const list = components || [];
+            setComponentsBlockOpen(list.length === 0);
+        });
     }
 
     function handleProschetTitleChanged(event) {
@@ -1024,10 +1044,15 @@ JavaScript секции «Просчёт» новой страницы /proschet
      *   GET /calculator/get-print-components/<proschet_id>/
      */
     function loadComponents(proschetId) {
-        if (!componentsSection) return;
-        if (!proschetId) return;
+        // Функция возвращает промис, который резолвится массивом
+        // загруженных компонентов (или [] при ошибке).
+        // Это нужно, чтобы вызывающий код мог дождаться загрузки и,
+        // например, принять решение об открытии/закрытии блока
+        // добавления печатного компонента.
+        if (!componentsSection) return Promise.resolve([]);
+        if (!proschetId) return Promise.resolve([]);
 
-        fetch('/calculator/get-print-components/' + proschetId + '/', {
+        return fetch('/calculator/get-print-components/' + proschetId + '/', {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
@@ -1035,7 +1060,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         .then(function (data) {
             if (!data.success) {
                 console.warn('Не удалось загрузить компоненты:', data.message);
-                return;
+                return [];
             }
             const components = data.components || [];
 
@@ -1073,10 +1098,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
             }));
         })
         .then(function (components) {
-            if (components) renderComponents(components);
+            renderComponents(components);
+            return components;
         })
         .catch(function (err) {
             console.error('Ошибка загрузки компонентов:', err);
+            return [];
         });
     }
 
@@ -1782,7 +1809,38 @@ JavaScript секции «Просчёт» новой страницы /proschet
             showNotification('Ошибка сети при удалении компонента', 'error');
         });
     }
+    // ========================================================================
+    // 14а. РАЗВОРАЧИВАНИЕ/СВОРАЧИВАНИЕ БЛОКА ДОБАВЛЕНИЯ КОМПОНЕНТА.
+    // ========================================================================
 
+    /**
+     * Клик по стрелке под полем «Тираж».
+     * Если блок скрыт — открываем (плавно выезжает вниз),
+     * если открыт — сворачиваем (плавно уезжает вверх).
+     */
+    function handleToggleComponentsClick() {
+        if (!componentsBlock) return;
+        const isOpen = componentsBlock.classList.contains('is-open');
+        setComponentsBlockOpen(!isOpen);
+    }
+
+    /**
+     * Устанавливает состояние открытости блока добавления компонента.
+     * @param {boolean} open — true — открыть, false — свернуть.
+     */
+    function setComponentsBlockOpen(open) {
+        if (!componentsBlock) return;
+
+        const toggleBtn = document.getElementById('proschet-toggle-components');
+
+        if (open) {
+            componentsBlock.classList.add('is-open');
+            if (toggleBtn) toggleBtn.classList.add('proschet-toggle-components--open');
+        } else {
+            componentsBlock.classList.remove('is-open');
+            if (toggleBtn) toggleBtn.classList.remove('proschet-toggle-components--open');
+        }
+    }
 
     /**
      * Кратковременно подсвечивает переключатель режима красной рамкой —

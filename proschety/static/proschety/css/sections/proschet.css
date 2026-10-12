@@ -45,9 +45,12 @@ proschety/static/proschety/css/sections/proschet.css
 /* --- Левая колонка --- */
 .proschet-section-info {
     min-width: 0;
+    /* Вертикальный flex — чтобы кнопка-стрелка легла ПОД строкой
+       «Тираж / Скидка», а не вставала с ними в один ряд. */
     display: flex;
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
 }
 
 /* Правая колонка: номер и название просчёта в две строки, серым мелким. */
@@ -852,4 +855,51 @@ proschety/static/proschety/css/sections/proschet.css
     font-size: 0.7rem;
     color: #999999;
     margin-left: -0.35rem;
+}
+
+/* ==================== КНОПКА-СТРЕЛКА (развернуть добавление компонента) ==================== */
+
+/* Маленькая неприметная кнопка со стрелкой вниз. */
+.proschet-toggle-components {
+    background: transparent;
+    border: none;
+    padding: 0.05rem 0.25rem;
+    margin: 0;
+    color: #b0b0b0;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.proschet-toggle-components:hover {
+    color: #0B8661;
+    background: #eaf6ef;
+}
+
+/* Стрелка: ▼. При открытом блоке поворачиваем на 180° → получается ▲. */
+.proschet-toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease-out;
+}
+.proschet-toggle-components--open .proschet-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* ==================== ПЛАВНОЕ ПОЯВЛЕНИЕ/СКРЫТИЕ БЛОКА ДОБАВЛЕНИЯ ==================== */
+
+/* По умолчанию блок «схлопнут»: максимальная высота 0, прозрачность 0.
+   overflow: hidden обрезает содержимое — оно не занимает места. */
+.proschet-section-components {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+}
+
+/* Открытое состояние (класс .is-open ставит JS при клике по стрелке). */
+.proschet-section-components.is-open {
+    max-height: 300px;
+    opacity: 1;
 }
