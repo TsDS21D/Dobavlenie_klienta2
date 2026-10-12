@@ -37,9 +37,9 @@ proschety/static/proschety/css/sections/proschet.css
 
 .proschet-section-body {
     display: grid;
-    grid-template-columns: auto 1fr auto;    /* [Тираж+Скидка] [Комментарий] [PR-N] */
-    gap: 0.7rem;                              /* как между Тиражом и Скидкой */
-    align-items: center;
+    grid-template-columns: auto 1fr 180px;    /* [Тираж+Скидка] [Комментарий] [PR-N — фикс. ширина] */
+    gap: 0.7rem;
+    align-items: start;                        /* прижимаем всё к верху — тираж не съезжает */
 }
 
 /* --- Левая колонка --- */
@@ -74,9 +74,26 @@ proschety/static/proschety/css/sections/proschet.css
     font-size: 0.75rem;
     line-height: 1.15;
     max-width: 100%;
+    /* Обрезка до 3 строк с многоточием в конце третьей. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;   /* вендорный вариант — работает в Chrome/Safari/Edge */
+    line-clamp: 3;           /* стандартный — глушит warning VS Code, на старых браузерах игнорируется */
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* Разрешаем перенос — иначе line-clamp не сработает. */
+    white-space: normal;
+    /* Намёк, что по клику можно раскрыть полный текст. */
+    cursor: pointer;
+    /* Плавное раскрытие/сворачивание высоты. */
+    transition: max-height 0.15s ease-out;
+}
+
+/* Раскрытый вариант — показываем текст целиком. */
+.proschet-section-proschet-name.expanded {
+    -webkit-line-clamp: unset;   /* вендорный вариант снятия обрезки */
+    line-clamp: unset;           /* стандартный — глушит warning VS Code */
+    display: block;
+    overflow: visible;
 }
 
 .proschet-section-placeholder {
@@ -362,6 +379,14 @@ proschety/static/proschety/css/sections/proschet.css
     padding: 2px;
     gap: 2px;
 }
+/* Подсветка переключателя режима, когда пользователь нажал
+   «+ Добавить печатный компонент», но не выбрал ни одну половину.
+   Красная рамка — визуальный аналог того, как браузер подсвечивает
+   поле принтера при фокусе. */
+.proschet-mode-switch.proschet-mode-switch--invalid {
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
 
 .proschet-mode-btn {
     padding: 0.22rem 0.55rem;
@@ -374,6 +399,7 @@ proschety/static/proschety/css/sections/proschet.css
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
     white-space: nowrap;
+    user-select: none;   /* двойной клик не выделяет текст кнопки */
 }
 
 .proschet-mode-btn:hover {
@@ -392,6 +418,39 @@ proschety/static/proschety/css/sections/proschet.css
     color: #ffffff;
 }
 
+/* «Вторая сторона» — фон тоже зависит от типа печати.
+   Правила аналогичны «Первой стороне», но с data-value="duplex". */
+
+.proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-color {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-color:hover {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+}
+
+.proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-bw {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-bw:hover {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+}
+
 /* Активная половина «Многостраничный» — синяя. */
 .proschet-mode-btn.active[data-value="multi"] {
     background: #2a6fc9;
@@ -400,6 +459,104 @@ proschety/static/proschety/css/sections/proschet.css
 }
 .proschet-mode-btn.active[data-value="multi"]:hover {
     background: #2a6fc9;
+    color: #ffffff;
+}
+
+/* «Первая сторона» — фон зависит от ТИПА печати (color/bw).
+   Классы .proschet-mode-btn--side-color / --side-bw ставит JS.
+   Селектор включает .active и [data-value="single"], чтобы
+   перебить базовый зелёный стиль .active[data-value="single"]. */
+
+/* Цветная печать — приглушённый радужный градиент,
+   как у активной кнопки «Цветная». */
+.proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-color {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-color:hover {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+}
+
+/* Ч/б печать — серый градиент, как у активной кнопки «Ч/б». */
+.proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-bw {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-bw:hover {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+}
+
+
+/* Обе половины переключателя «Тип» — одинаковой ширины,
+   чтобы ползунок был симметричным, независимо от длины текста. */
+.proschet-mode-switch[data-field="print_type"] .proschet-mode-btn {
+    min-width: 5.2rem;
+    text-align: center;
+}
+/* Обе половины переключателя «Одна/Две стороны» — тоже одинаковой
+   ширины. Ширину задаём по самой длинной надписи «Односторонняя печать»,
+   чтобы при переключении режима кнопка не «прыгала» в размере. */
+.proschet-mode-switch[data-field="printing_mode"] .proschet-mode-btn {
+    min-width: 9.5rem;
+    text-align: center;
+}
+
+/* Активная половина «Цветная» — приглушённый радужный градиент
+   (те же шесть цветов, но темнее и мягче, чем чистые спектральные). */
+.proschet-mode-btn.active[data-value="color"] {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="color"]:hover {
+    background: linear-gradient(45deg,
+        #0f94c8 0%,    
+        #d00e7c 60%,    
+        #eae322 80%,    
+        #6b6176 100%);  
+    color: #ffffff;
+}
+
+/* Активная половина «Ч/б» — серый градиент. */
+.proschet-mode-btn.active[data-value="bw"] {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.proschet-mode-btn.active[data-value="bw"]:hover {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+}
+
+/* Активная половина «Вторая сторона» — тоже зелёная:
+   в двустороннем режиме обе стороны печатаются, обе и подсвечены. */
+.proschet-mode-btn.active[data-value="duplex"] {
+    background: #0B8661;
+    color: #ffffff;
+    font-weight: 600;
+}
+.proschet-mode-btn.active[data-value="duplex"]:hover {
+    background: #0B8661;
     color: #ffffff;
 }
 
@@ -629,4 +786,70 @@ proschety/static/proschety/css/sections/proschet.css
     color: #0B8661;
     font-weight: 600;
     line-height: 1.15;
+}
+
+/* ==================== ВТОРАЯ СТРОКА КАРТОЧКИ КОМПОНЕНТА ==================== */
+
+/* Формат / Ширина / Высота / Вылеты — отдельная строка под первой.
+   flex: 1 0 100% заставляет строку занимать всю ширину карточки
+   и переноситься на новую линию. */
+.proschet-component-card-row2 {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    margin-top: 0.3rem;
+    border-top: 1px dashed #e0e0e0;
+}
+
+/* Селект «Формат» — по ширине текста. */
+.proschet-vich-format {
+    min-width: 140px;
+    padding: 0.25rem 0.5rem;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    cursor: pointer;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.proschet-vich-format:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* Числовые поля Ширина / Высота / Вылеты. */
+.proschet-vich-input {
+    width: 4.5rem;
+    padding: 0.25rem 0.5rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    text-align: center;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.proschet-vich-input:hover {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+.proschet-vich-input:focus {
+    outline: none;
+    background: #ffffff;
+    border: 2px solid #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* Подпись единицы измерения (мм) после input. */
+.proschet-vich-unit {
+    font-size: 0.7rem;
+    color: #999999;
+    margin-left: -0.35rem;
 }

@@ -176,7 +176,15 @@ proschety/static/proschety/css/sections/list_proschet.css
     font-weight: 600;
 }
 
-/* Колонка «Название» — без фиксированной ширины, растягивается по остатку */
+/* Колонка «Название» — обрезаем длинный текст в одну строку с многоточием.
+   max-width: 0 — трюк для таблиц (без него text-overflow: ellipsis
+   в ячейке не срабатывает, колонка тянется по содержимому). */
+.list-proschet-table .col-title {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 /* Колонка «Клиент» — обычный размер, приглушённый цвет */
 .list-proschet-table .col-client {
@@ -231,6 +239,12 @@ proschety/static/proschety/css/sections/list_proschet.css
     /* На узких экранах поля поиска идут столбиком. */
     .list-proschet-search-wrap {
         flex-direction: column;
+    }
+    /* В колоночном режиме flex-grow не нужен: без этого input
+       растягивается по высоте на всю доступную высоту контейнера
+       и превращается в огромный блок. Высота — по контенту. */
+    .list-proschet-search {
+        flex: 0 0 auto;
     }
 
     .list-proschet-table thead th,
@@ -558,9 +572,14 @@ proschety/static/proschety/css/sections/list_proschet.css
     background: #f0f9f5;
 }
 
-/* Режим редактирования — убираем padding у ячейки, чтобы input занял всё место. */
+/* Режим редактирования — убираем padding и обрезку, чтобы input
+   занял всю ширину ячейки и его рамка/тень не обрезались. */
 .list-proschet-table .col-title.editing-cell {
     padding: 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 /* Поле ввода внутри ячейки — рамка и свечение как у других полей. */

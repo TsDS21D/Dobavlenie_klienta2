@@ -115,9 +115,13 @@ proschety/templates/proschety/sections/proschet.html
                  Переключение — по двойному клику. Справа — подсказка. -->
             <div class="proschet-inline-field">
                 <label class="proschet-inline-field-label">Режим:</label>
-                <div class="proschet-mode-switch" id="proschet-mode-switch" data-mode="single">
+                <!-- Изначально ни одна половина не активна — кнопки серые,
+                     режим «как бы не выбран». Пользователь выбирает его
+                     двойным кликом; после создания печатного компонента
+                     JS сбрасывает выбор обратно. -->
+                <div class="proschet-mode-switch" id="proschet-mode-switch" data-mode="">
                     <button type="button"
-                            class="proschet-mode-btn active"
+                            class="proschet-mode-btn"
                             data-value="single"
                             title="Двойной клик для выбора">Одностраничный</button>
                     <button type="button"

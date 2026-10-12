@@ -21,6 +21,22 @@ JavaScript секции «Просчёт» новой страницы /proschet
 (function () {
 
     // ========================================================================
+    // 1а. СТАТИЧЕСКИЙ СПИСОК ФОРМАТОВ ИЗДЕЛИЯ (одностраничный режим).
+    // ========================================================================
+    // Значения — в миллиметрах. При выборе формата ширина и высота
+    // подставляются в соответствующие поля. При загрузке карточки
+    // подходящий формат определяется по паре (ширина, высота).
+    const PROSHETY_ITEM_FORMATS = [
+        { name: 'Визитка 90×50', width: 90,  height: 50  },
+        { name: 'Визитка 85×55', width: 85,  height: 55  },
+        { name: 'A7 74×105',     width: 74,  height: 105 },
+        { name: 'A6 105×148',    width: 105, height: 148 },
+        { name: 'A5 148×210',    width: 148, height: 210 },
+        { name: 'A4 210×297',    width: 210, height: 297 },
+        { name: 'A3 297×420',    width: 297, height: 420 },
+    ];
+
+    // ========================================================================
     // 1. СОСТОЯНИЕ И DOM.
     // ========================================================================
 
@@ -67,6 +83,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
             console.warn('⚠️ Элементы заголовка секции «Просчёт» не найдены');
             return;
         }
+        // Клик по названию — раскрыть/свернуть полный текст.
+        // В обычном состоянии название обрезано до 3 строк (line-clamp в CSS).
+        // По клику класс .expanded снимает обрезку и показывает текст целиком.
+        if (proschetNameEl) {
+            proschetNameEl.addEventListener('click', handleProschetNameClick);
+        }
 
         // События от списка просчётов.
         document.addEventListener('proschetSelected', handleProschetSelected);
@@ -92,8 +114,19 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // не нужно навешивать на каждую карточку отдельно.
         if (componentsSection) {
             componentsSection.addEventListener('dblclick', handleComponentFieldDblClick);
+            // Переключатели «Тип» и «Односторонняя / Двусторонняя» —
+            // тоже по двойному клику: защита от случайного нажатия.
+            componentsSection.addEventListener('dblclick', handleComponentModeSwitchClick);
             componentsSection.addEventListener('change',   handleComponentFieldChange);
             componentsSection.addEventListener('blur',     handleComponentFieldBlur, true);
+
+            // Поля второй строки (Формат / Ширина / Высота / Вылеты).
+            //   • change — выбор формата из селекта (подставляет Ш/В и сохраняет);
+            //   • blur   — сохранение числового поля при уходе фокуса;
+            //   • keydown — Enter сохраняет немедленно.
+            componentsSection.addEventListener('change',  handleVichFormatChange);
+            componentsSection.addEventListener('blur',    handleVichFieldBlur, true);
+            componentsSection.addEventListener('keydown', handleVichFieldKeydown);
         }
 
         // Кнопка «+ Добавить печатный компонент».
@@ -101,6 +134,34 @@ JavaScript секции «Просчёт» новой страницы /proschet
         if (addComponentBtn) {
             addComponentBtn.addEventListener('click', handleAddComponent);
         }
+
+        // Удаление печатного компонента: делегированный клик по крестику
+        // внутри любой карточки. Обработчик вешаем на контейнер
+        // #proschet-components-section — он живёт всё время, а карточки
+        // пересоздаются при каждой перезагрузке списка.
+        if (componentsSection) {
+            componentsSection.addEventListener('click', handleComponentDeleteClick);
+        }
+
+        // --- Модалка подтверждения удаления печатного компонента ---
+        const compConfirmOverlay = document.getElementById('proschet-component-confirm-overlay');
+        const compConfirmNo      = document.getElementById('proschet-component-confirm-no');
+        const compConfirmYes     = document.getElementById('proschet-component-confirm-yes');
+
+        if (compConfirmNo)  compConfirmNo.addEventListener('click', closeComponentConfirmModal);
+        if (compConfirmYes) compConfirmYes.addEventListener('click', confirmComponentDeleteYes);
+        if (compConfirmOverlay) {
+            compConfirmOverlay.addEventListener('click', function (e) {
+                if (e.target === compConfirmOverlay) closeComponentConfirmModal();
+            });
+        }
+        // Esc закрывает модалку компонента, если она открыта.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            if (!compConfirmOverlay) return;
+            if (compConfirmOverlay.style.display !== 'flex') return;
+            closeComponentConfirmModal();
+        });
 
         console.log('✅ Секция «Просчёт» инициализирована');
     });
@@ -162,6 +223,10 @@ JavaScript секции «Просчёт» новой страницы /proschet
     function renderTitle() {
         if (!proschetNumberEl || !proschetNameEl) return;
 
+        // Сбрасываем «раскрытое» состояние — при смене просчёта название
+        // должно снова показываться обрезанным до 3 строк.
+        proschetNameEl.classList.remove('expanded');
+
         if (!activeProschet || (!activeProschet.number && !activeProschet.title)) {
             proschetNumberEl.textContent = '—';
             proschetNameEl.textContent   = '—';
@@ -171,6 +236,24 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // Номер и название — в две отдельные строки, без разделителя.
         proschetNumberEl.textContent = activeProschet.number || '—';
         proschetNameEl.textContent   = activeProschet.title  || '—';
+    }
+
+    /**
+     * Клик по названию просчёта — переключает «обрезано / раскрыто».
+     * В обычном виде название обрезано до 3 строк через line-clamp в CSS.
+     * Класс .expanded снимает обрезку и показывает полный текст.
+     * Повторный клик возвращает обрезку.
+     */
+    function handleProschetNameClick() {
+        if (!proschetNameEl) return;
+
+        if (proschetNameEl.classList.contains('expanded')) {
+            // Сворачиваем обратно — возвращается обрезка в 3 строки.
+            proschetNameEl.classList.remove('expanded');
+        } else {
+            // Раскрываем — показываем весь текст целиком.
+            proschetNameEl.classList.add('expanded');
+        }
     }
 
     function renderCirculation() {
@@ -195,6 +278,22 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
     function renderComment() {
         if (!commentBody) return;
+
+        // Если редактор комментария УЖЕ ОТКРЫТ (класс .editing) — не трогаем
+        // содержимое. Это защита от асинхронного обновления данных просчёта:
+        // двойной клик по комментарию в списке вызывает refreshProschetData,
+        // прилетает второй proschetSelected — и без этой проверки
+        // renderComment перезаписал бы textarea, редактор «закрылся бы».
+        //
+        // ВАЖНО: проверяем именно класс .editing, а НЕ наличие textarea.
+        // cancelComment() и saveComment() сначала снимают класс, потом
+        // вызывают renderComment — с проверкой по классу всё корректно
+        // перерисовывается. С проверкой по textarea мы бы никогда не смогли
+        // закрыть редактор: textarea-то всё ещё внутри.
+        if (commentBody.classList.contains('editing')) {
+            return;
+        }
+
         const c = activeProschet ? activeProschet.comment : '';
         if (!c) {
             commentBody.textContent = '—';
@@ -785,7 +884,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // Читаем значения из полей.
         const printerId = printerSelect ? printerSelect.value : '';
         const paperId   = paperSelect   ? paperSelect.value   : '';
-        const mode      = modeSwitch ? (modeSwitch.dataset.mode || 'single') : 'single';
+        const mode      = modeSwitch ? (modeSwitch.dataset.mode || '') : '';
 
         if (!printerId) {
             showNotification('Выберите принтер', 'error');
@@ -795,6 +894,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
         if (!paperId) {
             showNotification('Выберите бумагу', 'error');
             if (paperSelect) paperSelect.focus();
+            return;
+        }
+        if (!mode) {
+            showNotification('Выберите режим', 'error');
+            // Подсвечиваем переключатель на 1.2 сек — визуальный аналог
+            // того, как браузер фокусирует поле принтера/бумаги.
+            highlightModeSwitch();
             return;
         }
 
@@ -847,9 +953,21 @@ JavaScript секции «Просчёт» новой страницы /proschet
             if (printerSelect) printerSelect.value = '';
             if (paperSelect)   paperSelect.value   = '';
 
+            // Сбрасываем выбор режима — обе половины переключателя
+            // снова серые. Пока пользователь явно не выберет
+            // одно-/многостраничный, кнопка не подсвечивается.
+            if (modeSwitch) {
+                modeSwitch.querySelectorAll('.proschet-mode-btn').forEach(function (b) {
+                    b.classList.remove('active');
+                });
+                modeSwitch.dataset.mode = '';
+            }
+
             // Обновляем таблицу компонентов.
             if (activeProschet && activeProschet.id) {
                 loadComponents(activeProschet.id);
+                // Уведомляем другие окна, что печатные компоненты изменились.
+                notifyChange(activeProschet.id, 'print_component_added');
             }
         })
         .catch(function (err) {
@@ -919,7 +1037,43 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 console.warn('Не удалось загрузить компоненты:', data.message);
                 return;
             }
-            renderComponents(data.components || []);
+            const components = data.components || [];
+
+            // Для каждого компонента подгружаем вычисления листов
+            // (ширина, высота, вылеты и т.д.) и складываем в comp._vich.
+            // Эта информация понадобится карточке для полей
+            // «Формат / Ширина / Высота / Вылеты».
+            return Promise.all(components.map(function (comp) {
+                return fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (vich) {
+                    if (vich && vich.success) {
+                        comp._vich = {
+                            item_width:               vich.item_width,
+                            item_height:              vich.item_height,
+                            vyleta:                   vich.vyleta,
+                            color:                    vich.color,
+                            polosa_count:             vich.polosa_count,
+                            fit_horizontal:           vich.fit_horizontal,
+                            fit_vertical:             vich.fit_vertical,
+                            fit_total:                vich.fit_total,
+                            fit_landscape_total:      vich.fit_landscape_total,
+                            fit_portrait_total:       vich.fit_portrait_total,
+                            fit_selected_orientation: vich.fit_selected_orientation,
+                            list_count:               vich.list_count,
+                            cuts_count:               vich.cuts_count,
+                        };
+                    }
+                    return comp;
+                })
+                .catch(function () { return comp; });
+            }));
+        })
+        .then(function (components) {
+            if (components) renderComponents(components);
         })
         .catch(function (err) {
             console.error('Ошибка загрузки компонентов:', err);
@@ -1011,13 +1165,6 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // Добавляем бумагу в карточку сразу после принтера (по порядку).
         card.appendChild(paperField);
 
-        // Цена бумаги — сразу после селекта бумаги, мелко серым.
-        if (comp.paper_price) {
-            const priceSpan = document.createElement('span');
-            priceSpan.className = 'proschet-component-paper-price';
-            priceSpan.textContent = Number(comp.paper_price).toFixed(2) + ' ₽/лист';
-            card.appendChild(priceSpan);
-        }
 
         // --- Поле «Тип»: переключатель Цветная / Ч/б ---
         const typeField = createInlineField('Тип');
@@ -1045,28 +1192,55 @@ JavaScript секции «Просчёт» новой страницы /proschet
         typeField.appendChild(typeSwitch);
         card.appendChild(typeField);
 
-        // --- Поле «Режим»: переключатель Односторонний / Двусторонний ---
-        const modeField = createInlineField('Режим');
+        // --- Переключатель «Одна сторона / Вторая сторона» (без метки) ---
+        // Визуально это две ячейки:
+        //   • левая  — «Одна сторона»: печатается всегда, поэтому
+        //              всегда с классом .active (зелёная);
+        //   • правая — при двустороннем режиме «Вторая сторона»
+        //              (тоже зелёная, .active); при одностороннем —
+        //              «Не печатается» серым на белом (без .active).
+        const isDuplex = (comp.printing_mode || 'single') === 'duplex';
+        // Тип печати — цветная (color) или ч/б (bw). От него зависит
+        // фон ОБЕИХ кнопок сторон: и «Первой», и «Второй».
+        const isColorPrint = (comp.print_type || 'color') === 'color';
+        const sideBgClass = isColorPrint
+            ? 'proschet-mode-btn--side-color'
+            : 'proschet-mode-btn--side-bw';
+
+        const modeField = document.createElement('div');
+        modeField.className = 'proschet-inline-field';
         const modeSwitchEl = document.createElement('div');
         modeSwitchEl.className = 'proschet-mode-switch';
         modeSwitchEl.dataset.field = 'printing_mode';
         modeSwitchEl.dataset.value = comp.printing_mode || 'single';
 
+        // Левая кнопка:
+        //   single — «Односторонняя печать»;
+        //   duplex — «Первая сторона».
         const btnSingle = document.createElement('button');
         btnSingle.type = 'button';
         btnSingle.className = 'proschet-mode-btn';
         btnSingle.dataset.value = 'single';
-        btnSingle.textContent = 'Односторонний';
-        if ((comp.printing_mode || 'single') === 'single') btnSingle.classList.add('active');
+        btnSingle.textContent = isDuplex ? 'Первая сторона' : 'Односторонняя печать';
+        btnSingle.classList.add('active');         // печатается всегда
+        btnSingle.classList.add(sideBgClass);      // фон по типу печати
         modeSwitchEl.appendChild(btnSingle);
 
+        // Правая кнопка:
+        //   single — «Не печатается» (неактивна, серым на белом);
+        //   duplex — «Вторая сторона» (активна, фон по типу печати).
         const btnDuplex = document.createElement('button');
         btnDuplex.type = 'button';
         btnDuplex.className = 'proschet-mode-btn';
         btnDuplex.dataset.value = 'duplex';
-        btnDuplex.textContent = 'Двусторонний';
-        if (comp.printing_mode === 'duplex') btnDuplex.classList.add('active');
+        btnDuplex.textContent = isDuplex ? 'Вторая сторона' : 'Не печатается';
+        if (isDuplex) {
+            btnDuplex.classList.add('active');
+            btnDuplex.classList.add(sideBgClass);  // фон по типу печати
+        }
         modeSwitchEl.appendChild(btnDuplex);
+
+        modeField.appendChild(modeSwitchEl);
 
         modeField.appendChild(modeSwitchEl);
         card.appendChild(modeField);
@@ -1082,7 +1256,118 @@ JavaScript секции «Просчёт» новой страницы /proschet
         delBtn.textContent = '×';
         card.appendChild(delBtn);
 
+        // --- Вторая строка: Формат / Ширина / Высота / Вылеты ---
+        // Только для одностраничного режима (is_multipage === false).
+        // Для многостраничного пока ничего не показываем — там свои поля.
+        if (!comp.is_multipage) {
+            const row2 = document.createElement('div');
+            row2.className = 'proschet-component-card-row2';
+
+            const vich = comp._vich || {};
+            const w = vich.item_width  !== undefined ? Number(vich.item_width)  : '';
+            const h = vich.item_height !== undefined ? Number(vich.item_height) : '';
+            const v = vich.vyleta      !== undefined ? Number(vich.vyleta)      : '';
+
+            // --- Формат (селект) ---
+            const fmtField = document.createElement('div');
+            fmtField.className = 'proschet-inline-field';
+            const fmtLabel = document.createElement('label');
+            fmtLabel.className = 'proschet-inline-field-label';
+            fmtLabel.textContent = 'Формат:';
+            fmtField.appendChild(fmtLabel);
+
+            const fmtSelect = document.createElement('select');
+            fmtSelect.className = 'proschet-vich-format';
+            fmtSelect.dataset.vichField = 'format';
+
+            const optNone = document.createElement('option');
+            optNone.value = '';
+            optNone.textContent = '— Не выбран —';
+            fmtSelect.appendChild(optNone);
+
+            // Подбираем текущий формат по паре (ширина, высота).
+            let matchedFormatName = '';
+            PROSHETY_ITEM_FORMATS.forEach(function (f) {
+                const opt = document.createElement('option');
+                opt.value = f.name;
+                opt.textContent = f.name;
+                opt.dataset.width  = f.width;
+                opt.dataset.height = f.height;
+                if (Number(f.width) === Number(w) && Number(f.height) === Number(h)) {
+                    opt.selected = true;
+                    matchedFormatName = f.name;
+                }
+                fmtSelect.appendChild(opt);
+            });
+            fmtField.appendChild(fmtSelect);
+            row2.appendChild(fmtField);
+
+            // --- Ширина (мм) ---
+            row2.appendChild(createVichNumberField('Ширина:', 'item_width',  w, 'мм'));
+            // --- Высота (мм) ---
+            row2.appendChild(createVichNumberField('Высота:',  'item_height', h, 'мм'));
+            // --- Вылеты (мм) ---
+            row2.appendChild(createVichNumberField('Вылеты:',  'vyleta',      v, 'мм'));
+
+            card.appendChild(row2);
+
+            // Сохраняем полный объект _vich на DOM-элементе карточки —
+            // понадобится при сохранении, чтобы отправить на сервер
+            // полный набор полей (иначе сервер перепишет остальное
+            // значениями по умолчанию).
+            card._vich = {
+                item_width:               Number(w) || 0,
+                item_height:              Number(h) || 0,
+                vyleta:                   Number(v) || 1,
+                color:                    vich.color || '4+0',
+                polosa_count:             vich.polosa_count || 1,
+                fit_horizontal:           vich.fit_horizontal || 0,
+                fit_vertical:             vich.fit_vertical || 0,
+                fit_total:                vich.fit_total || 0,
+                fit_landscape_total:      vich.fit_landscape_total || 0,
+                fit_portrait_total:       vich.fit_portrait_total || 0,
+                fit_selected_orientation: vich.fit_selected_orientation || 'auto',
+                list_count:               vich.list_count || 0,
+                cuts_count:               vich.cuts_count || 0,
+            };
+        }
+
         return card;
+    }
+
+    /**
+     * Создаёт одно inline-поле с числовым вводом для второй строки
+     * карточки компонента (Ширина / Высота / Вылеты).
+     *
+     * @param {string} labelText — подпись поля (например, «Ширина:»).
+     * @param {string} field     — имя поля в объекте _vich (item_width/…).
+     * @param {number|string} value — текущее значение (может быть '').
+     * @param {string} unit      — единица измерения (подпись после input).
+     */
+    function createVichNumberField(labelText, field, value, unit) {
+        const wrap = document.createElement('div');
+        wrap.className = 'proschet-inline-field';
+
+        const label = document.createElement('label');
+        label.className = 'proschet-inline-field-label';
+        label.textContent = labelText;
+        wrap.appendChild(label);
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'proschet-vich-input';
+        input.dataset.vichField = field;
+        input.min = '0';
+        input.step = '1';
+        input.value = (value === '' || value === null || value === undefined) ? '' : value;
+        wrap.appendChild(input);
+
+        const unitSpan = document.createElement('span');
+        unitSpan.className = 'proschet-vich-unit';
+        unitSpan.textContent = unit;
+        wrap.appendChild(unitSpan);
+
+        return wrap;
     }
 
     /**
@@ -1178,6 +1463,152 @@ JavaScript секции «Просчёт» новой страницы /proschet
         } catch (e) { /* не критично */ }
     }
 
+
+    /**
+     * Клик по одной из кнопок переключателя внутри карточки:
+     *   • «Тип» — Цветная / Ч/б;
+     *   • «Односторонняя / Двусторонняя».
+     *
+     * Логика:
+     *   - клик по уже активной кнопке — ничего не делаем;
+     *   - иначе: снимаем .active со всех кнопок этой группы, ставим
+     *     на кликнутую, обновляем data-value у группы, отправляем
+     *     изменение на сервер (существующий API
+     *     POST /calculator/update-print-component/), после успеха
+     *     перезагружаем карточки (смена типа/режима меняет цену).
+     */
+    function handleComponentModeSwitchClick(event) {
+        const btn = event.target.closest('.proschet-mode-btn');
+        if (!btn) return;
+
+        // Группа-переключатель.
+        const switchEl = btn.closest('.proschet-mode-switch');
+        if (!switchEl) return;
+
+        // Переключатель должен быть внутри карточки компонента.
+        const card = switchEl.closest('.proschet-component-card');
+        if (!card) return;
+        const componentId = card.dataset.componentId;
+        if (!componentId) return;
+
+        // Поле — только print_type или printing_mode.
+        const fieldName = switchEl.dataset.field;
+        if (fieldName !== 'print_type' && fieldName !== 'printing_mode') return;
+
+        const newValue = btn.dataset.value;
+        if (!newValue) return;
+
+        // Если значение уже выбрано — ничего не переключаем.
+        // Проверка по data-value группы, а не по классу .active:
+        // у printing_mode левая кнопка всегда .active, поэтому
+        // проверка «btn.classList.contains('active')» тут не подходит.
+        if (switchEl.dataset.value === newValue) return;
+
+        // --- Визуально переключаем сразу, не ждём ответа сервера ---
+        if (fieldName === 'printing_mode') {
+            // Две ячейки: у левой .active постоянный.
+            // Меняем текст левой и активность+текст правой.
+            const isDuplexNow = (newValue === 'duplex');
+            const leftBtn  = switchEl.querySelector('.proschet-mode-btn[data-value="single"]');
+            const rightBtn = switchEl.querySelector('.proschet-mode-btn[data-value="duplex"]');
+            if (leftBtn) {
+                leftBtn.classList.add('active');
+                // single — «Односторонняя печать», duplex — «Первая сторона».
+                leftBtn.textContent = isDuplexNow ? 'Первая сторона' : 'Односторонняя печать';
+            }
+            if (rightBtn) {
+                rightBtn.textContent = isDuplexNow ? 'Вторая сторона' : 'Не печатается';
+                if (isDuplexNow) {
+                    // Включаем правую сторону — ей тоже нужен фон по типу печати.
+                    // Тип печати берём из соседнего переключателя print_type.
+                    const typeSwitch = card.querySelector(
+                        '.proschet-mode-switch[data-field="print_type"]'
+                    );
+                    const isColorNow = typeSwitch
+                        ? (typeSwitch.dataset.value === 'color')
+                        : true;
+                    rightBtn.classList.remove('proschet-mode-btn--side-color');
+                    rightBtn.classList.remove('proschet-mode-btn--side-bw');
+                    rightBtn.classList.add(isColorNow
+                        ? 'proschet-mode-btn--side-color'
+                        : 'proschet-mode-btn--side-bw');
+                    rightBtn.classList.add('active');
+                } else {
+                    // Выключаем правую сторону — убираем и класс фона, и .active.
+                    rightBtn.classList.remove('proschet-mode-btn--side-color');
+                    rightBtn.classList.remove('proschet-mode-btn--side-bw');
+                    rightBtn.classList.remove('active');
+                }
+            }
+        } else {
+            // print_type: взаимно исключающие половины — снять все,
+            // поставить на выбранную.
+            switchEl.querySelectorAll('.proschet-mode-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            // Перекрашиваем ОБЕ кнопки сторон в соседнем переключателе
+            // printing_mode — их фон зависит от типа печати.
+            const sideButtons = card.querySelectorAll(
+                '.proschet-mode-switch[data-field="printing_mode"] .proschet-mode-btn'
+            );
+            const bgColor = (newValue === 'bw')
+                ? 'proschet-mode-btn--side-bw'
+                : 'proschet-mode-btn--side-color';
+            sideButtons.forEach(function (b) {
+                b.classList.remove('proschet-mode-btn--side-color');
+                b.classList.remove('proschet-mode-btn--side-bw');
+                // Класс фона вешаем только на активные кнопки:
+                // левая активна всегда, правая — только в duplex.
+                if (b.classList.contains('active')) {
+                    b.classList.add(bgColor);
+                }
+            });
+        }
+        switchEl.dataset.value = newValue;
+
+        // Отправляем на сервер.
+        const fd = new FormData();
+        fd.append('component_id', componentId);
+        fd.append('field_name',   fieldName);
+        fd.append('field_value',  newValue);
+
+        fetch('/calculator/update-print-component/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showNotification('Сохранено', 'success');
+                // Смена типа/режима влияет на цену — перезагружаем карточки.
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    // Уведомляем другие окна.
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка сохранения', 'error');
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                }
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка сохранения:', err);
+            showNotification('Ошибка сети при сохранении', 'error');
+            if (activeProschet && activeProschet.id) {
+                loadComponents(activeProschet.id);
+            }
+        });
+    }
+
+
     /**
      * Пользователь изменил значение в селекте принтера/бумаги.
      * Если оно отличается от исходного — отправляем на сервер.
@@ -1225,6 +1656,8 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 showNotification('Сохранено', 'success');
                 if (activeProschet && activeProschet.id) {
                     loadComponents(activeProschet.id);
+                    // Уведомляем другие окна.
+                    notifyChange(activeProschet.id, 'print_component_changed');
                 }
             } else {
                 showNotification(data.message || 'Ошибка сохранения', 'error');
@@ -1258,5 +1691,290 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 select.classList.add('is-locked');
             }
         }, 150);
+    }
+    // ========================================================================
+    // 14. УДАЛЕНИЕ ПЕЧАТНОГО КОМПОНЕНТА.
+    // ========================================================================
+
+    // ID компонента, ожидающего подтверждения удаления.
+    // Заполняется при клике на крестик, читается в confirmComponentDeleteYes.
+    let pendingDeleteComponentId = null;
+
+    /**
+     * Делегированный клик по крестику удаления внутри карточки.
+     * Открывает модалку подтверждения; сам запрос на удаление
+     * уходит только после нажатия «Удалить» в модалке.
+     */
+    function handleComponentDeleteClick(event) {
+        const btn = event.target.closest('.proschet-component-delete-btn');
+        if (!btn) return;
+        event.stopPropagation();
+
+        const card = btn.closest('.proschet-component-card');
+        if (!card) return;
+        const componentId = card.dataset.componentId;
+        if (!componentId) return;
+
+        // Запоминаем, кого будем удалять, и показываем модалку.
+        pendingDeleteComponentId = componentId;
+
+        const overlay = document.getElementById('proschet-component-confirm-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    /**
+     * Закрывает модалку удаления компонента и сбрасывает ожидание.
+     */
+    function closeComponentConfirmModal() {
+        const overlay = document.getElementById('proschet-component-confirm-overlay');
+        if (overlay) overlay.style.display = 'none';
+        pendingDeleteComponentId = null;
+    }
+
+    /**
+     * Клик по «Удалить» в модалке: закрываем модалку и запускаем
+     * само удаление.
+     */
+    function confirmComponentDeleteYes() {
+        if (!pendingDeleteComponentId) {
+            closeComponentConfirmModal();
+            return;
+        }
+        const componentId = pendingDeleteComponentId;
+        closeComponentConfirmModal();
+        deletePrintComponent(componentId);
+    }
+
+    /**
+     * Отправляет POST /calculator/delete-print-component/ с component_id.
+     * Это существующий API приложения calculator — мягкое удаление
+     * (is_deleted=True). После успеха перезагружаем список компонентов.
+     */
+    function deletePrintComponent(componentId) {
+        const fd = new FormData();
+        fd.append('component_id', componentId);
+
+        fetch('/calculator/delete-print-component/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Красное уведомление — как у удаления просчёта.
+                showNotification('Печатный компонент удалён', 'error');
+                // Перезагружаем карточки.
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    // Уведомляем другие окна.
+                    notifyChange(activeProschet.id, 'print_component_deleted');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка удаления компонента', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка удаления компонента:', err);
+            showNotification('Ошибка сети при удалении компонента', 'error');
+        });
+    }
+
+
+    /**
+     * Кратковременно подсвечивает переключатель режима красной рамкой —
+     * визуальный отклик на «Выберите режим» при попытке создать
+     * печатный компонент без выбора одно-/многостраничного режима.
+     */
+    function highlightModeSwitch() {
+        if (!modeSwitch) return;
+        modeSwitch.classList.add('proschet-mode-switch--invalid');
+        setTimeout(function () {
+            if (modeSwitch) {
+                modeSwitch.classList.remove('proschet-mode-switch--invalid');
+            }
+        }, 1200);
+    }
+
+    // ========================================================================
+    // 15. ПОЛЯ «ФОРМАТ / ШИРИНА / ВЫСОТА / ВЫЛЕТЫ» (одностраничный режим).
+    // ========================================================================
+
+    /**
+     * Селект «Формат» — пользователь выбрал формат из списка.
+     * Подставляем ширину и высоту в соответствующие поля карточки
+     * и сохраняем результат на сервере.
+     */
+    function handleVichFormatChange(event) {
+        const select = event.target.closest('.proschet-vich-format');
+        if (!select) return;
+
+        const card = select.closest('.proschet-component-card');
+        if (!card) return;
+        const componentId = card.dataset.componentId;
+        if (!componentId) return;
+
+        const opt = select.options[select.selectedIndex];
+        if (!opt) return;
+
+        const width  = parseFloat(opt.dataset.width);
+        const height = parseFloat(opt.dataset.height);
+        if (isNaN(width) || isNaN(height)) return;   // «— Не выбран —»
+
+        // Обновляем значения в полях и в локальном объекте _vich.
+        const wInput = card.querySelector('.proschet-vich-input[data-vich-field="item_width"]');
+        const hInput = card.querySelector('.proschet-vich-input[data-vich-field="item_height"]');
+        if (wInput) wInput.value = width;
+        if (hInput) hInput.value = height;
+
+        if (card._vich) {
+            card._vich.item_width  = width;
+            card._vich.item_height = height;
+        }
+
+        saveVichData(componentId, card);
+    }
+
+    /**
+     * Потеря фокуса на числовом поле. Сохраняем, если значение изменилось.
+     * Задержка 120 мс — чтобы дать отработать другим обработчикам
+     * (например, клику по кнопке удаления).
+     */
+    function handleVichFieldBlur(event) {
+        const input = event.target.closest('.proschet-vich-input');
+        if (!input) return;
+
+        setTimeout(function () {
+            saveVichField(input);
+        }, 120);
+    }
+
+    /**
+     * Enter в числовом поле — сохранить немедленно.
+     */
+    function handleVichFieldKeydown(event) {
+        if (event.key !== 'Enter') return;
+        const input = event.target.closest('.proschet-vich-input');
+        if (!input) return;
+        event.preventDefault();
+        saveVichField(input);
+    }
+
+    /**
+     * Сохраняет одно числовое поле из карточки (Ширина / Высота / Вылеты).
+     */
+    function saveVichField(input) {
+        const card = input.closest('.proschet-component-card');
+        if (!card) return;
+        const componentId = card.dataset.componentId;
+        if (!componentId) return;
+
+        const field = input.dataset.vichField;
+        if (field !== 'item_width' && field !== 'item_height' && field !== 'vyleta') return;
+
+        const raw = (input.value || '').trim();
+        const num = parseFloat(raw);
+        if (isNaN(num) || num < 0) {
+            // Некорректное значение — откатываем к сохранённому.
+            if (card._vich && card._vich[field] !== undefined) {
+                input.value = card._vich[field];
+            }
+            return;
+        }
+
+        // Ничего не изменилось — выходим.
+        if (card._vich && Number(card._vich[field]) === num) return;
+
+        if (card._vich) card._vich[field] = num;
+
+        // Если поменяли ширину/высоту — пересчитываем текущий формат в селекте.
+        if (field === 'item_width' || field === 'item_height') {
+            syncFormatSelect(card);
+        }
+
+        saveVichData(componentId, card);
+    }
+
+    /**
+     * Синхронизирует селект «Формат» с текущими значениями ширины/высоты.
+     * Если пара (ширина, высота) совпадает с одним из пресетов — выбираем
+     * его, иначе сбрасываем на «— Не выбран —».
+     */
+    function syncFormatSelect(card) {
+        const select = card.querySelector('.proschet-vich-format');
+        if (!select || !card._vich) return;
+
+        const w = Number(card._vich.item_width);
+        const h = Number(card._vich.item_height);
+        let matchedValue = '';
+
+        Array.from(select.options).forEach(function (opt) {
+            const ow = parseFloat(opt.dataset.width);
+            const oh = parseFloat(opt.dataset.height);
+            if (Number(ow) === w && Number(oh) === h) {
+                matchedValue = opt.value;
+            }
+        });
+
+        select.value = matchedValue;
+    }
+
+    /**
+     * Отправляет полный набор одностраничных параметров на сервер.
+     * Использует существующий эндпоинт
+     *   POST /vichisliniya_listov/save-data/
+     * ВАЖНО: передаём ВСЕ поля, иначе сервер перепишет недостающие
+     * дефолтами (см. views.py vichisliniya_listov_save_data).
+     */
+    function saveVichData(componentId, card) {
+        if (!card._vich) return;
+
+        const body = Object.assign({}, card._vich, {
+            print_component_id: componentId
+        });
+
+        // Оптимистично показываем «Сохраняем…» — просто через уведомление.
+        fetch('/vichisliniya_listov/save-data/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(body)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Обновляем локальный объект значениями, которые пересчитал
+                // сервер: list_count, fit_total, cuts_count.
+                card._vich.list_count = data.list_count;
+                card._vich.fit_total  = data.fit_total;
+                card._vich.cuts_count = data.cuts_count;
+                card._vich.fit_horizontal = data.fit_horizontal;
+                card._vich.fit_vertical   = data.fit_vertical;
+                card._vich.fit_landscape_total = data.fit_landscape_total;
+                card._vich.fit_portrait_total  = data.fit_portrait_total;
+                card._vich.list_count = data.list_count;
+
+                showNotification('Сохранено', 'success');
+
+                // Пересчитываем компонент: количество листов изменилось —
+                // значит, цена печати и общая стоимость тоже изменились.
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка сохранения:', err);
+            showNotification('Ошибка сети при сохранении', 'error');
+        });
     }
 })();

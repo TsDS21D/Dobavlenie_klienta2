@@ -36,3 +36,27 @@ proschety/templates/proschety/sections/proschet_components.html
     </div>
 
 </section>
+
+<!-- ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ КОМПОНЕНТА ==================== -->
+<!-- Внешне полностью повторяет модалку удаления просчёта из list_proschet.html. -->
+<!-- Отдельная — чтобы не путать контексты и не переиспользовать одну разметку -->
+<!-- в двух разных секциях. -->
+<div class="list-proschet-confirm-overlay"
+     id="proschet-component-confirm-overlay"
+     style="display: none;">
+    <div class="list-proschet-confirm">
+        <div class="list-proschet-confirm-title">Удалить печатный компонент?</div>
+        <div class="list-proschet-confirm-text">
+            Компонент пропадёт из просчёта.<br>
+            Его можно будет восстановить через админку.
+        </div>
+        <div class="list-proschet-confirm-actions">
+            <button type="button"
+                    class="list-proschet-confirm-btn list-proschet-confirm-btn-no"
+                    id="proschet-component-confirm-no">Отмена</button>
+            <button type="button"
+                    class="list-proschet-confirm-btn list-proschet-confirm-btn-yes"
+                    id="proschet-component-confirm-yes">Удалить</button>
+        </div>
+    </div>
+</div>

@@ -749,7 +749,7 @@ def add_print_component(request):
         # Создаём запись вычислений листов с параметрами по умолчанию
         vich_data = VichisliniyaListovModel(
             vichisliniya_listov_print_component=component,
-            vichisliniya_listov_vyleta=1,
+            vichisliniya_listov_vyleta=4,
             vichisliniya_listov_polosa_count=1,
             vichisliniya_listov_color='4+0',
             vichisliniya_listov_item_width=Decimal('90.00'),

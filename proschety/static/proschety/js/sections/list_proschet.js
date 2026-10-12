@@ -85,6 +85,7 @@ JavaScript секции «Список просчётов» новой стра�
         // refreshTable()), но document остаётся жить. Делегирование через
         // document стабильно работает независимо от того, когда появился tbody.
         document.addEventListener('dblclick', handleEditableCellDblClick);
+        document.addEventListener('dblclick', handleCommentCellDblClick);
         document.addEventListener('click', handleDeleteClick);
         document.addEventListener('click', handleRowClick);
 
@@ -343,6 +344,17 @@ JavaScript секции «Список просчётов» новой стра�
      * (применяет их к новому содержимому).
      */
     function refreshTable() {
+        // Запоминаем ID выделенного просчёта ДО подмены tbody.
+        // После innerHTML = html все строки «чистые» (без .selected),
+        // и без этого шага выделение визуально пропадёт.
+        let selectedIdBefore = null;
+        if (tableBody) {
+            const selectedRow = tableBody.querySelector('.list-proschet-row.selected');
+            if (selectedRow) {
+                selectedIdBefore = selectedRow.dataset.proschetId || null;
+            }
+        }
+
         return fetch('/proschety/api/rows/', {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -354,6 +366,19 @@ JavaScript секции «Список просчётов» новой стра�
             // Переприменяем поиск — иначе новая строка может не соответствовать
             // текущему фильтру, но зато все остальные снова вернутся.
             handleSearch();
+
+            // Восстанавливаем выделение на той же строке, если она ещё жива.
+            // Событие proschetSelected НЕ генерируем — секция «Просчёт» уже
+            // знает про свой активный просчёт, повторный вызов ей не нужен
+            // (и, что важно, не сбросит открытые редакторы).
+            if (selectedIdBefore && tableBody) {
+                const rowToSelect = tableBody.querySelector(
+                    '.list-proschet-row[data-proschet-id="' + selectedIdBefore + '"]'
+                );
+                if (rowToSelect) {
+                    rowToSelect.classList.add('selected');
+                }
+            }
         });
     }
 
@@ -581,6 +606,60 @@ JavaScript секции «Список просчётов» новой стра�
             activateClientEdit(cell);
         }
     }
+    /**
+     * Двойной клик по ячейке «Комментарий» в списке просчётов.
+     *
+     * Задача: открыть редактор комментария в секции «Просчёт» — тот же
+     * редактор, который открывается по двойному клику в самой секции.
+     *
+     * Логика:
+     *   1. Убедиться, что строка выделена — иначе сначала выделить её,
+     *      чтобы секция «Просчёт» получила данные этого просчёта.
+     *   2. Программно вызвать dblclick на #proschet-section-comment-body —
+     *      это переиспользует существующий обработчик в proschet.js
+     *      и не дублирует логику.
+     */
+    function handleCommentCellDblClick(event) {
+        const cell = event.target.closest('.col-comment');
+        if (!cell) return;
+
+        const row = cell.closest('.list-proschet-row');
+        if (!row) return;
+
+        // Если строка ещё не выделена — сначала выделяем её.
+        // handleRowClick сгенерирует proschetSelected, и секция «Просчёт»
+        // мгновенно отрисует данные этого просчёта.
+        if (!row.classList.contains('selected')) {
+            handleRowClick(event);
+            // setTimeout(0) — даём синхронным обработчикам proschetSelected
+            // в proschet.js отработать, прежде чем открывать textarea.
+            setTimeout(openCommentEditorInProschet, 0);
+        } else {
+            openCommentEditorInProschet();
+        }
+    }
+
+    /**
+     * Открывает редактор комментария в секции «Просчёт».
+     *
+     * Программно вызывает dblclick на #proschet-section-comment-body —
+     * в proschet.js на этот элемент уже подписан handleCommentDblClick,
+     * который открывает textarea. Ничего дублировать не нужно.
+     */
+    function openCommentEditorInProschet() {
+        const commentBody = document.getElementById('proschet-section-comment-body');
+        if (!commentBody) return;
+
+        // Если редактор уже открыт — не трогаем.
+        if (commentBody.querySelector('textarea')) return;
+
+        commentBody.dispatchEvent(new MouseEvent('dblclick', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        }));
+    }
+
 
     function activateTitleEdit(cell) {
         const proschetId = cell.dataset.proschetId;
@@ -1072,15 +1151,26 @@ JavaScript секции «Список просчётов» новой стра�
         }
         if (data.event === 'updated') {
             // Голубое уведомление об изменении.
-            const fieldNames = {
-                'circulation': 'тираж',
-                'comment':     'комментарий',
-                'client':      'клиента',
-                'title':       'название',
-            };
-            const fieldName = fieldNames[data.changed_field] || 'данные';
-            action = 'изменил ' + fieldName + ' в просчёте';
             modifierClass = 'proschety-toast-updated';
+
+            // Печатные компоненты — три частных случая с осмысленным текстом,
+            // чтобы не звучало «изменил печатный компонент (добавил)».
+            if (data.changed_field === 'print_component_added') {
+                action = 'добавил печатный компонент в просчёте';
+            } else if (data.changed_field === 'print_component_deleted') {
+                action = 'удалил печатный компонент в просчёте';
+            } else if (data.changed_field === 'print_component_changed') {
+                action = 'изменил печатный компонент в просчёте';
+            } else {
+                const fieldNames = {
+                    'circulation': 'тираж',
+                    'comment':     'комментарий',
+                    'client':      'клиента',
+                    'title':       'название',
+                };
+                const fieldName = fieldNames[data.changed_field] || 'данные';
+                action = 'изменил ' + fieldName + ' в просчёте';
+            }
         }
 
         // --- Дедупликация для событий 'updated' ---
