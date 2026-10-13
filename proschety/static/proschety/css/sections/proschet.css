@@ -425,22 +425,27 @@ proschety/static/proschety/css/sections/proschet.css
    Правила аналогичны «Первой стороне», но с data-value="duplex". */
 
 .proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-color {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    border: 1.5px solid transparent;
+    padding: calc(0.22rem - 1.5px) calc(0.55rem - 1.5px);
+    color: #0B8661;
     font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-color:hover {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    color: #0B8661;
 }
 
 .proschet-mode-btn.active[data-value="duplex"].proschet-mode-btn--side-bw {
@@ -473,22 +478,27 @@ proschety/static/proschety/css/sections/proschet.css
 /* Цветная печать — приглушённый радужный градиент,
    как у активной кнопки «Цветная». */
 .proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-color {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    border: 1.5px solid transparent;
+    padding: calc(0.22rem - 1.5px) calc(0.55rem - 1.5px);
+    color: #0B8661;
     font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .proschet-mode-btn.active[data-value="single"].proschet-mode-btn--side-color:hover {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    color: #0B8661;
 }
 
 /* Ч/б печать — серый градиент, как у активной кнопки «Ч/б». */
@@ -518,25 +528,35 @@ proschety/static/proschety/css/sections/proschet.css
     text-align: center;
 }
 
-/* Активная половина «Цветная» — приглушённый радужный градиент
-   (те же шесть цветов, но темнее и мягче, чем чистые спектральные). */
+/* Активная «Цветная» — зелёная кнопка с радужной рамкой.
+   Приём: два фоновых слоя — верхний (padding-box) сплошной зелёный,
+   нижний (border-box) радужный градиент. Между ними — прозрачная
+   рамка border: 2px solid transparent, сквозь которую видно нижний
+   слой. border-radius сохраняется. */
+/* Рамка 1.5px «врастает» внутрь: padding уменьшен через calc ровно
+   на толщину рамки, поэтому внешний размер кнопки не меняется. */
 .proschet-mode-btn.active[data-value="color"] {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    border: 1.5px solid transparent;
+    padding: calc(0.22rem - 1.5px) calc(0.55rem - 1.5px);
+    color: #0B8661;
     font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .proschet-mode-btn.active[data-value="color"]:hover {
-    background: linear-gradient(45deg,
-        #0f94c8 0%,    
-        #d00e7c 60%,    
-        #eae322 80%,    
-        #6b6176 100%);  
-    color: #ffffff;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    color: #0B8661;
 }
 
 /* Активная половина «Ч/б» — серый градиент. */
@@ -798,10 +818,14 @@ proschety/static/proschety/css/sections/proschet.css
    и переноситься на новую линию. */
 .proschet-component-card-row2 {
     flex: 1 0 100%;
-    display: flex;
-    align-items: center;
+    /* Grid из двух колонок: слева — левая колонка полей/ориентации/
+       ламинации (1fr, растягивается), справа — canvas схемы (auto,
+       по ширине содержимого). align-items: start — обе колонки
+       прижаты к верху, чтобы поля не «съезжали» при высокой схеме. */
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
     gap: 0.7rem;
-    flex-wrap: wrap;
     padding-top: 0.5rem;
     margin-top: 0.3rem;
     border-top: 1px dashed #e0e0e0;
@@ -854,7 +878,8 @@ proschety/static/proschety/css/sections/proschet.css
 .proschet-vich-unit {
     font-size: 0.7rem;
     color: #999999;
-    margin-left: -0.35rem;
+    /* Небольшой отступ от поля — идёт поверх gap родителя. */
+    margin-left: 0.1rem;
 }
 
 /* ==================== КНОПКА-СТРЕЛКА (развернуть добавление компонента) ==================== */
@@ -902,4 +927,242 @@ proschety/static/proschety/css/sections/proschet.css
 .proschet-section-components.is-open {
     max-height: 300px;
     opacity: 1;
+}
+
+/* Правая половина переключателя сторон в ОДНОСТОРОННЕМ режиме:
+   текст не отображается, но место под «второй проход» обозначено
+   тонкой серой рамкой. Padding скомпенсирован через calc — чтобы
+   внешний размер кнопки не отличался от активной половины
+   (у неё рамка либо отсутствует, либо 1.5px — компенсируется так же). */
+.proschet-mode-btn--side-empty {
+    border: 1px solid #e0e0e0;
+    background: #fafafa;
+    padding: calc(0.22rem - 1px) calc(0.55rem - 1px);
+    /* Тот же приглушённый серый — визуально «неактивная» кнопка. */
+    color: #bbb;
+}
+
+/* Неактивная кнопка «Ч/б», когда активна «Цветная» — приглушённый серый.
+   «Ч/б» идёт ПОСЛЕ «Цветной», поэтому используем соседний селектор ~. */
+.proschet-mode-switch[data-field="print_type"]
+    .proschet-mode-btn.active[data-value="color"] ~
+    .proschet-mode-btn[data-value="bw"] {
+    color: #bbb;
+}
+.proschet-mode-switch[data-field="print_type"]
+    .proschet-mode-btn.active[data-value="color"] ~
+    .proschet-mode-btn[data-value="bw"]:hover {
+    color: #0B8661;
+}
+
+/* Неактивная кнопка «Цветная», когда активна «Ч/б» — приглушённый серый.
+   «Цветная» идёт ПЕРЕД «Ч/б», соседний селектор ~ тут не работает,
+   поэтому используем :has() на контейнере переключателя. */
+.proschet-mode-switch[data-field="print_type"]:has(.proschet-mode-btn.active[data-value="bw"])
+    .proschet-mode-btn[data-value="color"] {
+    color: #bbb;
+}
+.proschet-mode-switch[data-field="print_type"]:has(.proschet-mode-btn.active[data-value="bw"])
+    .proschet-mode-btn[data-value="color"]:hover {
+    color: #0B8661;
+}
+
+/* ==================== МИНИ-СХЕМА РАЗМЕЩЕНИЯ НА ЛИСТЕ ==================== */
+
+/* Обёртка визуализации: две мини-схемы рядом, отжаты вправо
+   внутри второй строки карточки. */
+.proschet-component-viz {
+    order: 2;
+    display: flex;
+    gap: 0.6rem;
+    margin-left: auto;      /* отжимаем вправо */
+    flex: 0 0 auto;
+    padding-left: 0.5rem;
+}
+
+/* Одна сторона (лицевая / обратная). */
+.proschet-component-viz-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+/* Подпись стороны. */
+.proschet-component-viz-label {
+    font-size: 0.6rem;
+    color: #999999;
+    font-weight: 500;
+    line-height: 1;
+}
+
+/* Canvas со схемой. */
+.proschet-component-viz-canvas {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fafafa;
+    display: block;
+}
+
+/* На узких экранах визуализацию переносим на новую строку
+   и не растягиваем вправо. */
+@media (max-width: 1100px) {
+    .proschet-component-viz {
+        margin-left: 0;
+        padding-left: 0;
+    }
+}
+
+
+/* ==================== ТРЕТЬЯ СТРОКА КАРТОЧКИ: ОРИЕНТАЦИЯ ==================== */
+
+.proschet-component-card-row3 {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    /* Разделительная черта одна — над .proschet-component-card-row2.
+       Здесь она не нужна. */
+    padding-top: 0;
+    margin-top: 0;
+}
+
+/* Тройной переключатель (Авто / Альбомная / Портретная) — каждая
+   кнопка одинаковой ширины, активная выделяется зелёным. */
+.proschet-mode-switch--three .proschet-mode-btn {
+    min-width: 5.6rem;
+    text-align: center;
+}
+
+.proschet-mode-switch--three .proschet-mode-btn.active {
+    background: #0B8661;
+    color: #ffffff;
+    font-weight: 600;
+}
+.proschet-mode-switch--three .proschet-mode-btn.active:hover {
+    background: #0B8661;
+    color: #ffffff;
+}
+
+/* Кнопка «Авто» с меткой-подсказкой: текущая выбранная ориентация
+   совпадает с оптимальной (той, где изделий на листе больше).
+   Рамка зелёная, сама кнопка остаётся светлой — она не активна.
+   padding уменьшен на 1px с каждой стороны, чтобы рамка не сдвигала
+   размер кнопки. */
+.proschet-mode-switch--three .proschet-mode-btn--optimal:not(.active) {
+    border: 1px solid #0B8661;
+    padding: calc(0.22rem - 1px) calc(0.55rem - 1px);
+    color: #0B8661;
+    background: #ffffff;
+}
+
+/* Поле «Ориентация» во второй строке карточки: занимает всю ширину
+   строки, поэтому встаёт на отдельной линии ровно под «Формат».
+   Ширина/Высота/Вылеты и схема уходят на следующую линию. */
+.proschet-component-orient-field {
+    flex: 1 0 100%;
+}
+
+/* ==================== КОЛОНКА ПОЛЕЙ ВТОРОЙ СТРОКИ ==================== */
+
+/* Левая колонка второй строки: поля + переключатель ориентации.
+   Занимает всё доступное место, мини-схема уходит вправо. */
+.proschet-component-card-fields {
+    /* order: 1 — колонка полей идёт ПЕРВОЙ (слева).
+       flex: 0 1 auto — не растягивается, ширина по содержимому;
+       тогда схема с margin-left: auto уезжает вправо. */
+    order: 1;
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+/* Внутри колонки — строка полей (Формат / Ширина / Высота / Вылеты). */
+.proschet-component-card-fields-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+/* ==================== СТРОКА «ЛАМИНАЦИЯ» В КАРТОЧКЕ ==================== */
+
+.proschet-component-card-row4 {
+    /* Вертикальный стек: верхняя подстрока (label + кнопка
+       включения) и нижняя подстрока (ламинатор/плёнка/стороны). */
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-top: 0.4rem;
+    margin-top: 0.3rem;
+    border-top: 1px dashed #e0e0e0;
+}
+
+/* Одна подстрока внутри row4: элементы в одну линию,
+   при нехватке ширины — переносятся. */
+.proschet-component-card-row4-line {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+/* Одна кнопка-переключатель ламинации.
+   Off-состояние — очень светлое, как «неактивная» половина
+   переключателя сторон: бледный фон, светлая рамка, серый текст.
+   On-состояние — фирменный зелёный. */
+.proschet-lamination-btn {
+    min-width: 6rem;
+    padding: 0.15rem 0.55rem;   /* вертикальный padding уменьшен вдвое */
+    border: 1px solid #ececec;
+    border-radius: 7px;
+    background: #fafafa;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 0.72rem;         /* как у кнопок ориентации */
+    line-height: 1.15;          /* плотнее строка */
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.proschet-lamination-btn:hover {
+    border-color: #0B8661;
+    color: #0B8661;
+}
+
+/* Включённое состояние — фирменный зелёный. */
+.proschet-lamination-btn--on {
+    background: #0B8661;
+    color: #ffffff;
+    border-color: #0B8661;
+}
+.proschet-lamination-btn--on:hover {
+    background: #0B8661;
+    color: #ffffff;
+    border-color: #0B8661;
+}
+
+/* Строка «Ламинация» — выравниваем label и кнопку по одной
+   базовой линии. У label line-height наследуется от body (≈1.4),
+   у кнопки мы поставили 1.15 — из-за этого базовые линии не совпадали,
+   и кнопка визуально съезжала вниз. */
+.proschet-component-card-row4 {
+    /* align-items: stretch — подстроки растягиваются на всю ширину
+       и содержимое прижимается к ЛЕВОМУ краю (а не центрируется,
+       как было с align-items: center). */
+    align-items: stretch;
+}
+
+.proschet-component-card-row4 .proschet-inline-field-label {
+    line-height: 1.15;
+    display: inline-flex;
+    align-items: center;
+    /* Опускаем текст на 2px, чтобы он визуально встал
+       по центру кнопки. transform не влияет на поток,
+       поэтому соседние элементы не смещаются. */
+    transform: translateY(2px);
 }
