@@ -57,6 +57,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
     let paperSelect        = null;   // <select> со списком бумаги
     let componentsSection  = null;   // блок «Печатные компоненты»
     let componentsEmpty    = null;   // сообщение «Компонентов нет»
+    
+    // Флаг: блок ламинации ▼ сейчас раскрыт. Сохраняется через перерисовку
+    // карточек (после сохранения ламинатора/плёнки/стороны карточки
+    // пересоздаются, и без этого флага блок «схлопывался» бы).
+    // Сбрасывается при смене просчёта.
+    let proschetLaminationBlockOpen = false;
 
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ.
@@ -139,6 +145,10 @@ JavaScript секции «Просчёт» новой страницы /proschet
             // Четвёртая строка: переключатель «Ламинация: включена / выключена».
             // Тоже по двойному клику.
             componentsSection.addEventListener('dblclick', handleLaminationSwitchClick);
+
+            // Стрелка ▼ рядом со строкой «Ламинация» — раскрывает/сворачивает
+            // содержимое блока. По одинарному клику.
+            componentsSection.addEventListener('click', handleLaminationToggleClick);
         }
 
         // Кнопка «+ Добавить печатный компонент».
@@ -193,6 +203,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const d = event.detail || {};
         const prevId = activeProschet ? String(activeProschet.id) : null;
         const newId  = String(d.proschetId || '');
+
+        // При смене просчёта сбрасываем флаг «блок ламинации открыт» —
+        // при выборе нового просчёта блок по умолчанию свёрнут.
+        if (prevId !== newId) {
+            proschetLaminationBlockOpen = false;
+        }
 
         activeProschet = {
             id:          newId,
@@ -1215,6 +1231,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
     function renderComponents(components) {
         if (!componentsSection) return;
 
+        // Запоминаем текущую позицию прокрутки — после замены карточек
+        // восстановим её. Без этого браузер может «дёрнуть» страницу
+        // к верху, когда фокусный элемент (например, селект бумаги)
+        // удаляется из DOM.
+        const savedScrollY = window.scrollY || window.pageYOffset || 0;
+
         // Показываем секцию.
         componentsSection.style.display = 'block';
 
@@ -1238,13 +1260,19 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
         // После вставки в DOM рисуем мини-схемы размещения.
         // requestAnimationFrame — чтобы браузер успел применить стили
-        // и корректно прочитать размеры canvas.
+        // и корректно прочитать размеры canvas. Здесь же возвращаем
+        // страницу на прежнюю позицию прокрутки.
         requestAnimationFrame(function () {
-            if (!list) return;
-            list.querySelectorAll('.proschet-component-card').forEach(function (c) {
-                drawComponentPlacement(c);
-                updateOrientationOptimalMark(c);
-            });
+            if (list) {
+                list.querySelectorAll('.proschet-component-card').forEach(function (c) {
+                    drawComponentPlacement(c);
+                    updateOrientationOptimalMark(c);
+                });
+            }
+            // Восстанавливаем прокрутку. Если элементов после отрисовки
+            // стало меньше (например, удалили карточку) — scrollTo
+            // автоматически ограничится максимально доступным значением.
+            window.scrollTo(0, savedScrollY);
         });
     }
 
@@ -1548,6 +1576,35 @@ JavaScript секции «Просчёт» новой страницы /proschet
             const row4 = document.createElement('div');
             row4.className = 'proschet-component-card-row4';
 
+            // Блок ламинации раскрыт по умолчанию, если:
+            //   • у компонента ламинация ВКЛЮЧЕНА (тогда показываем
+            //     параметры сразу), ИЛИ
+            //   • пользователь вручную раскрыл блок стрелкой (глобальный
+            //     флаг сохраняет это состояние через перерисовки).
+            const isLamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
+            if (isLamEnabled || proschetLaminationBlockOpen) {
+                row4.classList.add('is-open');
+            }
+
+            // Кнопка-стрелка ▼ под пунктиром. По клику раскрывает /
+            // сворачивает содержимое блока ламинации — по аналогии
+            // со стрелкой под полем «Тираж».
+            const lamToggleBtn = document.createElement('button');
+            lamToggleBtn.type = 'button';
+            lamToggleBtn.className = 'proschet-toggle-lamination';
+            lamToggleBtn.title = 'Показать/скрыть ламинацию';
+            const lamArrow = document.createElement('span');
+            lamArrow.className = 'proschet-toggle-arrow';
+            lamArrow.textContent = '▼';
+            lamToggleBtn.appendChild(lamArrow);
+            row4.appendChild(lamToggleBtn);
+
+            // Обёртка содержимого блока — то, что показывается
+            // при раскрытии: строка «Ламинация: ...» и (если ламинация
+            // включена) строка «Ламинатор / Плёнка / Сторона».
+            const lamContent = document.createElement('div');
+            lamContent.className = 'proschet-lamination-content';
+
             // Верхняя подстрока: «Ламинация:» + кнопка вкл/выкл.
             const row4Line1 = document.createElement('div');
             row4Line1.className = 'proschet-component-card-row4-line';
@@ -1558,10 +1615,8 @@ JavaScript секции «Просчёт» новой страницы /proschet
             row4Line1.appendChild(lamLabel);
 
             // Одна кнопка-переключатель: «Без ламинации» (светлая) или
-            // «Включена» (зелёная). Начальное состояние берём из данных
-            // ламинации, подтянутых в loadComponents.
-            const isLamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
-
+            // «Включена» (зелёная). Значение isLamEnabled вычислено
+            // выше — здесь только используем его.
             const lamSwitch = document.createElement('div');
             lamSwitch.className = 'proschet-lamination-toggle';
             lamSwitch.dataset.field = 'lamination_enabled';
@@ -1579,15 +1634,19 @@ JavaScript секции «Просчёт» новой страницы /proschet
             lamSwitch.appendChild(lamBtn);
             row4Line1.appendChild(lamSwitch);
 
-            // Верхняя подстрока готова — кладём её в row4.
-            row4.appendChild(row4Line1);
+            // Верхняя подстрока готова — кладём её во внутреннюю обёртку.
+            lamContent.appendChild(row4Line1);
 
             // Нижняя подстрока: Ламинатор / Плёнка / Односторонняя-Двусторонняя.
-            // Показываем её только когда ламинация включена — иначе она
-            // не имеет смысла и только загромождает карточку.
+            // Логика видимости:
+            //   • если ламинация включена → показываем всегда;
+            //   • если ламинация выключена и блок свёрнут → скрываем
+            //     (это состояние сразу после выбора просчёта);
+            //   • если пользователь раскрыл блок стрелкой → показываем,
+            //     чтобы он мог выбрать ламинатор и плёнку.
             const row4Line2 = document.createElement('div');
             row4Line2.className = 'proschet-component-card-row4-line';
-            if (!isLamEnabled) {
+            if (!isLamEnabled && !proschetLaminationBlockOpen) {
                 row4Line2.style.display = 'none';
             }
 
@@ -1595,22 +1654,24 @@ JavaScript секции «Просчёт» новой страницы /proschet
             const lamData = comp._lamination || {};
 
             // --- Ламинатор ---
+            // Обычный селект, доступный для выбора одинарным кликом —
+            // никакой блокировки и двойного клика, в отличие от принтера
+            // и бумаги.
             const laminatorField = createInlineField('Ламинатор');
             laminatorField.dataset.field = 'laminator';
-            laminatorField.title = 'Двойной клик для редактирования';
             const laminatorSelectEl = document.createElement('select');
-            laminatorSelectEl.className = 'proschet-field-select is-locked';
+            laminatorSelectEl.className = 'proschet-field-select';
             laminatorSelectEl.dataset.field = 'laminator';
             fillLaminatorOptions(laminatorSelectEl, lamData.laminator_name);
             laminatorField.appendChild(laminatorSelectEl);
             row4Line2.appendChild(laminatorField);
 
             // --- Плёнка ---
+            // Так же — обычный селект без блокировки.
             const filmField = createInlineField('Плёнка');
             filmField.dataset.field = 'film';
-            filmField.title = 'Двойной клик для редактирования';
             const filmSelectEl = document.createElement('select');
-            filmSelectEl.className = 'proschet-field-select is-locked';
+            filmSelectEl.className = 'proschet-field-select';
             filmSelectEl.dataset.field = 'film';
             fillFilmOptions(filmSelectEl, lamData.film_name);
             filmField.appendChild(filmSelectEl);
@@ -1645,8 +1706,11 @@ JavaScript секции «Просчёт» новой страницы /proschet
             sideField.appendChild(sideSwitch);
             row4Line2.appendChild(sideField);
 
-            // Нижняя подстрока готова — кладём её в row4.
-            row4.appendChild(row4Line2);
+            // Нижняя подстрока готова — кладём её во внутреннюю обёртку.
+            lamContent.appendChild(row4Line2);
+
+            // Обёртку содержимого — в row4 (после стрелки).
+            row4.appendChild(lamContent);
 
             // Строка «Ламинация» идёт в ЛЕВУЮ колонку — сразу под
             // ориентацией, а не отдельным блоком карточки. Пунктирная
@@ -1687,6 +1751,61 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 sheet_height:             vich.sheet_height,
                 margin:                   vich.margin,
             };
+            // === Итоговая строка: количество листов, стоимость печати,
+            // стоимость бумаги и (если включена) стоимость ламинации. ===
+            // Считаем локально из данных компонента:
+            //   • стоимость печати  = цена за лист × количество прогонов;
+            //   • стоимость бумаги  = цена бумаги за лист × количество листов;
+            //   • стоимость ламинации берём готовую из _lamination.
+            const summary = document.createElement('div');
+            summary.className = 'proschet-component-summary';
+
+            // --- Количество листов ---
+            const sheets = Number(comp.sheet_count) || 0;
+            const sheetsFmt = sheets
+                ? sheets.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                : '0.00';
+
+            // --- Стоимость печати ---
+            const pricePerSheet = parseFloat(comp.price_per_sheet) || 0;
+            const runsCount     = Number(comp.runs_count) || 0;
+            const printingCost  = pricePerSheet * runsCount;
+
+            // --- Стоимость бумаги ---
+            const paperPrice  = parseFloat(comp.paper_price) || 0;
+            const paperCost   = paperPrice * sheets;
+
+            // --- Стоимость ламинации (только если включена) ---
+            const lamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
+            const lamTotal   = lamEnabled
+                ? (parseFloat(comp._lamination.total_price) || 0)
+                : 0;
+
+            // Форматирование числа в «1 234.56» — с пробелами как
+            // разделителями тысяч. Используется для всех сумм.
+            function fmtMoney(v) {
+                return (Math.round(v * 100) / 100)
+                    .toFixed(2)
+                    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽';
+            }
+
+            // Собираем строку. Части разделяем вертикальной чертой «·»,
+            // чтобы визуально они не слипались.
+            let summaryHtml =
+                '<span class="proschet-summary-item">Листов: <b>' + sheetsFmt + '</b></span>' +
+                '<span class="proschet-summary-item">Печать: <b>' + fmtMoney(printingCost) + '</b></span>' +
+                '<span class="proschet-summary-item">Бумага: <b>' + fmtMoney(paperCost) + '</b></span>';
+
+            if (lamEnabled) {
+                summaryHtml +=
+                    '<span class="proschet-summary-item">Ламинация: <b>' + fmtMoney(lamTotal) + '</b></span>';
+            }
+            summary.innerHTML = summaryHtml;
+            // Строку итогов кладём НЕ в карточку (тогда она встала бы под
+            // всей row2 — то есть под canvas), а в левую колонку. Через
+            // margin-top: auto (см. CSS) она прижмётся к самому низу
+            // колонки — то есть окажется на одном уровне с низом схемы.
+            fieldsCol.appendChild(summary);
         }
 
         return card;
@@ -2069,13 +2188,22 @@ JavaScript секции «Просчёт» новой страницы /proschet
         if (!select) return;
         if (select.classList.contains('is-locked')) return;
 
-        const original = select.dataset.originalValue || '';
-        const current  = select.value;
+        const fieldName = select.dataset.field;
+        const current   = select.value;
 
-        // Значение не изменилось — просто замораживаем селект обратно.
-        if (String(original) === String(current)) {
-            select.classList.add('is-locked');
-            return;
+        // Ламинатор и плёнка — обычные, всегда доступные селекты.
+        // Для них не сравниваем со старым значением (originalValue
+        // проставляется только при разблокировке через двойной клик)
+        // и не «замораживаем» обратно. Для принтера и бумаги логика
+        // прежняя — сравнение и повторная блокировка.
+        const isLaminationField = (fieldName === 'laminator' || fieldName === 'film');
+
+        if (!isLaminationField) {
+            const original = select.dataset.originalValue || '';
+            if (String(original) === String(current)) {
+                select.classList.add('is-locked');
+                return;
+            }
         }
 
         const card = select.closest('.proschet-component-card');
@@ -2083,12 +2211,10 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const componentId = card.dataset.componentId;
         if (!componentId) return;
 
-        const fieldName = select.dataset.field;
-
         // Поля «ламинатор» и «плёнка» живут в другой сущности (Laminate)
         // и сохраняются через /calculator/update-lamination/ (JSON).
         // Все остальные поля (printer, paper) — через update-print-component.
-        if (fieldName === 'laminator' || fieldName === 'film') {
+        if (isLaminationField) {
             fetch('/calculator/update-lamination/', {
                 method: 'POST',
                 headers: {
@@ -2120,10 +2246,8 @@ JavaScript секции «Просчёт» новой страницы /proschet
             .catch(function (err) {
                 console.error('Ошибка сохранения ламинации:', err);
                 showNotification('Ошибка сети при сохранении', 'error');
-            })
-            .finally(function () {
-                select.classList.add('is-locked');
             });
+            // is-locked обратно НЕ добавляем — селект остаётся доступным.
             return;
         }
 
@@ -2178,6 +2302,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const select = event.target.closest('select.proschet-field-select');
         if (!select) return;
         if (select.classList.contains('is-locked')) return;
+
+        // Ламинатор и плёнка — обычные селекты, их не «замораживаем»
+        // обратно по blur: пользователь должен иметь возможность
+        // менять их в любой момент.
+        const field = select.dataset.field;
+        if (field === 'laminator' || field === 'film') return;
 
         setTimeout(function () {
             if (!select.classList.contains('is-locked')) {
@@ -2576,10 +2706,51 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const componentId = card.dataset.componentId;
         if (!componentId) return;
 
+        // Фиксируем текущее состояние раскрытости блока ламинации —
+        // чтобы оно пережило перерисовку карточек (после loadComponents).
+        // Если пользователь выключил ламинацию, а блок был раскрыт —
+        // он и останется раскрытым, как договорились.
+        const row4El = card.querySelector('.proschet-component-card-row4');
+        if (row4El) {
+            proschetLaminationBlockOpen = row4El.classList.contains('is-open');
+        }
+
         // Меняем состояние на противоположное.
         const isOn = switchEl.dataset.value === 'on';
         const newBool = !isOn;
         const newValue = newBool ? 'on' : 'off';
+
+        // Проверка при ПОПЫТКЕ ВКЛЮЧИТЬ ламинацию: должны быть
+        // выбраны и ламинатор, и плёнка. Иначе — показываем
+        // уведомление и НЕ переключаем (запрос на сервер не уходит).
+        // По аналогии с формой добавления печатного компонента,
+        // где проверяются принтер и бумага.
+        if (newBool) {
+            const laminatorSelect = card.querySelector(
+                'select.proschet-field-select[data-field="laminator"]'
+            );
+            const filmSelect = card.querySelector(
+                'select.proschet-field-select[data-field="film"]'
+            );
+            const laminatorId = laminatorSelect ? laminatorSelect.value : '';
+            const filmId       = filmSelect ? filmSelect.value : '';
+
+            // По аналогии с формой добавления печатного компонента
+            // (там «Выберите принтер» / «Выберите бумагу» + focus):
+            // отдельная проверка для каждого поля, и при пустом —
+            // уведомление + фокус на этот селект. Фокус даёт зелёную
+            // рамку через :focus в CSS.
+            if (!laminatorId) {
+                showNotification('Выберите ламинатор', 'error');
+                if (laminatorSelect) laminatorSelect.focus();
+                return;
+            }
+            if (!filmId) {
+                showNotification('Выберите плёнку', 'error');
+                if (filmSelect) filmSelect.focus();
+                return;
+            }
+        }
 
         // Визуально переключаем сразу — не ждём ответа сервера.
         switchEl.dataset.value = newValue;
@@ -2590,15 +2761,6 @@ JavaScript секции «Просчёт» новой страницы /proschet
             btn.classList.remove('proschet-lamination-btn--on');
         }
 
-        // Показ/скрытие нижней подстроки (ламинатор / плёнка / стороны).
-        // Она нужна только когда ламинация включена.
-        const row4El = switchEl.closest('.proschet-component-card-row4');
-        const line2  = row4El
-            ? row4El.querySelector('.proschet-component-card-row4-line + .proschet-component-card-row4-line')
-            : null;
-        if (line2) {
-            line2.style.display = newBool ? 'flex' : 'none';
-        }
 
         // Отправляем на сервер изменение поля is_enabled ламинации.
         // Используем существующий эндпоинт приложения calculator:
@@ -2621,16 +2783,23 @@ JavaScript секции «Просчёт» новой страницы /proschet
         .then(function (data) {
             if (data.success) {
                 // Обновляем локальный кэш — чтобы при следующей отрисовке
-                // карточки кнопка получила актуальное состояние.
-                if (card._lamination) {
+                // карточки кнопка и строка итогов получили актуальное
+                // состояние. Сервер возвращает полностью пересчитанный
+                // объект lamination — берём его целиком.
+                if (data.lamination && card._lamination) {
+                    card._lamination = data.lamination;
+                } else if (card._lamination) {
                     card._lamination.is_enabled = newBool;
                 }
                 showNotification(
                     newBool ? 'Ламинация включена' : 'Ламинация выключена',
                     'success'
                 );
-                // Сообщаем другим окнам, что состав компонента изменился.
+                // Перерисовываем карточки: строка итогов строится заново
+                // из свежих данных (появится / исчезнет пункт «Ламинация»).
                 if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    // Сообщаем другим окнам, что состав компонента изменился.
                     notifyChange(activeProschet.id, 'print_component_changed');
                 }
             } else {
@@ -2651,6 +2820,38 @@ JavaScript секции «Просчёт» новой страницы /proschet
             else      btn.classList.remove('proschet-lamination-btn--on');
             showNotification('Ошибка сети при сохранении ламинации', 'error');
         });
+    }
+
+    /**
+     * Клик по стрелке ▼ рядом со строкой «Ламинация» — раскрывает
+     * или сворачивает блок содержимого (переключатель + параметры).
+     * Работает по одинарному клику — как стрелка у поля «Тираж».
+     */
+    function handleLaminationToggleClick(event) {
+        const btn = event.target.closest('.proschet-toggle-lamination');
+        if (!btn) return;
+
+        const row4 = btn.closest('.proschet-component-card-row4');
+        if (!row4) return;
+
+        // Переключаем класс — CSS сам покажет / скроет содержимое.
+        const willOpen = !row4.classList.contains('is-open');
+        row4.classList.toggle('is-open');
+
+        // Сохраняем состояние в глобальном флаге, чтобы оно
+        // пережило перерисовку карточек (после сохранения ламинатора
+        // или смены стороны).
+        proschetLaminationBlockOpen = willOpen;
+
+        // Если блок раскрывается, а нижняя подстрока (ламинатор/
+        // плёнка/сторона) была скрыта (ламинация выключена) —
+        // показываем её, чтобы пользователь мог выбрать параметры.
+        if (willOpen) {
+            const lines = row4.querySelectorAll('.proschet-component-card-row4-line');
+            if (lines.length > 1) {
+                lines[1].style.display = '';
+            }
+        }
     }
 
     /**
@@ -2905,11 +3106,28 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const isDuplex = !!(modeSwitch && modeSwitch.dataset.value === 'duplex');
         const isColor  = !typeSwitch || typeSwitch.dataset.value === 'color';
 
-        // Лицевая — всегда с заливкой. Обратная — только если двусторонняя.
+        // Ламинация — определяем по состоянию кнопки в DOM: она всегда
+        // отражает актуальный флаг is_enabled.
+        const lamBtn = card.querySelector('.proschet-lamination-btn');
+        const isLaminated = !!(lamBtn && lamBtn.classList.contains('proschet-lamination-btn--on'));
+
+        // Сторона ламинации ('single' / 'duplex') — берём из data-value
+        // переключателя сторон в блоке ламинации.
+        const lamSideSwitch = card.querySelector('.proschet-mode-switch[data-field="side"]');
+        const isLamDuplex = !!(lamSideSwitch && lamSideSwitch.dataset.value === 'duplex');
+
+        // Лицевая сторона листа всегда покрывается ламинацией, если она
+        // включена. Обратная — только при двусторонней ламинации.
+        const frontLaminated = isLaminated;
+        const backLaminated  = isLaminated && isLamDuplex;
+
+        // Лицевая — всегда с заливкой. Обратная — только если двусторонняя
+        // печать. Оранжевое наложение рисуется отдельно для каждой стороны,
+        // в зависимости от стороны ламинации.
         drawOneSide(cvFront, sheetW, sheetH, margin, itemW, itemH, gap,
-                    orient, fitH, fitV, true, isColor);
+                    orient, fitH, fitV, true, isColor, frontLaminated);
         drawOneSide(cvBack,  sheetW, sheetH, margin, itemW, itemH, gap,
-                    orient, fitH, fitV, isDuplex, isColor);
+                    orient, fitH, fitV, isDuplex, isColor, backLaminated);
     }
 
     /**
@@ -2918,7 +3136,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
      * но выполняется в компактном размере.
      */
     function drawOneSide(canvas, sheetW, sheetH, margin, itemW, itemH, gap,
-                         orientation, fitH, fitV, fill, isColor) {
+                         orientation, fitH, fitV, fill, isColor, isLaminated) {
         const ctx = canvas.getContext('2d');
 
         // Размер canvas подгоняем под пропорции листа: большая сторона
@@ -2989,10 +3207,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
         ctx.setLineDash([]);
 
         // Цвета заливки и контура по типу печати.
+        // При цветной печати используем светло-зелёные тона —
+        // в тон фирменному #0B8661, чтобы превью сочеталось
+        // с остальным интерфейсом.
         let fillColor, strokeColor;
         if (isColor) {
-            fillColor   = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
-            strokeColor = fill ? '#2980b9'                  : '#a0c4ff';
+            fillColor   = fill ? 'rgba(11, 134, 97, 0.18)' : 'transparent';
+            strokeColor = fill ? '#0B8661'                 : '#a4ceb8';
         } else {
             fillColor   = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
             strokeColor = fill ? '#999999'                  : '#cccccc';
@@ -3011,6 +3232,14 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 }
                 ctx.strokeRect(x * scale, y * scale, drawItemW * scale, drawItemH * scale);
             }
+        }
+
+        // Полупрозрачное оранжевое наложение поверх всего листа —
+        // визуальный признак, что компонент ламинируется. Рисуем
+        // последним слоем, чтобы оранжевая пелена легла и на изделия.
+        if (isLaminated) {
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.09)';
+            ctx.fillRect(0, 0, sheetW * scale, sheetH * scale);
         }
 
         ctx.restore();

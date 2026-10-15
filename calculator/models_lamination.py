@@ -61,7 +61,7 @@ class Laminate(models.Model):
         verbose_name='Сторона ламинации',
         max_length=10,
         choices=SIDE_CHOICES,
-        default='single',
+        default='duplex',
         help_text='Односторонняя или двусторонняя ламинация. При двусторонней расход плёнки удваивается.'
     )
 

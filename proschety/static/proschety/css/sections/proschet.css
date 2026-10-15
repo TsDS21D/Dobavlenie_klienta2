@@ -786,8 +786,12 @@ proschety/static/proschety/css/sections/proschet.css
     border-color: #b9d9c7;
 }
 
-/* Активный (разблокированный) селект — с зелёной рамкой и фокусом. */
-.proschet-component-card .proschet-field-select:not(.is-locked) {
+/* Активный (разблокированный) селект — с зелёной рамкой и фокусом.
+   Только для принтера и бумаги: их пользователь разблокирует
+   двойным кликом. Ламинатор и плёнка — обычные серые селекты
+   (см. .proschet-field-select выше), без зелёной окантовки. */
+.proschet-component-card .proschet-field-select[data-field="printer"]:not(.is-locked),
+.proschet-component-card .proschet-field-select[data-field="paper"]:not(.is-locked) {
     background: #ffffff;
     border: 2px solid #0B8661;
     border-radius: 8px;
@@ -818,13 +822,14 @@ proschety/static/proschety/css/sections/proschet.css
    и переноситься на новую линию. */
 .proschet-component-card-row2 {
     flex: 1 0 100%;
-    /* Grid из двух колонок: слева — левая колонка полей/ориентации/
-       ламинации (1fr, растягивается), справа — canvas схемы (auto,
-       по ширине содержимого). align-items: start — обе колонки
-       прижаты к верху, чтобы поля не «съезжали» при высокой схеме. */
     display: grid;
     grid-template-columns: 1fr auto;
-    align-items: start;
+    /* align-items: stretch (по умолчанию) — левая колонка
+       растягивается на всю высоту row2, которая задаётся высотой
+       правой колонки (canvas со схемами). Это нужно, чтобы строка
+       итогов с margin-top: auto прижалась к НИЗУ, на один уровень
+       с низом схемы. */
+    align-items: stretch;
     gap: 0.7rem;
     padding-top: 0.5rem;
     margin-top: 0.3rem;
@@ -1089,16 +1094,7 @@ proschety/static/proschety/css/sections/proschet.css
 
 /* ==================== СТРОКА «ЛАМИНАЦИЯ» В КАРТОЧКЕ ==================== */
 
-.proschet-component-card-row4 {
-    /* Вертикальный стек: верхняя подстрока (label + кнопка
-       включения) и нижняя подстрока (ламинатор/плёнка/стороны). */
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    padding-top: 0.4rem;
-    margin-top: 0.3rem;
-    border-top: 1px dashed #e0e0e0;
-}
+
 
 /* Одна подстрока внутри row4: элементы в одну линию,
    при нехватке ширины — переносятся. */
@@ -1150,12 +1146,7 @@ proschety/static/proschety/css/sections/proschet.css
    базовой линии. У label line-height наследуется от body (≈1.4),
    у кнопки мы поставили 1.15 — из-за этого базовые линии не совпадали,
    и кнопка визуально съезжала вниз. */
-.proschet-component-card-row4 {
-    /* align-items: stretch — подстроки растягиваются на всю ширину
-       и содержимое прижимается к ЛЕВОМУ краю (а не центрируется,
-       как было с align-items: center). */
-    align-items: stretch;
-}
+
 
 .proschet-component-card-row4 .proschet-inline-field-label {
     line-height: 1.15;
@@ -1165,4 +1156,95 @@ proschety/static/proschety/css/sections/proschet.css
        по центру кнопки. transform не влияет на поток,
        поэтому соседние элементы не смещаются. */
     transform: translateY(2px);
+}
+
+.proschet-component-card-row4 {
+    /* Вертикальный стек: стрелка сверху, затем — сворачиваемое
+       содержимое (строка «Ламинация:» + при включённой ламинации
+       строка «Ламинатор / Плёнка / Сторона»). */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    padding-top: 0.4rem;
+    margin-top: 0.3rem;
+    border-top: 1px dashed #e0e0e0;
+}
+
+/* ==================== СТРЕЛКА РАСКРЫТИЯ БЛОКА «ЛАМИНАЦИЯ» ==================== */
+
+/* Маленькая неприметная кнопка-стрелка — визуально как стрелка
+   под полем «Тираж». */
+.proschet-toggle-lamination {
+    background: transparent;
+    border: none;
+    padding: 0.05rem 0.25rem;
+    margin: 0;
+    color: #b0b0b0;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    align-self: flex-start;   /* стрелка слева, а не по центру */
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.proschet-toggle-lamination:hover {
+    color: #0B8661;
+    background: #eaf6ef;
+}
+
+/* Содержимое блока — свёрнуто по умолчанию. */
+.proschet-lamination-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+}
+
+/* Раскрытое состояние — содержимое показывается. */
+.proschet-component-card-row4.is-open .proschet-lamination-content {
+    max-height: 300px;
+    opacity: 1;
+}
+
+/* Стрелка ▼ поворачивается на 180° (становится ▲) при раскрытии. */
+.proschet-component-card-row4.is-open .proschet-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* ==================== ИТОГОВАЯ СТРОКА КАРТОЧКИ КОМПОНЕНТА ==================== */
+
+.proschet-component-summary {
+    /* Строка итогов в левой колонке. margin-top: auto прижимает
+       её к самому низу колонки — то есть на один уровень с низом
+       блока отрисовки справа. Разделительной черты над строкой нет. */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.9rem;
+    padding-top: 0.4rem;
+    margin-top: auto;
+
+    /* Мелкий серый шрифт. */
+    font-size: 0.7rem;
+    color: #999999;
+    line-height: 1.2;
+}
+
+/* Один пункт итогов: label + значение. */
+.proschet-summary-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2rem;
+    white-space: nowrap;
+}
+
+/* Значение внутри пункта — чуть темнее label, чтобы цифра читалась. */
+.proschet-summary-item b {
+    font-weight: 600;
+    color: #666666;
 }
