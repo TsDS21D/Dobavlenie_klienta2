@@ -1,0 +1,82 @@
+<!--
+proschety/templates/proschety/sections/proschet_summary.html
+Блок «Итоги просчёта» — карточки-показатели под печатными компонентами.
+
+ПОКАЗЫВАЕТ ЧЕТЫРЕ КЛЮЧЕВЫХ ПОКАЗАТЕЛЯ по текущему просчёту:
+  - Общая масса заказа (кг);
+  - Общий объём заказа (л);
+  - Высота готовой стопки (мм, сумма по всем печатным компонентам);
+  - Полная стоимость просчёта (₽).
+
+ВСЕ ДАННЫЕ приходят с СУЩЕСТВУЮЩЕГО API приложения calculator:
+    GET /calculator/get-proschet-price-data/<proschet_id>/
+Ничего в calculator/ не менялось.
+
+СЕКЦИЯ СКРЫТА, пока просчёт не выбран. Показывается из JS
+при событии proschetSelected — тем же механизмом, что используют
+секции «Просчёт» и «Печатные компоненты».
+
+Логика — в proschety/static/proschety/js/sections/proschet_summary.js.
+Стили — в proschety/static/proschety/css/sections/proschet_summary.css.
+-->
+
+<section class="proschet-summary-section"
+         id="proschet-summary-section"
+         style="display: none;">
+
+    <!-- Строка с четырьмя карточками. На узких экранах карточки
+         переносятся на следующую строку (flex-wrap). -->
+    <div class="proschet-summary-list" id="proschet-summary-list">
+
+        <!-- Карточка 1: Общая масса заказа -->
+        <div class="proschet-summary-card">
+            <span class="proschet-summary-label">Общая масса:</span>
+            <span class="proschet-summary-value"
+                  id="proschet-summary-mass">—</span>
+        </div>
+
+        <!-- Карточка 2: Общий объём заказа -->
+        <div class="proschet-summary-card">
+            <span class="proschet-summary-label">Общий объём:</span>
+            <span class="proschet-summary-value"
+                  id="proschet-summary-volume">—</span>
+        </div>
+
+        <!-- Карточка 3: Высота готовой стопки -->
+        <div class="proschet-summary-card">
+            <span class="proschet-summary-label">Высота стопки:</span>
+            <span class="proschet-summary-value"
+                  id="proschet-summary-stack">—</span>
+        </div>
+
+        <!-- Карточка 4: Полная стоимость просчёта.
+             Класс-модификатор --price делает цифру акцентной (зелёной). -->
+        <div class="proschet-summary-card">
+            <span class="proschet-summary-label">Полная стоимость:</span>
+            <span class="proschet-summary-value proschet-summary-value--price"
+                  id="proschet-summary-price">—</span>
+        </div>
+
+        <!-- Кнопки работы с заказами. Логику берёт на себя существующий
+             модуль calculator/static/.../price_orders.js — он ищет кнопки
+             ровно по этим ID: #create-new-order-btn и
+             #add-to-existing-order-btn. Порядок кнопок и их названия —
+             как на старой странице калькулятора. -->
+        <div class="proschet-summary-actions">
+            <button type="button"
+                    class="proschet-summary-btn proschet-summary-btn--primary"
+                    id="create-new-order-btn"
+                    title="Создать новый заказ из этого просчёта">
+                Создать новый заказ
+            </button>
+            <button type="button"
+                    class="proschet-summary-btn proschet-summary-btn--secondary"
+                    id="add-to-existing-order-btn"
+                    title="Добавить изделие в уже существующий заказ">
+                Добавить в имеющийся
+            </button>
+        </div>
+
+    </div>
+
+</section>

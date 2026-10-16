@@ -149,6 +149,16 @@ JavaScript секции «Просчёт» новой страницы /proschet
             // Стрелка ▼ рядом со строкой «Ламинация» — раскрывает/сворачивает
             // содержимое блока. По одинарному клику.
             componentsSection.addEventListener('click', handleLaminationToggleClick);
+
+            // Дополнительные работы внутри карточки:
+            //   • стрелка ▼ — раскрыть/свернуть форму добавления;
+            //   • кнопка «+ Добавить дополнительную работу» — отправить работу;
+            //   • «×» — удалить работу;
+            //   • двойной клик по количеству — редактировать.
+            componentsSection.addEventListener('click',    handleWorkFormToggleClick);
+            componentsSection.addEventListener('click',    handleAddWorkSubmit);
+            componentsSection.addEventListener('click',    handleWorkDeleteClick);
+            componentsSection.addEventListener('dblclick', handleWorkQtyDblClick);
         }
 
         // Кнопка «+ Добавить печатный компонент».
@@ -434,7 +444,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const fd = new FormData();
         fd.append('circulation', n);
 
-        fetch('/calculator/update-proschet-circulation/' + activeProschet.id + '/', {
+        // Сохраняем тираж через recalculate-components-for-circulation:
+        // этот эндпоинт сам обновляет тираж просчёта И пересчитывает
+        // все связанные печатные компоненты (sheet_count, price_per_sheet,
+        // total_circulation_price, а также ламинацию). После его успеха
+        // достаточно перезагрузить карточки — они придут уже с новыми
+        // числами, и строка итогов тоже пересчитается.
+        fetch('/calculator/recalculate-components/' + activeProschet.id + '/', {
             method: 'POST',
             body: fd,
             headers: {
@@ -445,12 +461,19 @@ JavaScript секции «Просчёт» новой страницы /proschet
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.success) {
-                // Обновляем локальное состояние.
+                // Обновляем локальное состояние тиража.
                 activeProschet.circulation = String(data.circulation);
                 circulationSpan.textContent = String(data.circulation);
 
-                // Обновляем data-атрибут в строке списка.
+                // Обновляем data-атрибут в строке списка — чтобы при
+                // следующем клике по строке тираж пришёл свежим.
                 updateRowDataAttribute(activeProschet.id, 'circulation', String(data.circulation));
+
+                // Перезагружаем карточки компонентов — теперь у них
+                // актуальные sheet_count и total_circulation_price.
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                }
 
                 showNotification('Тираж обновлён', 'success');
                 notifyChange(activeProschet.id, 'circulation');
@@ -1208,8 +1231,24 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 })
                 .catch(function () { return comp; });
 
-                // Ждём оба запроса, потом отдаём компонент.
-                return Promise.all([vichPromise, lamPromise]).then(function () {
+                // --- 3) Дополнительные работы ---
+                const worksPromise = fetch('/calculator/get-additional-works/' + comp.id + '/', {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (worksData) {
+                    if (worksData && worksData.success) {
+                        comp._works = worksData.works || [];
+                    } else {
+                        comp._works = [];
+                    }
+                    return comp;
+                })
+                .catch(function () { comp._works = []; return comp; });
+
+                // Ждём все три запроса, потом отдаём компонент.
+                return Promise.all([vichPromise, lamPromise, worksPromise]).then(function () {
                     return comp;
                 });
             }));
@@ -1230,6 +1269,20 @@ JavaScript секции «Просчёт» новой страницы /proschet
      */
     function renderComponents(components) {
         if (!componentsSection) return;
+
+        // Сообщаем другим секциям (в первую очередь — блоку
+        // «Итоги просчёта»), что данные о компонентах только что
+        // перерисованы. Это событие — триггер для пересчёта массы,
+        // объёма, высоты стопки и полной стоимости просчёта.
+        //
+        // Генерируем ЗДЕСЬ, в самом начале функции, ДО возможного
+        // раннего return при пустом списке компонентов — чтобы блок
+        // итогов обновлялся и тогда, когда все компоненты удалены.
+        if (activeProschet && activeProschet.id) {
+            document.dispatchEvent(new CustomEvent('proschetComponentsRendered', {
+                detail: { proschetId: String(activeProschet.id) }
+            }));
+        }
 
         // Запоминаем текущую позицию прокрутки — после замены карточек
         // восстановим её. Без этого браузер может «дёрнуть» страницу
@@ -1789,10 +1842,29 @@ JavaScript секции «Просчёт» новой страницы /proschet
                     .replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽';
             }
 
-            // Собираем строку. Части разделяем вертикальной чертой «·»,
+            // Собираем строку. Части разделяем отступом (gap в CSS),
             // чтобы визуально они не слипались.
+            // Дополнительно показываем:
+            //   • цену печати за один лист (price_per_sheet);
+            //   • цену бумаги за один лист (material_price_per_unit);
+            //   • итог по компоненту — печать + бумага + ламинация
+            //     (если она включена).
+            //
+            // ВАЖНО: total_circulation_price в БД содержит только
+            // «печать + бумага». Ламинация туда НЕ входит — она
+            // отдельным слагаемым в итоге просчёта. Поэтому итог
+            // по компоненту считаем локально: печать + бумага +
+            // (ламинация, если включена). Так сумма слева совпадает
+            // с итогом.
+            let totalComponentPrice = printingCost + paperCost;
+            if (lamEnabled) {
+                totalComponentPrice += lamTotal;
+            }
+
             let summaryHtml =
                 '<span class="proschet-summary-item">Листов: <b>' + sheetsFmt + '</b></span>' +
+                '<span class="proschet-summary-item">Печать за лист: <b>' + fmtMoney(pricePerSheet) + '</b></span>' +
+                '<span class="proschet-summary-item">Бумага за лист: <b>' + fmtMoney(paperPrice) + '</b></span>' +
                 '<span class="proschet-summary-item">Печать: <b>' + fmtMoney(printingCost) + '</b></span>' +
                 '<span class="proschet-summary-item">Бумага: <b>' + fmtMoney(paperCost) + '</b></span>';
 
@@ -1800,15 +1872,136 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 summaryHtml +=
                     '<span class="proschet-summary-item">Ламинация: <b>' + fmtMoney(lamTotal) + '</b></span>';
             }
+
+            summaryHtml +=
+                '<span class="proschet-summary-item">Итого по компоненту: <b>' + fmtMoney(totalComponentPrice) + '</b></span>';
+
             summary.innerHTML = summaryHtml;
             // Строку итогов кладём НЕ в карточку (тогда она встала бы под
             // всей row2 — то есть под canvas), а в левую колонку. Через
             // margin-top: auto (см. CSS) она прижмётся к самому низу
             // колонки — то есть окажется на одном уровне с низом схемы.
             fieldsCol.appendChild(summary);
+
+            // === Блок «Дополнительные работы» ===
+            // Пунктирная черта сверху (border-top в CSS) + стрелка ▼,
+            // раскрывающая форму добавления, и список имеющихся работ.
+            // По умолчанию форма скрыта — раскрывается по клику на стрелку,
+            // как блок добавления печатного компонента.
+            const row5 = document.createElement('div');
+            row5.className = 'proschet-component-card-row5';
+
+            // Стрелка ▼ — раскрывает/сворачивает форму добавления.
+            const workToggleBtn = document.createElement('button');
+            workToggleBtn.type = 'button';
+            workToggleBtn.className = 'proschet-toggle-work-form';
+            workToggleBtn.title = 'Показать/скрыть добавление работы';
+            const workArrow = document.createElement('span');
+            workArrow.className = 'proschet-toggle-arrow';
+            workArrow.textContent = '▼';
+            workToggleBtn.appendChild(workArrow);
+            row5.appendChild(workToggleBtn);
+
+            // Обёртка формы добавления — скрыта по умолчанию,
+            // раскрывается кликом по стрелке (класс .is-open на row5).
+            // В одну строку: [кнопка «+ Добавить»] [селект] [количество].
+            const addWorkForm = document.createElement('div');
+            addWorkForm.className = 'proschet-add-work-content';
+
+            const addWorkBtn = document.createElement('button');
+            addWorkBtn.type = 'button';
+            addWorkBtn.className = 'proschet-btn-add-work';
+            addWorkBtn.textContent = '+ Добавить дополнительную работу';
+            addWorkForm.appendChild(addWorkBtn);
+
+            const workSelectEl = document.createElement('select');
+            workSelectEl.className = 'proschet-work-select';
+            workSelectEl.dataset.field = 'work_id';
+            const optLoading = document.createElement('option');
+            optLoading.value = '';
+            optLoading.textContent = '— Выберите работу —';
+            workSelectEl.appendChild(optLoading);
+            addWorkForm.appendChild(workSelectEl);
+
+            const workQtyInput = document.createElement('input');
+            workQtyInput.type = 'number';
+            workQtyInput.className = 'proschet-work-qty';
+            workQtyInput.min = '1';
+            workQtyInput.step = '1';
+            workQtyInput.value = '1';
+            workQtyInput.title = 'Количество';
+            addWorkForm.appendChild(workQtyInput);
+
+            row5.appendChild(addWorkForm);
+
+            // Список имеющихся работ — каждая в своей строке.
+            // Показывается всегда (это состояние, а не форма).
+            const worksList = document.createElement('div');
+            worksList.className = 'proschet-works-list';
+
+            const works = comp._works || [];
+            if (works.length > 0) {
+                works.forEach(function (w) {
+                    worksList.appendChild(createWorkRow(w, comp.id));
+                });
+            } else {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = 'proschet-works-empty';
+                emptyMsg.textContent = 'Дополнительных работ нет';
+                worksList.appendChild(emptyMsg);
+            }
+            row5.appendChild(worksList);
+
+            card.appendChild(row5);
         }
 
         return card;
+    }
+
+    /**
+     * Создаёт одну строку работы для блока «Дополнительные работы».
+     * Формат строки: [Название] [Количество] [Стоимость] [×].
+     *
+     * @param {Object} work — объект работы (см. AdditionalWork.to_dict()).
+     * @param {number|string} componentId — ID печатного компонента.
+     * @returns {HTMLElement} DOM-элемент строки.
+     */
+    function createWorkRow(work, componentId) {
+        const row = document.createElement('div');
+        row.className = 'proschet-work-row';
+        row.dataset.workId = work.id;
+        row.dataset.componentId = componentId;
+
+        // Название.
+        const titleEl = document.createElement('span');
+        titleEl.className = 'proschet-work-title';
+        titleEl.textContent = work.title || '—';
+        row.appendChild(titleEl);
+
+        // Количество — редактируется двойным кликом.
+        const qtyEl = document.createElement('span');
+        qtyEl.className = 'proschet-work-qty-display proschet-work-qty-editable';
+        qtyEl.dataset.field = 'quantity';
+        qtyEl.dataset.originalValue = work.quantity || 1;
+        qtyEl.title = 'Двойной клик для редактирования';
+        qtyEl.textContent = work.quantity || 1;
+        row.appendChild(qtyEl);
+
+        // Итоговая стоимость работы.
+        const priceEl = document.createElement('span');
+        priceEl.className = 'proschet-work-price';
+        priceEl.textContent = work.formatted_total_price || '0.00 ₽';
+        row.appendChild(priceEl);
+
+        // Кнопка удаления — по виду как у печатного компонента.
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'proschet-work-delete-btn';
+        delBtn.title = 'Удалить работу';
+        delBtn.textContent = '×';
+        row.appendChild(delBtn);
+
+        return row;
     }
 
     /**
@@ -2323,6 +2516,11 @@ JavaScript секции «Просчёт» новой страницы /proschet
     // Заполняется при клике на крестик, читается в confirmComponentDeleteYes.
     let pendingDeleteComponentId = null;
 
+    // ID дополнительной работы, ожидающей подтверждения удаления.
+    // Если задан — при нажатии «Удалить» в модалке удаляем работу,
+    // а не компонент (см. confirmComponentDeleteYes).
+    let pendingDeleteWorkId = null;
+
     /**
      * Делегированный клик по крестику удаления внутри карточки.
      * Открывает модалку подтверждения; сам запрос на удаление
@@ -2338,11 +2536,24 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const componentId = card.dataset.componentId;
         if (!componentId) return;
 
-        // Запоминаем, кого будем удалять, и показываем модалку.
+        // Запоминаем, кого будем удалять. Работу НЕ трогаем —
+        // pendingDeleteWorkId обнуляем, чтобы точно удалить компонент.
         pendingDeleteComponentId = componentId;
+        pendingDeleteWorkId = null;
 
         const overlay = document.getElementById('proschet-component-confirm-overlay');
-        if (overlay) overlay.style.display = 'flex';
+        if (overlay) {
+            // Восстанавливаем заголовок и текст модалки на случай,
+            // если до этого её открывали для удаления работы.
+            const titleEl = overlay.querySelector('.list-proschet-confirm-title');
+            const textEl  = overlay.querySelector('.list-proschet-confirm-text');
+            if (titleEl) titleEl.textContent = 'Удалить печатный компонент?';
+            if (textEl) {
+                textEl.innerHTML =
+                    'Компонент пропадёт из просчёта.<br>Его можно будет восстановить через админку.';
+            }
+            overlay.style.display = 'flex';
+        }
     }
 
     /**
@@ -2352,6 +2563,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         const overlay = document.getElementById('proschet-component-confirm-overlay');
         if (overlay) overlay.style.display = 'none';
         pendingDeleteComponentId = null;
+        pendingDeleteWorkId = null;
     }
 
     /**
@@ -2359,6 +2571,14 @@ JavaScript секции «Просчёт» новой страницы /proschet
      * само удаление.
      */
     function confirmComponentDeleteYes() {
+        // Если открыта модалка для удаления РАБОТЫ — обрабатываем её.
+        if (pendingDeleteWorkId) {
+            const workId = pendingDeleteWorkId;
+            closeComponentConfirmModal();
+            deleteAdditionalWork(workId);
+            return;
+        }
+        // Иначе — обычное удаление печатного компонента.
         if (!pendingDeleteComponentId) {
             closeComponentConfirmModal();
             return;
@@ -2405,6 +2625,332 @@ JavaScript секции «Просчёт» новой страницы /proschet
             showNotification('Ошибка сети при удалении компонента', 'error');
         });
     }
+
+    // ========================================================================
+    // 14б. ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ.
+    // ========================================================================
+
+    /**
+     * Клик по кнопке «+ Добавить дополнительную работу» — раскрывает
+     * скрытую форму и наполняет селект справочником работ.
+     */
+    /**
+     * Клик по стрелке ▼ рядом с блоком «Дополнительные работы» —
+     * раскрывает/сворачивает форму добавления. Список уже добавленных
+     * работ при этом остаётся видимым всегда.
+     */
+    function handleWorkFormToggleClick(event) {
+        const btn = event.target.closest('.proschet-toggle-work-form');
+        if (!btn) return;
+
+        const row5 = btn.closest('.proschet-component-card-row5');
+        if (!row5) return;
+
+        const willOpen = !row5.classList.contains('is-open');
+        row5.classList.toggle('is-open');
+
+        // При первом раскрытии подгружаем справочник работ —
+        // чтобы селект не тянул данные, пока форма не открыта.
+        if (willOpen) {
+            const select = row5.querySelector('.proschet-work-select');
+            loadSpravochnikWorks(select);
+        }
+    }
+
+    /**
+     * Загружает справочник работ и наполняет селект.
+     * Использует API GET /calculator/get-spravochnik-works/.
+     * @param {HTMLSelectElement} selectEl — селект для наполнения.
+     */
+    function loadSpravochnikWorks(selectEl) {
+        if (!selectEl) return;
+        if (selectEl.dataset.loaded === 'true') return;   // уже загружено
+
+        selectEl.innerHTML = '<option value="">— Загрузка… —</option>';
+
+        fetch('/calculator/get-spravochnik-works/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success && Array.isArray(data.works)) {
+                selectEl.innerHTML = '<option value="">— Выберите работу —</option>';
+                data.works.forEach(function (w) {
+                    const opt = document.createElement('option');
+                    opt.value = String(w.id);
+                    opt.textContent = w.name + ' — ' + w.price + ' ₽';
+                    opt.dataset.name = w.name;
+                    opt.dataset.price = w.price;
+                    selectEl.appendChild(opt);
+                });
+                selectEl.dataset.loaded = 'true';
+            } else {
+                selectEl.innerHTML = '<option value="">— Не удалось загрузить —</option>';
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка загрузки справочника работ:', err);
+            selectEl.innerHTML = '<option value="">— Ошибка соединения —</option>';
+        });
+    }
+
+    /**
+     * Клик по кнопке «Добавить» в форме добавления работы.
+     * Отправляет POST /calculator/add-additional-work/.
+     */
+    function handleAddWorkSubmit(event) {
+        const btn = event.target.closest('.proschet-btn-add-work');
+        if (!btn) return;
+
+        const card = btn.closest('.proschet-component-card');
+        if (!card) return;
+        const componentId = card.dataset.componentId;
+        if (!componentId) return;
+
+        // Ищем обёртку формы по её реальному классу (в DOM это
+        // .proschet-add-work-content, см. createComponentCard).
+        const form = btn.closest('.proschet-add-work-content');
+        if (!form) return;
+        const select   = form.querySelector('.proschet-work-select');
+        const qtyInput = form.querySelector('.proschet-work-qty');
+
+        const workId = select ? select.value : '';
+        if (!workId) {
+            showNotification('Выберите работу', 'error');
+            if (select) select.focus();
+            return;
+        }
+
+        let qty = parseInt(qtyInput ? qtyInput.value : '1', 10);
+        if (isNaN(qty) || qty < 1) qty = 1;
+
+        const fd = new FormData();
+        fd.append('print_component_id', componentId);
+        fd.append('work_id', workId);
+        fd.append('quantity', qty);
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Добавление…';
+
+        fetch('/calculator/add-additional-work/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showNotification('Работа добавлена', 'success');
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка добавления', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка добавления работы:', err);
+            showNotification('Ошибка сети при добавлении работы', 'error');
+        })
+        .finally(function () {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
+    }
+
+
+    /**
+     * Клик по крестику удаления работы — открывает модалку подтверждения
+     * (ту же, что и для печатного компонента), подменяя в ней заголовок
+     * и текст.
+     */
+    function handleWorkDeleteClick(event) {
+        const btn = event.target.closest('.proschet-work-delete-btn');
+        if (!btn) return;
+        event.stopPropagation();
+
+        const row = btn.closest('.proschet-work-row');
+        if (!row) return;
+        const workId = row.dataset.workId;
+        if (!workId) return;
+
+        // Запоминаем работу. Компонент не трогаем — pendingDeleteComponentId
+        // обнуляем, чтобы точно удалить работу, а не компонент.
+        pendingDeleteWorkId = workId;
+        pendingDeleteComponentId = null;
+
+        const overlay = document.getElementById('proschet-component-confirm-overlay');
+        if (overlay) {
+            const titleEl = overlay.querySelector('.list-proschet-confirm-title');
+            const textEl  = overlay.querySelector('.list-proschet-confirm-text');
+            if (titleEl) titleEl.textContent = 'Удалить работу?';
+            if (textEl) {
+                textEl.innerHTML =
+                    'Работа пропадёт из компонента.<br>Её можно будет восстановить через админку.';
+            }
+            overlay.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Отправляет POST /calculator/delete-additional-work/.
+     * После успеха перезагружает карточки.
+     */
+    function deleteAdditionalWork(workId) {
+        const fd = new FormData();
+        fd.append('work_id', workId);
+
+        fetch('/calculator/delete-additional-work/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showNotification('Работа удалена', 'error');
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка удаления работы', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка удаления работы:', err);
+            showNotification('Ошибка сети при удалении работы', 'error');
+        });
+    }
+
+    /**
+     * Двойной клик по количеству работы — превращает его в input.
+     * Сохранение — по Enter или blur, отмена — по Escape.
+     */
+    function handleWorkQtyDblClick(event) {
+        const cell = event.target.closest('.proschet-work-qty-editable');
+        if (!cell) return;
+        if (cell.classList.contains('editing')) return;
+
+        const row = cell.closest('.proschet-work-row');
+        if (!row) return;
+        const workId = row.dataset.workId;
+        if (!workId) return;
+
+        const original = cell.dataset.originalValue || cell.textContent.trim();
+
+        cell.classList.add('editing');
+        cell.textContent = '';
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'proschet-work-qty-input';
+        input.value = original;
+        input.min = '1';
+        input.step = '1';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+
+        let finished = false;
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (finished) return;
+                finished = true;
+                saveWorkQuantity(cell, workId, input.value, original);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                if (finished) return;
+                finished = true;
+                cancelWorkQuantity(cell, original);
+            }
+        });
+
+        input.addEventListener('blur', function () {
+            setTimeout(function () {
+                if (finished) return;
+                finished = true;
+                saveWorkQuantity(cell, workId, input.value, original);
+            }, 100);
+        });
+    }
+
+    /**
+     * Сохраняет новое количество работы через POST
+     * /calculator/update-additional-work/ с field_name='quantity'.
+     */
+    function saveWorkQuantity(cell, workId, rawValue, original) {
+        const q = parseInt(rawValue, 10);
+        if (isNaN(q) || q < 1) {
+            showNotification('Количество должно быть целым числом ≥ 1', 'error');
+            cancelWorkQuantity(cell, original);
+            return;
+        }
+        if (String(q) === String(original)) {
+            cancelWorkQuantity(cell, original);
+            return;
+        }
+
+        cell.innerHTML = '<span class="proschet-inline-saving">…</span>';
+
+        const fd = new FormData();
+        fd.append('work_id', workId);
+        fd.append('field_name', 'quantity');
+        fd.append('field_value', q);
+
+        fetch('/calculator/update-additional-work/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                cell.classList.remove('editing');
+                cell.textContent = q;
+                cell.dataset.originalValue = q;
+                showNotification('Количество обновлено', 'success');
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id);
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                cell.classList.remove('editing');
+                cell.textContent = original;
+                showNotification(data.message || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка сохранения количества работы:', err);
+            cell.classList.remove('editing');
+            cell.textContent = original;
+            showNotification('Ошибка сети при сохранении количества', 'error');
+        });
+    }
+
+    /**
+     * Откат редактирования количества — возвращает исходное значение.
+     */
+    function cancelWorkQuantity(cell, original) {
+        cell.classList.remove('editing');
+        cell.textContent = original;
+    }
+
+
     // ========================================================================
     // 14а. РАЗВОРАЧИВАНИЕ/СВОРАЧИВАНИЕ БЛОКА ДОБАВЛЕНИЯ КОМПОНЕНТА.
     // ========================================================================

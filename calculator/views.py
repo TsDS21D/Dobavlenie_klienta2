@@ -1742,7 +1742,10 @@ def get_proschet_price_data(request, proschet_id):
                 total_works_sum += work.total_price
 
         total_print_price = sum(comp.total_circulation_price for comp in components)
-        total_price = total_print_price + total_works_sum
+        total_lamination_sum = sum(
+            Decimal(str(lam['total_price'])) for lam in laminations_data if lam['is_enabled']
+        )
+        total_price = total_print_price + total_works_sum + total_lamination_sum
 
         # ===== ЕДИНЫЙ РАСЧЁТ МАССЫ, ОБЪЁМА И РАЗМЕРА СТОПОК =====
         # Вызываем общую утилиту calculator.utils_mass_volume, чтобы

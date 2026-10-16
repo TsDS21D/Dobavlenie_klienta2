@@ -1,0 +1,167 @@
+/*
+proschety/static/proschety/css/sections/proschet_summary.css
+Стили блока «Итоги просчёта».
+
+САМ БЛОК — одна карточка со светло-зелёным фоном, как у карточки
+одностраничного печатного компонента (.proschet-component-card--single):
+тот же фон #f5fcf8, та же рамка #d6ecdf, то же скругление 10px.
+Внутри — 4 показателя в одну строку (label + value), без
+дополнительных белых плиток.
+*/
+
+/* ==================== ОБЁРТКА — ЗЕЛЁНАЯ КАРТОЧКА ==================== */
+
+.proschet-summary-section {
+    /* Тот же зелёный, что у одностраничной карточки компонента. */
+    background: #f5fcf8;
+    border: 1px solid #d6ecdf;
+    border-radius: 10px;
+
+    /* Padding компактнее — нам нужно уложить всё в одну строку. */
+    padding: 0.6rem 0.9rem;
+
+    /* Отступ снизу, как у .proschet-components-section. */
+    margin-bottom: 1.15rem;
+
+    /* Мягкий ховер — как у карточки компонента. */
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.proschet-summary-section:hover {
+    border-color: #b9d9c7;
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.06);
+}
+
+/* ==================== СПИСОК ПОКАЗАТЕЛЕЙ ВНУТРИ ==================== */
+
+/* 4 группы в одну строку с переносом на узких экранах.
+   gap — побольше между группами по горизонтали, чтобы значения
+   не сливались; поменьше по вертикали. */
+.proschet-summary-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;   /* по горизонтали компактнее — было 2rem */
+    align-items: center;
+}
+
+/* Одна группа: «Подпись: значение». Раньше это была отдельная
+   белая плитка — теперь просто строчная связка на зелёном фоне,
+   без собственного фона, рамки и скругления. */
+.proschet-summary-card {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;        /* label ближе к value — было 0.4rem */
+    min-width: 0;
+}
+
+/* ==================== ПОДПИСЬ ==================== */
+
+.proschet-summary-label {
+    font-size: 0.7rem;    /* было 0.78rem */
+    /* Приглушённый зелёный — читается на светло-зелёном фоне,
+       но не спорит с цифрой. */
+    color: #6a8a78;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ==================== ЗНАЧЕНИЕ ==================== */
+
+.proschet-summary-value {
+    font-size: 0.85rem;   /* было 0.95rem */
+    color: #333333;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Полная стоимость — акцентная (фирменный зелёный). */
+.proschet-summary-value--price {
+    color: #0B8661;
+    font-size: 0.9rem;    /* было 1.05rem */
+    font-weight: 700;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+/* На узких экранах группы переносятся на новую строку и растягиваются
+   на всю ширину — читается ровно, значения не «прилипают» к правому
+   краю. */
+/* ==================== КНОПКИ «СОЗДАТЬ ЗАКАЗ» И «ДОБАВИТЬ В ИМЕЮЩИЙСЯ» ==================== */
+
+/* Контейнер кнопок. margin-left: auto прижимает их к правому краю
+   строки (по горизонтали), пока хватает места. На узких экранах
+   переносятся на новую строку — там margin-left уже не работает,
+   см. media-запрос ниже. */
+.proschet-summary-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    /* margin-left: auto забирает всё свободное место слева и
+       прижимает кнопки к правому краю блока. Показатели при этом
+       остаются слева. */
+    margin-left: auto;
+}
+
+/* Общий стиль кнопок — компактный, чтобы в одну строку с показателями.
+   Цвета в тон фирменному зелёному (#0B8661): primary — заливка,
+   secondary — контурная (прозрачный фон, зелёная рамка). */
+.proschet-summary-btn {
+    padding: 0.22rem 0.6rem;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease,
+                border-color 0.15s ease, transform 0.1s ease;
+}
+
+/* Primary — «Создать новый заказ»: фирменная заливка. */
+.proschet-summary-btn--primary {
+    background: #0B8661;
+    color: #ffffff;
+    border: 1px solid #0B8661;
+}
+.proschet-summary-btn--primary:hover {
+    background: #0a6e51;
+    border-color: #0a6e51;
+    transform: translateY(-1px);
+}
+.proschet-summary-btn--primary:active {
+    transform: translateY(0);
+}
+
+/* Secondary — «Добавить в имеющийся»: контурная, прозрачный фон. */
+.proschet-summary-btn--secondary {
+    background: #ffffff;
+    color: #0B8661;
+    border: 1px solid #0B8661;
+}
+.proschet-summary-btn--secondary:hover {
+    background: #eaf6ef;
+    transform: translateY(-1px);
+}
+.proschet-summary-btn--secondary:active {
+    transform: translateY(0);
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    .proschet-summary-card {
+        flex: 1 1 100%;
+        justify-content: space-between;
+    }
+    /* Кнопки на узком экране — на всю ширину блока, друг под другом. */
+    .proschet-summary-actions {
+        margin-left: 0;
+        flex: 1 1 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .proschet-summary-btn {
+        width: 100%;
+    }
+}

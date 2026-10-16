@@ -1248,3 +1248,240 @@ proschety/static/proschety/css/sections/proschet.css
     font-weight: 600;
     color: #666666;
 }
+
+/* ==================== БЛОК «ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ» В КАРТОЧКЕ ==================== */
+
+.proschet-component-card-row5 {
+    /* Строка на всю ширину карточки, отделена тонким пунктиром сверху —
+       идёт после row2 (поля + схема) и итоговой строки. */
+    flex: 1 0 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-top: 0.4rem;
+    margin-top: 0.3rem;
+    border-top: 1px dashed #e0e0e0;
+}
+
+/* Кнопка «+ Добавить дополнительную работу» — по стилю как
+   «+ Добавить печатный компонент». */
+.proschet-btn-add-work {
+    align-self: flex-start;
+    padding: 0.3rem 0.7rem;
+    background: #eaf6ef;
+    color: #0B8661;
+    border: 1px solid #b9d9c7;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.proschet-btn-add-work:hover {
+    background: #d9efe2;
+    border-color: #0B8661;
+}
+.proschet-btn-add-work:active {
+    transform: translateY(1px);
+}
+
+/* Кнопка-стрелка ▼ рядом с блоком работ — по виду как стрелка
+   у блока «Ламинация» и у добавления печатного компонента. */
+.proschet-toggle-work-form {
+    background: transparent;
+    border: none;
+    padding: 0.05rem 0.25rem;
+    margin: 0;
+    color: #b0b0b0;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    align-self: flex-start;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+.proschet-toggle-work-form:hover {
+    color: #0B8661;
+    background: #eaf6ef;
+}
+
+/* Стрелка ▼ поворачивается на 180° (становится ▲) при раскрытии. */
+.proschet-component-card-row5.is-open .proschet-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* Обёртка формы добавления работы. По умолчанию скрыта,
+   раскрывается классом .is-open на row5. В одну строку:
+   кнопка «+ Добавить» + селект + количество. */
+.proschet-add-work-content {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.proschet-component-card-row5.is-open .proschet-add-work-content {
+    display: flex;
+}
+
+.proschet-work-select {
+    min-width: 220px;
+    max-width: 340px;
+    padding: 0.25rem 0.5rem;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    cursor: pointer;
+}
+.proschet-work-select:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+.proschet-work-qty {
+    width: 4rem;
+    padding: 0.25rem 0.5rem;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    text-align: center;
+}
+.proschet-work-qty:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+.proschet-btn-submit-work {
+    padding: 0.3rem 0.7rem;
+    background: #0B8661;
+    color: #ffffff;
+    border: none;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.proschet-btn-submit-work:hover {
+    background: #0a6e51;
+}
+.proschet-btn-submit-work:disabled {
+    background: #b9d9c7;
+    cursor: not-allowed;
+}
+
+
+/* Список имеющихся работ. */
+.proschet-works-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.proschet-works-empty {
+    font-size: 0.7rem;
+    color: #999999;
+    font-style: italic;
+    padding: 0.2rem 0;
+}
+
+/* Одна строка работы: название · количество · стоимость · ×. */
+.proschet-work-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.proschet-work-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #333333;
+}
+
+.proschet-work-qty-display {
+    min-width: 3rem;
+    padding: 0.1rem 0.4rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: 600;
+    color: #333333;
+}
+
+.proschet-work-qty-editable {
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+.proschet-work-qty-editable:hover {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+.proschet-work-qty-editable.editing {
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.proschet-work-qty-input {
+    width: 3rem;
+    padding: 0.1rem 0.3rem;
+    background: #ffffff;
+    border: 2px solid #0B8661;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    text-align: center;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+.proschet-work-price {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #0B8661;
+    white-space: nowrap;
+    min-width: 5.5rem;
+    text-align: right;
+}
+
+.proschet-work-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.proschet-work-delete-btn:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}

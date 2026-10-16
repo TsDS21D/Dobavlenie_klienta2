@@ -17,6 +17,7 @@ proschety/templates/proschety/index.html
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'proschety/css/sections/list_proschet.css' %}">
 <link rel="stylesheet" href="{% static 'proschety/css/sections/proschet.css' %}">
+<link rel="stylesheet" href="{% static 'proschety/css/sections/proschet_summary.css' %}">
 {% endblock %}
 
 {% block title %}Просчёты{% endblock %}
@@ -42,6 +43,7 @@ proschety/templates/proschety/index.html
         {% include "proschety/sections/list_proschet.html" %}
         {% include "proschety/sections/proschet.html" %}
         {% include "proschety/sections/proschet_components.html" %}
+        {% include "proschety/sections/proschet_summary.html" %}
     </div>
     <!--
     Контейнер для «плавающих» уведомлений о событиях в WebSocket
@@ -72,4 +74,10 @@ proschety/templates/proschety/index.html
 {% block extra_js %}
 <script src="{% static 'proschety/js/sections/list_proschet.js' %}"></script>
 <script src="{% static 'proschety/js/sections/proschet.js' %}"></script>
+<script src="{% static 'proschety/js/sections/proschet_summary.js' %}"></script>
+<!-- Существующий модуль калькулятора: логика кнопок
+     «Создать новый заказ» и «Добавить в имеющийся».
+     Работает через те же ID, что и на старой странице:
+     #create-new-order-btn и #add-to-existing-order-btn. -->
+<script src="{% static 'calculator/js/sections/price_orders.js' %}"></script>
 {% endblock %}
