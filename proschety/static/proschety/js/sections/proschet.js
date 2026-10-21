@@ -116,6 +116,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         loadPapers();
         loadLaminators();
         loadFilms();
+        loadBindings(); // ← НОВОЕ: загрузка типов скрепления
 
         // Делегированные обработчики для селектов внутри карточек компонентов.
         // Работают на весь контейнер #proschet-components-section —
@@ -983,6 +984,35 @@ JavaScript секции «Просчёт» новой страницы /proschet
             console.error('Ошибка загрузки плёнок:', err);
         });
     }
+
+    // Флаг, что список типов скрепления загружен.
+    let bindingsLoaded = false;
+
+    /**
+     * Загружает справочник типов скрепления (MultipageBinding).
+     * API: GET /vichisliniya_listov/multipage/bindings/
+     */
+    function loadBindings() {
+        if (bindingsLoaded) return;
+
+        fetch('/vichisliniya_listov/multipage/bindings/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success && Array.isArray(data.bindings)) {
+                window.PROSHETY_BINDINGS = data.bindings;
+                bindingsLoaded = true;
+                console.log('✅ Загружено типов скрепления:', data.bindings.length);
+            } else {
+                console.warn('Не удалось получить список типов скрепления');
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка загрузки типов скрепления:', err);
+        });
+    }
     // ========================================================================
     // 10. СОЗДАНИЕ ПЕЧАТНОГО КОМПОНЕНТА.
     // ========================================================================
@@ -1114,16 +1144,20 @@ JavaScript секции «Просчёт» новой страницы /proschet
     /**
      * Активирует многостраничный режим для указанного печатного компонента.
      *
-     * Вызывает существующий эндпоинт приложения vichisliniya_listov:
-     *   POST /vichisliniya_listov/save/
-     * с телом { print_component_id, is_active: true }.
+     * Эндпоинт приложения vichisliniya_listov:
+     *   POST /vichisliniya_listov/multipage/save/
      *
-     * Все остальные параметры многостраничного расчёта (total_pages=4,
-     * A4, portrait, vyleta=1, color=4+0) подставятся дефолтами из view
-     * multipage_save_data.
+     * ВАЖНО: не путать с /vichisliniya_listov/save/ — это save-data
+     * для ОДНОстраничного режима, и он ДЕАКТИВИРУЕТ multipage
+     * (см. vichisliniya_listov/views.py::vichisliniya_listov_save_data).
+     *
+     * Дефолтные значения соответствуют поведению старого калькулятора
+     * (vichisliniya_listov_multipage.js::createDefaultMultipageData):
+     *   total_pages=4, A4 (210×297), vyleta=4, portrait, color=4+0.
+     * Поле fit_* сервер пересчитает сам по размерам листа принтера.
      */
     function activateMultipage(componentId) {
-        return fetch('/vichisliniya_listov/save/', {
+        return fetch('/vichisliniya_listov/multipage/save/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1131,8 +1165,16 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 'X-CSRFToken': getCsrfToken()
             },
             body: JSON.stringify({
-                print_component_id: componentId,
-                is_active: true
+                print_component_id:  componentId,
+                is_active:           true,        // включаем многостраничный режим
+                binding_id:          null,        // способ скрепления не выбран
+                total_pages:         4,           // дефолт
+                finished_width:      210,         // A4
+                finished_height:     297,
+                vyleta:              4,           // дефолт из старого калькулятора (не 1)
+                booklet_orientation: 'portrait',
+                color:               '4+0'        // print_type='color' в handleAddComponent
+                // fit_* намеренно не передаём — пусть сервер посчитает сам
             })
         })
         .then(function (r) { return r.json(); })
@@ -1142,7 +1184,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
             }
             return data;
         });
-    }    
+    }
     // ========================================================================
     // 11. ТАБЛИЦА ПЕЧАТНЫХ КОМПОНЕНТОВ.
     // ========================================================================
@@ -1184,39 +1226,81 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 // Оба ответа складываем в сам объект компонента —
                 // так карточке всё под рукой.
 
-                // --- 1) Вычисления листов ---
-                const vichPromise = fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
-                    method: 'GET',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(function (r) { return r.json(); })
-                .then(function (vich) {
-                    if (vich && vich.success) {
-                        comp._vich = {
-                            item_width:               vich.item_width,
-                            item_height:              vich.item_height,
-                            vyleta:                   vich.vyleta,
-                            color:                    vich.color,
-                            polosa_count:             vich.polosa_count,
-                            fit_horizontal:           vich.fit_horizontal,
-                            fit_vertical:             vich.fit_vertical,
-                            fit_total:                vich.fit_total,
-                            fit_landscape_total:      vich.fit_landscape_total,
-                            fit_portrait_total:       vich.fit_portrait_total,
-                            fit_selected_orientation: vich.fit_selected_orientation,
-                            list_count:               vich.list_count,
-                            cuts_count:               vich.cuts_count,
-                            // Данные о печатном листе — нужны для отрисовки
-                            // мини-схемы размещения в карточке компонента.
-                            sheet_width:              vich.sheet_width,
-                            sheet_height:             vich.sheet_height,
-                            margin:                   vich.margin,
-                        };
-                    }
-                    return comp;
-                })
-                .catch(function () { return comp; });
+// --- 1) Данные расчёта: одностраничный ИЛИ многостраничный ---
+// Для многостраничного компонента (is_multipage === true) данные
+// живут в отдельной модели VichisliniyaMultipageModel и берутся
+// из своего эндпоинта приложения vichisliniya_listov.
+// Для одностраничного — прежний эндпоинт и прежняя распаковка в comp._vich.
+// Результат всегда кладём в СВОЙ ключ:
+//   • comp._vich      — для одностраничного,
+//   • comp._multipage — для многостраничного.
+// Так карточка компонента сможет однозначно понять, что у неё есть.
+let calcPromise;
 
+        if (comp.is_multipage) {
+            // ===== Многостраничный режим =====
+            calcPromise = fetch('/vichisliniya_listov/multipage/get/' + comp.id + '/', {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (mp) {
+                if (mp && mp.success) {
+                    comp._multipage = mp;
+                    // Дополнительно запрашиваем размеры листа (ширина/высота/поля)
+                    // через одностраничный эндпоинт, так как multipage/get их не отдаёт.
+                    return fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+                        method: 'GET',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(function (r2) { return r2.json(); })
+                    .then(function (vich) {
+                        if (vich && vich.success) {
+                            comp._multipage.sheet_width = vich.sheet_width;
+                            comp._multipage.sheet_height = vich.sheet_height;
+                            comp._multipage.margin = vich.margin;
+                        }
+                        return comp;
+                    });
+                }
+                return comp;
+            })
+            .catch(function (err) {
+                console.warn('Не удалось загрузить multipage для компонента', comp.id, err);
+                return comp;
+            });
+} else {
+    // ===== Одностраничный режим — как было =====
+    calcPromise = fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (vich) {
+        if (vich && vich.success) {
+            comp._vich = {
+                item_width:               vich.item_width,
+                item_height:              vich.item_height,
+                vyleta:                   vich.vyleta,
+                color:                    vich.color,
+                polosa_count:             vich.polosa_count,
+                fit_horizontal:           vich.fit_horizontal,
+                fit_vertical:             vich.fit_vertical,
+                fit_total:                vich.fit_total,
+                fit_landscape_total:      vich.fit_landscape_total,
+                fit_portrait_total:       vich.fit_portrait_total,
+                fit_selected_orientation: vich.fit_selected_orientation,
+                list_count:               vich.list_count,
+                cuts_count:               vich.cuts_count,
+                sheet_width:              vich.sheet_width,
+                sheet_height:             vich.sheet_height,
+                margin:                   vich.margin,
+            };
+        }
+        return comp;
+    })
+    .catch(function () { return comp; });
+}
                 // --- 2) Ламинация ---
                 const lamPromise = fetch('/calculator/get-lamination/' + comp.id + '/', {
                     method: 'GET',
@@ -1248,7 +1332,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 .catch(function () { comp._works = []; return comp; });
 
                 // Ждём все три запроса, потом отдаём компонент.
-                return Promise.all([vichPromise, lamPromise, worksPromise]).then(function () {
+                return Promise.all([calcPromise, lamPromise, worksPromise]).then(function () {
                     return comp;
                 });
             }));
@@ -1308,25 +1392,27 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
         components.forEach(function (comp) {
             const card = createComponentCard(comp);
+
+            // Отрисовка ДО вставки в DOM — карточка появляется сразу
+            // с готовой схемой и правильным размером canvas.
+            // Раньше здесь был requestAnimationFrame: canvas сначала
+            // вставлялся с размером по computeVizCanvasSize, а через
+            // кадр drawOneSide / drawSide перезаписывал canvas.width/height
+            // по своей формуле. Если эти формулы давали разные значения,
+            // между двумя кадрами был виден «прыжок» размера блока.
+            // Сейчас отрисовка синхронна, и промежуточного кадра нет.
+            if (!comp.is_multipage) {
+                drawComponentPlacement(card);
+                updateOrientationOptimalMark(card);
+            } else {
+                drawMultipagePlacement(card);
+            }
+
             if (list) list.appendChild(card);
         });
 
-        // После вставки в DOM рисуем мини-схемы размещения.
-        // requestAnimationFrame — чтобы браузер успел применить стили
-        // и корректно прочитать размеры canvas. Здесь же возвращаем
-        // страницу на прежнюю позицию прокрутки.
-        requestAnimationFrame(function () {
-            if (list) {
-                list.querySelectorAll('.proschet-component-card').forEach(function (c) {
-                    drawComponentPlacement(c);
-                    updateOrientationOptimalMark(c);
-                });
-            }
-            // Восстанавливаем прокрутку. Если элементов после отрисовки
-            // стало меньше (например, удалили карточку) — scrollTo
-            // автоматически ограничится максимально доступным значением.
-            window.scrollTo(0, savedScrollY);
-        });
+        // Возвращаем страницу на прежнюю позицию прокрутки.
+        window.scrollTo(0, savedScrollY);
     }
 
     // ========================================================================
@@ -1351,6 +1437,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
             : 'proschet-component-card--single';
         card.className = 'proschet-component-card ' + modeClass;
         card.dataset.componentId = comp.id;
+
 
         // Номер компонента (KP-N) создаём здесь, но вставим его
         // в конец — перед кнопкой удаления (см. ниже).
@@ -1546,11 +1633,9 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
             // Строка полей готова — кладём её в левую колонку.
             fieldsCol.appendChild(fieldsRow);
+            row2.appendChild(fieldsCol); // Колонка с полями — слева
 
             // --- Мини-схема размещения на листе ---
-            // Две стороны листа: лицевая и обратная. Отрисовка — в функции
-            // drawComponentPlacement() после вставки карточки в DOM
-            // (иначе canvas может не иметь размеров в момент создания).
             const viz = document.createElement('div');
             viz.className = 'proschet-component-viz';
 
@@ -1560,10 +1645,17 @@ JavaScript секции «Просчёт» новой страницы /proschet
             const lblFront = document.createElement('div');
             lblFront.className = 'proschet-component-viz-label';
             lblFront.textContent = 'Лицевая';
+            // Размер canvas считаем сразу по пропорциям листа — чтобы
+            // не было «прыжка» при первом draw (см. computeVizCanvasSize).
+            const cvSizeFront = computeVizCanvasSize(
+                Number(vich.sheet_width)  || 0,
+                Number(vich.sheet_height) || 0
+            );
+
             const cvFront = document.createElement('canvas');
             cvFront.className = 'proschet-component-viz-canvas proschet-component-viz-canvas--front';
-            cvFront.width = 240;
-            cvFront.height = 180;
+            cvFront.width  = cvSizeFront.w;
+            cvFront.height = cvSizeFront.h;
             vizFront.appendChild(lblFront);
             vizFront.appendChild(cvFront);
             viz.appendChild(vizFront);
@@ -1576,13 +1668,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
             lblBack.textContent = 'Обратная';
             const cvBack = document.createElement('canvas');
             cvBack.className = 'proschet-component-viz-canvas proschet-component-viz-canvas--back';
-            cvBack.width = 240;
-            cvBack.height = 180;
+            cvBack.width  = cvSizeFront.w;
+            cvBack.height = cvSizeFront.h;
             vizBack.appendChild(lblBack);
             vizBack.appendChild(cvBack);
             viz.appendChild(vizBack);
 
-            row2.appendChild(viz);
+            row2.appendChild(viz); // Схема — справа
 
             card.appendChild(row2);
 
@@ -1954,6 +2046,274 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
             card.appendChild(row5);
         }
+        // --- Вторая и третья строки (многостраничный режим) ---
+        else {
+            // Сохраняем полный объект multipage на DOM-элементе карточки.
+            card._multipage = comp._multipage || {};
+
+            // ==========================================
+            // СТРОКА 1: Страницы и Тип скрепления
+            // ==========================================
+            const row1 = document.createElement('div');
+            row1.style.cssText = 'flex: 1 0 100%; display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; margin-top: 0.2rem;';
+
+            // --- Поле «Страниц» ---
+            const pagesField = document.createElement('div');
+            pagesField.className = 'proschet-inline-field';
+
+            const pagesLabel = document.createElement('label');
+            pagesLabel.className = 'proschet-inline-field-label';
+            pagesLabel.textContent = 'Страниц:';
+            pagesField.appendChild(pagesLabel);
+
+            const pagesInput = document.createElement('input');
+            pagesInput.type = 'number';
+            pagesInput.className = 'proschet-vich-input';
+            pagesInput.min = '4'; 
+            pagesInput.step = '1';
+            pagesInput.value = card._multipage.total_pages || 4;
+
+            pagesInput.addEventListener('change', function () {
+                let val = parseInt(this.value, 10);
+                if (isNaN(val) || val < 4) val = 4;
+                this.value = val;
+                saveMultipageField(card, 'total_pages', val);
+            });
+            pagesField.appendChild(pagesInput);
+            row1.appendChild(pagesField);
+
+            // --- Поле «Тип скрепления» ---
+            const bindingField = document.createElement('div');
+            bindingField.className = 'proschet-inline-field';
+
+            const bindingLabel = document.createElement('label');
+            bindingLabel.className = 'proschet-inline-field-label';
+            bindingLabel.textContent = 'Тип скрепления:';
+            bindingField.appendChild(bindingLabel);
+
+            const bindingSelect = document.createElement('select');
+            bindingSelect.className = 'proschet-field-select';
+            bindingSelect.dataset.field = 'binding';
+
+            const optEmpty = document.createElement('option');
+            optEmpty.value = '';
+            optEmpty.textContent = '— Не выбран —';
+            bindingSelect.appendChild(optEmpty);
+
+            (window.PROSHETY_BINDINGS || []).forEach(function (b) {
+                const opt = document.createElement('option');
+                opt.value = String(b.id);
+                opt.textContent = b.name;
+                if (String(card._multipage.binding_id) === String(b.id)) {
+                    opt.selected = true;
+                }
+                bindingSelect.appendChild(opt);
+            });
+
+            bindingSelect.addEventListener('change', function () {
+                saveMultipageField(card, 'binding_id', this.value);
+            });
+
+            bindingField.appendChild(bindingSelect);
+            row1.appendChild(bindingField);
+            card.appendChild(row1);
+
+            // ==========================================
+            // СТРОКА 2: Формат, Ширина, Высота, Вылеты
+            // ==========================================
+            const row2 = document.createElement('div');
+            row2.className = 'proschet-component-card-row2';
+
+            const fieldsCol = document.createElement('div');
+            fieldsCol.className = 'proschet-component-card-fields';
+
+            const fieldsRow = document.createElement('div');
+            fieldsRow.className = 'proschet-component-card-fields-row';
+
+            const w = card._multipage.finished_width !== undefined ? Number(card._multipage.finished_width) : 210;
+            const h = card._multipage.finished_height !== undefined ? Number(card._multipage.finished_height) : 297;
+            const v = card._multipage.vyleta !== undefined ? Number(card._multipage.vyleta) : 1;
+
+            // --- Формат ---
+            const fmtField = document.createElement('div');
+            fmtField.className = 'proschet-inline-field';
+            const fmtLabel = document.createElement('label');
+            fmtLabel.className = 'proschet-inline-field-label';
+            fmtLabel.textContent = 'Формат:';
+            fmtField.appendChild(fmtLabel);
+
+            const fmtSelect = document.createElement('select');
+            fmtSelect.className = 'proschet-vich-format';
+            
+            const optNone = document.createElement('option');
+            optNone.value = '';
+            optNone.textContent = '— Не выбран —';
+            fmtSelect.appendChild(optNone);
+
+            PROSHETY_ITEM_FORMATS.forEach(function (f) {
+                const opt = document.createElement('option');
+                opt.value = f.name;
+                opt.textContent = f.name;
+                opt.dataset.width  = f.width;
+                opt.dataset.height = f.height;
+                if (Number(f.width) === w && Number(f.height) === h) {
+                    opt.selected = true;
+                }
+                fmtSelect.appendChild(opt);
+            });
+
+            fmtSelect.addEventListener('change', function () {
+                const opt = this.options[this.selectedIndex];
+                if (!opt || !opt.dataset.width) return;
+                const newW = parseFloat(opt.dataset.width);
+                const newH = parseFloat(opt.dataset.height);
+                
+                mpWidthInput.value = newW;
+                mpHeightInput.value = newH;
+
+                // Отправляем оба поля разом
+                saveMultipageField(card, {
+                    finished_width: newW,
+                    finished_height: newH
+                });
+            });
+
+            fmtField.appendChild(fmtSelect);
+            fieldsRow.appendChild(fmtField);
+
+            // --- Ширина ---
+            const mpWidthField = document.createElement('div');
+            mpWidthField.className = 'proschet-inline-field';
+            const mpWidthLabel = document.createElement('label');
+            mpWidthLabel.className = 'proschet-inline-field-label';
+            mpWidthLabel.textContent = 'Ширина:';
+            mpWidthField.appendChild(mpWidthLabel);
+
+            const mpWidthInput = document.createElement('input');
+            mpWidthInput.type = 'number';
+            mpWidthInput.className = 'proschet-vich-input';
+            mpWidthInput.min = '1';
+            mpWidthInput.step = '0.1';
+            mpWidthInput.value = w;
+
+            mpWidthInput.addEventListener('change', function () {
+                let val = parseFloat(this.value);
+                if (isNaN(val) || val <= 0) val = w;
+                this.value = val;
+                saveMultipageField(card, 'finished_width', val);
+            });
+
+            mpWidthField.appendChild(mpWidthInput);
+            const mpWidthUnit = document.createElement('span');
+            mpWidthUnit.className = 'proschet-vich-unit';
+            mpWidthUnit.textContent = 'мм';
+            mpWidthField.appendChild(mpWidthUnit);
+            fieldsRow.appendChild(mpWidthField);
+
+            // --- Высота ---
+            const mpHeightField = document.createElement('div');
+            mpHeightField.className = 'proschet-inline-field';
+            const mpHeightLabel = document.createElement('label');
+            mpHeightLabel.className = 'proschet-inline-field-label';
+            mpHeightLabel.textContent = 'Высота:';
+            mpHeightField.appendChild(mpHeightLabel);
+
+            const mpHeightInput = document.createElement('input');
+            mpHeightInput.type = 'number';
+            mpHeightInput.className = 'proschet-vich-input';
+            mpHeightInput.min = '1';
+            mpHeightInput.step = '0.1';
+            mpHeightInput.value = h;
+
+            mpHeightInput.addEventListener('change', function () {
+                let val = parseFloat(this.value);
+                if (isNaN(val) || val <= 0) val = h;
+                this.value = val;
+                saveMultipageField(card, 'finished_height', val);
+            });
+
+            mpHeightField.appendChild(mpHeightInput);
+            const mpHeightUnit = document.createElement('span');
+            mpHeightUnit.className = 'proschet-vich-unit';
+            mpHeightUnit.textContent = 'мм';
+            mpHeightField.appendChild(mpHeightUnit);
+            fieldsRow.appendChild(mpHeightField);
+
+            // --- Вылеты ---
+            const mpVyletaField = document.createElement('div');
+            mpVyletaField.className = 'proschet-inline-field';
+            const mpVyletaLabel = document.createElement('label');
+            mpVyletaLabel.className = 'proschet-inline-field-label';
+            mpVyletaLabel.textContent = 'Вылеты:';
+            mpVyletaField.appendChild(mpVyletaLabel);
+
+            const mpVyletaInput = document.createElement('input');
+            mpVyletaInput.type = 'number';
+            mpVyletaInput.className = 'proschet-vich-input';
+            mpVyletaInput.min = '0';
+            mpVyletaInput.step = '1';
+            mpVyletaInput.value = v;
+
+            mpVyletaInput.addEventListener('change', function () {
+                let val = parseInt(this.value, 10);
+                if (isNaN(val) || val < 0) val = 0;
+                this.value = val;
+                saveMultipageField(card, 'vyleta', val);
+            });
+
+            mpVyletaField.appendChild(mpVyletaInput);
+            const mpVyletaUnit = document.createElement('span');
+            mpVyletaUnit.className = 'proschet-vich-unit';
+            mpVyletaUnit.textContent = 'мм';
+            mpVyletaField.appendChild(mpVyletaUnit);
+            fieldsRow.appendChild(mpVyletaField);
+
+            fieldsCol.appendChild(fieldsRow);
+            row2.appendChild(fieldsCol); // Колонка с полями — слева
+
+            // --- Мини-схема размещения на листе ---
+            const viz = document.createElement('div');
+            viz.className = 'proschet-component-viz';
+
+            // Лицевая сторона.
+            const vizFront = document.createElement('div');
+            vizFront.className = 'proschet-component-viz-side';
+            const lblFront = document.createElement('div');
+            lblFront.className = 'proschet-component-viz-label';
+            lblFront.textContent = 'Лицевая';
+            // Размер — по тем же формулам, что в drawMultipagePlacement/drawSide.
+            // Дефолты 330×480 (ширина/высота листа) — как в drawSide.
+            const cvSizeMp = computeVizCanvasSize(
+                Number(card._multipage.sheet_width)  || 330,
+                Number(card._multipage.sheet_height) || 480
+            );
+
+            const cvFront = document.createElement('canvas');
+            cvFront.className = 'proschet-component-viz-canvas proschet-component-viz-canvas--front';
+            cvFront.width  = cvSizeMp.w;
+            cvFront.height = cvSizeMp.h;
+            vizFront.appendChild(lblFront);
+            vizFront.appendChild(cvFront);
+            viz.appendChild(vizFront);
+
+            // Обратная сторона.
+            const vizBack = document.createElement('div');
+            vizBack.className = 'proschet-component-viz-side';
+            const lblBack = document.createElement('div');
+            lblBack.className = 'proschet-component-viz-label';
+            lblBack.textContent = 'Обратная';
+            const cvBack = document.createElement('canvas');
+            cvBack.className = 'proschet-component-viz-canvas proschet-component-viz-canvas--back';
+            cvBack.width  = cvSizeMp.w;
+            cvBack.height = cvSizeMp.h;
+            vizBack.appendChild(lblBack);
+            vizBack.appendChild(cvBack);
+            viz.appendChild(vizBack);
+
+            row2.appendChild(viz); // Схема — справа
+
+            card.appendChild(row2);
+        }
 
         return card;
     }
@@ -2052,6 +2412,37 @@ JavaScript секции «Просчёт» новой страницы /proschet
         wrap.appendChild(label);
         return wrap;
     }
+
+    /**
+     * Вычисляет размеры canvas для мини-схемы размещения на листе
+     * по тем же формулам, что используют drawOneSide (single) и drawSide (multi).
+     *
+     * Нужна, чтобы canvas создавался СРАЗУ правильного размера,
+     * а не сначала 240×180, а потом «прыжок» в drawOneSide / drawSide.
+     *
+     * @param {number} sheetW — ширина листа (мм)
+     * @param {number} sheetH — высота листа (мм)
+     * @returns {{w: number, h: number}} размеры canvas в пикселях
+     */
+    function computeVizCanvasSize(sheetW, sheetH) {
+        const MAX = 240;
+        const PADDING = 4;
+
+        // Нет данных о листе — дефолт 240×180, как в drawOneSide / drawSide.
+        if (!sheetW || !sheetH || isNaN(sheetW) || isNaN(sheetH)) {
+            return { w: MAX, h: Math.round(MAX * 0.75) };
+        }
+
+        // Большая сторона листа укладывается в MAX - 2*PADDING, меньшая — пропорционально.
+        const maxSheetDim = Math.max(sheetW, sheetH);
+        const scale = (MAX - 2 * PADDING) / maxSheetDim;
+
+        return {
+            w: Math.round(sheetW * scale + 2 * PADDING),
+            h: Math.round(sheetH * scale + 2 * PADDING)
+        };
+    }
+
 
     /**
      * Заполняет селект принтерами из глобального списка printersList.
@@ -2389,6 +2780,9 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // проставляется только при разблокировке через двойной клик)
         // и не «замораживаем» обратно. Для принтера и бумаги логика
         // прежняя — сравнение и повторная блокировка.
+        // Поля ламинатора, плёнки и скрепления сохраняются своими эндпоинтами.
+        // Старый глобальный обработчик их не трогает.
+        if (fieldName === 'binding') return;
         const isLaminationField = (fieldName === 'laminator' || fieldName === 'film');
 
         if (!isLaminationField) {
@@ -2500,7 +2894,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // обратно по blur: пользователь должен иметь возможность
         // менять их в любой момент.
         const field = select.dataset.field;
-        if (field === 'laminator' || field === 'film') return;
+        if (field === 'laminator' || field === 'film' || field === 'binding') return;
 
         setTimeout(function () {
             if (!select.classList.contains('is-locked')) {
@@ -3789,5 +4183,404 @@ JavaScript секции «Просчёт» новой страницы /proschet
         }
 
         ctx.restore();
+    }
+    /**
+     * Сохраняет поля многостраничного расчёта.
+     * Может принимать как одиночное поле (fieldName, value),
+     * так и объект с несколькими полями ({ finished_width: 210, finished_height: 297 }).
+     */
+    function saveMultipageField(card, fieldName, value) {
+        if (!card || !card.dataset.componentId) return;
+        const componentId = card.dataset.componentId;
+
+        // Поддерживаем как одиночное поле, так и объект
+        let updateObj = {};
+        if (typeof fieldName === 'object' && fieldName !== null) {
+            updateObj = fieldName;
+        } else {
+            updateObj[fieldName] = value;
+        }
+
+        // === НОВОЕ: пересчитываем вместимость перед отправкой ===
+        const merged = Object.assign({}, card._multipage, updateObj);
+        const fit = calculateMultipageFitting(merged);
+        updateObj.fit_horizontal = fit.fitH;
+        updateObj.fit_vertical = fit.fitV;
+        updateObj.fit_total = fit.fitTotal;
+        updateObj.fit_selected_orientation = fit.orientation;
+        updateObj.fit_landscape_total = fit.fit_landscape_total;
+        updateObj.fit_portrait_total = fit.fit_portrait_total;
+        
+        // Обновляем локальный кэш
+        Object.assign(card._multipage, updateObj);
+
+        // Запоминаем позицию скролла и оборачиваем отрисовку в requestAnimationFrame,
+        // чтобы страница не «прыгала» при изменении высоты холста
+        const savedScrollY = window.scrollY || window.pageYOffset || 0;
+        requestAnimationFrame(() => {
+            drawMultipagePlacement(card);
+            window.scrollTo(0, savedScrollY);
+        });
+
+        // Копия текущего состояния + изменённые поля.
+        const payload = Object.assign({}, card._multipage, {
+            print_component_id: componentId,
+            is_active: true
+        });
+
+        fetch('/vichisliniya_listov/multipage/save/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showNotification('Сохранено', 'success');
+                if (data.warning) {
+                    showNotification(data.warning, 'warning');
+                }
+                
+                // Обновляем локальный кэш серверными данными.
+                // ВАЖНО: сервер в data.data НЕ возвращает размеры листа
+                // (sheet_width, sheet_height, margin), так как их нет
+                // в multipage_models.py -> to_dict().
+                // Если просто перезаписать card._multipage = data.data,
+                // то при следующей перерисовке drawMultipagePlacement()
+                // будет использовать дефолтные 330×480 и канвас «прыгнет»
+                // на 168px вместо реальных 173px.
+                if (data.data) {
+                    data.data.sheet_width  = card._multipage.sheet_width;
+                    data.data.sheet_height = card._multipage.sheet_height;
+                    data.data.margin       = card._multipage.margin;
+                    card._multipage = data.data;
+                } else {
+                    card._multipage = payload;
+                }
+                
+                // Так же бережно перерисовываем после ответа сервера
+                const savedScrollY2 = window.scrollY || window.pageYOffset || 0;
+                requestAnimationFrame(() => {
+                    drawMultipagePlacement(card);
+                    window.scrollTo(0, savedScrollY2);
+                });
+
+                // Сообщаем блоку итогов, что данные изменились
+                if (activeProschet && activeProschet.id) {
+                    document.dispatchEvent(new CustomEvent('proschetComponentsRendered', {
+                        detail: { proschetId: String(activeProschet.id) }
+                    }));
+                    notifyChange(activeProschet.id, 'print_component_changed');
+                }
+            } else {
+                showNotification(data.message || 'Ошибка сохранения', 'error');
+                // При ошибке откатываем UI (перерисовываем с сервера)
+                if (activeProschet && activeProschet.id) {
+                    loadComponents(activeProschet.id); 
+                }
+            }
+        })
+        .catch(function (err) {
+            console.error('Ошибка сохранения multipage:', err);
+            showNotification('Ошибка сети при сохранении', 'error');
+            if (activeProschet && activeProschet.id) {
+                loadComponents(activeProschet.id);
+            }
+        });
+    }
+
+    // ========================================================================
+    // 17. ОТРИСОВКА МНОГОСТРАНИЧНОГО КОМПОНЕНТА (БРОШЮРЫ)
+    // ========================================================================
+
+    /**
+     * Пересчитывает, сколько разворотов помещается на лист.
+     * Учитывает ориентацию брошюры и поворот листа.
+     */
+    function calculateMultipageFitting(mp) {
+        const sheetW = Number(mp.sheet_width) || 330;
+        const sheetH = Number(mp.sheet_height) || 480;
+        const margin = Number(mp.margin) || 10;
+        const itemW = Number(mp.finished_width) || 210;
+        const itemH = Number(mp.finished_height) || 297;
+        const gap = Number(mp.vyleta) || 1;
+        
+        const isStapled = (mp.binding_name || '').toLowerCase().includes('скрепка');
+        const printableW = sheetW - 2 * margin;
+        const printableH = sheetH - 2 * margin;
+
+        const countItems = (available, size, gap) => {
+            if (size <= 0) return 0;
+            const step = size + gap;
+            if (step <= 0) return 0;
+            return Math.floor((available + gap) / step);
+        };
+
+        let totalLand, totalPort;
+        let landX, landY, portX, portY;
+
+        if (isStapled) {
+            // Для скрепки считаем развороты
+            let spreadW = (mp.booklet_orientation === 'portrait') ? itemW * 2 : itemW;
+            let spreadH = (mp.booklet_orientation === 'portrait') ? itemH : itemH * 2;
+
+            landX = countItems(printableW, spreadW, gap);
+            landY = countItems(printableH, spreadH, gap);
+            totalLand = landX * landY;
+
+            portX = countItems(printableW, spreadH, gap);
+            portY = countItems(printableH, spreadW, gap);
+            totalPort = portX * portY;
+        } else {
+            // Для обычных страниц
+            landX = countItems(printableW, itemW, gap);
+            landY = countItems(printableH, itemH, gap);
+            totalLand = landX * landY;
+
+            portX = countItems(printableW, itemH, gap);
+            portY = countItems(printableH, itemW, gap);
+            totalPort = portX * portY;
+        }
+
+        let orientation = mp.fit_selected_orientation || 'auto';
+        if (orientation === 'auto') {
+            orientation = (totalLand >= totalPort) ? 'landscape' : 'portrait';
+        }
+
+        let fitH, fitV, fitTotal;
+        if (orientation === 'landscape') {
+            fitH = landX; fitV = landY; fitTotal = totalLand;
+        } else {
+            fitH = portX; fitV = portY; fitTotal = totalPort;
+        }
+
+        // Для скрепки итог хранит количество СТРАНИЦ, а не разворотов
+        if (isStapled) {
+            fitTotal = fitTotal * 2;
+        }
+
+        return {
+            fitH, fitV, fitTotal, orientation,
+            fit_landscape_total: totalLand,
+            fit_portrait_total: totalPort
+        };
+    }
+
+    function drawMultipagePlacement(card) {
+        if (!card || !card.dataset.componentId) return;
+        const mp = card._multipage || {};
+        const frontCanvas = card.querySelector('.proschet-component-viz-canvas--front');
+        const backCanvas = card.querySelector('.proschet-component-viz-canvas--back');
+        if (!frontCanvas || !backCanvas) return;
+
+        const sheetW = Number(mp.sheet_width) || 330;
+        const sheetH = Number(mp.sheet_height) || 480;
+        const margin = Number(mp.margin) || 10;
+        const itemW = Number(mp.finished_width) || 210;
+        const itemH = Number(mp.finished_height) || 297;
+        const gap = Number(mp.vyleta) || 1;
+        
+        const fitResult = calculateMultipageFitting(mp);
+        const orientation = fitResult.orientation;
+        const fitH = fitResult.fitH;
+        const fitV = fitResult.fitV;
+        
+        const bindingName = (mp.binding_name || '').toLowerCase(); 
+        const isStapled = bindingName.includes('скрепка');
+        const isPunched = bindingName.includes('пружина');
+
+        const modeSwitch = card.querySelector('.proschet-mode-switch[data-field="printing_mode"]');
+        const typeSwitch = card.querySelector('.proschet-mode-switch[data-field="print_type"]');
+        const isDuplex = !!(modeSwitch && modeSwitch.dataset.value === 'duplex');
+        const isColor  = !typeSwitch || typeSwitch.dataset.value === 'color';
+
+        function drawSide(canvas, fill) {
+            const ctx = canvas.getContext('2d');
+            const MAX = 240;
+            const PADDING = 4;
+
+            if (!sheetW || !sheetH || isNaN(margin)) {
+                canvas.width  = MAX;
+                canvas.height = Math.round(MAX * 0.75);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '10px Arial';
+                ctx.fillStyle = '#999999';
+                ctx.fillText('Нет данных о листе', PADDING, 15);
+                return;
+            }
+
+            // ТОЧНО ТАКОЕ ЖЕ МАСШТАБИРОВАНИЕ, КАК В ОДНОСТРАНИЧНОМ РЕЖИМЕ
+            const maxSheetDim = Math.max(sheetW, sheetH);
+            const scale = (MAX - 2 * PADDING) / maxSheetDim;
+
+            canvas.width  = Math.round(sheetW * scale + 2 * PADDING);
+            canvas.height = Math.round(sheetH * scale + 2 * PADDING);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Рисуем контур листа
+            ctx.save();
+            ctx.translate(PADDING, PADDING);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+            // Печатная область (пунктир)
+            ctx.strokeStyle = '#999';
+            ctx.setLineDash([2, 1]);
+            ctx.strokeRect(margin * scale, margin * scale, (sheetW - 2 * margin) * scale, (sheetH - 2 * margin) * scale);
+            ctx.setLineDash([]);
+
+            if (fitH === 0 || fitV === 0) {
+                ctx.font = '11px Arial';
+                ctx.fillStyle = '#999';
+                ctx.fillText('Не помещается', 10, 15);
+                ctx.restore();
+                return;
+            }
+
+            // Многостраничный режим — голубые тона (в тон карточке --multi)
+            const fillColor = fill ? (isColor ? 'rgba(42, 111, 201, 0.2)' : 'rgba(200, 200, 200, 0.4)') : 'transparent';
+            const strokeColor = fill ? (isColor ? '#2a6fc9' : '#999999') : '#b3cce6';
+            ctx.fillStyle = fillColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 0.5;
+
+            const isPortraitPlacement = (orientation === 'portrait');
+
+
+            if (isStapled) {
+                let spreadWidthBase = (mp.booklet_orientation === 'portrait') ? itemW * 2 : itemW;
+                let spreadHeightBase = (mp.booklet_orientation === 'portrait') ? itemH : itemH * 2;
+                
+                let spreadWidth = isPortraitPlacement ? spreadHeightBase : spreadWidthBase;
+                let spreadHeight = isPortraitPlacement ? spreadWidthBase : spreadHeightBase;
+
+                const originalPagePlacement = (mp.booklet_orientation === 'portrait') ? 'horizontal' : 'vertical';
+                const effectivePagePlacement = isPortraitPlacement ? (originalPagePlacement === 'horizontal' ? 'vertical' : 'horizontal') : originalPagePlacement;
+                
+                const effectivePageW = isPortraitPlacement ? itemH : itemW;
+                const effectivePageH = isPortraitPlacement ? itemW : itemH;
+
+                for (let r = 0; r < fitV; r++) {
+                    for (let c = 0; c < fitH; c++) {
+                        const x = margin + c * (spreadWidth + gap);
+                        const y = margin + r * (spreadHeight + gap);
+
+                        if (effectivePagePlacement === 'horizontal') {
+                            const leftX = x;
+                            const rightX = x + effectivePageW;
+                            const pageY = y;
+                            
+                            if (fill) ctx.fillRect(leftX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(leftX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            
+                            if (fill) ctx.fillRect(rightX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(rightX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+
+                            ctx.save();
+                            ctx.strokeStyle = '#e67e22';
+                            ctx.fillStyle = '#e67e22';
+                            ctx.setLineDash([3, 2]);
+                            ctx.beginPath(); ctx.moveTo((x + effectivePageW) * scale, y * scale); ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale); ctx.stroke();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW) * scale, (y + effectivePageH * 0.25) * scale, 2, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW) * scale, (y + effectivePageH * 0.75) * scale, 2, 0, Math.PI * 2); ctx.fill();
+                            ctx.restore();
+                        } else {
+                            const topY = y;
+                            const bottomY = y + effectivePageH;
+                            const pageX = x;
+                            
+                            if (fill) ctx.fillRect(pageX * scale, topY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(pageX * scale, topY * scale, effectivePageW * scale, effectivePageH * scale);
+                            
+                            if (fill) ctx.fillRect(pageX * scale, bottomY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(pageX * scale, bottomY * scale, effectivePageW * scale, effectivePageH * scale);
+
+                            ctx.save();
+                            ctx.strokeStyle = '#e67e22';
+                            ctx.fillStyle = '#e67e22';
+                            ctx.setLineDash([3, 2]);
+                            ctx.beginPath(); ctx.moveTo(x * scale, (y + effectivePageH) * scale); ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale); ctx.stroke();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW * 0.25) * scale, (y + effectivePageH) * scale, 2, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW * 0.75) * scale, (y + effectivePageH) * scale, 2, 0, Math.PI * 2); ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+                }
+            } else {
+                const drawW = isPortraitPlacement ? itemH : itemW;
+                const drawH = isPortraitPlacement ? itemW : itemH;
+
+                const isBookletPortrait = (mp.booklet_orientation === 'portrait');
+                const isRotated = isPortraitPlacement;
+                let side = 'left';
+                if (isBookletPortrait && !isRotated) side = 'left';
+                else if (isBookletPortrait && isRotated) side = 'top';
+                else if (!isBookletPortrait && !isRotated) side = 'bottom';
+                else side = 'left'; 
+
+                const numMarks = 8;
+                const markSize = 3;
+
+                for (let r = 0; r < fitV; r++) {
+                    for (let c = 0; c < fitH; c++) {
+                        const x = margin + c * (drawW + gap);
+                        const y = margin + r * (drawH + gap);
+                        
+                        if (fill) ctx.fillRect(x * scale, y * scale, drawW * scale, drawH * scale);
+                        ctx.strokeRect(x * scale, y * scale, drawW * scale, drawH * scale);
+
+                        if (isPunched && fill) {
+                            ctx.save();
+                            ctx.fillStyle = '#555';
+                            
+                            const left = x * scale;
+                            const right = (x + drawW) * scale;
+                            const top = y * scale;
+                            const bottom = (y + drawH) * scale;
+
+                            if (side === 'left') {
+                                const offsetX = Math.max(2, drawW * 0.1) * scale;
+                                const startY = top + (bottom - top) * 0.1;
+                                const endY = bottom - (bottom - top) * 0.1;
+                                const stepY = (endY - startY) / (numMarks + 1);
+                                for (let i = 1; i <= numMarks; i++) {
+                                    const yPos = startY + i * stepY;
+                                    ctx.fillRect(left + offsetX - markSize/2, yPos - markSize/2, markSize, markSize);
+                                }
+                            } else if (side === 'top') {
+                                const offsetY = Math.max(2, drawH * 0.1) * scale;
+                                const startX = left + (right - left) * 0.1;
+                                const endX = right - (right - left) * 0.1;
+                                const stepX = (endX - startX) / (numMarks + 1);
+                                for (let i = 1; i <= numMarks; i++) {
+                                    const xPos = startX + i * stepX;
+                                    ctx.fillRect(xPos - markSize/2, top + offsetY - markSize/2, markSize, markSize);
+                                }
+                            } else if (side === 'bottom') {
+                                const offsetY = Math.max(2, drawH * 0.1) * scale;
+                                const startX = left + (right - left) * 0.1;
+                                const endX = right - (right - left) * 0.1;
+                                const stepX = (endX - startX) / (numMarks + 1);
+                                for (let i = 1; i <= numMarks; i++) {
+                                    const xPos = startX + i * stepX;
+                                    ctx.fillRect(xPos - markSize/2, bottom - offsetY - markSize/2, markSize, markSize);
+                                }
+                            }
+                            ctx.restore();
+                        }
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        drawSide(frontCanvas, true);
+        drawSide(backCanvas, isDuplex);
     }
 })();
