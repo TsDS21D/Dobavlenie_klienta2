@@ -854,12 +854,9 @@ class AdditionalWork(models.Model):
                 cost = Decimal('0')
         else:
             if sheet_count is None:
-                try:
-                    vich_data = VichisliniyaListovModel.objects.get(
-                        vichisliniya_listov_print_component=self.print_component
-                    )
-                    sheet_count = vich_data.vichisliniya_listov_list_count
-                except VichisliniyaListovModel.DoesNotExist:
+                if self.print_component:
+                    sheet_count = self.print_component.get_sheet_count()
+                else:
                     sheet_count = Decimal('0')
             try:
                 cost = calculate_price_for_work(self.work, sheet_count)
@@ -963,14 +960,13 @@ class AdditionalWork(models.Model):
         if self.print_component_id:
             component = self.print_component
             proschet = component.proschet
+            sheet_count = component.get_sheet_count()  # <-- Берет листы с учетом режима
             try:
                 vich_data = VichisliniyaListovModel.objects.get(
                     vichisliniya_listov_print_component=component
                 )
-                sheet_count = vich_data.vichisliniya_listov_list_count
                 cuts_count = vich_data.vichisliniya_listov_cuts_count
             except VichisliniyaListovModel.DoesNotExist:
-                sheet_count = Decimal('0')
                 cuts_count = 0
             circulation = proschet.circulation if proschet.circulation else 0
         else:
@@ -988,13 +984,16 @@ class AdditionalWork(models.Model):
         Преобразует объект в словарь для передачи в JSON (AJAX).
         Включает все необходимые поля для клиентской части.
         """
-        try:
-            vich_data = VichisliniyaListovModel.objects.get(
-                vichisliniya_listov_print_component=self.print_component
-            )
-            sheet_count = vich_data.vichisliniya_listov_list_count
-            cuts_count = vich_data.vichisliniya_listov_cuts_count
-        except VichisliniyaListovModel.DoesNotExist:
+        if self.print_component:
+            sheet_count = self.print_component.get_sheet_count()  # <-- Берет листы с учетом режима
+            try:
+                vich_data = VichisliniyaListovModel.objects.get(
+                    vichisliniya_listov_print_component=self.print_component
+                )
+                cuts_count = vich_data.vichisliniya_listov_cuts_count
+            except VichisliniyaListovModel.DoesNotExist:
+                cuts_count = 0
+        else:
             sheet_count = Decimal('0')
             cuts_count = 0
         circulation = self.print_component.proschet.circulation if self.print_component and self.print_component.proschet else 0

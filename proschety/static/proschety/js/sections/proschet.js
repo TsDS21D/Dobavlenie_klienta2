@@ -62,7 +62,9 @@ JavaScript секции «Просчёт» новой страницы /proschet
     // карточек (после сохранения ламинатора/плёнки/стороны карточки
     // пересоздаются, и без этого флага блок «схлопывался» бы).
     // Сбрасывается при смене просчёта.
-    let proschetLaminationBlockOpen = false;
+    // Хранит состояние "блок ламинации раскрыт" для каждого компонента отдельно.
+    // Ключ — ID печатного компонента, значение — true/false.
+    let proschetLaminationOpenMap = {};
 
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ.
@@ -218,7 +220,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         // При смене просчёта сбрасываем флаг «блок ламинации открыт» —
         // при выборе нового просчёта блок по умолчанию свёрнут.
         if (prevId !== newId) {
-            proschetLaminationBlockOpen = false;
+            proschetLaminationOpenMap = {};
         }
 
         activeProschet = {
@@ -1406,6 +1408,8 @@ let calcPromise;
                 updateOrientationOptimalMark(card);
             } else {
                 drawMultipagePlacement(card);
+                // ДОБАВЛЕНО: обновляем метку «оптимально» и для многостраничного режима.
+                updateOrientationOptimalMark(card);
             }
 
             if (list) list.appendChild(card);
@@ -1705,9 +1709,6 @@ let calcPromise;
                 btn.className = 'proschet-mode-btn';
                 btn.dataset.value = variant.value;
                 btn.textContent = variant.text;
-                if ((vich.fit_selected_orientation || 'auto') === variant.value) {
-                    btn.classList.add('active');
-                }
                 orientSwitch.appendChild(btn);
             });
 
@@ -1727,7 +1728,8 @@ let calcPromise;
             //   • пользователь вручную раскрыл блок стрелкой (глобальный
             //     флаг сохраняет это состояние через перерисовки).
             const isLamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
-            if (isLamEnabled || proschetLaminationBlockOpen) {
+            const isOpenInMemory = proschetLaminationOpenMap[comp.id] === true;
+            if (isLamEnabled || isOpenInMemory) {
                 row4.classList.add('is-open');
             }
 
@@ -1791,7 +1793,7 @@ let calcPromise;
             //     чтобы он мог выбрать ламинатор и плёнку.
             const row4Line2 = document.createElement('div');
             row4Line2.className = 'proschet-component-card-row4-line';
-            if (!isLamEnabled && !proschetLaminationBlockOpen) {
+            if (!isLamEnabled && !isOpenInMemory) {
                 row4Line2.style.display = 'none';
             }
 
@@ -1865,13 +1867,6 @@ let calcPromise;
             // Левая колонка собрана — кладём её в row2,
             // следом за ней в row2 идёт viz (схема).
             row2.appendChild(fieldsCol);
-
-            // Строка «Ламинация» — ОТДЕЛЬНАЯ строка карточки,
-            // на всю ширину, ниже row2. Не в fieldsCol (иначе она
-            // растянула бы левую колонку и viz уехала бы вниз).
-            // row4 идёт В ЛЕВУЮ КОЛОНКУ, а не в карточку отдельным блоком.
-            // Так она встанет сразу под ориентацией, отделённая пунктиром.
-            fieldsCol.appendChild(row4);
 
             // Сохраняем полный объект _vich на DOM-элементе карточки —
             // понадобится при сохранении, чтобы отправить на сервер
@@ -2045,17 +2040,45 @@ let calcPromise;
             row5.appendChild(worksList);
 
             card.appendChild(row5);
-        }
+
         // --- Вторая и третья строки (многостраничный режим) ---
-        else {
+        } else {
             // Сохраняем полный объект multipage на DOM-элементе карточки.
             card._multipage = comp._multipage || {};
 
             // ==========================================
-            // СТРОКА 1: Страницы и Тип скрепления
+            // ОБЩИЙ КОНТЕЙНЕР ROW2: grid [левая колонка | правая колонка (схема)]
+            //
+            // Создаём его ДО полей, чтобы сложить в него:
+            //   • левую колонку fieldsCol — со строкой «Страниц / Тип скрепления»
+            //     и строкой «Формат / Ширина / Высота / Вылеты»;
+            //   • правую колонку viz — со схемой лицевой и обратной стороны.
+            //
+            // Класс .proschet-component-card-row2 уже даёт:
+            //   - grid 1fr auto (левая колонка + правая),
+            //   - border-top: 1px dashed #e0e0e0 — пунктир над всей строкой,
+            //     то есть и над полями, и над схемой.
+            // Именно за счёт этого схема отделяется пунктиром от верхней строки
+            // (принтер / бумага / тип / режим печати).
             // ==========================================
+            const row2 = document.createElement('div');
+            row2.className = 'proschet-component-card-row2';
+
+            // --- Левая колонка ---
+            // Вертикальный поток: сначала строка «Страниц / Тип скрепления»,
+            // затем — строка «Формат / Ширина / Высота / Вылеты».
+            const fieldsCol = document.createElement('div');
+            fieldsCol.className = 'proschet-component-card-fields';
+
+            // ==========================================
+            // СТРОКА 1: Страниц + Тип скрепления
+            // ==========================================
+            // Оборачиваем в .proschet-component-card-fields-row — тот же класс,
+            // что и у строки с полями Формат/Ширина/Высота/Вылеты.
+            // Это даёт тот же flex-row, тот же gap, тот же flex-wrap.
+            // Инлайновый style больше не нужен — ширина и так по контенту.
             const row1 = document.createElement('div');
-            row1.style.cssText = 'flex: 1 0 100%; display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; margin-top: 0.2rem;';
+            row1.className = 'proschet-component-card-fields-row';
 
             // --- Поле «Страниц» ---
             const pagesField = document.createElement('div');
@@ -2069,7 +2092,7 @@ let calcPromise;
             const pagesInput = document.createElement('input');
             pagesInput.type = 'number';
             pagesInput.className = 'proschet-vich-input';
-            pagesInput.min = '4'; 
+            pagesInput.min = '4';
             pagesInput.step = '1';
             pagesInput.value = card._multipage.total_pages || 4;
 
@@ -2116,19 +2139,62 @@ let calcPromise;
 
             bindingField.appendChild(bindingSelect);
             row1.appendChild(bindingField);
-            card.appendChild(row1);
+
+            // --- Поле «Ориентация брошюры» ---
+            // Значения: 'portrait' (вертикальная) / 'landscape' (горизонтальная).
+            // Влияет на расчёт разворота при способе скрепления «скрепка»
+            // и на отрисовку схемы размещения.
+            const bookletOrientField = document.createElement('div');
+            bookletOrientField.className = 'proschet-inline-field';
+
+            const bookletOrientLabel = document.createElement('label');
+            bookletOrientLabel.className = 'proschet-inline-field-label';
+            bookletOrientLabel.textContent = 'Ориентация брошюры:';
+            bookletOrientField.appendChild(bookletOrientLabel);
+
+            const bookletOrientSelect = document.createElement('select');
+            bookletOrientSelect.className = 'proschet-field-select';
+            bookletOrientSelect.dataset.field = 'booklet_orientation';
+
+            // Опция «Портретная» (по умолчанию)
+            const optBookletPortrait = document.createElement('option');
+            optBookletPortrait.value = 'portrait';
+            optBookletPortrait.textContent = 'Портретная';
+            if ((card._multipage.booklet_orientation || 'portrait') === 'portrait') {
+                optBookletPortrait.selected = true;
+            }
+            bookletOrientSelect.appendChild(optBookletPortrait);
+
+            // Опция «Альбомная»
+            const optBookletLandscape = document.createElement('option');
+            optBookletLandscape.value = 'landscape';
+            optBookletLandscape.textContent = 'Альбомная';
+            if (card._multipage.booklet_orientation === 'landscape') {
+                optBookletLandscape.selected = true;
+            }
+            bookletOrientSelect.appendChild(optBookletLandscape);
+
+            // При изменении отправляем на сервер через общий saveMultipageField.
+            // Внутри он пересчитает fit_* (с учётом новой ориентации разворота),
+            // перерисует схему и сохранит данные в БД.
+            bookletOrientSelect.addEventListener('change', function () {
+                saveMultipageField(card, 'booklet_orientation', this.value);
+            });
+
+            bookletOrientField.appendChild(bookletOrientSelect);
+            row1.appendChild(bookletOrientField);
+
+            // Строка 1 готова — кладём её в левую колонку.
+            fieldsCol.appendChild(row1);
 
             // ==========================================
             // СТРОКА 2: Формат, Ширина, Высота, Вылеты
             // ==========================================
-            const row2 = document.createElement('div');
-            row2.className = 'proschet-component-card-row2';
-
-            const fieldsCol = document.createElement('div');
-            fieldsCol.className = 'proschet-component-card-fields';
-
+            // Класс .proschet-mp-fields-separated добавляет пунктир сверху —
+            // он идёт только по ширине левой колонки и визуально упирается
+            // в схему справа (аналог пунктира над блоком «Ламинация»).
             const fieldsRow = document.createElement('div');
-            fieldsRow.className = 'proschet-component-card-fields-row';
+            fieldsRow.className = 'proschet-component-card-fields-row proschet-mp-fields-separated';
 
             const w = card._multipage.finished_width !== undefined ? Number(card._multipage.finished_width) : 210;
             const h = card._multipage.finished_height !== undefined ? Number(card._multipage.finished_height) : 297;
@@ -2144,7 +2210,7 @@ let calcPromise;
 
             const fmtSelect = document.createElement('select');
             fmtSelect.className = 'proschet-vich-format';
-            
+
             const optNone = document.createElement('option');
             optNone.value = '';
             optNone.textContent = '— Не выбран —';
@@ -2167,7 +2233,7 @@ let calcPromise;
                 if (!opt || !opt.dataset.width) return;
                 const newW = parseFloat(opt.dataset.width);
                 const newH = parseFloat(opt.dataset.height);
-                
+
                 mpWidthInput.value = newW;
                 mpHeightInput.value = newH;
 
@@ -2268,10 +2334,218 @@ let calcPromise;
             mpVyletaField.appendChild(mpVyletaUnit);
             fieldsRow.appendChild(mpVyletaField);
 
+            // Строка 2 готова — кладём её в левую колонку (после row1).
             fieldsCol.appendChild(fieldsRow);
-            row2.appendChild(fieldsCol); // Колонка с полями — слева
 
-            // --- Мини-схема размещения на листе ---
+            // ==========================================
+            // СТРОКА 3: Ориентация размещения
+            // ==========================================
+            // Переключатель Авто / Альбомная / Портретная — управляет
+            // тем, как разворот (или страница) укладывается на лист.
+            const row3 = document.createElement('div');
+            row3.className = 'proschet-component-card-row3';
+
+            const orientLabel = document.createElement('span');
+            orientLabel.className = 'proschet-inline-field-label';
+            orientLabel.textContent = 'Ориентация:';
+            row3.appendChild(orientLabel);
+
+            const orientSwitch = document.createElement('div');
+            orientSwitch.className = 'proschet-mode-switch proschet-mode-switch--three';
+            orientSwitch.dataset.field = 'fit_selected_orientation';
+            orientSwitch.dataset.value = card._multipage.fit_selected_orientation || 'auto';
+
+            const orientVariants = [
+                { value: 'auto',      text: 'Пересчитать' },
+                { value: 'landscape', text: 'Альбомная' },
+                { value: 'portrait',  text: 'Портретная' },
+            ];
+            orientVariants.forEach(function (variant) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'proschet-mode-btn';
+                btn.dataset.value = variant.value;
+                btn.textContent = variant.text;
+                orientSwitch.appendChild(btn);
+            });
+
+            row3.appendChild(orientSwitch);
+            fieldsCol.appendChild(row3);
+
+            // --- Строка «Ламинация» ---
+            // Пунктирная черта сверху (border-top в CSS) + label +
+            // переключатель «Включена / Выключена».
+            const row4 = document.createElement('div');
+            row4.className = 'proschet-component-card-row4';
+
+            const isLamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
+            const isOpenInMemory = proschetLaminationOpenMap[comp.id] === true;
+            if (isLamEnabled || isOpenInMemory) {
+                row4.classList.add('is-open');
+            }
+
+            // Кнопка-стрелка ▼
+            const lamToggleBtn = document.createElement('button');
+            lamToggleBtn.type = 'button';
+            lamToggleBtn.className = 'proschet-toggle-lamination';
+            lamToggleBtn.title = 'Показать/скрыть ламинацию';
+            const lamArrow = document.createElement('span');
+            lamArrow.className = 'proschet-toggle-arrow';
+            lamArrow.textContent = '▼';
+            lamToggleBtn.appendChild(lamArrow);
+            row4.appendChild(lamToggleBtn);
+
+            // Обёртка содержимого
+            const lamContent = document.createElement('div');
+            lamContent.className = 'proschet-lamination-content';
+
+            // Верхняя подстрока: «Ламинация:» + кнопка вкл/выкл.
+            const row4Line1 = document.createElement('div');
+            row4Line1.className = 'proschet-component-card-row4-line';
+
+            const lamLabel = document.createElement('span');
+            lamLabel.className = 'proschet-inline-field-label';
+            lamLabel.textContent = 'Ламинация:';
+            row4Line1.appendChild(lamLabel);
+
+            const lamSwitch = document.createElement('div');
+            lamSwitch.className = 'proschet-lamination-toggle';
+            lamSwitch.dataset.field = 'lamination_enabled';
+            lamSwitch.dataset.value = isLamEnabled ? 'on' : 'off';
+
+            const lamBtn = document.createElement('button');
+            lamBtn.type = 'button';
+            lamBtn.className = 'proschet-lamination-btn';
+            if (isLamEnabled) {
+                lamBtn.classList.add('proschet-lamination-btn--on');
+                lamBtn.textContent = 'Включена';
+            } else {
+                lamBtn.textContent = 'Без ламинации';
+            }
+            lamSwitch.appendChild(lamBtn);
+            row4Line1.appendChild(lamSwitch);
+            lamContent.appendChild(row4Line1);
+
+            // Нижняя подстрока: Ламинатор / Плёнка / Односторонняя-Двусторонняя.
+            const row4Line2 = document.createElement('div');
+            row4Line2.className = 'proschet-component-card-row4-line';
+            if (!isLamEnabled && !isOpenInMemory) {
+                row4Line2.style.display = 'none';
+            }
+
+            const lamData = comp._lamination || {};
+
+            // --- Ламинатор ---
+            const laminatorField = createInlineField('Ламинатор');
+            laminatorField.dataset.field = 'laminator';
+            const laminatorSelectEl = document.createElement('select');
+            laminatorSelectEl.className = 'proschet-field-select';
+            laminatorSelectEl.dataset.field = 'laminator';
+            fillLaminatorOptions(laminatorSelectEl, lamData.laminator_name);
+            laminatorField.appendChild(laminatorSelectEl);
+            row4Line2.appendChild(laminatorField);
+
+            // --- Плёнка ---
+            const filmField = createInlineField('Плёнка');
+            filmField.dataset.field = 'film';
+            const filmSelectEl = document.createElement('select');
+            filmSelectEl.className = 'proschet-field-select';
+            filmSelectEl.dataset.field = 'film';
+            fillFilmOptions(filmSelectEl, lamData.film_name);
+            filmField.appendChild(filmSelectEl);
+            row4Line2.appendChild(filmField);
+
+            // --- Переключатель сторон: Односторонняя / Двусторонняя ---
+            const sideIsDuplex = (lamData.side || 'single') === 'duplex';
+            const sideField = document.createElement('div');
+            sideField.className = 'proschet-inline-field';
+            const sideSwitch = document.createElement('div');
+            sideSwitch.className = 'proschet-mode-switch';
+            sideSwitch.dataset.field = 'side';
+            sideSwitch.dataset.value = lamData.side || 'single';
+
+            const sideBtnSingle = document.createElement('button');
+            sideBtnSingle.type = 'button';
+            sideBtnSingle.className = 'proschet-mode-btn';
+            sideBtnSingle.dataset.value = 'single';
+            sideBtnSingle.textContent = 'Односторонняя';
+            if (!sideIsDuplex) sideBtnSingle.classList.add('active');
+            sideSwitch.appendChild(sideBtnSingle);
+
+            const sideBtnDuplex = document.createElement('button');
+            sideBtnDuplex.type = 'button';
+            sideBtnDuplex.className = 'proschet-mode-btn';
+            sideBtnDuplex.dataset.value = 'duplex';
+            sideBtnDuplex.textContent = 'Двусторонняя';
+            if (sideIsDuplex) sideBtnDuplex.classList.add('active');
+            sideSwitch.appendChild(sideBtnDuplex);
+
+            sideField.appendChild(sideSwitch);
+            row4Line2.appendChild(sideField);
+
+            lamContent.appendChild(row4Line2);
+            row4.appendChild(lamContent);
+
+            // Кладём row4 в левую колонку (fieldsCol) — сразу под ориентацией.
+            fieldsCol.appendChild(row4);
+
+            // === Итоговая строка: количество листов, стоимость печати,
+            // стоимость бумаги и (если включена) стоимость ламинации. ===
+            const summary = document.createElement('div');
+            summary.className = 'proschet-component-summary';
+
+            const sheets = Number(comp.sheet_count) || 0;
+            const sheetsFmt = sheets
+                ? sheets.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+                : '0.00';
+
+            const pricePerSheet = parseFloat(comp.price_per_sheet) || 0;
+            const runsCount     = Number(comp.runs_count) || 0;
+            const printingCost  = pricePerSheet * runsCount;
+
+            const paperPrice  = parseFloat(comp.paper_price) || 0;
+            const paperCost   = paperPrice * sheets;
+
+            const lamEnabled = !!(comp._lamination && comp._lamination.is_enabled);
+            const lamTotal   = lamEnabled
+                ? (parseFloat(comp._lamination.total_price) || 0)
+                : 0;
+
+            function fmtMoney(v) {
+                return (Math.round(v * 100) / 100)
+                    .toFixed(2)
+                    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽';
+            }
+
+            let totalComponentPrice = printingCost + paperCost;
+            if (lamEnabled) {
+                totalComponentPrice += lamTotal;
+            }
+
+            let summaryHtml =
+                '<span class="proschet-summary-item">Листов: <b>' + sheetsFmt + '</b></span>' +
+                '<span class="proschet-summary-item">Печать за лист: <b>' + fmtMoney(pricePerSheet) + '</b></span>' +
+                '<span class="proschet-summary-item">Бумага за лист: <b>' + fmtMoney(paperPrice) + '</b></span>' +
+                '<span class="proschet-summary-item">Печать: <b>' + fmtMoney(printingCost) + '</b></span>' +
+                '<span class="proschet-summary-item">Бумага: <b>' + fmtMoney(paperCost) + '</b></span>';
+
+            if (lamEnabled) {
+                summaryHtml +=
+                    '<span class="proschet-summary-item">Ламинация: <b>' + fmtMoney(lamTotal) + '</b></span>';
+            }
+
+            summaryHtml +=
+                '<span class="proschet-summary-item">Итого по компоненту: <b>' + fmtMoney(totalComponentPrice) + '</b></span>';
+
+            summary.innerHTML = summaryHtml;
+            fieldsCol.appendChild(summary);
+
+            // Левая колонка полностью собрана — кладём в row2.
+            row2.appendChild(fieldsCol);
+
+            // ==========================================
+            // ПРАВАЯ КОЛОНКА: схема размещения
+            // ==========================================
             const viz = document.createElement('div');
             viz.className = 'proschet-component-viz';
 
@@ -2281,8 +2555,6 @@ let calcPromise;
             const lblFront = document.createElement('div');
             lblFront.className = 'proschet-component-viz-label';
             lblFront.textContent = 'Лицевая';
-            // Размер — по тем же формулам, что в drawMultipagePlacement/drawSide.
-            // Дефолты 330×480 (ширина/высота листа) — как в drawSide.
             const cvSizeMp = computeVizCanvasSize(
                 Number(card._multipage.sheet_width)  || 330,
                 Number(card._multipage.sheet_height) || 480
@@ -2310,9 +2582,75 @@ let calcPromise;
             vizBack.appendChild(cvBack);
             viz.appendChild(vizBack);
 
-            row2.appendChild(viz); // Схема — справа
+            // Правая колонка готова — кладём в row2.
+            row2.appendChild(viz);
 
+            // Всю строку row2 кладём в карточку. Она встанет сразу после
+            // строки с принтером / бумагой / типом / режимом печати —
+            // то есть схема начнётся ровно под кнопками «двусторонняя печать».
             card.appendChild(row2);
+
+            // === Блок «Дополнительные работы» ===
+            // Пунктирная черта сверху (border-top в CSS) + стрелка ▼.
+            const row5 = document.createElement('div');
+            row5.className = 'proschet-component-card-row5';
+
+            const workToggleBtn = document.createElement('button');
+            workToggleBtn.type = 'button';
+            workToggleBtn.className = 'proschet-toggle-work-form';
+            workToggleBtn.title = 'Показать/скрыть добавление работы';
+            const workArrow = document.createElement('span');
+            workArrow.className = 'proschet-toggle-arrow';
+            workArrow.textContent = '▼';
+            workToggleBtn.appendChild(workArrow);
+            row5.appendChild(workToggleBtn);
+
+            const addWorkForm = document.createElement('div');
+            addWorkForm.className = 'proschet-add-work-content';
+
+            const addWorkBtn = document.createElement('button');
+            addWorkBtn.type = 'button';
+            addWorkBtn.className = 'proschet-btn-add-work';
+            addWorkBtn.textContent = '+ Добавить дополнительную работу';
+            addWorkForm.appendChild(addWorkBtn);
+
+            const workSelectEl = document.createElement('select');
+            workSelectEl.className = 'proschet-work-select';
+            workSelectEl.dataset.field = 'work_id';
+            const optLoading = document.createElement('option');
+            optLoading.value = '';
+            optLoading.textContent = '— Выберите работу —';
+            workSelectEl.appendChild(optLoading);
+            addWorkForm.appendChild(workSelectEl);
+
+            const workQtyInput = document.createElement('input');
+            workQtyInput.type = 'number';
+            workQtyInput.className = 'proschet-work-qty';
+            workQtyInput.min = '1';
+            workQtyInput.step = '1';
+            workQtyInput.value = '1';
+            workQtyInput.title = 'Количество';
+            addWorkForm.appendChild(workQtyInput);
+
+            row5.appendChild(addWorkForm);
+
+            const worksList = document.createElement('div');
+            worksList.className = 'proschet-works-list';
+
+            const works = comp._works || [];
+            if (works.length > 0) {
+                works.forEach(function (w) {
+                    worksList.appendChild(createWorkRow(w, comp.id));
+                });
+            } else {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = 'proschet-works-empty';
+                emptyMsg.textContent = 'Дополнительных работ нет';
+                worksList.appendChild(emptyMsg);
+            }
+            row5.appendChild(worksList);
+
+            card.appendChild(row5);
         }
 
         return card;
@@ -2782,7 +3120,10 @@ let calcPromise;
         // прежняя — сравнение и повторная блокировка.
         // Поля ламинатора, плёнки и скрепления сохраняются своими эндпоинтами.
         // Старый глобальный обработчик их не трогает.
-        if (fieldName === 'binding') return;
+        // ДОБАВЛЕНО: booklet_orientation — это поле многостраничного расчёта,
+        // оно сохраняется через /vichisliniya_listov/multipage/save/,
+        // поэтому глобальный обработчик его пропускает.
+        if (fieldName === 'binding' || fieldName === 'booklet_orientation') return;
         const isLaminationField = (fieldName === 'laminator' || fieldName === 'film');
 
         if (!isLaminationField) {
@@ -2894,7 +3235,8 @@ let calcPromise;
         // обратно по blur: пользователь должен иметь возможность
         // менять их в любой момент.
         const field = select.dataset.field;
-        if (field === 'laminator' || field === 'film' || field === 'binding') return;
+        // ДОБАВЛЕНО: booklet_orientation не блокируем, это обычный рабочий селект.
+        if (field === 'laminator' || field === 'film' || field === 'binding' || field === 'booklet_orientation') return;
 
         setTimeout(function () {
             if (!select.classList.contains('is-locked')) {
@@ -3566,13 +3908,6 @@ let calcPromise;
         );
         if (switchEl) {
             switchEl.dataset.value = 'auto';
-            switchEl.querySelectorAll('.proschet-mode-btn').forEach(function (b) {
-                if (b.dataset.value === 'auto') {
-                    b.classList.add('active');
-                } else {
-                    b.classList.remove('active');
-                }
-            });
         }
     }
 
@@ -3600,11 +3935,12 @@ let calcPromise;
         // Уже выбрано — ничего не делаем.
         if (switchEl.dataset.value === newValue) return;
 
-        // Визуально переключаем.
-        switchEl.querySelectorAll('.proschet-mode-btn').forEach(function (b) {
-            b.classList.remove('active');
-        });
-        btn.classList.add('active');
+        // === ПРОВЕРКА: если это многостраничный компонент ===
+        if (card.classList.contains('proschet-component-card--multi')) {
+            saveMultipageField(card, 'fit_selected_orientation', newValue);
+            return;
+        }
+
         switchEl.dataset.value = newValue;
 
         // Сохраняем значение в локальный объект.
@@ -3651,8 +3987,8 @@ let calcPromise;
         // Если пользователь выключил ламинацию, а блок был раскрыт —
         // он и останется раскрытым, как договорились.
         const row4El = card.querySelector('.proschet-component-card-row4');
-        if (row4El) {
-            proschetLaminationBlockOpen = row4El.classList.contains('is-open');
+        if (row4El && componentId) {
+            proschetLaminationOpenMap[componentId] = row4El.classList.contains('is-open');
         }
 
         // Меняем состояние на противоположное.
@@ -3699,6 +4035,13 @@ let calcPromise;
             btn.classList.add('proschet-lamination-btn--on');
         } else {
             btn.classList.remove('proschet-lamination-btn--on');
+        }
+
+        // Мгновенно перерисовываем схему с учётом нового состояния ламинации
+        if (card.classList.contains('proschet-component-card--multi')) {
+            drawMultipagePlacement(card);
+        } else {
+            drawComponentPlacement(card);
         }
 
 
@@ -3778,10 +4121,12 @@ let calcPromise;
         const willOpen = !row4.classList.contains('is-open');
         row4.classList.toggle('is-open');
 
-        // Сохраняем состояние в глобальном флаге, чтобы оно
-        // пережило перерисовку карточек (после сохранения ламинатора
-        // или смены стороны).
-        proschetLaminationBlockOpen = willOpen;
+        // Сохраняем состояние в словарь для конкретного компонента, 
+        // чтобы оно пережило перерисовку карточек.
+        const card = btn.closest('.proschet-component-card');
+        if (card && card.dataset.componentId) {
+            proschetLaminationOpenMap[card.dataset.componentId] = willOpen;
+        }
 
         // Если блок раскрывается, а нижняя подстрока (ламинатор/
         // плёнка/сторона) была скрыта (ламинация выключена) —
@@ -3980,7 +4325,23 @@ let calcPromise;
      * @param {HTMLElement} card — DOM-элемент карточки печатного компонента.
      */
     function updateOrientationOptimalMark(card) {
-        if (!card || !card._vich) return;
+        if (!card) return;
+
+        // Определяем, какой объект данных использовать
+        const isMulti = card.classList.contains('proschet-component-card--multi');
+        let fitLand, fitPort, selected;
+
+        if (isMulti) {
+            if (!card._multipage) return;
+            fitLand = Number(card._multipage.fit_landscape_total) || 0;
+            fitPort = Number(card._multipage.fit_portrait_total) || 0;
+            selected = card._multipage.fit_selected_orientation || 'auto';
+        } else {
+            if (!card._vich) return;
+            fitLand = Number(card._vich.fit_landscape_total) || 0;
+            fitPort = Number(card._vich.fit_portrait_total) || 0;
+            selected = card._vich.fit_selected_orientation || 'auto';
+        }
 
         const switchEl = card.querySelector(
             '.proschet-mode-switch[data-field="fit_selected_orientation"]'
@@ -3990,19 +4351,24 @@ let calcPromise;
         const autoBtn = switchEl.querySelector('.proschet-mode-btn[data-value="auto"]');
         if (!autoBtn) return;
 
-        const v = card._vich;
-        const totalLand = Number(v.fit_landscape_total) || 0;
-        const totalPort = Number(v.fit_portrait_total) || 0;
+        // Оптимальная ориентация — та, где изделий/разворотов больше.
+        const optimal = (fitLand >= fitPort) ? 'landscape' : 'portrait';
 
-        // Оптимальная ориентация — та, где изделий на листе больше.
-        const optimal = (totalLand >= totalPort) ? 'landscape' : 'portrait';
-
-        // Фактическая ориентация: при выборе «Авто» берём optimal,
-        // иначе — выбранную пользователем.
-        const selected = v.fit_selected_orientation || 'auto';
+        // Фактическая ориентация (если 'auto', то это optimal).
         const effective = (selected === 'auto') ? optimal : selected;
 
-        // Если фактическая ориентация совпадает с оптимальной — метим «Авто».
+        // 1. Обновляем активную кнопку (заливку).
+        // Заливаем ту, которая фактически используется на схеме.
+        switchEl.querySelectorAll('.proschet-mode-btn').forEach(function (b) {
+            if (b.dataset.value === effective) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+
+        // 2. Обновляем рамку на кнопке "Пересчитать".
+        // Если фактическая совпадает с оптимальной, даём рамку.
         if (effective === optimal) {
             autoBtn.classList.add('proschet-mode-btn--optimal');
         } else {
@@ -4201,26 +4567,50 @@ let calcPromise;
             updateObj[fieldName] = value;
         }
 
+        // Если изменились размеры или вылеты — сбрасываем ориентацию на 'auto'.
+        const sizeFields = ['finished_width', 'finished_height', 'vyleta'];
+        let sizeChanged = false;
+        for (const key of sizeFields) {
+            if (updateObj[key] !== undefined) sizeChanged = true;
+        }
+        if (sizeChanged) {
+            updateObj.fit_selected_orientation = 'auto';
+        }
+
         // === НОВОЕ: пересчитываем вместимость перед отправкой ===
         const merged = Object.assign({}, card._multipage, updateObj);
         const fit = calculateMultipageFitting(merged);
         updateObj.fit_horizontal = fit.fitH;
         updateObj.fit_vertical = fit.fitV;
         updateObj.fit_total = fit.fitTotal;
-        updateObj.fit_selected_orientation = fit.orientation;
         updateObj.fit_landscape_total = fit.fit_landscape_total;
         updateObj.fit_portrait_total = fit.fit_portrait_total;
         
+        // ВАЖНО: сохраняем выбор пользователя ('auto', 'landscape', 'portrait').
+        // calculateMultipageFitting возвращает фактическую ориентацию (fit.orientation),
+        // но в базе мы храним именно выбор (чтобы потом работала рамка).
+        if (updateObj.fit_selected_orientation === undefined) {
+            updateObj.fit_selected_orientation = merged.fit_selected_orientation;
+        }
+
         // Обновляем локальный кэш
         Object.assign(card._multipage, updateObj);
+
+        // Обновляем UI переключателя:
+        const switchEl = card.querySelector('.proschet-mode-switch[data-field="fit_selected_orientation"]');
+        if (switchEl) {
+            switchEl.dataset.value = card._multipage.fit_selected_orientation;
+        }
 
         // Запоминаем позицию скролла и оборачиваем отрисовку в requestAnimationFrame,
         // чтобы страница не «прыгала» при изменении высоты холста
         const savedScrollY = window.scrollY || window.pageYOffset || 0;
         requestAnimationFrame(() => {
             drawMultipagePlacement(card);
+            updateOrientationOptimalMark(card);
             window.scrollTo(0, savedScrollY);
         });
+        
 
         // Копия текущего состояния + изменённые поля.
         const payload = Object.assign({}, card._multipage, {
@@ -4266,14 +4656,14 @@ let calcPromise;
                 const savedScrollY2 = window.scrollY || window.pageYOffset || 0;
                 requestAnimationFrame(() => {
                     drawMultipagePlacement(card);
+                    updateOrientationOptimalMark(card);
                     window.scrollTo(0, savedScrollY2);
                 });
 
-                // Сообщаем блоку итогов, что данные изменились
+                // Перезагружаем карточки, чтобы обновить количество листов,
+                // цены и пересчитать итоговую строку внутри компонента.
                 if (activeProschet && activeProschet.id) {
-                    document.dispatchEvent(new CustomEvent('proschetComponentsRendered', {
-                        detail: { proschetId: String(activeProschet.id) }
-                    }));
+                    loadComponents(activeProschet.id);
                     notifyChange(activeProschet.id, 'print_component_changed');
                 }
             } else {
@@ -4398,7 +4788,17 @@ let calcPromise;
         const isDuplex = !!(modeSwitch && modeSwitch.dataset.value === 'duplex');
         const isColor  = !typeSwitch || typeSwitch.dataset.value === 'color';
 
-        function drawSide(canvas, fill) {
+        // Определяем состояние ламинации из DOM карточки
+        const lamBtn = card.querySelector('.proschet-lamination-btn');
+        const isLaminated = !!(lamBtn && lamBtn.classList.contains('proschet-lamination-btn--on'));
+        const lamSideSwitch = card.querySelector('.proschet-mode-switch[data-field="side"]');
+        const isLamDuplex = !!(lamSideSwitch && lamSideSwitch.dataset.value === 'duplex');
+        
+        // Лицевая сторона всегда ламинируется (если включено), обратная — только при двусторонней.
+        const frontLaminated = isLaminated;
+        const backLaminated  = isLaminated && isLamDuplex;
+
+        function drawSide(canvas, fill, isSideLaminated) {
             const ctx = canvas.getContext('2d');
             const MAX = 240;
             const PADDING = 4;
@@ -4577,10 +4977,17 @@ let calcPromise;
                     }
                 }
             }
+            // --- ДОБАВЛЯЕМ ПЛЁНКУ ---
+            // Если ламинация включена для этой стороны — накладываем оранжевый слой.
+            if (isSideLaminated) {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.09)';
+                ctx.fillRect(0, 0, sheetW * scale, sheetH * scale);
+            }
             ctx.restore();
         }
 
-        drawSide(frontCanvas, true);
-        drawSide(backCanvas, isDuplex);
+        // Передаём frontLaminated и backLaminated в вызовы
+        drawSide(frontCanvas, true, frontLaminated);
+        drawSide(backCanvas, isDuplex, backLaminated);
     }
 })();

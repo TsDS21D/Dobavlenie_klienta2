@@ -63,6 +63,15 @@ proschety/templates/proschety/sections/proschet_summary.html
              #add-to-existing-order-btn. Порядок кнопок и их названия —
              как на старой странице калькулятора. -->
         <div class="proschet-summary-actions">
+            {% if is_admin %}
+            <button type="button"
+                    class="proschet-summary-btn proschet-summary-btn--secondary"
+                    id="create-template-btn"
+                    title="Сохранить просчёт как шаблон">
+                Создать шаблон
+            </button>
+            {% endif %}
+
             <button type="button"
                     class="proschet-summary-btn proschet-summary-btn--primary"
                     id="create-new-order-btn"

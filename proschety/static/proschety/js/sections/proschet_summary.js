@@ -82,6 +82,18 @@ JavaScript блока «Итоги просчёта».
         window.priceSection.getCurrentProschetId = function () {
             return currentProschetId;
         };
+        // === Кнопка «Создать шаблон» ===
+        // Перенаправляет в справочник шаблонов с ID текущего просчёта.
+        // Справочник сам откроет нужную панель и сохранит шаблон.
+        const createTemplateBtn = document.getElementById('create-template-btn');
+        if (createTemplateBtn) {
+            createTemplateBtn.addEventListener('click', function () {
+                // currentProschetId точно есть, так как блок виден только при выбранном просчёте.
+                if (currentProschetId) {
+                    window.location.href = '/shablony/?proschet_id=' + encodeURIComponent(currentProschetId);
+                }
+            });
+        }
     });
 
     // ========================================================================

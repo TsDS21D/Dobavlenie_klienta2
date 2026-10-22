@@ -107,6 +107,12 @@ def multipage_save_data(request):
     # Сохраняем объект (внутри save() автоматически пересчитается sheet_count)
     obj.save()
 
+    # ВАЖНО: раз изменилось количество листов, нужно пересчитать
+    # стоимость печати самого компонента и всех дополнительных работ.
+    print_component.recalculate_price()
+    for work in print_component.additional_works.filter(is_deleted=False):
+        work.save()  # вызовет пересчёт цены работы с учетом нового sheet_count
+
     # Проверка кратности страниц (предупреждение для пользователя)
     warning = None
     if not obj.validate_pages_multiple():
