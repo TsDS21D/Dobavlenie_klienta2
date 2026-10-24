@@ -26,52 +26,59 @@ proschety/templates/proschety/sections/proschet_summary.html
 
     <!-- Строка с четырьмя карточками. На узких экранах карточки
          переносятся на следующую строку (flex-wrap). -->
-    <div class="proschet-summary-list" id="proschet-summary-list">
+    <!-- Основной контейнер с новой сеткой: слева данные, справа кнопки -->
+    <div class="proschet-summary-layout">
 
-        <!-- Карточка 1: Общая масса заказа -->
-        <div class="proschet-summary-card">
-            <span class="proschet-summary-label">Общая масса:</span>
-            <span class="proschet-summary-value"
-                  id="proschet-summary-mass">—</span>
-        </div>
+        <!-- ЛЕВАЯ КОЛОНКА: Две строки с данными -->
+        <div class="proschet-summary-data">
+            
+            <!-- СТРОКА 1: Физические параметры -->
+            <div class="proschet-summary-row">
+                <div class="proschet-summary-card">
+                    <span class="proschet-summary-label">Общая масса:</span>
+                    <span class="proschet-summary-value" id="proschet-summary-mass">—</span>
+                </div>
 
-        <!-- Карточка 2: Общий объём заказа -->
-        <div class="proschet-summary-card">
-            <span class="proschet-summary-label">Общий объём:</span>
-            <span class="proschet-summary-value"
-                  id="proschet-summary-volume">—</span>
-        </div>
+                <div class="proschet-summary-card">
+                    <span class="proschet-summary-label">Общий объём:</span>
+                    <span class="proschet-summary-value" id="proschet-summary-volume">—</span>
+                </div>
 
-        <!-- Карточка 3: Высота готовой стопки -->
-        <div class="proschet-summary-card">
-            <span class="proschet-summary-label">Высота стопки:</span>
-            <span class="proschet-summary-value"
-                  id="proschet-summary-stack">—</span>
-        </div>
+                <div class="proschet-summary-card">
+                    <span class="proschet-summary-label">Высота стопки:</span>
+                    <span class="proschet-summary-value" id="proschet-summary-stack">—</span>
+                </div>
+            </div>
 
-        <!-- Карточка 4: Полная стоимость просчёта.
-             Класс-модификатор --price делает цифру акцентной (зелёной). -->
-        <div class="proschet-summary-card">
-            <span class="proschet-summary-label">Полная стоимость:</span>
-            <span class="proschet-summary-value proschet-summary-value--price"
-                  id="proschet-summary-price">—</span>
-        </div>
+            <!-- СТРОКА 2: Финансовые параметры -->
+            <div class="proschet-summary-row">
+                <div class="proschet-summary-card" id="proschet-summary-unit-price-block">
+                    <span class="proschet-summary-label">Цена за шт.:</span>
+                    <span class="proschet-summary-value" id="proschet-summary-unit-price">—</span>
+                </div>
 
-        <!-- Кнопки работы с заказами. Логику берёт на себя существующий
-             модуль calculator/static/.../price_orders.js — он ищет кнопки
-             ровно по этим ID: #create-new-order-btn и
-             #add-to-existing-order-btn. Порядок кнопок и их названия —
-             как на старой странице калькулятора. -->
+                <div class="proschet-summary-card" id="proschet-summary-price-block">
+                    <span class="proschet-summary-label" id="proschet-summary-price-label">К оплате:</span>
+                    <span class="proschet-summary-value proschet-summary-value--price" id="proschet-summary-price">—</span>
+                </div>
+
+                <!-- Блок скидки (показывается из JS, если скидка есть) -->
+                <div class="proschet-summary-card" id="proschet-summary-discount-block" style="display: none;">
+                    <span class="proschet-summary-label">Скидка (<span id="proschet-summary-discount-percent">0</span>%):</span>
+                    <span class="proschet-summary-value proschet-summary-value--discount" id="proschet-summary-discount-amount">—</span>
+                </div>
+            </div>
+
+        </div> <!-- /proschet-summary-data -->
+
+        <!-- ПРАВАЯ КОЛОНКА: Кнопки -->
         <div class="proschet-summary-actions">
-            {% if is_admin %}
             <button type="button"
                     class="proschet-summary-btn proschet-summary-btn--secondary"
                     id="create-template-btn"
-                    title="Сохранить просчёт как шаблон">
+                    title="Сохранить как шаблон">
                 Создать шаблон
             </button>
-            {% endif %}
-
             <button type="button"
                     class="proschet-summary-btn proschet-summary-btn--primary"
                     id="create-new-order-btn"
@@ -86,6 +93,6 @@ proschety/templates/proschety/sections/proschet_summary.html
             </button>
         </div>
 
-    </div>
+    </div> <!-- /proschet-summary-layout -->
 
 </section>

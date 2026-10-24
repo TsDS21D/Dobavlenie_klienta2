@@ -221,6 +221,27 @@ var vichisliniyaMultipage = {
             }
         });
 
+            // ПАТЧ: Отслеживаем изменение режима печати (одно/двусторонняя)
+        // в старой таблице печатных компонентов, чтобы пересчитывать листы.
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.mode-btn'); // Класс кнопок в старом калькуляторе
+            if (!btn) return;
+            
+            // Если нажали на кнопку смены режима печати
+            const field = btn.dataset.field;
+            if (field === 'printing_mode') {
+                const newMode = btn.dataset.value;
+                if (this.printingMode !== newMode) {
+                    this.printingMode = newMode;
+                    // Пересчитываем листы с новым режимом
+                    if (this.currentMode === 'multipage') {
+                        this.calculateSheetCount();
+                        this.drawBothSides();
+                    }
+                }
+            }
+        });
+
         // Событие отмены выбора печатного компонента – сбрасываем состояние.
         document.addEventListener('printComponentDeselected', () => this.resetAll());
 

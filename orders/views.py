@@ -26,7 +26,11 @@ from .models import Order
 def index(request):
     """
     Главная страница приложения "orders".
-    Пока выводит список не удалённых заказов (без интерактива).
+
+    Отдаёт:
+        - список неудалённых заказов (свежие сверху);
+        - список клиентов (для выпадающего списка в форме создания заказа);
+        - active_app/page_title — как у остальных страниц проекта.
     """
     # Берём все не удалённые заказы, свежие сверху.
     # select_related('client') — подгружает клиента одним запросом,
@@ -38,11 +42,25 @@ def index(request):
         .order_by('-created_at')
     )
 
+    # Клиенты — для селекта в форме создания.
+    # Импорт локальный, как в calculator/views.py::index — Client нужен
+    # только здесь, в шапке файла его держать смысла нет.
+    clients = []
+    try:
+        from baza_klientov.models import Client
+        clients = Client.objects.all().order_by('client_number')
+    except ImportError:
+        # Если приложение baza_klientov не подключено — оставляем пустой
+        # список. Форма будет без выбора клиента, но страница откроется.
+        pass
+
     # Формируем контекст для шаблона.
     context = {
         'orders': orders,                              # Список заказов
+        'clients': clients,                            # Список клиентов
         'active_app': 'orders',                        # Активное приложение (для подсветки в панели)
         'page_title': 'Заказы',                        # Заголовок страницы
+        'session_key': request.session.session_key or '', # НОВОЕ: для фильтрации своих WebSocket-событий
     }
 
     # Рендерим шаблон.
@@ -60,10 +78,16 @@ def index(request):
 # не обязателен, но делает верх файла читаемее.
 
 import json                                              # Разбор JSON из тела запроса
+from datetime import datetime                            # Парсинг строки в дату (для готовности)
 
 from django.http import JsonResponse                     # Ответ в формате JSON
 from django.shortcuts import get_object_or_404           # 404, если объект не найден
+from django.utils import timezone                        # Часовые пояса (МСК ↔ UTC)
 from django.views.decorators.http import require_POST, require_GET  # Ограничение методов
+
+# Импорты для WebSocket-уведомлений
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from calculator.models_list_proschet import Proschet     # Модель просчёта
 
@@ -614,3 +638,358 @@ def api_product_details(request, product_id):
             'components': components_data,
         }
     })
+
+
+# ============================================================================
+# API 6: HTML-ПАРТИАЛ СПИСКА ЗАКАЗОВ (для перерисовки tbody без перезагрузки)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_rows(request):
+    """
+    Возвращает HTML-партиал orders/sections/_order_rows.html
+    с актуальным списком не удалённых заказов.
+
+    Используется JS секции «Список заказов» после создания, удаления
+    или инлайн-редактирования заказа — чтобы перерисовать только tbody
+    таблицы, без перезагрузки всей страницы. Это сохраняет открытые
+    модалки, введённые фильтры поиска и прокрутку.
+
+    Сортировка и фильтр — те же, что в index(): по дате создания (новые
+    сверху), без удалённых.
+
+    select_related('client') — подгружаем клиента одним JOIN-запросом,
+    чтобы в шаблоне order.client.name не породил N+1.
+    """
+    orders = (
+        Order.objects
+        .filter(is_deleted=False)
+        .select_related('client')
+        .order_by('-created_at')
+    )
+    return render(
+        request,
+        'orders/sections/_order_rows.html',
+        {'orders': orders},
+    )
+
+# ============================================================================
+# API 7: РУЧНОЕ СОЗДАНИЕ ЗАКАЗА
+# ============================================================================
+
+@login_required
+@require_POST
+def api_create_order(request):
+    """
+    Создаёт новый заказ вручную (без изделий) из формы «Создать».
+
+    Принимает form-data (не JSON):
+        client           — id клиента или пустая строка (необязателен);
+        comment          — текст комментария (необязателен);
+        ready_datetime   — 'YYYY-MM-DDTHH:MM' (значение от <input datetime-local>)
+                           или пустая строка (тогда сервер применит дефолт модели:
+                           15:00 следующего рабочего дня).
+
+    Возвращает JSON:
+        {success: true, order: {id, number, client_name, status,
+                                 ready_datetime, comment, created_at}}
+    Или:
+        {success: false, error: '...'} + статус 400/500.
+
+    ВАЖНО про часовой пояс:
+        <input type="datetime-local"> даёт «локальную» строку без зоны.
+        Пользователь вводит её в московском времени. Чтобы Django сохранил
+        правильный UTC-момент (а в интерфейсе потом отобразилось ровно то,
+        что ввёл пользователь), делаем три шага:
+            1) strptime → naive datetime;
+            2) make_aware(…, Europe/Moscow) → aware в МСК;
+            3) Django сам переведёт его в UTC при сохранении
+               (при условии USE_TZ=True в settings — что в проекте включено).
+        Та же логика, что в counter/consumers.py::add_order_with_client.
+    """
+    # --- Берём поля формы. get(...) с дефолтом: отсутствие поля не ломает запрос. ---
+    client_id_raw   = (request.POST.get('client')         or '').strip()
+    comment_raw     = (request.POST.get('comment')        or '').strip()
+    ready_raw       = (request.POST.get('ready_datetime') or '').strip()
+
+    # --- Клиент (необязателен). Если id задан — ищем в БД. ---
+    client = None
+    if client_id_raw:
+        try:
+            from baza_klientov.models import Client
+            client = Client.objects.get(id=client_id_raw)
+        except (ImportError, Client.DoesNotExist):
+            return JsonResponse(
+                {'success': False, 'error': 'Клиент не найден'},
+                status=404,
+            )
+
+    # --- Дата готовности. ---
+    # Пусто → не передаём поле в create(): модель подставит default_ready_datetime().
+    # Непусто → парсим и делаем aware в московском поясе.
+    ready_datetime_parsed = None
+    if ready_raw:
+        try:
+            # 1) 'YYYY-MM-DDTHH:MM' → naive datetime
+            naive = datetime.strptime(ready_raw, '%Y-%m-%dT%H:%M')
+            # 2) Проставляем часовой пояс проекта (Europe/Moscow из settings).
+            #    timezone.get_current_timezone() берёт значение из TIME_ZONE.
+            ready_datetime_parsed = timezone.make_aware(
+                naive, timezone.get_current_timezone()
+            )
+        except ValueError:
+            return JsonResponse(
+                {'success': False, 'error': 'Некорректный формат даты готовности'},
+                status=400,
+            )
+
+    # --- Создаём заказ. ---
+    # Собираем kwargs только с теми полями, которые реально передаём.
+    # Если ready_datetime_parsed = None — поле не передаём,
+    # сработает default модели.
+    create_kwargs = {
+        'client':     client,
+        'comment':    comment_raw,
+        'created_by': request.user,
+    }
+    if ready_datetime_parsed is not None:
+        create_kwargs['ready_datetime'] = ready_datetime_parsed
+
+    try:
+        order = Order.objects.create(**create_kwargs)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Внутренняя ошибка: {e}'},
+            status=500,
+        )
+
+    # Отправляем WebSocket-событие «заказ создан».
+    _send_order_event('created', order, request)
+
+    # --- Ответ. Формат — плоский, JS (шаг 5) им и воспользуется. ---
+    return JsonResponse({
+        'success': True,
+        'order': {
+            'id':              order.id,
+            'number':          order.number,
+            'client_name':     order.client.name if order.client else '',
+            'client_id':       order.client.id if order.client else None,
+            'status':          order.status,
+            'status_display':  order.get_status_display(),
+            'ready_datetime':  order.ready_datetime.strftime('%d.%m.%Y %H:%M'),
+            'comment':         order.comment or '',
+            'created_at':      order.created_at.strftime('%d.%m.%Y %H:%M'),
+        },
+    })
+
+
+# ============================================================================
+# API 8: ИНЛАЙН-РЕДАКТИРОВАНИЕ ПОЛЯ ЗАКАЗА
+# ============================================================================
+
+@login_required
+@require_POST
+def api_update_order(request, order_id):
+    """
+    Обновляет одно поле заказа (инлайн-редактирование в списке).
+
+    URL: /orders/api/order/<order_id>/update-field/
+
+    Принимает form-data:
+        field_name   — 'client' | 'status' | 'ready_datetime' | 'comment';
+        field_value  — новое значение в виде строки.
+
+    Возвращает JSON:
+        {
+          success: true,
+          order: {
+            id, number, client_id, client_name, status, status_display,
+            ready_datetime (dd.mm.YYYY HH:MM), comment, created_at,
+            products_count, total_price
+          }
+        }
+    Или:
+        {success: false, error: '...'} + статус 400/404.
+
+    ВАЖНО:
+        Поле ready_datetime модели обязательное (не null),
+        поэтому пустое значение отклоняем с 400.
+        Часовой пояс — тот же приём, что в api_create_order
+        (make_aware в Europe/Moscow → Django сохранит в UTC).
+    """
+    # --- Находим заказ. Только неудалённый. ---
+    order = get_object_or_404(Order, pk=order_id, is_deleted=False)
+
+    field_name  = (request.POST.get('field_name')  or '').strip()
+    field_value = (request.POST.get('field_value') or '').strip()
+
+    # --- Ветвление по полю. ---
+    if field_name == 'client':
+        # Пусто → «без клиента». Иначе — ищем клиента по id.
+        if field_value == '':
+            order.client = None
+        else:
+            try:
+                from baza_klientov.models import Client
+                client = Client.objects.get(id=field_value)
+                order.client = client
+            except (ImportError, Client.DoesNotExist):
+                return JsonResponse(
+                    {'success': False, 'error': 'Клиент не найден'},
+                    status=404,
+                )
+
+    elif field_name == 'status':
+        # Проверяем, что значение есть в списке choices.
+        allowed_statuses = {choice[0] for choice in Order.STATUS_CHOICES}
+        if field_value not in allowed_statuses:
+            return JsonResponse(
+                {'success': False, 'error': 'Недопустимое значение статуса'},
+                status=400,
+            )
+        order.status = field_value
+
+    elif field_name == 'ready_datetime':
+        # Пустое значение не принимаем — поле обязательное.
+        if not field_value:
+            return JsonResponse(
+                {'success': False, 'error': 'Дата готовности не может быть пустой'},
+                status=400,
+            )
+        try:
+            naive = datetime.strptime(field_value, '%Y-%m-%dT%H:%M')
+            order.ready_datetime = timezone.make_aware(
+                naive, timezone.get_current_timezone()
+            )
+        except ValueError:
+            return JsonResponse(
+                {'success': False, 'error': 'Некорректный формат даты готовности'},
+                status=400,
+            )
+
+    elif field_name == 'comment':
+        # Ограничение длины — как в proschety.views.update_proschet_comment.
+        if len(field_value) > 5000:
+            return JsonResponse(
+                {'success': False, 'error': 'Комментарий не должен превышать 5000 символов'},
+                status=400,
+            )
+        order.comment = field_value
+
+    else:
+        return JsonResponse(
+            {'success': False, 'error': f'Поле "{field_name}" не поддерживается'},
+            status=400,
+        )
+
+    # --- Сохраняем. update_fields — чтобы не трогать лишнего
+    #     (updated_at = auto_now обновится автоматически при .save()). ---
+    try:
+        order.save()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Внутренняя ошибка: {e}'},
+            status=500,
+        )
+
+    # Отправляем WebSocket-событие «заказ обновлён».
+    _send_order_event('updated', order, request)
+
+    # --- Ответ в том же формате, что api_create_order (плюс два поля для строки). ---
+    return JsonResponse({
+        'success': True,
+        'order': {
+            'id':             order.id,
+            'number':         order.number,
+            'client_id':      order.client.id if order.client else None,
+            'client_name':    order.client.name if order.client else '',
+            'status':         order.status,
+            'status_display': order.get_status_display(),
+            'ready_datetime': order.ready_datetime.strftime('%d.%m.%Y %H:%M'),
+            'comment':        order.comment or '',
+            'created_at':     order.created_at.strftime('%d.%m.%Y %H:%M'),
+            'products_count': order.products.filter(is_deleted=False).count(),
+            'total_price':    order.formatted_total_price,
+        },
+    })
+
+
+# ============================================================================
+# API 9: МЯГКОЕ УДАЛЕНИЕ ЗАКАЗА
+# ============================================================================
+
+@login_required
+@require_POST
+def api_delete_order(request, order_id):
+    """
+    Мягкое удаление заказа (is_deleted=True).
+
+    URL: /orders/api/order/<order_id>/delete/
+
+    Ничего не принимает в теле (кроме CSRF).
+
+    Возвращает JSON:
+        {success: true, order_id, message}
+    Или:
+        {success: false, error: '...'} + статус 404.
+
+    ВАЖНО:
+        Заказ помечается is_deleted=True, но физически остаётся в БД.
+        Это соответствует поведению удаления в других приложениях
+        (proschety, calculator) и позволяет восстановить его через
+        админку. Связанные изделия (Product) не трогаем — они
+        фильтруются по собственному is_deleted в других местах
+        и останутся в БД как снимки.
+    """
+    order = get_object_or_404(Order, pk=order_id, is_deleted=False)
+
+    order.is_deleted = True
+    order.save(update_fields=['is_deleted'])
+
+    # Отправляем WebSocket-событие «заказ удалён».
+    _send_order_event('deleted', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'order_id': order.id,
+        'message': f'Заказ {order.number} удалён',
+    })
+
+
+# ============================================================================
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ОТПРАВКА WEBSOCKET-СОБЫТИЯ
+# ============================================================================
+
+def _send_order_event(event_type, order, request):
+    """
+    Отправляет событие в WebSocket-группу 'orders_list' (см. orders/consumers.py).
+    Это заставит все открытые вкладки /orders/ перерисовать таблицу или показать тост.
+    
+    event_type: 'created' | 'updated' | 'deleted'
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+        
+    # Определяем имя пользователя для красивого уведомления
+    actor_username = ''
+    if request.user and request.user.is_authenticated:
+        actor_username = request.user.get_full_name() or request.user.username
+
+    # Отправляем в группу
+    async_to_sync(channel_layer.group_send)(
+        'orders_list',
+        {
+            'type': 'order_event',
+            'event': event_type,
+            'order_id': order.id,
+            'order_number': order.number,
+            'actor_username': actor_username,
+            'actor_session_key': request.session.session_key or '',
+        }
+    )

@@ -1,0 +1,80 @@
+<!--
+orders/templates/orders/sections/_order_rows.html
+Партиал: только строки <tr> для tbody таблицы заказов.
+Используется:
+  1. в list_orders.html — через include-директиву при первом рендере;
+  2. во view orders.views.api_rows — возвращает ровно этот HTML
+     для AJAX-перерисовки после создания/удаления/редактирования заказа.
+
+Переменная контекста — orders (список объектов Order).
+
+data-* атрибуты — «снимок» значений на момент рендера. JS (шаг 5)
+читает их при инлайн-редактировании, чтобы понять «было / стало».
+-->
+
+{% for order in orders %}
+    <tr class="list-orders-row"
+        data-order-id="{{ order.id }}"
+        data-status="{{ order.status }}"
+        data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+        data-comment="{{ order.comment|default:'' }}"
+        data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+        data-products-count="{{ order.products.count }}"
+        data-total-price="{{ order.formatted_total_price }}">
+
+        <!-- Номер заказа (ORD-N), моноширинный зелёный. -->
+        <td class="col-number">{{ order.number }}</td>
+
+        <!-- Клиент — инлайн-редактируемый (двойной клик, селект из списка клиентов). -->
+        <td class="col-client editable-cell"
+            data-order-id="{{ order.id }}"
+            data-field="client"
+            data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+            data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+            {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
+        </td>
+
+        <!-- Статус — бейдж. Редактируется через select (JS, шаг 5). -->
+        <td class="col-status editable-cell"
+            data-order-id="{{ order.id }}"
+            data-field="status"
+            data-original-value="{{ order.status }}">
+            <span class="list-orders-status-badge list-orders-status-badge--{{ order.status }}">
+                {{ order.get_status_display }}
+            </span>
+        </td>
+
+        <!-- Срок готовности — инлайн-редактируемый (двойной клик, datetime-local). -->
+        <td class="col-ready editable-cell"
+            data-order-id="{{ order.id }}"
+            data-field="ready_datetime"
+            data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+            {{ order.ready_datetime|date:"d.m.Y H:i" }}
+        </td>
+
+        <!-- Комментарий — инлайн-редактируемый (двойной клик, input/textarea). -->
+        <td class="col-comment editable-cell"
+            data-order-id="{{ order.id }}"
+            data-field="comment"
+            data-original-value="{{ order.comment|default:'' }}">
+            {{ order.comment|default:"—" }}
+        </td>
+
+        <!-- Дата создания — только для чтения. -->
+        <td class="col-created">{{ order.created_at|date:"d.m.Y H:i" }}</td>
+
+        <!-- Количество изделий в заказе. -->
+        <td class="col-products">{{ order.products.count }}</td>
+
+        <!-- Итоговая стоимость (свойство модели). -->
+        <td class="col-total">{{ order.formatted_total_price }}</td>
+
+        <!-- Кнопка удаления (мягкое удаление, модалка — в секции). -->
+        <td class="col-actions">
+            <button type="button"
+                    class="list-orders-btn-delete"
+                    data-order-id="{{ order.id }}"
+                    title="Удалить заказ">×</button>
+        </td>
+    </tr>
+{% endfor %}

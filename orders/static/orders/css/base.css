@@ -2,80 +2,99 @@
 orders/static/orders/css/base.css
 Базовые стили приложения "Заказы".
 
-Общие правила (body, .container, h1) взяты по образцу приложений counter
-и sheet_formats — чтобы страницы orders выглядели в едином стиле системы:
-    - фоновая текстура,
-    - белый блок .container со скруглением 20px и тенью,
-    - боковые навигационные панели приложений.
-Стили навигационных панелей (.app-nav-container, .nav-panel, .nav-btn и т.д.)
-взяты из sheet_formats/css/index.css — это «канон» панелей для проекта.
+Приведены к стилю страницы «Просчёты» (proschety/base.css):
+  - CSS-переменные в :root (--brand-green, --radius-card, ...);
+  - компактные отступы, единая типографика;
+  - тот же фон-текстура и белый .container со скруглением 20px;
+  - те же стили навигационных панелей (это «канон» для всего проекта).
+
+ВАЖНО: все классы, которые уже где-то используются
+(.orders-empty, .orders-table, .nav-* и др.), сохранены.
 */
 
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+/* ==================== CSS-ПЕРЕМЕННЫЕ ==================== */
 
-/* Всегда показываем скроллбар — устраняет горизонтальный «прыжок» при изменении высоты. */
+:root {
+    --brand-green:       #0B8661;   /* фирменный зелёный */
+    --brand-green-dark:  #0a6e51;   /* зелёный темнее (hover) */
+    --brand-green-light: #eaf6ef;   /* светло-зелёный (hover-фон) */
+    --brand-border:      #e0e0e0;   /* серая рамка по умолчанию */
+    --brand-dashed:      #d6d6d6;   /* лёгкий пунктир */
+    --brand-text:        #333333;   /* основной тёмный текст */
+    --brand-muted:       #888888;   /* приглушённый серый */
+    --radius-card:       12px;      /* радиус карточек и секций */
+    --radius-input:      8px;       /* радиус полей и кнопок */
+}
+
+/* ==================== БАЗА ==================== */
+
+/* Всегда показываем вертикальный скроллбар — нет «прыжка» при изменении высоты. */
 html {
     overflow-y: scroll;
 }
 
-/* Сброс стандартных отступов и использование border-box. */
+/* Сброс отступов и border-box по всему проекту. */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Стили для <body>: шрифт, фон-текстура, отступы, минимальная высота. */
+/* <body>: шрифт, фоновая текстура, отступы, минимальная высота. */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 Oxygen, Ubuntu, Cantarell, sans-serif;
     background: url(https://www.bukva-a.ru/mg-admin/design/images/bg_textures/42.png);
     min-height: 100vh;
-    padding: 2rem;
-    color: #333;
+    padding: 1.5rem;              /* компактнее, чем 2rem в старом варианте */
+    color: var(--brand-text);
+    line-height: 1.45;
 }
 
 /* ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== */
 
-/* Белый блок со скруглением и тенью — «подложка» под контент всех страниц. */
+/* Белый блок со скруглением и мягкой тенью — «подложка» под контент. */
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    background: white;
+    background: #ffffff;
     border-radius: 20px;
-    padding: 3rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    padding: 2rem 2.25rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
 
 /* ==================== ЗАГОЛОВКИ ==================== */
 
+/* h1 — заголовок страницы: по центру, с логотипом (как в других приложениях). */
 h1 {
-    color: #333;
-    margin-bottom: 2rem;
+    color: var(--brand-text);
+    margin-bottom: 1.5rem;
     text-align: center;
-    font-size: 2rem;
+    font-size: 1.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 1rem;
 }
 
+/* h2 — заголовок секции. */
 h2 {
-    color: #333;
-    margin-bottom: 1.5rem;
-    font-size: 1.5rem;
+    color: var(--brand-text);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
 }
 
-/* ==================== СПИСОК ЗАКАЗОВ ==================== */
+/* ==================== СПИСОК ЗАКАЗОВ (старая таблица, пока index.html её использует) ==================== */
 
 /* Сообщение «заказов пока нет». */
 .orders-empty {
-    color: #777;
+    color: var(--brand-muted);
     font-style: italic;
     padding: 2rem 1rem;
     text-align: center;
 }
 
-/* Таблица заказов. */
+/* Таблица заказов — базовая, будет заменена секцией «Список заказов» в следующих шагах. */
 .orders-table {
     width: 100%;
     border-collapse: collapse;
@@ -83,17 +102,19 @@ h2 {
 
 .orders-table th,
 .orders-table td {
-    border: 1px solid #ddd;
+    border: 1px solid #dddddd;
     padding: 0.5rem;
     text-align: left;
 }
 
 .orders-table th {
     background: #f5f5f5;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 /* ==================== НАВИГАЦИОННЫЕ ПАНЕЛИ ПРИЛОЖЕНИЙ ==================== */
+/* Канон проекта — копируется из proschety/base.css и других приложений. */
+
 /* Контейнер всех панелей — фиксирован в правом верхнем углу. */
 .app-nav-container {
     position: fixed;
@@ -106,9 +127,9 @@ h2 {
     width: 280px;
 }
 
-/* Одна панель приложения. */
+/* Одна панель приложения — белая карточка. */
 .nav-panel {
-    background: white;
+    background: #ffffff;
     padding: 12px 16px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -127,25 +148,23 @@ h2 {
     min-width: 0;
     margin-right: 10px;
 }
-
 .nav-info strong {
-    color: #333;
+    color: var(--brand-text);
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.95rem;
 }
-
 .nav-info div {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--brand-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Общий стиль кнопок в панелях. */
+/* Кнопки в панелях — «Открыть» / «На экране». */
 .nav-btn {
     padding: 8px 15px !important;
     border: none !important;
@@ -169,19 +188,19 @@ h2 {
 /* Кнопка выхода — красная. */
 .nav-btn-logout {
     background: #f44336 !important;
-    color: white !important;
+    color: #ffffff !important;
 }
 
-/* Активная кнопка — зелёная (фирменный цвет проекта). */
+/* Активная кнопка — фирменный зелёный. */
 .nav-btn-active {
-    background: #0B8661 !important;
-    color: white !important;
+    background: var(--brand-green) !important;
+    color: #ffffff !important;
 }
 
-/* Неактивная кнопка — серая. */
+/* Неактивная — серая. */
 .nav-btn-inactive {
     background: #e0e0e0 !important;
-    color: #333 !important;
+    color: var(--brand-text) !important;
 }
 
 /* Наведение. */
@@ -199,17 +218,18 @@ a.nav-btn {
 
 /* ==================== АДАПТИВ ==================== */
 
-/* Планшеты: контейнер — на всю ширину, панель — в поток. */
+/* Планшеты. */
 @media (max-width: 1024px) {
-    body { padding: 1.5rem; }
+    body { padding: 1.25rem; }
     .container { max-width: 100%; }
 }
 
+/* Узкие экраны. */
 @media (max-width: 768px) {
     body { padding: 1rem; }
-    .container { padding: 2rem; border-radius: 15px; }
-    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; flex-direction: column; }
-    h2 { font-size: 1.3rem; margin-bottom: 1.25rem; }
+    .container { padding: 1.5rem; border-radius: 16px; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.25rem; flex-direction: column; gap: 0.5rem; }
+    h2 { font-size: 1.15rem; margin-bottom: 0.85rem; }
 
     /* Панель убирается из фиксированного положения и становится обычным блоком. */
     .app-nav-container {
@@ -219,15 +239,14 @@ a.nav-btn {
         width: 100%;
         margin-bottom: 20px;
     }
-
     .nav-info strong { white-space: normal; }
 }
 
 @media (max-width: 480px) {
     body { padding: 0.5rem; }
-    .container { padding: 1.5rem; border-radius: 12px; }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-    h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+    .container { padding: 1.25rem; border-radius: 12px; }
+    h1 { font-size: 1.3rem; }
+    h2 { font-size: 1.05rem; }
 
     .nav-panel { padding: 10px 12px; min-height: 55px; }
     .nav-info strong { font-size: 0.9rem; }

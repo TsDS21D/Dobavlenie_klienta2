@@ -245,3 +245,152 @@ def api_notify_change(request, proschet_id):
         )
 
     return JsonResponse({'success': True})
+
+
+# ============================================================================
+# ОБЕРТКИ НАД CALCULATOR ДЛЯ ПРИМЕНЕНИЯ СКИДКИ КЛИЕНТА
+# ============================================================================
+import json
+from decimal import Decimal
+# Импортируем оригинальные вьюхи калькулятора, чтобы переиспользовать их логику
+from calculator.views import (
+    get_proschet_price_data as calc_get_price_data,
+    get_print_components as calc_get_print_components,
+    get_lamination_data as calc_get_lamination,
+    get_additional_works as calc_get_works
+)
+
+def apply_discount(price, discount_percent):
+    """Вспомогательная функция для применения скидки к числу."""
+    if not discount_percent or discount_percent <= 0:
+        return price
+    return price * (1 - float(discount_percent) / 100.0)
+
+@login_required(login_url='/login/')
+@require_GET
+def api_price_data_with_discount(request, proschet_id):
+    """Возвращает итоговые данные просчёта с применённой скидкой клиента."""
+    # 1. Получаем оригинальный ответ от калькулятора
+    resp = calc_get_price_data(request, proschet_id)
+    if resp.status_code != 200:
+        return resp
+    
+    data = json.loads(resp.content)
+    if not data.get('success'):
+        return resp
+
+    # 2. Получаем скидку
+    proschet = Proschet.objects.get(id=proschet_id)
+    discount = float(proschet.client.discount) if proschet.client and proschet.client.discount else 0.0
+
+    # 3. Применяем скидку ко всем числовым полям
+    if discount > 0:
+        # Итоговая сумма
+        if 'summary' in data and 'total_price' in data['summary']:
+            orig_total = float(data['summary']['total_price'])
+            data['summary']['original_total_price'] = orig_total
+            data['summary']['total_price'] = str(apply_discount(orig_total, discount))
+            data['summary']['formatted_total_price'] = f"{apply_discount(orig_total, discount):.2f} ₽"
+
+        # Печатные компоненты
+        for comp in data.get('print_components', []):
+            comp['original_price_per_sheet'] = float(comp['price_per_sheet'])
+            comp['price_per_sheet'] = apply_discount(float(comp['price_per_sheet']), discount)
+            comp['total_circulation_price'] = apply_discount(float(comp['total_circulation_price']), discount)
+            comp['paper_price'] = apply_discount(float(comp['paper_price']), discount)
+
+        # Работы
+        for work in data.get('additional_works', []):
+            work['original_total_price'] = float(work['total_price'])
+            work['total_price'] = apply_discount(float(work['total_price']), discount)
+
+        # Ламинация
+        for lam in data.get('laminations', []):
+            lam['original_total_price'] = float(lam['total_price'])
+            lam['total_price'] = apply_discount(float(lam['total_price']), discount)
+
+    data['discount_percent'] = discount
+    return JsonResponse(data)
+
+@login_required(login_url='/login/')
+@require_GET
+def api_print_components_with_discount(request, proschet_id):
+    """Возвращает компоненты печати с учётом скидки."""
+    resp = calc_get_print_components(request, proschet_id)
+    if resp.status_code != 200:
+        return resp
+    
+    data = json.loads(resp.content)
+    if not data.get('success'):
+        return resp
+
+    proschet = Proschet.objects.get(id=proschet_id)
+    discount = float(proschet.client.discount) if proschet.client and proschet.client.discount else 0.0
+
+    if discount > 0:
+        for comp in data.get('components', []):
+            comp['original_price_per_sheet'] = float(comp['price_per_sheet'])
+            comp['price_per_sheet'] = str(apply_discount(float(comp['price_per_sheet']), discount))
+            comp['formatted_price_per_sheet'] = f"{apply_discount(float(comp['price_per_sheet']), discount):.2f} ₽"
+            
+            comp['original_total_circulation_price'] = float(comp['total_circulation_price'])
+            comp['total_circulation_price'] = str(apply_discount(float(comp['total_circulation_price']), discount))
+            comp['formatted_total_circulation_price'] = f"{apply_discount(float(comp['total_circulation_price']), discount):.2f} ₽"
+            
+            comp['original_paper_price'] = float(comp['paper_price'])
+            comp['paper_price'] = apply_discount(float(comp['paper_price']), discount)
+
+    data['discount_percent'] = discount
+    return JsonResponse(data)
+
+@login_required(login_url='/login/')
+@require_GET
+def api_lamination_with_discount(request, component_id):
+    """Возвращает данные ламинации с учётом скидки."""
+    resp = calc_get_lamination(request, component_id)
+    if resp.status_code != 200:
+        return resp
+    
+    data = json.loads(resp.content)
+    if not data.get('success'):
+        return resp
+
+    # Нам нужен просчёт, к которому относится компонент, чтобы узнать скидку
+    from calculator.models_list_proschet import PrintComponent
+    comp = PrintComponent.objects.get(id=component_id)
+    discount = float(comp.proschet.client.discount) if comp.proschet.client and comp.proschet.client.discount else 0.0
+
+    if discount > 0:
+        lam = data.get('lamination', {})
+        if 'total_price' in lam:
+            lam['original_total_price'] = float(lam['total_price'])
+            lam['total_price'] = apply_discount(float(lam['total_price']), discount)
+            lam['total_price_display'] = f"{apply_discount(float(lam['total_price']), discount):.2f} ₽"
+
+    data['discount_percent'] = discount
+    return JsonResponse(data)
+
+@login_required(login_url='/login/')
+@require_GET
+def api_additional_works_with_discount(request, component_id):
+    """Возвращает дополнительные работы с учётом скидки."""
+    resp = calc_get_works(request, component_id)
+    if resp.status_code != 200:
+        return resp
+    
+    data = json.loads(resp.content)
+    if not data.get('success'):
+        return resp
+
+    from calculator.models_list_proschet import PrintComponent
+    comp = PrintComponent.objects.get(id=component_id)
+    discount = float(comp.proschet.client.discount) if comp.proschet.client and comp.proschet.client.discount else 0.0
+
+    if discount > 0:
+        for work in data.get('works', []):
+            work['original_total_price'] = float(work['total_price'])
+            work['total_price'] = str(apply_discount(float(work['total_price']), discount))
+            work['formatted_total_price'] = f"{apply_discount(float(work['total_price']), discount):.2f} ₽"
+
+    data['discount_percent'] = discount
+    return JsonResponse(data)

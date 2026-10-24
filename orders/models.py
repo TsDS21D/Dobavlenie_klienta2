@@ -38,8 +38,12 @@
 
 # ===== СТАНДАРТНЫЕ ИМПОРТЫ =====
 from decimal import Decimal                              # Точные десятичные числа
+from datetime import timedelta                           # Сдвиг даты на N дней
+
+# ===== ИМПОРТЫ DJANGO =====
 from django.conf import settings                         # Доступ к AUTH_USER_MODEL
 from django.db import models                             # Базовый модуль моделей Django
+from django.utils import timezone                        # Работа с часовыми поясами
 
 # ===== ИМПОРТ CHOICES ИЗ СУЩЕСТВУЮЩИХ МОДЕЛЕЙ =====
 # Переиспользуем choices из рабочих моделей, чтобы был единый источник правды.
@@ -51,6 +55,38 @@ from vichisliniya_listov.models import VichisliniyaListovModel      # VICHISLINI
 from vichisliniya_listov.multipage_models import VichisliniyaMultipageModel  # ORIENTATION_CHOICES
 from spravochnik_dopolnitelnyh_rabot.models import Work             # FORMULA_CHOICES
 
+# ============================================================================
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ДЕФОЛТНАЯ ДАТА ГОТОВНОСТИ
+# ============================================================================
+
+def default_ready_datetime():
+    """
+    Возвращает дату и время готовности заказа по умолчанию:
+    15:00 следующего рабочего дня (пн–пт) в текущем часовом поясе проекта
+    (по TIME_ZONE = 'Europe/Moscow' — как на странице /counter/).
+
+    Логика повторяет JS-функцию getNextBusinessDay() из counter/index.js:
+      - берём «завтра» в московском времени;
+      - если это суббота или воскресенье — сдвигаем вперёд до понедельника;
+      - выставляем время 15:00:00.
+
+    Функция объявлена на уровне модуля, чтобы Django мог использовать её
+    как `default` для поля модели. Такая функция должна быть вызываемой
+    без аргументов — это требование Django.
+    """
+    # Текущий момент в московском времени (aware datetime).
+    now_local = timezone.localtime(timezone.now())
+
+    # «Завтра» в том же часовом поясе.
+    next_day = now_local + timedelta(days=1)
+
+    # weekday(): 0 — пн, …, 5 — сб, 6 — вс.
+    # Пропускаем выходные — сдвигаем на следующий день.
+    while next_day.weekday() >= 5:
+        next_day = next_day + timedelta(days=1)
+
+    # Ставим 15:00:00 (микросекунды тоже обнуляем — чтобы значение было «ровным»).
+    return next_day.replace(hour=15, minute=0, second=0, microsecond=0)
 
 # ============================================================================
 # МОДЕЛЬ 1: ЗАКАЗ (ORDER)
@@ -83,6 +119,40 @@ class Order(models.Model):
         blank=True,                                      # В формах можно оставить пустым
         help_text='Клиент, для которого создан заказ (необязательно)'
     )
+
+    # ===== СТАТУСЫ ЗАКАЗА =====
+    # Те же четыре статуса, что на странице /counter/ —
+    # единый набор для всей системы.
+    STATUS_ACCEPTED     = 'accepted'       # Принят — статус по умолчанию
+    STATUS_IN_PROGRESS  = 'in_progress'    # В работе
+    STATUS_READY        = 'ready'          # Готов
+    STATUS_COMPLETED    = 'completed'      # Выдан
+
+    STATUS_CHOICES = [
+        (STATUS_ACCEPTED,    'Принят'),
+        (STATUS_IN_PROGRESS, 'В работе'),
+        (STATUS_READY,       'Готов'),
+        (STATUS_COMPLETED,   'Выдан'),
+    ]
+
+    # Статус заказа. По умолчанию — «Принят».
+    status = models.CharField(
+        verbose_name='Статус заказа',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_ACCEPTED,
+        help_text='Текущее состояние заказа'
+    )
+
+    # Дата и время готовности.
+    # Дефолт — 15:00 следующего рабочего дня (см. default_ready_datetime).
+    # Поле обязательное: заказ всегда имеет срок, даже если создан из просчёта.
+    ready_datetime = models.DateTimeField(
+        verbose_name='Дата и время готовности',
+        default=default_ready_datetime,
+        help_text='По умолчанию — 15:00 следующего рабочего дня'
+    )
+
 
     # Свободный комментарий к заказу (необязательный).
     comment = models.TextField(

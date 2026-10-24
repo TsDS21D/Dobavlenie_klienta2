@@ -1,56 +1,63 @@
 <!--
 orders/templates/orders/index.html
-Главная страница приложения "Заказы".
-Наследуется от orders/base.html.
--->
-{% extends "orders/base.html" %}
+Главная страница приложения «Заказы».
 
+Наследуется от orders/base.html.
+Содержит:
+  - заголовок с логотипом типографии;
+  - секцию «Список заказов» (include orders/sections/list_orders.html);
+  - контейнер для кратковременных уведомлений;
+  - подключение CSS/JS секции (только для этой страницы — не тянем
+    на карточку заказа).
+
+ВАЖНО про id="proschety-top-notifications":
+    Контейнер уведомлений намеренно назван как в proschety/index.html
+    (тот же id). JS-модуль list_orders.js ищет именно этот id — так
+    оба приложения используют один контейнер и один набор стилей
+    (.proschety-top-notification и его модификаторы) без дублирования.
+    Если в будущем понадобится переименовать — правим в двух местах:
+    здесь и в list_orders.js (функция showNotification).
+-->
+
+{% extends "orders/base.html" %}
 {% load static %}
 
 {% block title %}Заказы{% endblock %}
 
-{% block content %}
-    <!-- Заголовок страницы. -->
-    <h1>Заказы</h1>
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/sections/list_orders.css' %}">
+{% endblock %}
 
-    <!-- Если заказов нет — показываем сообщение. -->
-    {% if not orders %}
-        <p class="orders-empty">Заказов пока нет.</p>
-    {% else %}
-        <!-- Таблица заказов. -->
-        <table class="orders-table">
-            <thead>
-                <tr>
-                    <th>Номер</th>
-                    <th>Клиент</th>
-                    <th>Изделий</th>
-                    <th>Стоимость</th>
-                    <th>Создан</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                    <tr class="orders-row-clickable"
-                        data-order-id="{{ order.id }}"
-                        title="Открыть карточку заказа">
-                        <!-- Номер заказа (ORD-N). -->
-                        <td>{{ order.number }}</td>
-                        <!-- Имя клиента (может быть пустым). -->
-                        <td>{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}</td>
-                        <!-- Число не удалённых изделий в заказе. -->
-                        <td>{{ order.products.count }}</td>
-                        <!-- Итоговая стоимость (свойство, вычисляется на лету). -->
-                        <td>{{ order.formatted_total_price }}</td>
-                        <!-- Дата создания. -->
-                        <td>{{ order.created_at }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% endif %}
+{% block content %}
+
+    <!-- Заголовок страницы с логотипом типографии. -->
+    <h1>
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png"
+             alt="Типография &quot;Буква А&quot;"
+             title="Типография &quot;Буква А&quot;"
+             width="130">
+        Заказы
+    </h1>
+
+    <!-- Секция «Список заказов»: таблица, форма создания, поиск,
+         модалка удаления. -->
+    {% include "orders/sections/list_orders.html" %}
+
+    <!-- Контейнер для кратковременных уведомлений (свои действия).
+         Стили и поведение — общие с proschety (см. комментарий выше). -->
+    <div id="proschety-top-notifications"
+         class="proschety-top-notifications"></div>
+
+    <!-- Контейнер для нижних тостов (события других сессий).
+         data-session-key нужен JS, чтобы отличить свои действия от чужих. -->
+    <div id="proschety-toasts"
+         class="proschety-toasts"
+         data-session-key="{{ session_key }}"></div>
+
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
-<script src="{% static 'orders/js/index.js' %}"></script>
+<script src="{% static 'orders/js/sections/list_orders.js' %}"></script>
 {% endblock %}

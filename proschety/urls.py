@@ -44,4 +44,12 @@ urlpatterns = [
     # НОВОЕ: уведомление других окон об изменении (шлёт WebSocket-событие).
     path('api/notify-change/<int:proschet_id>/',
          views.api_notify_change, name='api_notify_change'),
+
+    # Новые эндпоинты с учётом скидки
+    path('api/price-data/<int:proschet_id>/', views.api_price_data_with_discount, name='api_price_data'),
+    path('api/print-components/<int:proschet_id>/', views.api_print_components_with_discount, name='api_print_components'),
+    path('api/lamination/<int:component_id>/', views.api_lamination_with_discount, name='api_lamination'),
+    path('api/works/<int:component_id>/', views.api_additional_works_with_discount, name='api_works'),
+
+
 ]

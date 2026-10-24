@@ -34,15 +34,7 @@ proschety/static/proschety/css/sections/proschet_summary.css
 
 /* ==================== СПИСОК ПОКАЗАТЕЛЕЙ ВНУТРИ ==================== */
 
-/* 4 группы в одну строку с переносом на узких экранах.
-   gap — побольше между группами по горизонтали, чтобы значения
-   не сливались; поменьше по вертикали. */
-.proschet-summary-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem 1rem;   /* по горизонтали компактнее — было 2rem */
-    align-items: center;
-}
+
 
 /* Одна группа: «Подпись: значение». Раньше это была отдельная
    белая плитка — теперь просто строчная связка на зелёном фоне,
@@ -81,6 +73,13 @@ proschety/static/proschety/css/sections/proschet_summary.css
     font-weight: 700;
 }
 
+/* Значение скидки — делаем его таким же, как подпись "Скидка (2%)" */
+.proschet-summary-value--discount {
+    font-size: 0.7rem;    /* Такой же размер, как у .proschet-summary-label */
+    color: #6a8a78;       /* Такой же приглушённый зелёный цвет */
+    font-weight: 500;     /* Такая же жирность */
+}
+
 /* ==================== АДАПТИВ ==================== */
 
 /* На узких экранах группы переносятся на новую строку и растягиваются
@@ -88,18 +87,63 @@ proschety/static/proschety/css/sections/proschet_summary.css
    краю. */
 /* ==================== КНОПКИ «СОЗДАТЬ ЗАКАЗ» И «ДОБАВИТЬ В ИМЕЮЩИЙСЯ» ==================== */
 
-/* Контейнер кнопок. margin-left: auto прижимает их к правому краю
-   строки (по горизонтали), пока хватает места. На узких экранах
-   переносятся на новую строку — там margin-left уже не работает,
-   см. media-запрос ниже. */
-.proschet-summary-actions {
+/* ==================== НОВАЯ РАСКЛАДКА (СЕТКА) ==================== */
+
+/* Главный контейнер: разделяет на левую часть с данными и правую с кнопками */
+.proschet-summary-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Выравниваем кнопки по верхнему краю первой строки */
+    gap: 1rem;
+}
+
+/* Левая колонка с двумя строками */
+.proschet-summary-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Расстояние между первой и второй строчкой */
+}
+
+/* Каждая из двух строк (1-я: масса, 2-я: цена) */
+.proschet-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem; /* 0.4rem между строками, 1rem между элементами в строке */
+    align-items: center;
+}
+
+/* Сами карточки с данными (оставляем без изменений) */
+.proschet-summary-card {
     display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+/* ==================== КНОПКИ ==================== */
+
+/* Контейнер кнопок — теперь это отдельная правая колонка */
+.proschet-summary-actions {
+    display: flex;
     align-items: center;
     gap: 0.4rem;
-    /* margin-left: auto забирает всё свободное место слева и
-       прижимает кнопки к правому краю блока. Показатели при этом
-       остаются слева. */
-    margin-left: auto;
+    flex-wrap: wrap;
+    /* margin-left: auto больше не нужен, так как flex-контейнер сам прижмет его вправо */
+    justify-content: flex-end; 
+}
+
+/* Мобильная адаптация: на узких экранах кнопки переносятся под данные */
+@media (max-width: 900px) {
+    .proschet-summary-layout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .proschet-summary-actions {
+        justify-content: flex-start;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px dashed #d6ecdf; /* Разделитель на мобильных */
+    }
 }
 
 /* Общий стиль кнопок — компактный, чтобы в одну строку с показателями.

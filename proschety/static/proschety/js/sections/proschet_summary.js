@@ -34,6 +34,12 @@ JavaScript блока «Итоги просчёта».
     let volumeEl = null;
     let stackEl = null;
     let priceEl = null;
+    // Новые элементы для скидки
+    let priceLabel = null;
+    let priceBlock = null;
+    let discountBlock = null;
+    let discountPercentEl = null;
+    let discountAmountEl = null;
 
     // ID текущего просчёта — чтобы не дёргать сервер дважды на одно
     // и то же событие при быстром переключении.
@@ -56,6 +62,11 @@ JavaScript блока «Итоги просчёта».
         volumeEl       = document.getElementById('proschet-summary-volume');
         stackEl        = document.getElementById('proschet-summary-stack');
         priceEl        = document.getElementById('proschet-summary-price');
+        priceLabel        = document.getElementById('proschet-summary-price-label');
+        priceBlock        = document.getElementById('proschet-summary-price-block');
+        discountBlock     = document.getElementById('proschet-summary-discount-block');
+        discountPercentEl = document.getElementById('proschet-summary-discount-percent');
+        discountAmountEl  = document.getElementById('proschet-summary-discount-amount');
 
         // Если секции на странице нет — молча выходим.
         if (!summarySection) return;
@@ -143,7 +154,7 @@ JavaScript блока «Итоги просчёта».
         abortController = new AbortController();
         const signal = abortController.signal;
 
-        fetch('/calculator/get-proschet-price-data/' + proschetId + '/', {
+        fetch('/proschety/api/price-data/' + proschetId + '/', {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             signal: signal
@@ -192,14 +203,51 @@ JavaScript блока «Итоги просчёта».
                 : '—';
         }
 
-        // --- Полная стоимость ---
-        // Серверное поле summary.total_price теперь включает ламинацию
-        // (правка в calculator/views.py::get_proschet_price_data).
-        // Значит, единый источник правды — сервер. Берём его число и
-        // форматируем тем же formatMoney, что и суммы в карточках
-        // компонентов, чтобы вид был одинаковый.
-        const totalFull = Number(summary.total_price) || 0;
-        if (priceEl) priceEl.textContent = formatMoney(totalFull);
+        // --- Полная стоимость (с учётом скидки) ---
+        // Бэкенд (proschety/views.py) уже вернул нам цену со скидкой в summary.total_price,
+        // а старую цену без скидки — в summary.original_total_price (если скидка есть).
+        // --- Цена за штуку и итоговая стоимость (с учётом скидки и округления) ---
+        const rawTotalPrice = Number(summary.total_price) || 0; // Сумма со скидкой
+        const originalTotalPrice = Number(summary.original_total_price) || rawTotalPrice;
+        const discountPercent = Number(data.discount_percent) || 0;
+        
+        // Получаем тираж из данных ответа
+        const circulation = Number(data.proschet.circulation) || 1;
+
+        // 1. Округляем цену за штуку в БОЛЬШУЮ сторону до 2-х знаков
+        let unitPrice = 0;
+        let finalTotalPrice = rawTotalPrice;
+        
+        if (circulation > 0) {
+            // Math.ceil((rawTotalPrice / circulation) * 100) / 100
+            unitPrice = Math.ceil((rawTotalPrice / circulation) * 100) / 100;
+            // 2. Пересчитываем итог, умножая цену за шт на тираж
+            finalTotalPrice = unitPrice * circulation;
+        }
+
+        // Выводим цену за штуку
+        const unitPriceEl = document.getElementById('proschet-summary-unit-price');
+        if (unitPriceEl) {
+            unitPriceEl.textContent = formatMoney(unitPrice);
+        }
+
+        if (discountPercent > 0) {
+            if (priceLabel) priceLabel.textContent = 'К оплате:';
+            if (priceEl) priceEl.textContent = formatMoney(finalTotalPrice);
+            
+            if (discountBlock) {
+                discountBlock.style.display = 'inline-flex';
+                if (discountPercentEl) discountPercentEl.textContent = discountPercent;
+                if (discountAmountEl) {
+                    const discountAmount = originalTotalPrice - rawTotalPrice;
+                    discountAmountEl.textContent = formatMoney(discountAmount);
+                }
+            }
+        } else {
+            if (priceLabel) priceLabel.textContent = 'К оплате:';
+            if (priceEl) priceEl.textContent = formatMoney(finalTotalPrice);
+            if (discountBlock) discountBlock.style.display = 'none';
+        }
 
         // Показываем секцию.
         summarySection.style.display = 'block';

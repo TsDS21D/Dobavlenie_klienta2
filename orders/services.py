@@ -44,6 +44,39 @@ from .models import (
     ProductMultipage,
 )
 
+import math
+from decimal import Decimal
+
+def _calculate_final_prices(proschet):
+    """
+    Вспомогательная функция. 
+    1. Считает скидку.
+    2. Вычисляет цену за 1 шт., округляя её ВВЕРХ до копеек.
+    3. Умножает цену за штуку на тираж, чтобы получить точную сумму к оплате.
+    
+    Возвращает: (final_total_price, multiplier)
+    """
+    circulation = proschet.circulation or 1
+    
+    # Получаем скидку клиента
+    discount = 0
+    if proschet.client and proschet.client.discount:
+        discount = float(proschet.client.discount)
+        
+    multiplier = Decimal(str(1 - (discount / 100.0)))
+    
+    base_total = Decimal(str(proschet.total_price))
+    discounted_total = base_total * multiplier
+    
+    # Округляем цену за штуку ВВЕРХ до 2 знаков (например, 110.60784 -> 110.61)
+    unit_price_float = math.ceil((float(discounted_total) / circulation) * 100) / 100
+    unit_price = Decimal(str(unit_price_float))
+    
+    # Итоговая сумма = цена за шт * тираж
+    final_total_price = (unit_price * circulation).quantize(Decimal('0.01'))
+    
+    return final_total_price, multiplier
+
 
 # ============================================================================
 # ФУНКЦИЯ 1: СОЗДАТЬ ЗАКАЗ ИЗ ПРОСЧЁТА
@@ -94,13 +127,20 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
 
     # --- Шаг 2. Создаём изделие (копию просчёта) ---
     # total_price берём у просчёта на текущий момент — он станет «замороженным».
+    # Применяем скидку, если она есть у клиента
+    discount = proschet.client.discount if proschet.client and proschet.client.discount else 0
+    multiplier = 1 - (float(discount) / 100.0) if discount > 0 else 1.0
+    
+    # Рассчитываем итоговую цену с учётом скидки и округления цены за штуку
+    frozen_total_price, multiplier = _calculate_final_prices(proschet)
+
     product = Product.objects.create(
-        order=order,                               # Ссылка на только что созданный заказ
-        source_proschet=proschet,                  # Из какого просчёта создано
-        source_template=proschet.source_template,  # Из какого шаблона (может быть None)
-        title=proschet.title,                      # Название копируем
-        circulation=proschet.circulation or 1,     # Тираж копируем (если None — ставим 1)
-        total_price=proschet.total_price,          # ЗАМОРОЗКА ЦЕНЫ (Decimal)
+        order=order,
+        source_proschet=proschet,                  
+        source_template=proschet.source_template,  
+        title=proschet.title,                      
+        circulation=proschet.circulation or 1,     
+        total_price=frozen_total_price, 
     )
 
     # --- Шаг 3. Проходим по всем не удалённым печатным компонентам ---
@@ -144,9 +184,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
             print_type=comp.print_type,
             printing_mode=comp.printing_mode,
             color_mode=comp.color_mode,
-            price_per_sheet=comp.price_per_sheet,
+            price_per_sheet=(comp.price_per_sheet * multiplier).quantize(Decimal('0.01')),
             is_price_calculated=comp.is_price_calculated,
-            total_circulation_price=comp.total_circulation_price,
+            total_circulation_price=(comp.total_circulation_price * multiplier).quantize(Decimal('0.01')),
             sheet_count=frozen_sheet_count,
             runs_count=frozen_runs_count,
             material_price=frozen_material_price,
@@ -238,7 +278,7 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
                 laminator_markup=lam_src.laminator_markup,
                 laminator_price=lam_src.laminator_price,
                 film_price=lam_src.film_price,
-                total_price=lam_src.total_price,
+                total_price=(lam_src.total_price * multiplier).quantize(Decimal('0.01')),
                 film_thickness=frozen_film_thickness,
             )
 
@@ -256,7 +296,7 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
                 formula_type=work_src.formula_type,
                 lines_count=work_src.lines_count,
                 items_per_sheet=work_src.items_per_sheet,
-                total_price=work_src.total_price,     # ЗАМОРОЖЕНО
+                total_price=(work_src.total_price * multiplier).quantize(Decimal('0.01')),     # ЗАМОРОЖЕНО
                 is_deleted=False,
             )
 
@@ -301,14 +341,16 @@ def add_product_to_order(proschet, order):
     """
 
     # --- Шаг 1. Создаём изделие ---
-    # total_price берём у просчёта на текущий момент — он станет «замороженным».
+    # Рассчитываем итоговую цену с учётом скидки и округления цены за штуку
+    frozen_total_price, multiplier = _calculate_final_prices(proschet)
+
     product = Product.objects.create(
-        order=order,                               # Ссылка на переданный заказ
-        source_proschet=proschet,                  # Из какого просчёта создано
-        source_template=proschet.source_template,  # Из какого шаблона (может быть None)
-        title=proschet.title,                      # Название копируем
-        circulation=proschet.circulation or 1,     # Тираж копируем (если None — ставим 1)
-        total_price=proschet.total_price,          # ЗАМОРОЗКА ЦЕНЫ (Decimal)
+        order=order,                               
+        source_proschet=proschet,                  
+        source_template=proschet.source_template,  
+        title=proschet.title,                      
+        circulation=proschet.circulation or 1,     
+        total_price=frozen_total_price,
     )
 
     # --- Шаг 2. Проходим по всем не удалённым печатным компонентам ---
@@ -342,9 +384,9 @@ def add_product_to_order(proschet, order):
             print_type=comp.print_type,
             printing_mode=comp.printing_mode,
             color_mode=comp.color_mode,
-            price_per_sheet=comp.price_per_sheet,
+            price_per_sheet=(comp.price_per_sheet * multiplier).quantize(Decimal('0.01')),
             is_price_calculated=comp.is_price_calculated,
-            total_circulation_price=comp.total_circulation_price,
+            total_circulation_price=(comp.total_circulation_price * multiplier).quantize(Decimal('0.01')),
             sheet_count=frozen_sheet_count,
             runs_count=frozen_runs_count,
             material_price=frozen_material_price,
@@ -425,7 +467,7 @@ def add_product_to_order(proschet, order):
                 laminator_markup=lam_src.laminator_markup,
                 laminator_price=lam_src.laminator_price,
                 film_price=lam_src.film_price,
-                total_price=lam_src.total_price,
+                total_price=(lam_src.total_price * multiplier).quantize(Decimal('0.01')),
                 film_thickness=frozen_film_thickness,
             )
 
@@ -443,7 +485,7 @@ def add_product_to_order(proschet, order):
                 formula_type=work_src.formula_type,
                 lines_count=work_src.lines_count,
                 items_per_sheet=work_src.items_per_sheet,
-                total_price=work_src.total_price,
+                total_price=(work_src.total_price * multiplier).quantize(Decimal('0.01')),
                 is_deleted=False,
             )
 

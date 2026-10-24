@@ -1,0 +1,175 @@
+<!--
+orders/templates/orders/sections/list_orders.html
+Секция «Список заказов» страницы /orders/.
+
+СТРУКТУРА:
+  - шапка с заголовком и кнопкой «Создать»;
+  - инлайн-форма создания заказа (клиент / комментарий / дата готовности);
+  - три поля поиска: общий, по клиенту, фильтр по статусу;
+  - таблица заказов (thead + tbody c вложенным партиалом строк);
+  - сообщения «заказов нет» / «ничего не найдено»;
+  - модалка подтверждения удаления.
+
+ЧТО БУДЕТ В ШАГАХ 3–6:
+  - views.api_rows — перерисовка tbody без перезагрузки;
+  - views.api_create_order / update / delete — соответствующие API;
+  - list_orders.js — вся логика (поиск, создание, инлайн-правка,
+    удаление, обработка статусов, заполнение datetime по умолчанию);
+  - подключение секции в index.html и передача clients из views.index.
+-->
+
+<!-- ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ==================== -->
+<div class="list-orders-confirm-overlay"
+     id="list-orders-confirm-overlay"
+     style="display: none;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить заказ?</div>
+        <div class="list-orders-confirm-text">
+            Заказ пропадёт из списка.<br>
+            Его можно будет восстановить через админку.
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button"
+                    class="list-orders-confirm-btn list-orders-confirm-btn-no"
+                    id="list-orders-confirm-no">Отмена</button>
+            <button type="button"
+                    class="list-orders-confirm-btn list-orders-confirm-btn-yes"
+                    id="list-orders-confirm-yes">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<section class="list-orders-section" id="list-orders-section">
+
+    <!-- Шапка: заголовок + кнопка «Создать» -->
+    <div class="list-orders-header">
+        <h2 class="list-orders-title">Список заказов</h2>
+        <div class="list-orders-actions">
+            <button type="button"
+                    class="list-orders-btn-create"
+                    id="list-orders-create-btn">
+                Создать
+            </button>
+        </div>
+    </div>
+
+    <!-- Инлайн-форма создания заказа. Скрыта до клика по «Создать». -->
+    <div class="list-orders-create-form"
+         id="list-orders-create-form"
+         style="display: none;">
+        <form id="list-orders-create-form-el">
+            {% csrf_token %}
+
+            <!-- Клиент (необязательный) -->
+            <div class="list-orders-form-row">
+                <label for="list-orders-create-client">Клиент</label>
+                <select id="list-orders-create-client"
+                        name="client"
+                        class="list-orders-form-input">
+                    <option value="">— Не выбран —</option>
+                    {% for client in clients %}
+                        <option value="{{ client.id }}">
+                            {% if client.client_number %}{{ client.client_number }}: {% endif %}{{ client.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Комментарий -->
+            <div class="list-orders-form-row">
+                <label for="list-orders-create-comment">Комментарий</label>
+                <input type="text"
+                       id="list-orders-create-comment"
+                       name="comment"
+                       class="list-orders-form-input"
+                       placeholder="Например: срочный заказ, доставка"
+                       maxlength="500">
+            </div>
+
+            <!-- Дата готовности (необязательная — если пусто,
+                 сервер подставит «15:00 следующего рабочего дня») -->
+            <div class="list-orders-form-row">
+                <label for="list-orders-create-ready">Дата и время готовности</label>
+                <input type="datetime-local"
+                       id="list-orders-create-ready"
+                       name="ready_datetime"
+                       class="list-orders-form-input">
+                <small class="list-orders-form-hint">
+                    Если оставить пустым — автоматически проставится 15:00 следующего рабочего дня.
+                </small>
+            </div>
+
+            <div class="list-orders-form-actions">
+                <button type="button"
+                        class="list-orders-btn-cancel"
+                        id="list-orders-create-cancel">
+                    Отмена
+                </button>
+                <button type="submit"
+                        class="list-orders-btn-submit"
+                        id="list-orders-create-submit">
+                    Создать заказ
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Поиск: общий / по клиенту / по статусу -->
+    <div class="list-orders-search-wrap">
+        <input type="text"
+               class="list-orders-search"
+               id="list-orders-search-input"
+               placeholder="Общий поиск...">
+        <input type="text"
+               class="list-orders-search"
+               id="list-orders-search-client"
+               placeholder="Поиск по клиенту...">
+        <select class="list-orders-search"
+                id="list-orders-search-status">
+            <option value="">Все статусы</option>
+            <option value="accepted">Принят</option>
+            <option value="in_progress">В работе</option>
+            <option value="ready">Готов</option>
+            <option value="completed">Выдан</option>
+        </select>
+    </div>
+
+    <!-- Таблица заказов -->
+    <div class="list-orders-table-wrap">
+        <table class="list-orders-table">
+            <thead>
+                <tr>
+                    <th class="col-number">Номер</th>
+                    <th class="col-client">Клиент</th>
+                    <th class="col-status">Статус</th>
+                    <th class="col-ready">Готовность</th>
+                    <th class="col-comment">Комментарий</th>
+                    <th class="col-created">Создан</th>
+                    <th class="col-products">Изделий</th>
+                    <th class="col-total">Стоимость</th>
+                    <th class="col-actions"></th>
+                </tr>
+            </thead>
+            <tbody id="list-orders-table-body">
+                {% include "orders/sections/_order_rows.html" %}
+            </tbody>
+        </table>
+
+        <!-- Сообщение, когда заказов нет вообще -->
+        <div class="list-orders-empty"
+             id="list-orders-empty"
+             {% if orders %}style="display: none;"{% endif %}>
+            <p>Заказов пока нет</p>
+            <small>Нажмите «Создать», чтобы добавить первый заказ</small>
+        </div>
+
+        <!-- Сообщение, когда поиск не дал результатов -->
+        <div class="list-orders-empty"
+             id="list-orders-no-results"
+             style="display: none;">
+            <p>Ничего не найдено</p>
+            <small>Попробуйте изменить поисковый запрос или фильтр по статусу</small>
+        </div>
+    </div>
+
+</section>

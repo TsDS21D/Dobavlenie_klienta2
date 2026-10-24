@@ -47,6 +47,10 @@
     // sheet_count_display.
     // ВАЖНО: запись существует для КАЖДОГО печатного компонента (даже если ламинация выключена).
     let priceLaminationsByComponent = {};
+    // НОВОЕ: процент скидки текущего клиента
+    let currentDiscountPercent = 0;
+    // НОВОЕ: тираж текущего просчёта (нужен для расчета цены за штуку)
+    let priceCurrentCirculation = 1;
 
     // ============================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
@@ -350,12 +354,30 @@
     function fetchPriceDataFromServer(proschetId) {
         const url = `/calculator/get-proschet-price-data/${proschetId}/`;
 
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': getPriceCsrfToken()
+        // Сначала запрашиваем скидку из нового API proschety
+        fetch('/proschety/api/proschet/' + proschetId + '/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(prosData => {
+            // Сохраняем скидку, если есть
+            if (prosData.success && prosData.proschet) {
+                currentDiscountPercent = parseFloat(prosData.proschet.discount) || 0;
+                // Сохраняем тираж для расчета цены за штуку
+                priceCurrentCirculation = parseInt(prosData.proschet.circulation, 10) || 1;
+            } else {
+                currentDiscountPercent = 0;
+                priceCurrentCirculation = 1;
             }
+
+            // Теперь загружаем сами цены
+            return fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getPriceCsrfToken()
+                }
+            });
         })
         .then(response => {
             if (!response.ok) {
@@ -365,10 +387,8 @@
         })
         .then(data => {
             if (data.success) {
-                // Сохраняем печатные компоненты
                 priceCurrentPrintComponents = data.print_components || [];
 
-                // ===== ИНИЦИАЛИЗИРУЕМ СЛОВАРЬ ДОПОЛНИТЕЛЬНЫХ РАБОТ =====
                 priceAdditionalWorksByComponent = {};
                 if (data.additional_works && Array.isArray(data.additional_works)) {
                     data.additional_works.forEach(work => {
@@ -380,33 +400,18 @@
                     });
                 }
 
-                // ===== ИНИЦИАЛИЗИРУЕМ СЛОВАРЬ ЛАМИНАЦИЙ =====
-                // ИСПРАВЛЕНИЕ: теперь сервер возвращает данные для ВСЕХ компонентов
-                // (включая выключенную ламинацию). Мы сохраняем ВСЕ записи.
                 priceLaminationsByComponent = {};
                 if (data.laminations && Array.isArray(data.laminations)) {
                     data.laminations.forEach(lam => {
                         if (lam && lam.component_id) {
-                            // Сохраняем запись для компонента (даже если is_enabled === false)
                             priceLaminationsByComponent[lam.component_id] = lam;
                         }
                     });
                 }
 
-                console.log(`✅ Данные загружены: ${priceCurrentPrintComponents.length} компонентов, ` +
-                           `работ по компонентам: ${Object.keys(priceAdditionalWorksByComponent).length}, ` +
-                           `ламинаций: ${Object.keys(priceLaminationsByComponent).length}`);
-
-                // Показываем контейнер с итогами
                 showPriceSummaryContainer();
-
-                // Обновляем дату расчёта
                 updateCalculationDate();
-
-                // Отображаем данные
                 renderPriceDisplay();
-
-                // Показываем кнопку "Рассчитать"
                 showCalculateButton(true);
             } else {
                 console.error('Ошибка загрузки данных:', data.message);
@@ -422,6 +427,9 @@
     // ============================================================================
     // 9. ОСНОВНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ (ГЛАВНАЯ)
     // ============================================================================
+    function getDiscountMultiplier() {
+        return 1 - (currentDiscountPercent / 100);
+    }
 
     /**
      * Главная функция рендеринга. Собирает все данные и отображает их в интерфейсе.
@@ -565,18 +573,18 @@
         const runsCount = parseInt(component.runs_count, 10) || 0;
         const paperPrice = parseFloat(component.paper_price) || 0;
         const costPerUnit = parseFloat(component.cost) || 0;
-        const pricePerUnit = parseFloat(component.price_per_sheet) || 0;
-
-        // Рассчитываем себестоимость печати для всего тиража
-        // Формула: (себестоимость за лист × количество прогонов) + (цена бумаги за лист × количество листов)
+        
+        // ПРИМЕНЯЕМ СКИДКУ К ЦЕНЕ
+        const multiplier = getDiscountMultiplier();
+        const pricePerUnit = (parseFloat(component.price_per_sheet) || 0) * multiplier;
+        const totalPrice = (parseFloat(component.total_circulation_price) || 0) * multiplier;
+        
+        // Себестоимость (cost) оставляем без изменений!
         const printCost = costPerUnit * runsCount;
         const materialCost = paperPrice * sheetCount;
         const totalCost = printCost + materialCost;
-
-        // Рассчитываем общую стоимость печати для всего тиража
-        const totalPrice = parseFloat(component.total_circulation_price) || 0;
-
-        // Рассчитываем прибыль = стоимость - себестоимость
+        
+        // Прибыль теперь считается от цены со скидкой
         const profit = totalPrice - totalCost;
 
         block.innerHTML = `
@@ -622,7 +630,8 @@
         const laminatorCost = parseFloat(lamination.laminator_cost) || 0;
         const laminatorPrice = parseFloat(lamination.laminator_price) || 0;
         const filmPrice = parseFloat(lamination.film_price) || 0;
-        const totalPrice = parseFloat(lamination.total_price) || 0;
+        // ПРИМЕНЯЕМ СКИДКУ
+        const totalPrice = (parseFloat(lamination.total_price) || 0) * getDiscountMultiplier();
 
         // Рассчитываем себестоимость ламинации: (себестоимость ламинатора + цена плёнки) × количество листов
         const totalCost = (laminatorCost + filmPrice) * sheetCount;
@@ -699,10 +708,12 @@
         // Заполняем строки таблицы
         for (const work of works) {
             const totalCost = parseFloat(work.total_cost) || 0;
-            const totalPrice = parseFloat(work.total_price) || 0;
+            // ПРИМЕНЯЕМ СКИДКУ
+            const totalPrice = (parseFloat(work.total_price) || 0) * getDiscountMultiplier();
+            
             const profit = totalPrice - totalCost;
-            const profitPerUnit = parseFloat(work.profit_per_unit) || 0;
-            const effectivePrice = parseFloat(work.effective_price) || 0;
+            const profitPerUnit = (parseFloat(work.profit_per_unit) || 0) * getDiscountMultiplier();
+            const effectivePrice = (parseFloat(work.effective_price) || 0) * getDiscountMultiplier
             const cost = parseFloat(work.cost) || 0;
             const markup = parseFloat(work.markup_percent) || 0;
             const quantity = work.quantity || 1;
@@ -758,7 +769,7 @@
         totalBlock.className = 'component-total-block';
 
         // Считаем итоговую стоимость компонента (печать)
-        let totalPrice = parseFloat(component.total_circulation_price) || 0;
+        let totalPrice = (parseFloat(component.total_circulation_price) || 0) * getDiscountMultiplier();
         let totalCost = 0;
 
         // Добавляем себестоимость печати
@@ -770,7 +781,7 @@
 
         // Добавляем ламинацию (только если включена)
         if (laminationData && laminationData.is_enabled === true) {
-            totalPrice += parseFloat(laminationData.total_price) || 0;
+            totalPrice += (parseFloat(laminationData.total_price) || 0) * getDiscountMultiplier();
             const laminatorCost = parseFloat(laminationData.laminator_cost) || 0;
             const filmPrice = parseFloat(laminationData.film_price) || 0;
             const lamSheetCount = parseFloat(laminationData.sheet_count) || 0;
@@ -779,7 +790,7 @@
 
         // Добавляем дополнительные работы
         for (const work of works) {
-            totalPrice += parseFloat(work.total_price) || 0;
+            totalPrice += (parseFloat(work.total_price) || 0) * getDiscountMultiplier();
             totalCost += parseFloat(work.total_cost) || 0;
         }
 
@@ -858,7 +869,7 @@
      * Суммирует стоимость печатных компонентов, ламинации (только включённой) и дополнительных работ.
      * @returns {number} Общая стоимость
      */
-    function calculateTotalPrice() {
+    function calculateRawTotalPrice() {
         let total = 0;
 
         // 1. Стоимость печатных компонентов
@@ -885,23 +896,60 @@
         return total;
     }
 
+    function calculateFinalTotalPrice() {
+        const rawTotal = calculateRawTotalPrice();
+        const discountedTotal = rawTotal * getDiscountMultiplier();
+        
+        if (priceCurrentCirculation > 0) {
+            // Округляем цену за штуку ВВЕРХ до 2 знаков
+            const unitPrice = Math.ceil((discountedTotal / priceCurrentCirculation) * 100) / 100;
+            // Умножаем на тираж, чтобы получить точную сумму к оплате
+            return unitPrice * priceCurrentCirculation;
+        }
+        return discountedTotal;
+    }
+
     /**
      * Рассчитывает общую прибыль заказа (общая стоимость - общая себестоимость).
      * @returns {number} Общая прибыль
      */
     function calculateTotalProfit() {
-        return calculateTotalPrice() - calculateTotalCost();
+        // Прибыль теперь считается от суммы со скидкой
+        return calculateFinalTotalPrice() - calculateTotalCost();
     }
 
     /**
      * Обновляет отображение общей стоимости заказа.
      */
     function updateTotalOrderPrice() {
+        const rawTotal = calculateRawTotalPrice();
+        const finalTotal = calculateFinalTotalPrice();
+        const discountAmount = rawTotal - (rawTotal * getDiscountMultiplier());
+
+        // Выводим цену за штуку
+        const unitPriceElement = document.getElementById('total-order-unit-price');
+        if (unitPriceElement) {
+            const unitPrice = finalTotal / priceCurrentCirculation;
+            unitPriceElement.textContent = `${unitPrice.toFixed(2)} ₽`;
+        }
+
+        // Выводим итоговую сумму К оплате
         const totalElement = document.getElementById('total-order-price');
-        if (!totalElement) return;
-        const total = calculateTotalPrice();
-        totalElement.textContent = `${total.toFixed(2)} ₽`;
-        console.log(`💰 Общая стоимость заказа: ${total.toFixed(2)} ₽`);
+        if (totalElement) totalElement.textContent = `${finalTotal.toFixed(2)} ₽`;
+
+        // Выводим скидку
+        const discountRow = document.getElementById('total-discount-row');
+        const discountPercentEl = document.getElementById('total-discount-percent');
+        const discountAmountEl = document.getElementById('total-discount-amount');
+
+        if (currentDiscountPercent > 0) {
+            if (discountRow) discountRow.style.display = 'flex';
+            if (discountPercentEl) discountPercentEl.textContent = currentDiscountPercent;
+            if (discountAmountEl) discountAmountEl.textContent = `-${discountAmount.toFixed(2)} ₽`;
+        } else {
+            if (discountRow) discountRow.style.display = 'none';
+        }
+        console.log(`💰 Цена за шт: ${(finalTotal / priceCurrentCirculation).toFixed(2)} ₽, К оплате: ${finalTotal.toFixed(2)} ₽`);
     }
 
     /**

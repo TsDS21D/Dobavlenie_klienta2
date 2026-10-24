@@ -65,13 +65,43 @@ urlpatterns = [
     ),
 
     # POST /orders/api/order/<order_id>/update-comment/
-    # Инлайн-обновление комментария заказа.
+    # Инлайн-обновление комментария заказа (карточка заказа).
     # Вход: {comment}
     # Выход: {success, comment}
     path(
         'api/order/<int:order_id>/update-comment/',
         views.api_update_order_comment,
         name='api_update_order_comment',
+    ),
+
+    # POST /orders/api/order/create/
+    # Ручное создание заказа (секция «Список заказов», форма «Создать»).
+    # Вход: form-data {client?, comment?, ready_datetime?}
+    # Выход: {success, order: {...}}
+    path(
+        'api/order/create/',
+        views.api_create_order,
+        name='api_create_order',
+    ),
+
+    # POST /orders/api/order/<order_id>/update-field/
+    # Инлайн-редактирование одного поля заказа в списке
+    # (client / status / ready_datetime / comment).
+    # Вход: form-data {field_name, field_value}
+    # Выход: {success, order: {...}}
+    path(
+        'api/order/<int:order_id>/update-field/',
+        views.api_update_order,
+        name='api_update_order',
+    ),
+
+    # POST /orders/api/order/<order_id>/delete/
+    # Мягкое удаление заказа (is_deleted=True).
+    # Выход: {success, order_id, message}
+    path(
+        'api/order/<int:order_id>/delete/',
+        views.api_delete_order,
+        name='api_delete_order',
     ),
 
     # GET /orders/api/product/<product_id>/details/
@@ -81,6 +111,15 @@ urlpatterns = [
         views.api_product_details,
         name='api_product_details',
     ),    
+
+    # GET /orders/api/rows/
+    # HTML-партиал <tr>-строк для перерисовки tbody таблицы заказов
+    # без перезагрузки страницы (после создания/удаления/редактирования).
+    path(
+        'api/rows/',
+        views.api_rows,
+        name='api_rows',
+    ),
 
     # GET /orders/<order_id>/
     # Страница одного заказа (карточка со списком изделий).
