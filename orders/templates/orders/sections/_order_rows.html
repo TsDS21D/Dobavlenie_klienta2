@@ -52,11 +52,86 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
-
+                <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
+                <div class="list-orders-card-hours">
+                    {% if order.status == 'completed' %}
+                        <!-- Для выданных заказов вместо часов показываем галочку -->
+                        <span class="list-orders-hours-badge normal">✓</span>
+                    {% else %}
+                        <!-- Для активных заказов считаем оставшиеся рабочие часы -->
+                        {% with hours=order.get_working_hours_remaining %}
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                                ⏱️ {{ hours }}ч
+                            </span>
+                        {% endwith %}
+                    {% endif %}
+                </div>
                 <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+
+                <!-- БЛОК С ПОДРОБНОСТЯМИ -->
+                <div class="list-orders-card-details">
+                    <div class="list-orders-details-grid">
+                        <!-- Комментарий (редактируемый) -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
+                            <span class="list-orders-detail-label">Комментарий:</span>
+                            <span class="list-orders-detail-value editable-cell"
+                                  data-field="comment"
+                                  data-original-value="{{ order.comment|default:'' }}">
+                                {{ order.comment|default:"—" }}
+                            </span>
+                        </div>
+
+                        <!-- Изделия -->
+                        <!-- БЛОК С ИЗДЕЛИЯМИ -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                            <div class="list-orders-products-wrap">
+                                {% for product in order.products.all %}
+                                    <div class="list-orders-product-item">
+                                        <span class="list-orders-product-number">{{ forloop.counter }}.</span>
+                                        <span class="list-orders-product-title">{{ product.title }}</span>
+                                        <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                        <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                    </div>
+                                {% empty %}
+                                    <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="list-orders-details-actions">
+                        <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
+                    <div class="list-orders-add-product-section">
+                        <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                        </button>
+                        
+                        <div class="list-orders-add-product-content">
+                            <!-- Форма добавления из существующего просчёта -->
+                            <div class="list-orders-add-product-form">
+                                <label>Выбрать просчёт:</label>
+                                <select class="list-orders-select-proschet">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <button type="button" class="list-orders-btn-add-from-proschet" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <!-- Ссылка на калькулятор для создания нового просчёта -->
+                                <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
+                                    + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% empty %}
             <div class="list-orders-group-empty">Заказов нет</div>
@@ -106,11 +181,85 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
-
+                <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
+                <div class="list-orders-card-hours">
+                    {% if order.status == 'completed' %}
+                        <!-- Для выданных заказов вместо часов показываем галочку -->
+                        <span class="list-orders-hours-badge normal">✓</span>
+                    {% else %}
+                        <!-- Для активных заказов считаем оставшиеся рабочие часы -->
+                        {% with hours=order.get_working_hours_remaining %}
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                                ⏱️ {{ hours }}ч
+                            </span>
+                        {% endwith %}
+                    {% endif %}
+                </div>
                 <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+
+                <!-- БЛОК С ПОДРОБНОСТЯМИ -->
+                <div class="list-orders-card-details">
+                    <div class="list-orders-details-grid">
+                        <!-- Комментарий (редактируемый) -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
+                            <span class="list-orders-detail-label">Комментарий:</span>
+                            <span class="list-orders-detail-value editable-cell"
+                                  data-field="comment"
+                                  data-original-value="{{ order.comment|default:'' }}">
+                                {{ order.comment|default:"—" }}
+                            </span>
+                        </div>
+
+                        <!-- БЛОК С ИЗДЕЛИЯМИ -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                               <div class="list-orders-products-wrap">
+                                {% for product in order.products.all %}
+                                    <div class="list-orders-product-item">
+                                        <span class="list-orders-product-number">{{ forloop.counter }}.</span>
+                                        <span class="list-orders-product-title">{{ product.title }}</span>
+                                        <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                        <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                    </div>
+                                {% empty %}
+                                    <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="list-orders-details-actions">
+                        <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
+                    <div class="list-orders-add-product-section">
+                        <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                        </button>
+                        
+                        <div class="list-orders-add-product-content">
+                            <!-- Форма добавления из существующего просчёта -->
+                            <div class="list-orders-add-product-form">
+                                <label>Выбрать просчёт:</label>
+                                <select class="list-orders-select-proschet">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <button type="button" class="list-orders-btn-add-from-proschet" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <!-- Ссылка на калькулятор для создания нового просчёта -->
+                                <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
+                                    + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% empty %}
             <div class="list-orders-group-empty">Заказов нет</div>
@@ -160,17 +309,92 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
-
+                <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
+                <div class="list-orders-card-hours">
+                    {% if order.status == 'completed' %}
+                        <!-- Для выданных заказов вместо часов показываем галочку -->
+                        <span class="list-orders-hours-badge normal">✓</span>
+                    {% else %}
+                        <!-- Для активных заказов считаем оставшиеся рабочие часы -->
+                        {% with hours=order.get_working_hours_remaining %}
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                                ⏱️ {{ hours }}ч
+                            </span>
+                        {% endwith %}
+                    {% endif %}
+                </div>
                 <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+
+                <!-- БЛОК С ПОДРОБНОСТЯМИ -->
+                <div class="list-orders-card-details">
+                    <div class="list-orders-details-grid">
+                        <!-- Комментарий (редактируемый) -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
+                            <span class="list-orders-detail-label">Комментарий:</span>
+                            <span class="list-orders-detail-value editable-cell"
+                                  data-field="comment"
+                                  data-original-value="{{ order.comment|default:'' }}">
+                                {{ order.comment|default:"—" }}
+                            </span>
+                        </div>
+
+                        <!-- БЛОК С ИЗДЕЛИЯМИ -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                            <div class="list-orders-products-wrap">
+                                {% for product in order.products.all %}
+                                    <div class="list-orders-product-item">
+                                        <span class="list-orders-product-number">{{ forloop.counter }}.</span>
+                                        <span class="list-orders-product-title">{{ product.title }}</span>
+                                        <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                        <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                    </div>
+                                {% empty %}
+                                    <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="list-orders-details-actions">
+                        <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
+                    <div class="list-orders-add-product-section">
+                        <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                        </button>
+                        
+                        <div class="list-orders-add-product-content">
+                            <!-- Форма добавления из существующего просчёта -->
+                            <div class="list-orders-add-product-form">
+                                <label>Выбрать просчёт:</label>
+                                <select class="list-orders-select-proschet">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <button type="button" class="list-orders-btn-add-from-proschet" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <!-- Ссылка на калькулятор для создания нового просчёта -->
+                                <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
+                                    + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% empty %}
             <div class="list-orders-group-empty">Заказов нет</div>
         {% endfor %}
     </div>
 </div>
+
 
 <!-- ==================== 4. ВЫДАНЫ ==================== -->
 <div class="list-orders-group">
@@ -214,11 +438,84 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
-
+                <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
+                <div class="list-orders-card-hours">
+                    {% if order.status == 'completed' %}
+                        <!-- Для выданных заказов вместо часов показываем галочку -->
+                        <span class="list-orders-hours-badge normal">✓</span>
+                    {% else %}
+                        <!-- Для активных заказов считаем оставшиеся рабочие часы -->
+                        {% with hours=order.get_working_hours_remaining %}
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                                ⏱️ {{ hours }}ч
+                            </span>
+                        {% endwith %}
+                    {% endif %}
+                </div>
                 <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+
+                <!-- БЛОК С ПОДРОБНОСТЯМИ -->
+                <div class="list-orders-card-details">
+                    <div class="list-orders-details-grid">
+                        <!-- Комментарий (редактируемый) -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
+                            <span class="list-orders-detail-label">Комментарий:</span>
+                            <span class="list-orders-detail-value editable-cell"
+                                  data-field="comment"
+                                  data-original-value="{{ order.comment|default:'' }}">
+                                {{ order.comment|default:"—" }}
+                            </span>
+                        </div>
+
+                        <!-- БЛОК С ИЗДЕЛИЯМИ -->
+                        <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                            <div class="list-orders-products-wrap">
+                                {% for product in order.products.all %}
+                                    <div class="list-orders-product-item">
+                                        <span class="list-orders-product-number">{{ forloop.counter }}.</span>
+                                        <span class="list-orders-product-title">{{ product.title }}</span>
+                                        <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                        <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                    </div>
+                                {% empty %}
+                                    <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="list-orders-details-actions">
+                        <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
+                    </div>
+                    <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
+                    <div class="list-orders-add-product-section">
+                        <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                        </button>
+                        
+                        <div class="list-orders-add-product-content">
+                            <!-- Форма добавления из существующего просчёта -->
+                            <div class="list-orders-add-product-form">
+                                <label>Выбрать просчёт:</label>
+                                <select class="list-orders-select-proschet">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <button type="button" class="list-orders-btn-add-from-proschet" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <!-- Ссылка на калькулятор для создания нового просчёта -->
+                                <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
+                                    + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% empty %}
             <div class="list-orders-group-empty">Заказов нет</div>

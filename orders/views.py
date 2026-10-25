@@ -32,13 +32,16 @@ def index(request):
         - список клиентов (для выпадающего списка в форме создания заказа);
         - active_app/page_title — как у остальных страниц проекта.
     """
+    # Создаем правило: подтягивать к заказу только НЕудаленные изделия
+    active_products = Product.objects.filter(is_deleted=False)
+    
     # Берём все не удалённые заказы, свежие сверху.
-    # select_related('client') — подгружает клиента одним запросом,
-    # чтобы не было N+1 при обращении к order.client.name в шаблоне.
     orders = (
         Order.objects
         .filter(is_deleted=False)
         .select_related('client')
+        # Применяем наше правило: в order.products попадут только активные изделия
+        .prefetch_related(Prefetch('products', queryset=active_products))
         .order_by('-created_at')
     )
 
@@ -47,17 +50,31 @@ def index(request):
     # только здесь, в шапке файла его держать смысла нет.
     clients = []
     try:
-        from baza_klientov.models import Client
-        clients = Client.objects.all().order_by('client_number')
+        from baza_klientov.models import Client, LegalEntity
+        from django.db.models import Subquery, OuterRef
+
+        # Создаем подзапрос: берем название основного юрлица для текущего клиента
+        primary_le_name = LegalEntity.objects.filter(
+            client=OuterRef('pk'),
+            is_primary=True,
+            is_deleted=False
+        ).values('name')[:1]
+
+        # Прикрепляем это название к клиентам (берем только неудаленных клиентов)
+        clients = Client.objects.filter(is_deleted=False).annotate(
+            primary_le_name=Subquery(primary_le_name)
+        ).order_by('name')
     except ImportError:
-        # Если приложение baza_klientov не подключено — оставляем пустой
-        # список. Форма будет без выбора клиента, но страница откроется.
         pass
 
     # Группируем заказы по статусам для вывода в 4 колонки/блока.
-    orders_in_progress = [o for o in orders if o.status == 'in_progress']
-    orders_accepted    = [o for o in orders if o.status == 'accepted']
-    orders_ready       = [o for o in orders if o.status == 'ready']
+    # Сортируем активные заказы по возрастанию оставшихся рабочих часов
+    # (чем меньше часов, тем выше заказ в списке).
+    orders_in_progress = sorted([o for o in orders if o.status == 'in_progress'], key=lambda o: o.get_working_hours_remaining())
+    orders_accepted    = sorted([o for o in orders if o.status == 'accepted'], key=lambda o: o.get_working_hours_remaining())
+    orders_ready       = sorted([o for o in orders if o.status == 'ready'], key=lambda o: o.get_working_hours_remaining())
+    
+    # Выполненные заказы оставляем как есть (они уже отсортированы по дате создания -created_at).
     orders_completed   = [o for o in orders if o.status == 'completed']
 
     # Формируем контекст для шаблона.
@@ -101,6 +118,7 @@ from asgiref.sync import async_to_sync
 
 from calculator.models_list_proschet import Proschet     # Модель просчёта
 
+from django.db.models import Prefetch
 from .models import Order, Product                       # Наши модели
 from .services import (                                  # Сервисные функции
     create_order_from_proschet,
@@ -372,10 +390,14 @@ def api_all_orders(request):
     # --- Берём все не удалённые заказы ---
     # select_related('client') — подгружает клиента одним запросом,
     # чтобы не было N+1 при обращении к order.client.name в цикле ниже.
+    # Такое же правило подгрузки только активных изделий
+    active_products = Product.objects.filter(is_deleted=False)
+    
     orders = (
         Order.objects
         .filter(is_deleted=False)
         .select_related('client')
+        .prefetch_related(Prefetch('products', queryset=active_products))
         .order_by('-created_at')
     )
 
@@ -672,10 +694,12 @@ def api_rows(request):
     select_related('client') — подгружаем клиента одним JOIN-запросом,
     чтобы в шаблоне order.client.name не породил N+1.
     """
+    active_products = Product.objects.filter(is_deleted=False)
     orders = (
         Order.objects
         .filter(is_deleted=False)
         .select_related('client')
+        .prefetch_related(Prefetch('products', queryset=active_products))
         .order_by('-created_at')
     )
     return render(
@@ -683,9 +707,10 @@ def api_rows(request):
         'orders/sections/_order_rows.html',
         {
             'orders': orders,
-            'orders_in_progress': [o for o in orders if o.status == 'in_progress'],
-            'orders_accepted':    [o for o in orders if o.status == 'accepted'],
-            'orders_ready':       [o for o in orders if o.status == 'ready'],
+            # Применяем ту же сортировку по рабочим часам
+            'orders_in_progress': sorted([o for o in orders if o.status == 'in_progress'], key=lambda o: o.get_working_hours_remaining()),
+            'orders_accepted':    sorted([o for o in orders if o.status == 'accepted'], key=lambda o: o.get_working_hours_remaining()),
+            'orders_ready':       sorted([o for o in orders if o.status == 'ready'], key=lambda o: o.get_working_hours_remaining()),
             'orders_completed':   [o for o in orders if o.status == 'completed'],
         },
     )
@@ -798,6 +823,9 @@ def api_create_order(request):
             'ready_datetime':  order.ready_datetime.strftime('%d.%m.%Y %H:%M'),
             'comment':         order.comment or '',
             'created_at':      order.created_at.strftime('%d.%m.%Y %H:%M'),
+            'products_count':  order.products.filter(is_deleted=False).count(),
+            'total_price':     order.formatted_total_price,
+            'working_hours_remaining': order.get_working_hours_remaining(), # <--- ДОБАВЛЕНА ЭТА СТРОКА
         },
     })
 
@@ -931,6 +959,7 @@ def api_update_order(request, order_id):
             'created_at':     order.created_at.strftime('%d.%m.%Y %H:%M'),
             'products_count': order.products.filter(is_deleted=False).count(),
             'total_price':    order.formatted_total_price,
+            'working_hours_remaining': order.get_working_hours_remaining(),
         },
     })
 
@@ -1009,3 +1038,118 @@ def _send_order_event(event_type, order, request):
             'actor_session_key': request.session.session_key or '',
         }
     )
+
+# ============================================================================
+# API 10: СПИСОК КЛИЕНТОВ С ЮРЛИЦАМИ (для инлайн-редактирования)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_clients(request):
+    """
+    Возвращает список клиентов для выпадающего списка при редактировании заказа.
+    Включает название основного юрлица (если есть).
+    """
+    clients_data = []
+    try:
+        from baza_klientov.models import Client, LegalEntity
+        from django.db.models import Subquery, OuterRef
+
+        # Подзапрос: название основного юрлица
+        primary_le_name = LegalEntity.objects.filter(
+            client=OuterRef('pk'),
+            is_primary=True,
+            is_deleted=False
+        ).values('name')[:1]
+
+        clients = Client.objects.filter(is_deleted=False).annotate(
+            primary_le_name=Subquery(primary_le_name)
+        ).order_by('name')
+        
+        for c in clients:
+            clients_data.append({
+                'id': c.id,
+                'name': c.name,
+                'primary_le_name': c.primary_le_name or ''
+            })
+    except ImportError:
+        pass
+        
+    return JsonResponse({
+        'success': True,
+        'clients': clients_data
+    })
+
+# ============================================================================
+# API 11: МЯГКОЕ УДАЛЕНИЕ ИЗДЕЛИЯ
+# ============================================================================
+
+@login_required
+@require_POST
+def api_delete_product(request, product_id):
+    """
+    Мягкое удаление изделия (is_deleted=True).
+    Используется кнопкой-крестиком в раскрытом списке заказов.
+    """
+    product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+    
+    product.is_deleted = True
+    product.save(update_fields=['is_deleted'])
+    
+    # Отправляем WebSocket-событие, чтобы другие вкладки обновили таблицу
+    # (используем существующую функцию, передав родительский заказ)
+    _send_order_event('updated', product.order, request)
+    
+    return JsonResponse({
+        'success': True,
+        'product_id': product.id,
+        'message': f'Изделие "{product.title}" удалено'
+    })
+
+# ============================================================================
+# API 12: СПИСОК ПРОСЧЁТОВ (для добавления в заказ)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_proschets_list(request):
+    """
+    Возвращает список активных просчётов (ID и название).
+    Используется в выпадающем списке «Добавить из просчёта».
+    """
+    # Берем только неудаленные просчёты, сортируем по новизне
+    proschets = Proschet.objects.filter(is_deleted=False).order_by('-created_at')
+    
+    data = []
+    for p in proschets:
+        data.append({
+            'id': p.id,
+            'number': p.number,
+            'title': p.title,
+        })
+        
+    return JsonResponse({
+        'success': True,
+        'proschets': data
+    })
+
+# ============================================================================
+# API 13: ПОЛУЧЕНИЕ ИНФОРМАЦИИ О ЗАКАЗЕ (для плашки)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_order_info(request, order_id):
+    """
+    Возвращает базовую информацию о заказе по его ID.
+    Используется для отображения номера заказа и предзаполнения клиента.
+    """
+    order = get_object_or_404(Order, pk=order_id, is_deleted=False)
+    return JsonResponse({
+        'success': True,
+        'order': {
+            'id': order.id,
+            'number': order.number,
+            'client_id': order.client.id if order.client else None, # <--- ДОБАВИЛИ
+        }
+    })

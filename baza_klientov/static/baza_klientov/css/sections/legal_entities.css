@@ -273,6 +273,13 @@
     border-color: #d0d0d0; /* <--- ИЗМЕНЯЕМ ТОЛЬКО ЦВЕТ, ТОЛЩИНА БЕРЁТСЯ ИЗ БАЗОВОГО КЛАССА */
 }
 
+/* 4. ЭДО не проверял (выглядит точно так же, как "Без ЭДО") */
+.le-edo-select.status-unchecked {
+    background-color: transparent;
+    color: #888888;
+    border-color: #d0d0d0;
+}
+
 .le-edo-select:hover {
     opacity: 0.85;
 }

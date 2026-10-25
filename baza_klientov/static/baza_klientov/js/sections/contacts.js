@@ -53,6 +53,31 @@ JavaScript секции «Сотрудники» (Контактные лица)
             formEl.addEventListener('submit', handleFormSubmit);
         }
 
+        // Форматирование телефонов в форме создания
+        const phoneInput = document.getElementById('contact-phone');
+        const mobileInput = document.getElementById('contact-mobile');
+        
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function() {
+                this.value = formatPhoneNumber(this.value);
+            });
+            // Перехватываем вставку, чтобы 8 заменялась на +7
+            phoneInput.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                this.value = formatPhoneNumber(pastedText);
+            });
+        }
+        if (mobileInput) {
+            mobileInput.addEventListener('input', function() {
+                this.value = formatPhoneNumber(this.value);
+            });
+            mobileInput.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                this.value = formatPhoneNumber(pastedText);
+            });
+        }
         // Делегированные обработчики для карточек
         contactsList.addEventListener('dblclick', handleFieldDblClick);
         contactsList.addEventListener('click', handleDeleteClick);
@@ -129,7 +154,7 @@ JavaScript секции «Сотрудники» (Контактные лица)
 
             // Шапка (ФИО + Основной + Удалить)
             let headerHtml = '<div class="contact-card-header">';
-            headerHtml += '<span class="contact-card-name">' + escapeHtml(contact.full_name) + '</span>';
+            headerHtml += '<span class="contact-card-name contact-card-value" data-field="full_name">' + escapeHtml(contact.full_name) + '</span>';
             
             if (contact.is_primary) {
                 headerHtml += '<span class="contact-card-primary" title="Клик для снятия отметки">Основной</span>';
@@ -141,24 +166,15 @@ JavaScript секции «Сотрудники» (Контактные лица)
             headerHtml += '<button type="button" class="contact-card-delete" title="Удалить">×</button>';
             headerHtml += '</div>';
 
-            // Тело (Поля с data-field для редактирования)
+            // Всегда выводим все поля. Если данных нет — ставим прочерк (—),
+            // чтобы по нему можно было кликнуть и добавить данные.
             let bodyHtml = '<div class="contact-card-body">';
             
-            if (contact.position) {
-                bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Должность:</span><span class="contact-card-value" data-field="position">' + escapeHtml(contact.position) + '</span></div>';
-            }
-            if (contact.phone) {
-                bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Тел:</span><span class="contact-card-value" data-field="phone">' + escapeHtml(contact.phone) + '</span></div>';
-            }
-            if (contact.mobile) {
-                bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Моб:</span><span class="contact-card-value" data-field="mobile">' + escapeHtml(contact.mobile) + '</span></div>';
-            }
-            if (contact.email) {
-                bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">E-mail:</span><span class="contact-card-value" data-field="email">' + escapeHtml(contact.email) + '</span></div>';
-            }
-            if (contact.comments) {
-                bodyHtml += '<div class="contact-card-field" style="flex-basis: 100%;"><span class="contact-card-label">Комментарий:</span><span class="contact-card-value" data-field="comments">' + escapeHtml(contact.comments) + '</span></div>';
-            }
+            bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Должность:</span><span class="contact-card-value" data-field="position">' + escapeHtml(contact.position || '—') + '</span></div>';
+            bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Тел:</span><span class="contact-card-value" data-field="phone">' + escapeHtml(contact.phone || '—') + '</span></div>';
+            bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">Моб:</span><span class="contact-card-value" data-field="mobile">' + escapeHtml(contact.mobile || '—') + '</span></div>';
+            bodyHtml += '<div class="contact-card-field"><span class="contact-card-label">E-mail:</span><span class="contact-card-value" data-field="email">' + escapeHtml(contact.email || '—') + '</span></div>';
+            bodyHtml += '<div class="contact-card-field" style="flex-basis: 100%;"><span class="contact-card-label">Комментарий:</span><span class="contact-card-value" data-field="comments">' + escapeHtml(contact.comments || '—') + '</span></div>';
             
             bodyHtml += '</div>';
             card.innerHTML = headerHtml + bodyHtml;
@@ -175,7 +191,7 @@ JavaScript секции «Сотрудники» (Контактные лица)
         if (valueEl.querySelector('input')) return;
 
         const field = valueEl.dataset.field;
-        const originalText = valueEl.textContent;
+        const originalText = valueEl.textContent === '—' ? '' : valueEl.textContent;
         
         // Создаем инпут
         const input = document.createElement('input');
@@ -185,6 +201,18 @@ JavaScript секции «Сотрудники» (Контактные лица)
         
         valueEl.textContent = '';
         valueEl.appendChild(input);
+        // Если это поле телефона — включаем автоформатирование
+        if (field === 'phone' || field === 'mobile') {
+            input.addEventListener('input', function() {
+                this.value = formatPhoneNumber(this.value);
+            });
+            // Перехватываем вставку
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                this.value = formatPhoneNumber(pastedText);
+            });
+        }
         input.focus();
         
         let finished = false;
@@ -229,7 +257,9 @@ JavaScript секции «Сотрудники» (Контактные лица)
         .then(function(data) {
             if (!data.success) {
                 alert('Ошибка сохранения');
-                loadContacts(currentClientId, false); // Откат
+                loadContacts(currentClientId, false);
+            } else {
+                if (window.BazaListClients) window.BazaListClients.refreshTable(); // <-- ДОБАВИТЬ
             }
         })
         .catch(function() {
@@ -260,6 +290,7 @@ JavaScript секции «Сотрудники» (Контактные лица)
             if (data.success) {
                 btn.closest('.contact-card').remove();
                 updateContactCount(-1);
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             } else {
                 alert('Ошибка удаления');
             }
@@ -290,6 +321,7 @@ JavaScript секции «Сотрудники» (Контактные лица)
         .then(function(data) {
             if (data.success) {
                 loadContacts(currentClientId, false); // Перерисовываем, чтобы снять метку с других
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             }
         });
     }
@@ -331,6 +363,7 @@ JavaScript секции «Сотрудники» (Контактные лица)
                 closeForm();
                 loadContacts(currentClientId);
                 updateContactCount(1);
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             } else {
                 alert('Ошибка: ' + (data.errors ? JSON.stringify(data.errors) : 'неизвестная'));
             }
@@ -362,6 +395,56 @@ JavaScript секции «Сотрудники» (Контактные лица)
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Функция для автоматического форматирования номера телефона
+    function formatPhoneNumber(value) {
+        // Если пользователь стер все цифры, оставив только +7 или +7 (,
+        // возвращаем пустую строку, чтобы он мог полностью очистить поле.
+        if (value === '+7' || value === '+7 (' || value === '+7 ( ') {
+            return '';
+        }
+
+        // 1. Оставляем только цифры
+        let digits = value.replace(/\D/g, '');
+        
+        if (!digits) return '';
+
+        // 2. Если первая цифра 8, меняем её на 7
+        if (digits.startsWith('8')) {
+            digits = '7' + digits.slice(1);
+        } 
+        // 3. Если номер не начинается с 7 (и это не полный 11-значный номер),
+        //    добавляем 7 в начало.
+        else if (!digits.startsWith('7') && digits.length <= 10) {
+            digits = '7' + digits;
+        }
+
+        // 4. Обрезаем лишние цифры (максимум 11)
+        if (digits.length > 11) {
+            digits = digits.slice(0, 11);
+        }
+
+        // 5. Собираем красивую строку
+        let formatted = '+7';
+        
+        if (digits.length > 1) {
+            formatted += ' (' + digits.slice(1, 4);
+        } else {
+            formatted += ' (';
+        }
+
+        if (digits.length >= 5) {
+            formatted += ') ' + digits.slice(4, 7);
+        }
+        if (digits.length >= 8) {
+            formatted += '-' + digits.slice(7, 9);
+        }
+        if (digits.length >= 10) {
+            formatted += '-' + digits.slice(9, 11);
+        }
+        
+        return formatted;
     }
 
     function getCookie(name) {

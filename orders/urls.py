@@ -103,6 +103,20 @@ urlpatterns = [
         views.api_delete_order,
         name='api_delete_order',
     ),
+    # POST /orders/api/product/<product_id>/delete/
+    # Мягкое удаление изделия
+    path(
+        'api/product/<int:product_id>/delete/',
+        views.api_delete_product,
+        name='api_delete_product',
+    ),
+
+    # GET /orders/api/proschets-list/
+    path(
+        'api/proschets-list/',
+        views.api_proschets_list,
+        name='api_proschets_list',
+    ),
 
     # GET /orders/api/product/<product_id>/details/
     # Полный состав изделия (для раскрытия карточки на странице заказа).
@@ -119,6 +133,29 @@ urlpatterns = [
         'api/rows/',
         views.api_rows,
         name='api_rows',
+    ),
+
+    # GET /orders/api/proschets-list/
+    # Список просчётов для выпадающего списка
+    path(
+        'api/proschets-list/',
+        views.api_proschets_list,
+        name='api_proschets_list',
+    ),
+
+    # GET /orders/api/order-info/<order_id>/
+    path(
+        'api/order-info/<int:order_id>/',
+        views.api_order_info,
+        name='api_order_info',
+    ),
+
+    # GET /orders/api/clients/
+    # Список клиентов с юрлицами для инлайн-редактирования
+    path(
+        'api/clients/',
+        views.api_clients,
+        name='api_clients',
     ),
 
     # GET /orders/<order_id>/

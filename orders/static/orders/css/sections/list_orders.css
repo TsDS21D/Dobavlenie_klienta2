@@ -90,6 +90,20 @@ orders/static/orders/css/sections/list_orders.css
     background: #ffffff;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
+/* Специально для селектов (чтобы стрелочка была своя) */
+select.list-orders-form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2rem; /* Место для стрелки */
+    cursor: pointer;
+    /* Кастомная SVG-стрелочка зелёного цвета */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230B8661%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem top 50%;
+    background-size: 0.65rem auto;
+}
 .list-orders-form-input:focus {
     outline: none;
     border-color: #0B8661;
@@ -288,8 +302,9 @@ select.list-orders-search {
     font-size: 0.95rem;
     font-weight: 700;
     color: #0B8661;
-    flex: 0 0 70px;
+    flex: 0 0 65px;
     white-space: nowrap;
+    line-height: 1.2; /* Выравниваем высоту строки */
 }
 
 /* Клиент */
@@ -297,17 +312,18 @@ select.list-orders-search {
     font-size: 0.9rem;
     font-weight: 600;
     color: #333;
-    flex: 1 1 150px;
+    flex: 1 1 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.2; /* Выравниваем высоту строки */
 }
 
 /* Комментарий */
 .list-orders-card-comment {
     font-size: 0.85rem;
     color: #666;
-    flex: 2 1 200px;
+    flex: 1 1 110px; /* Ужали */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -317,7 +333,7 @@ select.list-orders-search {
 
 /* Статус */
 .list-orders-card-status {
-    flex: 0 0 90px;
+    flex: 0 0 85px; /* Было 90px */
     text-align: center;
 }
 
@@ -325,7 +341,7 @@ select.list-orders-search {
 .list-orders-card-ready {
     font-size: 0.85rem;
     color: #555;
-    flex: 0 0 110px;
+    flex: 0 0 100px; /* Было 110px */
     text-align: center;
     white-space: nowrap;
 }
@@ -333,19 +349,25 @@ select.list-orders-search {
 /* Метаданные (изделия и стоимость) */
 .list-orders-card-meta {
     display: flex;
-    gap: 0.8rem;
-    flex: 0 0 150px;
+    gap: 0.5rem; /* Уменьшили отступ между цифрами */
+    flex: 0 0 140px; /* Зафиксировали ширину */
     justify-content: flex-end;
+    align-items: center; /* Центрируем по вертикали */
     font-size: 0.85rem;
 }
 
 .list-orders-card-products {
     color: #888;
+    width: 50px; /* Жесткая ширина для количества изделий */
+    text-align: right;
+    flex-shrink: 0;
 }
 
 .list-orders-card-total {
     font-weight: 600;
     color: #333;
+    text-align: right;
+    min-width: 75px; /* Минимальная ширина для суммы */
 }
 
 /* Кнопка удаления */
@@ -438,8 +460,19 @@ select.list-orders-search {
     background: #ffffff;
     box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
 }
+
+/* Специально для инлайн-селекта */
 .list-orders-inline-select {
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 0.25rem 1.5rem 0.25rem 0.4rem; /* Справа больше места под стрелку */
+    /* Та же SVG-стрелочка */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230B8661%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem top 50%;
+    background-size: 0.55rem auto;
 }
 
 /* Индикатор сохранения */
@@ -738,4 +771,532 @@ select.list-orders-search {
     background: #ffffff;
     color: #333333;
     font-weight: 500;
+}
+
+
+/* ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ==================== */
+
+/* Затемняющий оверлей — как у модалки выбора шаблона. */
+.list-orders-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    font-family: inherit;
+}
+
+/* Компактная карточка в светло-розовых тонах. */
+.list-orders-confirm {
+    background: rgba(244, 228, 227, 0.75);
+    border: 1px solid rgba(170, 100, 97, 0.45);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem 0.85rem;
+    width: 90%;
+    max-width: 340px;
+    box-shadow: 0 12px 36px rgba(122, 40, 35, 0.22);
+    animation: listOrdersConfirmIn 0.15s ease-out;
+    backdrop-filter: blur(3px);
+}
+
+@keyframes listOrdersConfirmIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Заголовок модалки — тёмно-красный. */
+.list-orders-confirm-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #a03a35;
+    margin-bottom: 0.35rem;
+}
+
+/* Пояснительный текст — приглушённый, помельче. */
+.list-orders-confirm-text {
+    font-size: 0.82rem;
+    color: #7a4441;
+    line-height: 1.35;
+    margin-bottom: 0.85rem;
+}
+
+/* Кнопки в правом нижнем углу. */
+.list-orders-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.list-orders-confirm-btn {
+    padding: 0.35rem 0.85rem;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.12s ease;
+}
+
+/* «Отмена» — светлая серая. */
+.list-orders-confirm-btn-no {
+    background: #ffffff;
+    color: #555555;
+    border: 1px solid #d0d0d0;
+}
+.list-orders-confirm-btn-no:hover {
+    background: #f5f5f5;
+}
+
+/* «Удалить» — насыщенная красная. */
+.list-orders-confirm-btn-yes {
+    background: #d9584f;
+    color: #ffffff;
+}
+.list-orders-confirm-btn-yes:hover {
+    background: #bf4238;
+    transform: translateY(-1px);
+}
+
+
+/* ==================== БЕЙДЖ РАБОЧИХ ЧАСОВ ==================== */
+
+.list-orders-card-hours {
+    flex: 0 0 auto;
+    text-align: center;
+}
+
+.list-orders-hours-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: white;
+    min-width: 55px;
+    white-space: nowrap;
+}
+
+/* Норма (больше 3 часов) */
+.list-orders-hours-badge.normal {
+    background: #0B8661;
+}
+
+/* Предупреждение (1-3 часа) */
+.list-orders-hours-badge.warning {
+    background: #ff9800;
+}
+
+/* Критично (меньше 1 часа) */
+.list-orders-hours-badge.critical {
+    background: #f44336;
+}
+
+/* ==================== ФОРМА СОЗДАНИЯ В ОДНУ СТРОКУ ==================== */
+
+/* Контейнер для трех полей в ряд */
+.list-orders-form-inline {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-end; /* Выравниваем по нижнему краю (чтобы инпуты были на одном уровне) */
+    margin-bottom: 0.8rem;
+    flex-wrap: wrap; /* Если экран узкий — перенесется на новую строку */
+}
+
+/* Сами поля внутри контейнера */
+.list-orders-form-inline .list-orders-form-row {
+    flex: 1 1 auto;
+    margin-bottom: 0; /* Убираем нижний отступ, так как за него теперь отвечает контейнер */
+    min-width: 180px; /* Чтобы поля не сжимались слишком сильно */
+}
+
+/* Поле "Клиент" делаем чуть шире остальных */
+.list-orders-form-inline .list-orders-form-row:first-child {
+    flex: 1 1 220px;
+}
+
+/* Стрелочка в кнопке "Создать" */
+.list-orders-toggle-arrow {
+    display: inline-block;
+    margin-left: 0.4rem;
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+
+/* Поворот стрелочки, когда форма открыта (класс is-open добавляет JS) */
+.list-orders-btn-create.is-open .list-orders-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+
+/* ==================== РАСКРЫТИЕ КАРТОЧКИ (АККОРДЕОН) ==================== */
+
+/* Контейнер для дополнительных данных (скрыт по умолчанию) */
+.list-orders-card-details {
+    display: none;
+    flex: 1 0 100%; /* Занимает всю ширину и переносится на новую строку */
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    cursor: default; /* Чтобы клик по деталям не вызывал сворачивание */
+    animation: slideDown 0.2s ease-out;
+}
+
+/* Показываем блок, когда карточка имеет класс is-expanded */
+.list-orders-card.is-expanded .list-orders-card-details {
+    display: block;
+}
+
+/* Сетка для параметров внутри раскрытого блока */
+.list-orders-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+/* Отдельный параметр */
+.list-orders-detail-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+/* Подпись параметра (серый) */
+.list-orders-detail-label {
+    color: #888;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Значение параметра (темное) */
+.list-orders-detail-value {
+    color: #333;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+/* Блок с кнопкой и датой */
+.list-orders-details-actions {
+    display: flex;
+    justify-content: space-between; /* Разносим дату и кнопку по краям */
+    align-items: center;            /* Выравниваем по центру по вертикали */
+    margin-top: 0.5rem;
+}
+
+/* Стиль для даты создания (мелкий, серый) */
+.list-orders-detail-created {
+    font-size: 0.75rem;
+    color: #999999;
+}
+
+/* Кнопка перехода в карточку */
+.list-orders-btn-open {
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    background: #0B8661;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.list-orders-btn-open:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+}
+
+/* Анимация появления */
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ==================== ИЗДЕЛИЯ В РАСКРЫТОМ БЛОКЕ ==================== */
+
+/* Контейнер для списка изделий (теперь просто вертикальный стек без фона) */
+.list-orders-products-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem; /* Расстояние между блоками изделий */
+}
+
+/* Каждое отдельное изделие (теперь это самостоятельная карточка) */
+.list-orders-product-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;       /* Отступы внутри каждой карточки */
+    background: #ffffff;          /* Белый фон для каждой карточки */
+    border: 1px solid #e0e0e0;    /* Тонкая рамка */
+    border-radius: 6px;           /* Скругление */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02); /* Легкая тень для объема */
+}
+
+
+/* Номер изделия (1., 2., 3. ...) */
+.list-orders-product-number {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #999;
+    margin-right: 0.4rem;
+    flex-shrink: 0;
+    line-height: 1; /* Убираем лишний вертикальный отступ */
+}
+
+.list-orders-product-title {
+    color: #333;
+    font-weight: 500;
+    flex: 1;
+}
+
+.list-orders-product-circulation {
+    color: #888;
+    margin: 0 1rem;
+    white-space: nowrap;
+}
+
+.list-orders-product-price {
+    color: #0B8661;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ==================== КНОПКА УДАЛЕНИЯ ИЗДЕЛИЯ ==================== */
+
+.list-orders-product-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin-left: 0.8rem; /* Отступ от цены */
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0; /* Чтобы не сжималась при длинном названии */
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.list-orders-product-delete-btn:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}
+
+/* ==================== АККОРДЕОН ДОБАВЛЕНИЯ ИЗДЕЛИЯ ==================== */
+
+.list-orders-add-product-section {
+    margin-top: 1rem;
+    border-top: 1px dashed #d0d0d0;
+    padding-top: 0.5rem;
+}
+
+/* Стрелочка (как в просчётах) */
+.list-orders-toggle-add-product {
+    background: transparent;
+    border: none;
+    padding: 0.1rem 0.4rem;
+    color: #b0b0b0;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.list-orders-toggle-add-product:hover {
+    color: #0B8661;
+    background: #eaf6ef;
+}
+
+.list-orders-toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease-out;
+}
+
+/* Поворот стрелочки, когда блок открыт */
+.list-orders-add-product-section.is-open .list-orders-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* Скрытый контент */
+.list-orders-add-product-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+}
+
+.list-orders-add-product-section.is-open .list-orders-add-product-content {
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 0.5rem;
+}
+
+/* Форма в одну строку */
+.list-orders-add-product-form {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: #fafafa;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #ececec;
+    border-radius: 6px;
+}
+
+.list-orders-add-product-form label {
+    font-size: 0.85rem;
+    color: #555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.list-orders-select-proschet {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.list-orders-btn-add-from-proschet {
+    padding: 0.35rem 0.9rem;
+    background: #0B8661;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.list-orders-btn-add-from-proschet:hover {
+    background: #0a6e51;
+}
+
+.list-orders-link-new-proschet {
+    font-size: 0.8rem;
+    color: #0B8661;
+    text-decoration: none;
+    font-weight: 500;
+}
+.list-orders-link-new-proschet:hover {
+    text-decoration: underline;
+}
+
+/* ==================== АККОРДЕОН ДОБАВЛЕНИЯ ИЗДЕЛИЯ ==================== */
+
+.list-orders-add-product-section {
+    margin-top: 1rem;
+    border-top: 1px dashed #d0d0d0;
+    padding-top: 0.5rem;
+}
+
+/* Стрелочка (как в просчётах) */
+.list-orders-toggle-add-product {
+    background: transparent;
+    border: none;
+    padding: 0.1rem 0.4rem;
+    color: #b0b0b0;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.list-orders-toggle-add-product:hover {
+    color: #0B8661;
+    background: #eaf6ef;
+}
+
+.list-orders-toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease-out;
+}
+
+/* Поворот стрелочки, когда блок открыт */
+.list-orders-add-product-section.is-open .list-orders-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+/* Скрытый контент (плавно выезжает) */
+.list-orders-add-product-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+}
+
+.list-orders-add-product-section.is-open .list-orders-add-product-content {
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 0.5rem;
+}
+
+/* Форма в одну строку */
+.list-orders-add-product-form {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: #fafafa;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #ececec;
+    border-radius: 6px;
+}
+
+.list-orders-add-product-form label {
+    font-size: 0.85rem;
+    color: #555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.list-orders-select-proschet {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.list-orders-btn-add-from-proschet {
+    padding: 0.35rem 0.9rem;
+    background: #0B8661;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.list-orders-btn-add-from-proschet:hover {
+    background: #0a6e51;
+}
+
+.list-orders-link-new-proschet {
+    font-size: 0.8rem;
+    color: #0B8661;
+    text-decoration: none;
+    font-weight: 500;
+}
+.list-orders-link-new-proschet:hover {
+    text-decoration: underline;
 }

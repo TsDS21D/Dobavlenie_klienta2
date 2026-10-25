@@ -121,10 +121,12 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
             let edoClass = 'status-none';
             if (edoStatus === 'connected') edoClass = 'status-connected';
             if (edoStatus === 'requested') edoClass = 'status-requested';
+            if (edoStatus === 'unchecked') edoClass = 'status-unchecked';
 
             headerHtml += `
                 <select class="le-edo-select ${edoClass}">
                     <option value="none" ${edoStatus === 'none' ? 'selected' : ''}>Без ЭДО</option>
+                    <option value="unchecked" ${edoStatus === 'unchecked' ? 'selected' : ''}>ЭДО не проверял</option>
                     <option value="requested" ${edoStatus === 'requested' ? 'selected' : ''}>Отправлен запрос</option>
                     <option value="connected" ${edoStatus === 'connected' ? 'selected' : ''}>Работает через ЭДО</option>
                 </select>
@@ -133,14 +135,10 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
             headerHtml += '<button type="button" class="le-card-delete" title="Удалить">×</button>';
             headerHtml += '</div>';
 
-            // Тело
+            // Всегда выводим все поля. Если данных нет — ставим прочерк (—).
             let bodyHtml = '<div class="le-card-body">';
-            if (le.requisites) {
-                bodyHtml += '<div class="le-card-field"><span class="le-card-label">Реквизиты:</span><span class="le-card-value" data-field="requisites">' + escapeHtml(le.requisites) + '</span></div>';
-            }
-            if (le.comment) {
-                bodyHtml += '<div class="le-card-field" style="flex-basis: 100%;"><span class="le-card-label">Комментарий:</span><span class="le-card-value" data-field="comment">' + escapeHtml(le.comment) + '</span></div>';
-            }
+            bodyHtml += '<div class="le-card-field"><span class="le-card-label">Реквизиты:</span><span class="le-card-value" data-field="requisites">' + escapeHtml(le.requisites || '—') + '</span></div>';
+            bodyHtml += '<div class="le-card-field" style="flex-basis: 100%;"><span class="le-card-label">Комментарий:</span><span class="le-card-value" data-field="comment">' + escapeHtml(le.comment || '—') + '</span></div>';
             bodyHtml += '</div>';
 
             card.innerHTML = headerHtml + bodyHtml;
@@ -155,7 +153,7 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
         if (valueEl.querySelector('input') || valueEl.querySelector('textarea')) return;
 
         const field = valueEl.dataset.field || 'name';
-        const originalText = valueEl.textContent;
+        const originalText = valueEl.textContent === '—' ? '' : valueEl.textContent;
         
         const isMultiline = (field === 'requisites' || field === 'comment');
         let input;
@@ -214,7 +212,10 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
             if (!data.success) {
                 window.BazaNotify.notify('Ошибка сохранения', 'error');
                 loadEntities(currentClientId, false);
+            } else {
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             }
+
         })
         .catch(function() {
             alert('Ошибка сети');
@@ -253,25 +254,26 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
         .then(function(data) {
             if (data.success) {
                 loadEntities(currentClientId, false);
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             }
         });
     }
 
-    // Удаление
+    // Удаление юрлица
     function handleDeleteClick(event) {
-        const btn = event.target.closest('.contact-card-delete');
+        const btn = event.target.closest('.le-card-delete'); // Ищем крестик юрлица
         if (!btn) return;
         
-        const contactId = btn.closest('.contact-card').dataset.contactId;
+        const leId = btn.closest('.le-card').dataset.leId;
         
         window.BazaConfirm.show(
-            'Удалить сотрудника?',
-            'Вы уверены, что хотите удалить этого сотрудника?',
+            'Удалить юрлицо?',
+            'Юрлицо и все его данные будут удалены.',
             function() {
                 const fd = new FormData();
                 fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
 
-                fetch('/baza_klientov/delete_contact/' + contactId + '/', {
+                fetch('/baza_klientov/api/delete_legal_entity/' + leId + '/', {
                     method: 'POST',
                     body: fd,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -279,9 +281,9 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data.success) {
-                        btn.closest('.contact-card').remove();
-                        updateContactCount(-1);
-                        window.BazaNotify.notify('Сотрудник удалён', 'success');
+                        window.BazaNotify.notify('Юрлицо удалено', 'success');
+                        loadEntities(currentClientId, false);
+                        if (window.BazaListClients) window.BazaListClients.refreshTable(); // <-- ДОБАВИТЬ
                     } else {
                         window.BazaNotify.notify('Ошибка удаления', 'error');
                     }
@@ -325,6 +327,7 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
             if (data.success) {
                 closeForm();
                 loadEntities(currentClientId, false);
+                if (window.BazaListClients) window.BazaListClients.refreshTable();
             } else {
                 alert('Ошибка: ' + (data.errors ? JSON.stringify(data.errors) : 'неизвестная'));
             }
@@ -358,6 +361,7 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
         select.classList.remove('status-none', 'status-requested', 'status-connected');
         if (newValue === 'connected') select.classList.add('status-connected');
         else if (newValue === 'requested') select.classList.add('status-requested');
+        else if (newValue === 'unchecked') select.classList.add('status-unchecked');
         else select.classList.add('status-none');
 
         const fd = new FormData();
@@ -375,6 +379,8 @@ baza_klientov/static/baza_klientov/js/sections/legal_entities.js
             if (!data.success) {
                 alert('Ошибка сохранения ЭДО');
                 loadEntities(currentClientId, false);
+            } else {
+                if (window.BazaListClients) window.BazaListClients.refreshTable(); // <-- ДОБАВИТЬ
             }
         })
         .catch(function() {

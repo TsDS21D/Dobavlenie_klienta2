@@ -562,3 +562,14 @@ def delete_legal_entity(request, le_id):
     legal_entity.is_deleted = True
     legal_entity.save(update_fields=['is_deleted'])
     return JsonResponse({'success': True})
+
+@login_required(login_url='/login/')
+@require_GET
+def api_client_rows(request):
+    """Возвращает HTML-партиал с актуальным списком клиентов для обновления таблицы."""
+    from django.db.models import Prefetch
+    clients = Client.objects.filter(is_deleted=False).prefetch_related(
+        Prefetch('legal_entities', queryset=LegalEntity.objects.filter(is_deleted=False)),
+        Prefetch('contact_persons', queryset=ContactPerson.objects.filter(is_deleted=False))
+    ).order_by('-created_at')
+    return render(request, 'baza_klientov/sections/_client_rows.html', {'clients': clients})

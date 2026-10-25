@@ -103,6 +103,17 @@ class Proschet(models.Model):
         default='',
         help_text='Произвольный комментарий к просчёту'
     )    
+    # Заказ, из которого был создан просчёт (если создавался из карточки заказа).
+    # null=True и blank=True — просчёт можно создать и без привязки к заказу (как обычно).
+    source_order = models.ForeignKey(
+        'orders.Order',
+        verbose_name='Исходный заказ',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_proschets',
+        help_text='Заказ, из которого был создан просчёт (если применимо)'
+    )    
 
     # ===== ССЫЛКА НА ШАБЛОН, ИЗ КОТОРОГО СОЗДАН ПРОСЧЁТ =====
     # Нужна, чтобы на странице шаблонов понимать, что «Сохранить шаблон»

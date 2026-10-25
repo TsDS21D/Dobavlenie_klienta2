@@ -33,6 +33,15 @@ proschety/templates/proschety/index.html
         Просчёты
     </h1>
 
+    <!-- ПЛАШКА: СОЗДАНИЕ ПРОСЧЁТА ДЛЯ ЗАКАЗА -->
+    <div id="proschety-order-banner" class="proschety-order-banner" style="display: none;">
+        <div class="proschety-order-banner-text">
+            Вы создаете просчёт для <strong>Заказа <span id="proschety-order-number">...</span></strong>
+        </div>
+        <button type="button" id="proschety-btn-add-to-order" class="proschety-order-banner-btn">
+            Сохранить как изделие в заказ
+        </button>
+    </div>
     <!--
     Контейнер для секций страницы.
     Здесь будут последовательно подключаться секции:
@@ -80,4 +89,5 @@ proschety/templates/proschety/index.html
      Работает через те же ID, что и на старой странице:
      #create-new-order-btn и #add-to-existing-order-btn. -->
 <script src="{% static 'calculator/js/sections/price_orders.js' %}"></script>
+<script src="{% static 'proschety/js/sections/order_banner.js' %}"></script>
 {% endblock %}

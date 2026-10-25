@@ -302,7 +302,20 @@ def create_proschet(request):
     form = ProschetForm(request.POST)
 
     if form.is_valid():
-        proschet = form.save()
+        # 1. Создаем объект в памяти, но пока не сохраняем в базу
+        proschet = form.save(commit=False)
+
+        # 2. Читаем ID заказа, если просчёт создается из карточки заказа
+        source_order_id = request.POST.get('source_order_id')
+        if source_order_id:
+            from orders.models import Order
+            try:
+                proschet.source_order = Order.objects.get(id=source_order_id)
+            except Order.DoesNotExist:
+                pass
+
+        # 3. Теперь сохраняем в базу со всеми данными
+        proschet.save()
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({

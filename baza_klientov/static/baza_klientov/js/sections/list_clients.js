@@ -51,6 +51,11 @@ JavaScript секции «Список клиентов» страницы /baza
 
         // Инициализируем инлайн-форму создания клиента.
         initCreateClientForm();
+        // Экспортируем функцию обновления таблицы в глобальную область,
+        // чтобы другие модули (contacts.js, legal_entities.js) могли её вызывать.
+        window.BazaListClients = {
+            refreshTable: refreshTable
+        };
 
         console.log('✅ Инициализация модуля завершена');
     });
@@ -402,6 +407,40 @@ JavaScript секции «Список клиентов» страницы /baza
 
         row.classList.add('selected');
         emitClientSelected(row, null);
+    }
+
+    // ========================================================================
+    // 7.1 ОБНОВЛЕНИЕ ТАБЛИЦЫ.
+    // ========================================================================
+
+    function refreshTable() {
+        if (!tableBody) return;
+
+        // Запоминаем ID выбранного клиента, чтобы после перерисовки снова его выделить.
+        let selectedId = null;
+        const selectedRow = tableBody.querySelector('.list-clients-row.selected');
+        if (selectedRow) selectedId = selectedRow.dataset.clientId;
+
+        fetch('/baza_klientov/api/client_rows/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+            // Подменяем содержимое таблицы.
+            tableBody.innerHTML = html;
+
+            // Восстанавливаем выделение.
+            if (selectedId) {
+                const newRow = tableBody.querySelector('.list-clients-row[data-client-id="' + selectedId + '"]');
+                if (newRow) newRow.classList.add('selected');
+            }
+
+            // Переприменяем поиск (если он был введен).
+            handleSearch();
+        })
+        .catch(function(err) {
+            console.error('Ошибка обновления таблицы:', err);
+        });
     }
 
     // ========================================================================

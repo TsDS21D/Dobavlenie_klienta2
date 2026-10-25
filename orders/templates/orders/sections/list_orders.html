@@ -48,7 +48,8 @@ orders/templates/orders/sections/list_orders.html
             <button type="button"
                     class="list-orders-btn-create"
                     id="list-orders-create-btn">
-                Создать
+                <span>Создать</span>
+                <span class="list-orders-toggle-arrow">▼</span>
             </button>
         </div>
     </div>
@@ -60,54 +61,39 @@ orders/templates/orders/sections/list_orders.html
         <form id="list-orders-create-form-el">
             {% csrf_token %}
 
-            <!-- Клиент (необязательный) -->
-            <div class="list-orders-form-row">
-                <label for="list-orders-create-client">Клиент</label>
-                <select id="list-orders-create-client"
-                        name="client"
-                        class="list-orders-form-input">
-                    <option value="">— Не выбран —</option>
-                    {% for client in clients %}
-                        <option value="{{ client.id }}">
-                            {% if client.client_number %}{{ client.client_number }}: {% endif %}{{ client.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            <!-- НОВЫЙ КОНТЕЙНЕР: выстраивает поля в один ряд -->
+            <div class="list-orders-form-inline">
+                <!-- Клиент (необязательный) -->
+                <div class="list-orders-form-row">
+                    <label for="list-orders-create-client">Клиент</label>
+                    <select id="list-orders-create-client" name="client" class="list-orders-form-input">
+                        <option value="">— Не выбран —</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.name }}{% if client.primary_le_name %} ({{ client.primary_le_name }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <!-- Комментарий -->
-            <div class="list-orders-form-row">
-                <label for="list-orders-create-comment">Комментарий</label>
-                <input type="text"
-                       id="list-orders-create-comment"
-                       name="comment"
-                       class="list-orders-form-input"
-                       placeholder="Например: срочный заказ, доставка"
-                       maxlength="500">
-            </div>
+                <!-- Комментарий -->
+                <div class="list-orders-form-row">
+                    <label for="list-orders-create-comment">Комментарий</label>
+                    <input type="text" id="list-orders-create-comment" name="comment" class="list-orders-form-input" placeholder="Например: срочный заказ" maxlength="500">
+                </div>
 
-            <!-- Дата готовности (необязательная — если пусто,
-                 сервер подставит «15:00 следующего рабочего дня») -->
-            <div class="list-orders-form-row">
-                <label for="list-orders-create-ready">Дата и время готовности</label>
-                <input type="datetime-local"
-                       id="list-orders-create-ready"
-                       name="ready_datetime"
-                       class="list-orders-form-input">
-                <small class="list-orders-form-hint">
-                    Если оставить пустым — автоматически проставится 15:00 следующего рабочего дня.
-                </small>
+                <!-- Дата готовности -->
+                <div class="list-orders-form-row">
+                    <label for="list-orders-create-ready">Дата и время готовности</label>
+                    <input type="datetime-local" id="list-orders-create-ready" name="ready_datetime" class="list-orders-form-input">
+                </div>
             </div>
 
             <div class="list-orders-form-actions">
-                <button type="button"
-                        class="list-orders-btn-cancel"
-                        id="list-orders-create-cancel">
+                <button type="button" class="list-orders-btn-cancel" id="list-orders-create-cancel">
                     Отмена
                 </button>
-                <button type="submit"
-                        class="list-orders-btn-submit"
-                        id="list-orders-create-submit">
+                <button type="submit" class="list-orders-btn-submit" id="list-orders-create-submit">
                     Создать заказ
                 </button>
             </div>

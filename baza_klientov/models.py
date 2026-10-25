@@ -378,6 +378,7 @@ class LegalEntity(models.Model):
     # НОВОЕ ПОЛЕ: Статус ЭДО (3 варианта)
     EDO_CHOICES = (
         ('none', 'Без ЭДО'),
+        ('unchecked', 'ЭДО не проверял'),
         ('requested', 'Отправлен запрос'),
         ('connected', 'Работает через ЭДО'),
     )
@@ -385,7 +386,7 @@ class LegalEntity(models.Model):
     edo_status = models.CharField(
         max_length=20,
         choices=EDO_CHOICES,
-        default='none',
+        default='unchecked',
         verbose_name='Статус ЭДО'
     )
     

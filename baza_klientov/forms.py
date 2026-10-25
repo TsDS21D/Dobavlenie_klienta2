@@ -323,7 +323,6 @@ class LegalEntityForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Настраиваем виджеты для дальнейшего использования в модалке/форме
         self.fields['name'].widget = forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'Например: ООО "Ромашка"',
@@ -333,7 +332,4 @@ class LegalEntityForm(forms.ModelForm):
             'class': 'form-control',
             'placeholder': 'ИНН, КПП, р/с, БИК, адрес...',
             'rows': 3
-        })
-        self.fields['has_edo'].widget = forms.CheckboxInput(attrs={
-            'class': 'form-check-input'
         })

@@ -72,6 +72,8 @@ proschety/templates/proschety/sections/list_proschet.html
          style="display: none;">
         <form id="list-proschet-create-form-el">
             {% csrf_token %}
+            <!-- СКРЫТОЕ ПОЛЕ ДЛЯ ID ЗАКАЗА (заполняется из JS) -->
+            <input type="hidden" name="source_order_id" id="list-proschet-create-source-order" value="">
 
             <div class="list-proschet-form-row">
                 <label for="list-proschet-create-title">

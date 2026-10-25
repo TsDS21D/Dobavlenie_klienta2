@@ -43,4 +43,5 @@ urlpatterns = [
     path('api/legal_entities/<int:client_id>/', views.api_get_legal_entities, name='api_get_legal_entities'),
     path('api/update_legal_entity/<int:le_id>/', views.update_legal_entity, name='update_legal_entity'),
     path('api/delete_legal_entity/<int:le_id>/', views.delete_legal_entity, name='delete_legal_entity'),
+    path('api/client_rows/', views.api_client_rows, name='api_client_rows'),
 ]

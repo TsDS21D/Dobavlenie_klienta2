@@ -197,6 +197,11 @@ JavaScript секции «Клиент» страницы /baza_klientov/.
                     setValueAndOriginal('client-detail-address-display', activeClient.address || '—', activeClient.address);
                     syncListRow('address', activeClient.address);
                 }
+
+                // Обновляем таблицу сверху, чтобы изменения сразу отобразились в списке
+                if (window.BazaListClients && typeof window.BazaListClients.refreshTable === 'function') {
+                    window.BazaListClients.refreshTable();
+                }
             } else {
                 valueEl.innerHTML = savedHTML;
                 notify(data.error || 'Ошибка сохранения', 'error');

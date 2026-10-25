@@ -212,6 +212,40 @@ class Order(models.Model):
         # Иначе — только номер (на случай, если клиент недоступен).
         return f"{self.number}"
 
+
+    def get_working_hours_remaining(self):
+        """
+        Рассчитывает количество рабочих часов до готовности заказа.
+        Рабочий график: Пн-Пт с 10:00 до 18:00.
+        Выходные и нерабочие часы не учитываются.
+        """
+        # timezone.now() возвращает время в UTC. 
+        # Переводим его в московское (Europe/Moscow), чтобы часы совпадали с реальными.
+        now = timezone.localtime(timezone.now())
+        
+        # Время готовности тоже переводим в московское для корректного сравнения
+        ready_dt = timezone.localtime(self.ready_datetime)
+        
+        # Если время готовности уже прошло — возвращаем 0
+        if now >= ready_dt:
+            return 0
+        
+        total_hours = 0
+        current = now
+        
+        # Идём по часам от текущего момента до времени готовности
+        while current < ready_dt:
+            day_of_week = current.weekday()  # 0 - Пн, 6 - Вс
+            hour = current.hour
+            
+            # Если это будний день (Пн-Пт) и время с 10 до 18 — плюсуем час
+            if day_of_week < 5 and 10 <= hour < 18:
+                total_hours += 1
+            
+            current += timedelta(hours=1)
+            
+        return total_hours
+
     def save(self, *args, **kwargs):
         """
         Переопределённый метод сохранения.

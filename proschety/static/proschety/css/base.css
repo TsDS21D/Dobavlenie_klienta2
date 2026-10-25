@@ -238,3 +238,52 @@ a.nav-btn {
     }
     .nav-info strong { white-space: normal; }
 }
+
+/* ==================== ПЛАШКА ДЛЯ ЗАКАЗА (в просчётах) ==================== */
+
+.proschety-order-banner {
+    background: #f0f9f5; /* Светло-зеленый фон */
+    border: 1px solid #b9d9c7;
+    border-radius: 10px;
+    padding: 0.8rem 1.2rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.08);
+    /* Анимация появления */
+    animation: slideDownBanner 0.3s ease-out;
+}
+
+@keyframes slideDownBanner {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.proschety-order-banner-text {
+    font-size: 0.95rem;
+    color: #0B8661;
+}
+
+.proschety-order-banner-text strong {
+    font-size: 1.05rem;
+}
+
+.proschety-order-banner-btn {
+    padding: 0.5rem 1rem;
+    background: #0B8661;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.proschety-order-banner-btn:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+}
