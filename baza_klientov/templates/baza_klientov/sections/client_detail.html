@@ -1,0 +1,106 @@
+<!--
+baza_klientov/templates/baza_klientov/sections/client_detail.html
+Секция «Клиент» — детали выбранного клиента.
+
+ОБНОВЛЕНИЕ (Юрлица):
+  - Бейдж ЭДО убран из шапки клиента (теперь ЭДО относится к юрлицу).
+  - Поля «Адрес» и «Банковские реквизиты» убраны (они переехали в юрлицо).
+  - Добавлен блок «Данные юрлица» (скрыт, пока юрлицо не выбрано в списке).
+-->
+
+<section class="client-detail-section" id="client-detail-section">
+
+    <!-- Сообщение, когда клиент не выбран. -->
+    <div class="client-detail-empty" id="client-detail-empty">
+        <p>Выберите клиента в списке выше</p>
+        <small>Все данные появятся здесь после выбора</small>
+    </div>
+
+    <!-- Контейнер с данными — показывается при выборе клиента. -->
+    <div class="client-detail-body" id="client-detail-body" style="display: none;">
+
+        <!-- ==================== ПЕРВАЯ СТРОКА ==================== -->
+        <div class="client-detail-top-row">
+            
+            <!-- Название (редактируется по dblclick) -->
+            <div class="cd-inline-field">
+                <label class="cd-label">Название:</label>
+                <span class="cd-value" id="client-detail-name-display" data-field="name" title="Двойной клик">—</span>
+                <input type="text" class="client-detail-input" id="client-detail-name-input" data-field="name" style="display: none;" maxlength="255">
+            </div>
+
+            <!-- Скидка (редактируется по dblclick) -->
+            <div class="cd-inline-field">
+                <label class="cd-label">Скидка:</label>
+                <span class="cd-value" id="client-detail-discount-display" data-field="discount" title="Двойной клик">—</span>
+                <input type="number" class="client-detail-input" id="client-detail-discount-input" data-field="discount" style="display: none;" min="0" max="100">
+            </div>
+
+            <!-- Пустое место (отжимает номер и крестик вправо) -->
+            <div class="cd-spacer"></div>
+
+            <!-- Номер клиента (серый, еле заметный) -->
+            <span class="cd-number-badge" id="client-detail-number">—</span>
+
+            <!-- Кнопка удаления клиента -->
+            <button type="button" class="cd-delete-btn" id="client-detail-delete-btn" title="Удалить клиента">×</button>
+
+        </div>
+
+        <!-- ==================== ВТОРАЯ СТРОКА (Комментарий) ==================== -->
+        <div class="client-detail-comment-row">
+            <label class="cd-label">Комментарий:</label>
+            <span class="cd-value cd-comment-text" id="client-detail-comment-display" data-field="comment" title="Двойной клик">—</span>
+            <textarea class="client-detail-input" id="client-detail-comment-input" data-field="comment" rows="2" style="display: none;" placeholder="Введите комментарий"></textarea>
+        </div>
+
+        <!-- ==================== ТРЕТЬЯ СТРОКА (Адрес доставки) ==================== -->
+        <div class="client-detail-comment-row">
+            <label class="cd-label">Адрес доставки:</label>
+            <span class="cd-value cd-comment-text" id="client-detail-address-display" data-field="address" title="Двойной клик">—</span>
+            <textarea class="client-detail-input" id="client-detail-address-input" data-field="address" rows="2" style="display: none;" placeholder="Введите адрес доставки"></textarea>
+        </div>
+
+        <!-- ==================== ДАТЫ ==================== -->
+        <div class="client-detail-dates">
+            <div class="client-detail-date-item">
+                <span class="cd-label">Создан:</span>
+                <span class="cd-muted" id="client-detail-created">—</span>
+            </div>
+            <div class="client-detail-date-item">
+                <span class="cd-label">Обновлён:</span>
+                <span class="cd-muted" id="client-detail-updated">—</span>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- БЛОК ЮРЛИЦА (появляется при выборе в списке клиентов) -->
+        <!-- ========================================================= -->
+        <div class="client-detail-legal-entity" id="client-detail-legal-entity" style="display: none;">
+            <h3 class="client-detail-le-title">Данные юрлица</h3>
+            
+            <div class="client-detail-fields">
+                <!-- Название юрлица и ЭДО в одной строке -->
+                <div class="client-detail-field" style="align-items: center;">
+                    <label class="client-detail-label">Юрлицо:</label>
+                    <span class="client-detail-value" id="client-detail-le-name" style="background: none; border: none; font-weight: 600;">—</span>
+                    
+                    <span class="client-detail-edo-badge client-detail-edo-inactive" id="client-detail-le-edo" style="margin-left: 1rem;">ЭДО</span>
+                </div>
+
+                <!-- Реквизиты юрлица -->
+                <div class="client-detail-field client-detail-field--multiline">
+                    <label class="client-detail-label">Реквизиты:</label>
+                    <span class="client-detail-value client-detail-text" id="client-detail-le-requisites" style="background: #fafafa; border: 1px dashed #e0e0e0; padding: 0.4rem 0.6rem;">—</span>
+                </div>
+                <!-- ДОБАВЛЯЕМ: Комментарий юрлица -->
+                <div class="client-detail-field client-detail-field--multiline">
+                    <label class="client-detail-label">Комментарий:</label>
+                    <span class="client-detail-value client-detail-text" id="client-detail-le-comment" style="background: #fafafa; border: 1px dashed #e0e0e0; padding: 0.4rem 0.6rem;">—</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</section>

@@ -1,80 +1,227 @@
 <!--
 orders/templates/orders/sections/_order_rows.html
-Партиал: только строки <tr> для tbody таблицы заказов.
+Партиал: четыре блока с карточками заказов (по статусам).
 Используется:
-  1. в list_orders.html — через include-директиву при первом рендере;
-  2. во view orders.views.api_rows — возвращает ровно этот HTML
-     для AJAX-перерисовки после создания/удаления/редактирования заказа.
+  1. в list_orders.html — при первом рендере;
+  2. во view orders.views.api_rows — для AJAX-перерисовки после
+     создания/удаления/редактирования.
 
-Переменная контекста — orders (список объектов Order).
-
-data-* атрибуты — «снимок» значений на момент рендера. JS (шаг 5)
-читает их при инлайн-редактировании, чтобы понять «было / стало».
+Переменные контекста:
+  orders_in_progress, orders_accepted, orders_ready, orders_completed.
 -->
 
-{% for order in orders %}
-    <tr class="list-orders-row"
-        data-order-id="{{ order.id }}"
-        data-status="{{ order.status }}"
-        data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
-        data-comment="{{ order.comment|default:'' }}"
-        data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
-        data-products-count="{{ order.products.count }}"
-        data-total-price="{{ order.formatted_total_price }}">
+<!-- ==================== 1. В РАБОТЕ ==================== -->
+<div class="list-orders-group">
+    <h3 class="list-orders-group-title">В работе</h3>
+    <div class="list-orders-cards" id="list-orders-group-in-progress">
+        {% for order in orders_in_progress %}
+            <div class="list-orders-card list-orders-card--in_progress"
+                 data-order-id="{{ order.id }}"
+                 data-status="{{ order.status }}"
+                 data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+                 data-comment="{{ order.comment|default:'' }}"
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
 
-        <!-- Номер заказа (ORD-N), моноширинный зелёный. -->
-        <td class="col-number">{{ order.number }}</td>
+                <div class="list-orders-card-number">{{ order.number }}</div>
 
-        <!-- Клиент — инлайн-редактируемый (двойной клик, селект из списка клиентов). -->
-        <td class="col-client editable-cell"
-            data-order-id="{{ order.id }}"
-            data-field="client"
-            data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
-            data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
-            {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
-        </td>
+                <div class="list-orders-card-client editable-cell"
+                     data-field="client"
+                     data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+                    {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
+                </div>
 
-        <!-- Статус — бейдж. Редактируется через select (JS, шаг 5). -->
-        <td class="col-status editable-cell"
-            data-order-id="{{ order.id }}"
-            data-field="status"
-            data-original-value="{{ order.status }}">
-            <span class="list-orders-status-badge list-orders-status-badge--{{ order.status }}">
-                {{ order.get_status_display }}
-            </span>
-        </td>
+                <div class="list-orders-card-comment editable-cell"
+                     data-field="comment"
+                     data-original-value="{{ order.comment|default:'' }}">
+                    {{ order.comment|default:"—" }}
+                </div>
 
-        <!-- Срок готовности — инлайн-редактируемый (двойной клик, datetime-local). -->
-        <td class="col-ready editable-cell"
-            data-order-id="{{ order.id }}"
-            data-field="ready_datetime"
-            data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
-            {{ order.ready_datetime|date:"d.m.Y H:i" }}
-        </td>
+                <div class="list-orders-card-status">
+                    <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
+                        <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                        <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Готов</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выдан</option>
+                    </select>
+                </div>
 
-        <!-- Комментарий — инлайн-редактируемый (двойной клик, input/textarea). -->
-        <td class="col-comment editable-cell"
-            data-order-id="{{ order.id }}"
-            data-field="comment"
-            data-original-value="{{ order.comment|default:'' }}">
-            {{ order.comment|default:"—" }}
-        </td>
+                <div class="list-orders-card-ready editable-cell"
+                     data-field="ready_datetime"
+                     data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+                    {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                </div>
 
-        <!-- Дата создания — только для чтения. -->
-        <td class="col-created">{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                <div class="list-orders-card-meta">
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
+                </div>
 
-        <!-- Количество изделий в заказе. -->
-        <td class="col-products">{{ order.products.count }}</td>
+                <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+            </div>
+        {% empty %}
+            <div class="list-orders-group-empty">Заказов нет</div>
+        {% endfor %}
+    </div>
+</div>
 
-        <!-- Итоговая стоимость (свойство модели). -->
-        <td class="col-total">{{ order.formatted_total_price }}</td>
+<!-- ==================== 2. ПРИНЯТЫ ==================== -->
+<div class="list-orders-group">
+    <h3 class="list-orders-group-title">Приняты</h3>
+    <div class="list-orders-cards" id="list-orders-group-accepted">
+        {% for order in orders_accepted %}
+            <div class="list-orders-card list-orders-card--accepted"
+                 data-order-id="{{ order.id }}"
+                 data-status="{{ order.status }}"
+                 data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+                 data-comment="{{ order.comment|default:'' }}"
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
 
-        <!-- Кнопка удаления (мягкое удаление, модалка — в секции). -->
-        <td class="col-actions">
-            <button type="button"
-                    class="list-orders-btn-delete"
-                    data-order-id="{{ order.id }}"
-                    title="Удалить заказ">×</button>
-        </td>
-    </tr>
-{% endfor %}
+                <div class="list-orders-card-number">{{ order.number }}</div>
+
+                <div class="list-orders-card-client editable-cell"
+                     data-field="client"
+                     data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+                    {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
+                </div>
+
+                <div class="list-orders-card-comment editable-cell"
+                     data-field="comment"
+                     data-original-value="{{ order.comment|default:'' }}">
+                    {{ order.comment|default:"—" }}
+                </div>
+
+                <div class="list-orders-card-status">
+                    <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
+                        <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                        <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Готов</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выдан</option>
+                    </select>
+                </div>
+
+                <div class="list-orders-card-ready editable-cell"
+                     data-field="ready_datetime"
+                     data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+                    {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                </div>
+
+                <div class="list-orders-card-meta">
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
+                </div>
+
+                <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+            </div>
+        {% empty %}
+            <div class="list-orders-group-empty">Заказов нет</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ==================== 3. ГОТОВЫ ==================== -->
+<div class="list-orders-group">
+    <h3 class="list-orders-group-title">Готовы</h3>
+    <div class="list-orders-cards" id="list-orders-group-ready">
+        {% for order in orders_ready %}
+            <div class="list-orders-card list-orders-card--ready"
+                 data-order-id="{{ order.id }}"
+                 data-status="{{ order.status }}"
+                 data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+                 data-comment="{{ order.comment|default:'' }}"
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+
+                <div class="list-orders-card-number">{{ order.number }}</div>
+
+                <div class="list-orders-card-client editable-cell"
+                     data-field="client"
+                     data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+                    {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
+                </div>
+
+                <div class="list-orders-card-comment editable-cell"
+                     data-field="comment"
+                     data-original-value="{{ order.comment|default:'' }}">
+                    {{ order.comment|default:"—" }}
+                </div>
+
+                <div class="list-orders-card-status">
+                    <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
+                        <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                        <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Готов</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выдан</option>
+                    </select>
+                </div>
+
+                <div class="list-orders-card-ready editable-cell"
+                     data-field="ready_datetime"
+                     data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+                    {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                </div>
+
+                <div class="list-orders-card-meta">
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
+                </div>
+
+                <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+            </div>
+        {% empty %}
+            <div class="list-orders-group-empty">Заказов нет</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ==================== 4. ВЫДАНЫ ==================== -->
+<div class="list-orders-group">
+    <h3 class="list-orders-group-title">Выданы</h3>
+    <div class="list-orders-cards" id="list-orders-group-completed">
+        {% for order in orders_completed %}
+            <div class="list-orders-card list-orders-card--completed"
+                 data-order-id="{{ order.id }}"
+                 data-status="{{ order.status }}"
+                 data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+                 data-comment="{{ order.comment|default:'' }}"
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+
+                <div class="list-orders-card-number">{{ order.number }}</div>
+
+                <div class="list-orders-card-client editable-cell"
+                     data-field="client"
+                     data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+                    {% if order.client %}{{ order.client.name }}{% else %}—{% endif %}
+                </div>
+
+                <div class="list-orders-card-comment editable-cell"
+                     data-field="comment"
+                     data-original-value="{{ order.comment|default:'' }}">
+                    {{ order.comment|default:"—" }}
+                </div>
+
+                <div class="list-orders-card-status">
+                    <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
+                        <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                        <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Готов</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выдан</option>
+                    </select>
+                </div>
+
+                <div class="list-orders-card-ready editable-cell"
+                     data-field="ready_datetime"
+                     data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+                    {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                </div>
+
+                <div class="list-orders-card-meta">
+                    <span class="list-orders-card-products" title="Изделий">{{ order.products.count }} изд.</span>
+                    <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
+                </div>
+
+                <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+            </div>
+        {% empty %}
+            <div class="list-orders-group-empty">Заказов нет</div>
+        {% endfor %}
+    </div>
+</div>

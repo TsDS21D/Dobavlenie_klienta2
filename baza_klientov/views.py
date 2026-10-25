@@ -13,8 +13,9 @@ from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 import json
-from .models import Client, ContactPerson
-from .forms import ClientForm, ContactPersonForm, ClientInlineUpdateForm, ContactPersonInlineUpdateForm
+from .models import Client, ContactPerson, LegalEntity
+
+from .forms import ClientForm, ContactPersonForm, ClientInlineUpdateForm, ContactPersonInlineUpdateForm, LegalEntityForm
 
 @login_required(login_url='/login/')
 def get_clients_api(request):
@@ -48,8 +49,15 @@ def index(request):
     # Поиск по клиентам (если есть параметр search)
     search_query = request.GET.get('search', '').strip()
     
-    # Получаем всех клиентов
-    clients = Client.objects.all().order_by('-created_at')
+    # Получаем всех клиентов (добавлен prefetch_related для юрлиц)
+    # Импортируем Prefetch (если его нет в начале файла, добавь: from django.db.models import Prefetch)
+    from django.db.models import Prefetch
+    
+    # Получаем только неудаленных клиентов, а также только их неудаленные юрлица и контакты
+    clients = Client.objects.filter(is_deleted=False).prefetch_related(
+        Prefetch('legal_entities', queryset=LegalEntity.objects.filter(is_deleted=False)),
+        Prefetch('contact_persons', queryset=ContactPerson.objects.filter(is_deleted=False))
+    ).order_by('-created_at')
     
     # Применяем поиск, если есть запрос
     if search_query:
@@ -211,8 +219,8 @@ def delete_client(request, client_id):
     # Сохраняем номер для сообщения
     client_number = client.client_number
     
-    # Удаляем клиента (контактные лица удалятся автоматически из-за CASCADE)
-    client.delete()
+    client.is_deleted = True
+    client.save(update_fields=['is_deleted'])
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -239,7 +247,8 @@ def delete_contact_person(request, contact_id):
     contact = get_object_or_404(ContactPerson, id=contact_id)
     client_id = contact.client.id
     
-    contact.delete()
+    contact.is_deleted = True
+    contact.save(update_fields=['is_deleted'])
     
     return JsonResponse({
         'success': True,
@@ -274,7 +283,7 @@ def update_client(request, client_id):
         }, status=400)
     
     # Проверяем, что поле можно обновлять
-    allowed_fields = ['name', 'discount', 'has_edo', 'address', 'bank_details']
+    allowed_fields = ['name', 'discount', 'has_edo', 'address', 'bank_details', 'comment']
     if field_name not in allowed_fields:
         return JsonResponse({
             'success': False,
@@ -425,3 +434,131 @@ def toggle_primary_contact(request, contact_id):
         'message': message,
         'contact': contact.to_dict(),
     })
+
+@require_POST
+@login_required(login_url='/login/')
+def create_legal_entity(request):
+    """
+    Создание нового юридического лица для указанного клиента через AJAX.
+    
+    Принимает POST-запрос с полями:
+    - client_id: ID клиента (обязательно)
+    - name: название юрлица (обязательно)
+    - requisites: реквизиты (опционально)
+    - has_edo: флаг ЭДО (опционально, по умолчанию False)
+    
+    Возвращает JsonResponse с данными созданного юрлица.
+    """
+    form = LegalEntityForm(request.POST)
+    
+    if form.is_valid():
+        # Получаем клиента из запроса
+        client_id = request.POST.get('client_id')
+        
+        if not client_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не указан клиент',
+            }, status=400)
+            
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Клиент не найден',
+            }, status=404)
+            
+        # Сохраняем юрлицо, привязывая его к клиенту
+        legal_entity = form.save(commit=False)
+        legal_entity.client = client
+        
+        # Если это первое юрлицо или отмечено "Сделать основным" — снимаем флаг с других
+        if request.POST.get('is_primary') or not client.legal_entities.exists():
+            client.legal_entities.update(is_primary=False)
+            legal_entity.is_primary = True
+            
+        legal_entity.save()
+        
+        # Возвращаем успешный ответ с данными нового юрлица
+        return JsonResponse({
+            'success': True,
+            'message': 'Юрлицо успешно добавлено',
+            'legal_entity': legal_entity.to_dict(),
+        })
+    else:
+        # Возвращаем ошибки валидации формы
+        return JsonResponse({
+            'success': False,
+            'errors': form.errors,
+        }, status=400)
+
+
+@login_required(login_url='/login/')
+@require_GET
+def api_get_contacts(request, client_id):
+    """
+    Возвращает список контактных лиц для указанного клиента.
+    Используется JS-ом для отрисовки секции «Сотрудники».
+    """
+    client = get_object_or_404(Client, id=client_id)
+    contacts = client.contact_persons.filter(is_deleted=False).order_by('-is_primary', 'full_name')
+    
+    contacts_data = [c.to_dict() for c in contacts]
+    
+    return JsonResponse({
+        'success': True,
+        'contacts': contacts_data
+    })
+
+@login_required(login_url='/login/')
+@require_GET
+def api_get_legal_entities(request, client_id):
+    """Возвращает список юрлиц для указанного клиента."""
+    client = get_object_or_404(Client, id=client_id)
+    # Сортируем: сначала основные, потом по алфавиту
+    entities = client.legal_entities.filter(is_deleted=False).order_by('-is_primary', 'name')
+    return JsonResponse({
+        'success': True,
+        'legal_entities': [e.to_dict() for e in entities]
+    })
+
+@require_POST
+@login_required(login_url='/login/')
+def update_legal_entity(request, le_id):
+    """Обновление поля юрлица (инлайн-редактирование)."""
+    legal_entity = get_object_or_404(LegalEntity, id=le_id)
+    field_name = request.POST.get('field_name')
+    new_value = request.POST.get('new_value')
+
+    # Разрешаем новое поле edo_status
+    allowed_fields = ['name', 'requisites', 'comment', 'edo_status', 'is_primary']
+    if field_name not in allowed_fields:
+        return JsonResponse({'success': False, 'error': 'Недопустимое поле'}, status=400)
+
+    try:
+        # Проверка на булево значение нужна только для is_primary
+        if field_name == 'is_primary':
+            new_value = new_value.lower() in ['true', '1', 'yes', 'on']
+            if new_value:
+                LegalEntity.objects.filter(client=legal_entity.client, is_primary=True).exclude(id=legal_entity.id).update(is_primary=False)
+        
+        setattr(legal_entity, field_name, new_value)
+        legal_entity.save()
+
+        return JsonResponse({
+            'success': True,
+            'legal_entity': legal_entity.to_dict()
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_POST
+@login_required(login_url='/login/')
+def delete_legal_entity(request, le_id):
+    """Удаление юрлица."""
+    legal_entity = get_object_or_404(LegalEntity, id=le_id)
+    legal_entity.is_deleted = True
+    legal_entity.save(update_fields=['is_deleted'])
+    return JsonResponse({'success': True})

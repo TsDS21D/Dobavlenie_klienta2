@@ -1,0 +1,285 @@
+/* ==================== КОНТЕЙНЕР СЕКЦИИ ==================== */
+.le-section {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem 1.15rem 1.15rem;
+    margin-bottom: 1.15rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* ==================== ШАПКА ==================== */
+.le-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.le-title {
+    margin: 0;
+    font-size: 1rem;
+    color: #333333;
+    font-weight: 600;
+}
+
+.le-btn-create {
+    padding: 0.4rem 0.9rem;
+    background: #eaf6ef;
+    color: #0B8661;
+    border: 1px solid #b9d9c7;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.le-btn-create:hover {
+    background: #d9efe2;
+    border-color: #0B8661;
+}
+
+/* ==================== СПИСОК КАРТОЧЕК ==================== */
+.le-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.le-card {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.le-card:hover {
+    border-color: #b9d9c7;
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.06);
+}
+
+.le-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px dashed #ececec;
+}
+
+.le-card-name {
+    font-weight: 600;
+    color: #333333;
+    font-size: 0.9rem;
+}
+
+.le-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+.le-badge-primary {
+    background: #FFC107;
+    color: #333333;
+    cursor: pointer;
+}
+.le-badge-make-primary {
+    background: #f0f0f0;
+    color: #888;
+    cursor: pointer;
+}
+.le-badge-make-primary:hover {
+    background: #e0e0e0;
+}
+
+.le-badge-edo {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+}
+.le-badge-edo.on { background: #4CAF50; color: #fff; }
+.le-badge-edo.off { background: #BDBDBD; color: #fff; }
+
+.le-card-delete {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+.le-card-delete:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}
+
+.le-card-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    font-size: 0.82rem;
+}
+
+.le-card-field {
+    display: flex;
+    gap: 0.3rem;
+}
+.le-card-label { color: #888888; font-weight: 500; }
+.le-card-value {
+    color: #333333;
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    white-space: pre-wrap;
+}
+.le-card-value:hover {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+
+.le-card-input {
+    padding: 0.1rem 0.3rem;
+    border: 2px solid #0B8661;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: #333;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.12);
+    width: 100%;
+}
+
+.le-empty {
+    padding: 1.4rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+/* ==================== ФОРМА ==================== */
+.le-create-form {
+    background: #f0f9f5;
+    border: 1px solid #b9d9c7;
+    border-radius: 10px;
+    padding: 0.8rem 1.0rem;
+    margin-bottom: 0.9rem;
+}
+.le-form-row {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+.le-form-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 150px;
+}
+.le-form-group label {
+    font-size: 0.78rem;
+    color: #555555;
+    margin-bottom: 0.2rem;
+    font-weight: 500;
+}
+.le-form-input {
+    padding: 0.35rem 0.5rem;
+    border: 1.5px solid #b9d9c7;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: #333;
+    background: #fff;
+}
+.le-form-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.12);
+}
+.le-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+
+/* ==================== ВЫПАДАЮЩИЙ СПИСОК ЭДО ==================== */
+
+.le-edo-select {
+    appearance: none; /* Убираем стандартную стрелку браузера */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 0.15rem 1.5rem 0.15rem 0.5rem; /* Место справа под свою стрелку */
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    /* ДОБАВЛЯЕМ ЭТИ ДВЕ СТРОКИ: */
+    border: 1px solid transparent; /* Прозрачная рамка по умолчанию (сохраняет высоту) */
+    box-sizing: border-box;        /* Чтобы padding не увеличивал размер */
+    
+    background-image: url(...);
+    
+    /* Рисуем свою стрелочку вниз через SVG в фоне */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat, repeat;
+    background-position: right .4em top 50%, 0 0;
+    background-size: .65em auto, 100%;
+}
+
+/* 1. Работает через ЭДО (зелёный) */
+.le-edo-select.status-connected {
+    background-color: #4CAF50;
+    color: #ffffff;
+    /* Делаем стрелку белой */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+/* 2. Отправлен запрос (серая заливка, белый текст) */
+.le-edo-select.status-requested {
+    background-color: #999999;
+    color: #ffffff;
+    /* Делаем стрелку белой */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+/* 3. Без ЭДО (прозрачный фон, серая рамка, серый текст) */
+.le-edo-select.status-none {
+    background-color: transparent;
+    color: #888888;
+    border-color: #d0d0d0; /* <--- ИЗМЕНЯЕМ ТОЛЬКО ЦВЕТ, ТОЛЩИНА БЕРЁТСЯ ИЗ БАЗОВОГО КЛАССА */
+}
+
+.le-edo-select:hover {
+    opacity: 0.85;
+}
+
+/* Стили для option (внутри выпадающего списка) */
+.le-edo-select option {
+    background-color: #ffffff;
+    color: #333333;
+    font-weight: normal;
+}

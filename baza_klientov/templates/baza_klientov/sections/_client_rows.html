@@ -1,0 +1,44 @@
+{% for client in clients %}
+    <tr class="list-clients-row {% if selected_client and selected_client.id == client.id %}selected{% endif %}"
+        data-client-id="{{ client.id }}"
+        data-client-number="{{ client.client_number }}"
+        data-client-name="{{ client.name }}"
+        data-client-discount="{{ client.discount }}"
+        data-client-has-edo="{{ client.has_edo|lower }}"
+        data-client-comment="{{ client.comment|default:'' }}"
+        data-client-address="{{ client.address|default:'' }}">
+
+        <!-- Название клиента (зелёное). -->
+        <td class="col-name">{{ client.name }}</td>
+
+        <!-- Юрлица через запятую (основное первым). -->
+        <td class="col-legal-entities">
+            <div class="text-ellipsis">
+                {% for le in client.legal_entities.all|dictsortreversed:"is_primary" %}
+                    {{ le.name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                    —
+                {% endfor %}
+            </div>
+        </td>
+
+        <!-- Сотрудники (перечисление через запятую). -->
+        <td class="col-employees">
+            <div class="text-ellipsis">
+                {% for contact in client.contact_persons.all %}
+                    {{ contact.full_name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                    —
+                {% endfor %}
+            </div>
+        </td>
+
+        <!-- Комментарий (обрезанный). -->
+        <td class="col-comment">
+            <div class="text-ellipsis">{{ client.comment|default:"—" }}</div>
+        </td>
+
+        <!-- Номер (просто серый текст). -->
+        <td class="col-number">{{ client.client_number }}</td>
+    </tr>
+{% endfor %}

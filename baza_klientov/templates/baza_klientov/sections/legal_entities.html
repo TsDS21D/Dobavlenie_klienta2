@@ -1,0 +1,71 @@
+<!--
+baza_klientov/templates/baza_klientov/sections/legal_entities.html
+Секция «Юридические лица».
+-->
+<section class="le-section" id="le-section" style="display: none;">
+
+    <div class="le-header">
+        <h2 class="le-title">Юридические лица</h2>
+        <div class="le-actions">
+            <button type="button" class="le-btn-create" id="le-create-btn">
+                + Добавить юрлицо
+            </button>
+        </div>
+    </div>
+
+    <!-- Форма добавления -->
+    <div class="le-create-form" id="le-create-form" style="display: none;">
+        <form id="le-form-el">
+            {% csrf_token %}
+            <div class="le-form-row">
+                <div class="le-form-group">
+                    <label>Название <span style="color:red">*</span></label>
+                    <input type="text" id="le-name" class="le-form-input" required placeholder="ООО «Ромашка»">
+                </div>
+            </div>
+            <div class="le-form-row">
+                <div class="le-form-group" style="flex: 2;">
+                    <label>Реквизиты</label>
+                    <textarea id="le-requisites" class="le-form-input" rows="2" placeholder="ИНН, КПП, р/с, адрес..."></textarea>
+                </div>
+                <div class="le-form-group">
+                    <label>Комментарий</label>
+                    <textarea id="le-comment" class="le-form-input" rows="2" placeholder="Комментарий"></textarea>
+                </div>
+            </div>
+            <!-- Строка 3: Статус ЭДО и Основное -->
+            <div class="le-form-row" style="align-items: center;">
+                <div class="le-form-group" style="flex: 1;">
+                    <label for="le-edo-status">Статус ЭДО</label>
+                    <select id="le-edo-status" class="le-form-input">
+                        <option value="none">Без ЭДО</option>
+                        <option value="requested">Отправлен запрос</option>
+                        <option value="connected">Работает через ЭДО</option>
+                    </select>
+                </div>
+                <div class="le-form-group" style="flex: 1; flex-direction: row; align-items: center; margin-top: 1.2rem;">
+                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                        <input type="checkbox" id="le-is-primary" style="accent-color: #FFC107;">
+                        <span>Сделать основным</span>
+                    </label>
+                </div>
+            </div>
+            <div class="le-form-actions">
+                <button type="button" class="baza-btn-cancel" id="le-btn-cancel">Отмена</button>
+                <button type="submit" class="baza-btn-submit" id="le-btn-submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Список карточек -->
+    <div class="le-list" id="le-list">
+        <!-- Сюда JS будет вставлять карточки -->
+    </div>
+
+    <!-- Сообщение, если юрлиц нет -->
+    <div class="le-empty" id="le-empty" style="display: none;">
+        <p>Юридических лиц пока нет</p>
+        <small>Нажмите «Добавить юрлицо», чтобы создать первое</small>
+    </div>
+
+</section>

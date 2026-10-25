@@ -1,0 +1,287 @@
+/*
+baza_klientov/static/baza_klientov/css/sections/client_detail.css
+Стили секции «Клиент» страницы /baza_klientov/.
+
+ОБНОВЛЕНИЕ:
+  - Первая строка перестроена (Название, Скидка, Номер, Кнопка удаления).
+  - Добавлена строка «Комментарий».
+  - Блок юрлица и его стили сохранены без изменений.
+*/
+
+/* ==================== КОНТЕЙНЕР СЕКЦИИ ==================== */
+
+.client-detail-section {
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem 1rem;
+    margin-bottom: 1.15rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* Сообщение «выберите клиента». */
+.client-detail-empty {
+    padding: 1.6rem 1rem;
+    text-align: center;
+    color: #999999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.client-detail-empty p { margin: 0 0 0.25rem 0; }
+.client-detail-empty small { color: #b0b0b0; }
+
+
+/* ==================== НОВАЯ ПЕРВАЯ СТРОКА (Название, Скидка, Номер, Удалить) ==================== */
+
+.client-detail-top-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px dashed #ececec;
+    flex-wrap: wrap; /* Для мобильных */
+}
+
+.cd-inline-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* Общие стили для подписей в новой строке */
+.cd-label {
+    font-size: 0.78rem;
+    color: #777777;
+    font-weight: 500;
+}
+
+/* Общие стили для значений в новой строке (кликабельные) */
+.cd-value {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #333333;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+.cd-value:hover {
+    background: #f0f9f5;
+    border-color: #b9d9c7;
+}
+
+/* Пустое место, отжимающее номер и крестик вправо */
+.cd-spacer {
+    flex: 1;
+}
+
+/* Серый бейдж номера (как КР-151 на скриншоте) */
+.cd-number-badge {
+    display: inline-block;
+    background: #fafafa;
+    color: #999999;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid #ececec;
+}
+
+/* Маленькая кнопка удаления клиента */
+.cd-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cd-delete-btn:hover {
+    background: #cf6b66;
+    color: #ffffff;
+    border-color: #cf6b66;
+}
+
+/* ==================== НОВАЯ ВТОРАЯ СТРОКА (Комментарий) ==================== */
+
+.client-detail-comment-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.cd-comment-text {
+    flex: 1;
+    white-space: pre-wrap;
+    min-height: 2rem;
+    line-height: 1.35;
+}
+
+/* ==================== ИНПУТЫ (для редактирования) ==================== */
+
+.client-detail-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.25rem 0.55rem;
+    border: 2px solid #0B8661;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: #333333;
+    background: #ffffff;
+    outline: none;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+textarea.client-detail-input {
+    resize: vertical;
+    line-height: 1.35;
+    min-height: 2.4rem;
+}
+
+/* «Сохранение...» — на месте значения. */
+.client-detail-saving {
+    display: inline-block;
+    flex: 1 1 auto;
+    padding: 0.2rem 0.55rem;
+    color: #0B8661;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+/* ==================== ДАТЫ ==================== */
+
+.client-detail-dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+    margin-top: 0.4rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #ececec;
+}
+.client-detail-date-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+.cd-muted {
+    font-size: 0.8rem;
+    color: #999999;
+}
+
+/* ==================== СТАРЫЕ СТИЛИ ПОЛЕЙ (используются в БЛОКЕ ЮРЛИЦА) ==================== */
+
+.client-detail-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.client-detail-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.client-detail-label {
+    font-size: 0.78rem;
+    color: #777777;
+    font-weight: 500;
+    min-width: 140px;
+    flex: 0 0 auto;
+    padding-top: 0.2rem;
+}
+
+.client-detail-value {
+    display: inline-block;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.2rem 0.55rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #333333;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.client-detail-text { min-height: 2rem; }
+.client-detail-field--multiline { align-items: stretch; }
+
+/* ==================== СТИЛИ БЛОКА ЮРЛИЦА (БЕЗ ИЗМЕНЕНИЙ) ==================== */
+
+.client-detail-legal-entity {
+    margin-top: 1rem;
+    padding-top: 0.8rem;
+    border-top: 2px dashed #ececec;
+}
+
+.client-detail-le-title {
+    font-size: 0.9rem;
+    color: #0B8661;
+    margin-bottom: 0.6rem;
+    font-weight: 600;
+}
+
+.client-detail-edo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+.client-detail-edo-active { background: #4CAF50; color: #ffffff; }
+.client-detail-edo-inactive { background: #BDBDBD; color: #ffffff; }
+
+#client-detail-le-name {
+    padding-left: 0;
+    cursor: default;
+}
+#client-detail-le-name:hover {
+    background: none;
+    border-color: transparent;
+}
+
+#client-detail-le-requisites {
+    cursor: default;
+    white-space: pre-wrap;
+    line-height: 1.4;
+}
+#client-detail-le-requisites:hover {
+    background: #fafafa;
+    border-color: #e0e0e0;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+@media (max-width: 700px) {
+    .client-detail-section {
+        padding: 0.85rem 0.9rem;
+    }
+    .client-detail-field {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+    .client-detail-label {
+        min-width: 0;
+        padding-top: 0;
+    }
+}

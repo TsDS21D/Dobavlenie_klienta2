@@ -2,17 +2,8 @@
 orders/static/orders/css/sections/list_orders.css
 Стили секции «Список заказов» страницы /orders/.
 
-Стиль повторяет list_proschet.css из proschety:
-  - белая секция со скруглением 12px и мягкой тенью;
-  - sticky-шапка таблицы, скролл на ~5 строк;
-  - hover строки — светло-зелёный #eaf6ef;
-  - активная строка — светло-зелёный фон + зелёная полоска слева;
-  - инлайн-редактирование — то же оформление, что в «Списке просчётов»;
-  - модалка удаления — розово-красная, как в list_proschet.
-
-Отличие: 9 колонок (номер / клиент / статус / готовность / комментарий /
-создан / изделий / стоимость / действия). Бейджи статусов — 4 цвета,
-как на странице /counter/.
+Версия 2: переход от таблицы к карточкам в 4 группах (как на /counter/),
+но в визуальном стиле /proschety/.
 */
 
 /* ==================== КОНТЕЙНЕР СЕКЦИИ ==================== */
@@ -47,7 +38,7 @@ orders/static/orders/css/sections/list_orders.css
     font-weight: 600;
 }
 
-/* Кнопка «Создать» — фирменная зелёная. */
+/* Кнопка «Создать» */
 .list-orders-btn-create {
     padding: 0.4rem 0.9rem;
     background: #0B8661;
@@ -105,7 +96,6 @@ orders/static/orders/css/sections/list_orders.css
     box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
 }
 
-/* Подсказка под полем (например, про дефолтную дату готовности). */
 .list-orders-form-hint {
     display: block;
     margin-top: 0.25rem;
@@ -166,7 +156,7 @@ orders/static/orders/css/sections/list_orders.css
 .list-orders-search-wrap {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 0.7rem;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
 }
 
@@ -196,173 +186,272 @@ select.list-orders-search {
     cursor: pointer;
 }
 
-/* ==================== ТАБЛИЦА ==================== */
+/* ==================== КОНТЕЙНЕР ГРУПП ==================== */
 
-.list-orders-table-wrap {
-    border: 1px solid #ececec;
-    border-radius: 10px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    /* Шапка ~35px + 5 строк по ~38px — с запасом под бейджи статусов. */
-    max-height: 260px;
-    background: #ffffff;
+.list-orders-groups-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
-.list-orders-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.84rem;
-    table-layout: fixed;    /* чтобы ellipsis в колонках работал предсказуемо */
+/* Одна группа (В работе / Приняты / Готовы / Выданы) */
+.list-orders-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
-.list-orders-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    text-align: left;
-    padding: 0.5rem 0.6rem;
-    background: #fafafa;
-    color: #777777;
+/* Заголовок группы */
+.list-orders-group-title {
+    font-size: 1.05rem;
     font-weight: 600;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    box-shadow: inset 0 -1px 0 #ececec;
-}
-
-.list-orders-table tbody tr {
-    cursor: pointer;
-    transition: background 0.12s ease;
-}
-
-.list-orders-table tbody tr + tr td {
-    border-top: 1px dashed #f0f0f0;
-}
-
-.list-orders-table tbody tr:hover {
-    background: #eaf6ef;
-}
-
-.list-orders-table tbody td {
-    padding: 0.45rem 0.6rem;
     color: #333333;
-    vertical-align: middle;
+    margin: 0;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #ececec;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+/* Добавляем цветной маркер перед заголовком */
+.list-orders-group-title::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+}
+.list-orders-group:nth-child(1) .list-orders-group-title::before { background: #388e3c; } /* В работе */
+.list-orders-group:nth-child(2) .list-orders-group-title::before { background: #f57c00; } /* Приняты */
+.list-orders-group:nth-child(3) .list-orders-group-title::before { background: #0b5fb2; } /* Готовы */
+.list-orders-group:nth-child(4) .list-orders-group-title::before { background: #9e9e9e; } /* Выданы */
+
+/* Контейнер для карточек внутри группы */
+.list-orders-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
-.list-orders-table tbody tr.selected {
-    background: #eaf6ef;
-    box-shadow: inset 3px 0 0 #0B8661;
-}
-
-/* ==================== КОЛОНКИ ==================== */
-
-/* Номер — моноширинный, зелёный. */
-.list-orders-table .col-number {
-    width: 9%;
-    font-family: 'Courier New', monospace;
-    color: #0B8661;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-/* Клиент — обрезаем в одну строку с многоточием. */
-.list-orders-table .col-client {
-    width: 16%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Статус — узкая колонка под бейдж. */
-.list-orders-table .col-status {
-    width: 10%;
-}
-
-/* Готовность — дата, не переносится. */
-.list-orders-table .col-ready {
-    width: 12%;
-    white-space: nowrap;
-    color: #555555;
-}
-
-/* Комментарий — приглушённый курсив, обрезка. */
-.list-orders-table .col-comment {
-    width: 16%;
-    color: #888888;
+/* Заглушка для пустой группы */
+.list-orders-group-empty {
+    font-size: 0.85rem;
+    color: #999;
     font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* ==================== КАРТОЧКА ЗАКАЗА ==================== */
+
+.list-orders-card {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    flex-wrap: wrap;
+    cursor: pointer; /* Так как клик по карточке ведет на страницу заказа */
+}
+
+/* Наведение на карточку */
+.list-orders-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Цветовые темы карточек (как в counter, но мягче) */
+.list-orders-card--in_progress {
+    background-color: #f2f9f3;
+    border-color: #cbe9cd;
+}
+.list-orders-card--accepted {
+    background-color: #faf4ed;
+    border-color: #fdeacc;
+}
+.list-orders-card--ready {
+    background-color: #eaf3f9;
+    border-color: #d3ecfd;
+}
+.list-orders-card--completed {
+    background-color: #f9f9f9;
+    border-color: #ececec;
+}
+
+/* --- Элементы карточки --- */
+
+/* Номер */
+.list-orders-card-number {
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0B8661;
+    flex: 0 0 70px;
+    white-space: nowrap;
+}
+
+/* Клиент */
+.list-orders-card-client {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    flex: 1 1 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-/* Создан — приглушённая дата. */
-.list-orders-table .col-created {
-    width: 12%;
+/* Комментарий */
+.list-orders-card-comment {
+    font-size: 0.85rem;
+    color: #666;
+    flex: 2 1 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    color: #888888;
+    padding-left: 0.5rem;
+    border-left: 1px solid rgba(0,0,0,0.05);
 }
 
-/* Изделий — по центру. */
-.list-orders-table .col-products {
-    width: 7%;
+/* Статус */
+.list-orders-card-status {
+    flex: 0 0 90px;
     text-align: center;
-    color: #555555;
 }
 
-/* Стоимость — справа, зелёным, чтобы акцентировать. */
-.list-orders-table .col-total {
-    width: 11%;
-    text-align: right;
-    color: #0B8661;
-    font-weight: 600;
+/* Дата готовности */
+.list-orders-card-ready {
+    font-size: 0.85rem;
+    color: #555;
+    flex: 0 0 110px;
+    text-align: center;
     white-space: nowrap;
 }
 
-/* Действия — узкая колонка справа. */
-.list-orders-table .col-actions {
-    width: 4%;
-    text-align: right;
-    padding-left: 0;
-    padding-right: 0.5rem;
+/* Метаданные (изделия и стоимость) */
+.list-orders-card-meta {
+    display: flex;
+    gap: 0.8rem;
+    flex: 0 0 150px;
+    justify-content: flex-end;
+    font-size: 0.85rem;
+}
+
+.list-orders-card-products {
+    color: #888;
+}
+
+.list-orders-card-total {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Кнопка удаления */
+.list-orders-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #bbb;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+    margin-left: auto;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+.list-orders-btn-delete:hover {
+    background: #e74c3c;
+    color: #ffffff;
+}
+.list-orders-btn-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ==================== БЕЙДЖИ СТАТУСОВ ==================== */
 
-/* Базовый стиль бейджа. Цвет — модификатором --{status}. */
 .list-orders-status-badge {
     display: inline-block;
-    padding: 0.15rem 0.55rem;
-    border-radius: 6px;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px; /* Более круглые, как кнопочки */
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
 }
 
-/* Принят — светло-оранжевый (как .compact-status.accepted в counter). */
 .list-orders-status-badge--accepted {
     background: #fdeacc;
     color: #f57c00;
 }
-
-/* В работе — светло-зелёный. */
 .list-orders-status-badge--in_progress {
     background: #cbe9cd;
     color: #388e3c;
 }
-
-/* Готов — светло-голубой. */
 .list-orders-status-badge--ready {
     background: #d3ecfd;
     color: #0b5fb2;
 }
-
-/* Выдан — серый. */
 .list-orders-status-badge--completed {
     background: #f5f5f5;
     color: #616161;
 }
 
-/* ==================== СООБЩЕНИЯ «НЕТ / НЕ НАЙДЕНО» ==================== */
+/* ==================== ИНЛАЙН-РЕДАКТИРОВАНИЕ ==================== */
+
+.list-orders-card .editable-cell {
+    cursor: text;
+    transition: background 0.12s, border-color 0.12s;
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    margin: -0.1rem -0.3rem; /* Компенсация паддинга для сохранения сетки */
+}
+.list-orders-card .col-status.editable-cell,
+.list-orders-card .list-orders-card-status {
+    cursor: pointer;
+}
+
+.list-orders-card .editable-cell:hover {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 1px #d0d0d0;
+}
+
+/* Текстовое поле внутри карточки */
+.list-orders-inline-input,
+.list-orders-inline-select {
+    width: 100%;
+    padding: 0.25rem 0.4rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: inherit;
+    color: #333333;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+.list-orders-inline-select {
+    cursor: pointer;
+}
+
+/* Индикатор сохранения */
+.list-orders-inline-saving {
+    color: #0B8661;
+    font-style: italic;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+    display: inline-block;
+}
+
+/* ==================== СООБЩЕНИЯ ОБ ОТСУТСТВИИ ЗАКАЗОВ ==================== */
 
 .list-orders-empty {
     padding: 1.4rem 1rem;
@@ -378,187 +467,28 @@ select.list-orders-search {
     color: #b0b0b0;
 }
 
-/* ==================== ИНЛАЙН-РЕДАКТИРОВАНИЕ ==================== */
-
-/* Ячейка доступна для редактирования — курсор «текст», мягкая подсветка. */
-.list-orders-table .editable-cell {
-    cursor: text;
-}
-.list-orders-table .col-status.editable-cell,
-.list-orders-table .col-client.editable-cell {
-    cursor: pointer;
-}
-
-.list-orders-table .editable-cell:hover {
-    background: #f0f9f5;
-}
-
-/* Режим редактирования — убираем padding, чтобы поле встало ровно. */
-.list-orders-table .editing-cell {
-    padding: 0;
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-}
-
-/* Текстовое поле внутри ячейки. */
-.list-orders-inline-input {
-    width: 100%;
-    padding: 0.35rem 0.5rem;
-    border: 2px solid #0B8661;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: inherit;
-    color: #333333;
-    outline: none;
-    box-sizing: border-box;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
-}
-
-/* Селект внутри ячейки (клиент / статус). */
-.list-orders-inline-select {
-    width: 100%;
-    padding: 0.35rem 0.5rem;
-    border: 2px solid #0B8661;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: inherit;
-    color: #333333;
-    outline: none;
-    box-sizing: border-box;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
-    cursor: pointer;
-}
-
-/* Индикатор «Сохранение...». */
-.list-orders-inline-saving {
-    color: #0B8661;
-    font-style: italic;
-    font-size: 0.85rem;
-    padding: 0.35rem 0.5rem;
-    display: inline-block;
-}
-
-/* ==================== КНОПКА УДАЛЕНИЯ В СТРОКЕ ==================== */
-
-.list-orders-btn-delete {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    background: #ffffff;
-    color: #b0b0b0;
-    font-size: 1rem;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-}
-.list-orders-btn-delete:hover {
-    background: #cf6b66;
-    color: #ffffff;
-    border-color: #cf6b66;
-}
-.list-orders-btn-delete:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ==================== */
-
-.list-orders-confirm-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1200;
-    font-family: inherit;
-}
-
-.list-orders-confirm {
-    background: rgba(244, 228, 227, 0.75);
-    border: 1px solid rgba(170, 100, 97, 0.45);
-    border-radius: 10px;
-    padding: 0.9rem 1.1rem 0.85rem;
-    width: 90%;
-    max-width: 340px;
-    box-shadow: 0 12px 36px rgba(122, 40, 35, 0.22);
-    animation: listOrdersConfirmIn 0.15s ease-out;
-    backdrop-filter: blur(3px);
-}
-
-@keyframes listOrdersConfirmIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.list-orders-confirm-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #a03a35;
-    margin-bottom: 0.35rem;
-}
-
-.list-orders-confirm-text {
-    font-size: 0.82rem;
-    color: #7a4441;
-    line-height: 1.35;
-    margin-bottom: 0.85rem;
-}
-
-.list-orders-confirm-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.45rem;
-}
-
-.list-orders-confirm-btn {
-    padding: 0.35rem 0.85rem;
-    border: none;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.12s ease, transform 0.12s ease;
-}
-
-.list-orders-confirm-btn-no {
-    background: #ffffff;
-    color: #555555;
-    border: 1px solid #d0d0d0;
-}
-.list-orders-confirm-btn-no:hover {
-    background: #f5f5f5;
-}
-
-.list-orders-confirm-btn-yes {
-    background: #d9584f;
-    color: #ffffff;
-}
-.list-orders-confirm-btn-yes:hover {
-    background: #bf4238;
-    transform: translateY(-1px);
-}
-
 /* ==================== АДАПТИВ ==================== */
 
 @media (max-width: 900px) {
-    /* На планшетах убираем фиксированную ширину у некоторых колонок —
-       таблица уходит в горизонтальный скролл. */
-    .list-orders-table {
-        table-layout: auto;
-        min-width: 820px;
+    .list-orders-card {
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+        padding-right: 2rem; /* Место под крестик */
     }
-    .list-orders-table-wrap {
-        overflow-x: auto;
+    .list-orders-card-comment {
+        border-left: none;
+        padding-left: 0;
+        margin-top: 0.2rem;
+    }
+    .list-orders-card-meta {
+        justify-content: flex-start;
+        margin-top: 0.2rem;
+    }
+    .list-orders-btn-delete {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
     }
 }
 
@@ -581,90 +511,19 @@ select.list-orders-search {
     }
 }
 
-
-/* ==================== КРАТКОВРЕМЕННЫЕ УВЕДОМЛЕНИЯ СЛЕВА СВЕРХУ ==================== */
-/* 
-   Стили скопированы из proschety/css/sections/list_proschet.css,
-   так как JS (list_orders.js) использует те же классы.
-   Контейнер: #proschety-top-notifications
-   Элементы: .proschety-top-notification
-*/
-
-.proschety-top-notifications {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1400;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    max-width: 280px;
-    pointer-events: none;
-}
-
-.proschety-top-notification {
-    pointer-events: auto;
-    background: rgba(228, 244, 236, 0.94);   /* светло-зелёный */
-    border: 1px solid rgba(11, 134, 97, 0.45);
-    border-radius: 8px;
-    padding: 0.5rem 0.75rem;
-    box-shadow: 0 8px 20px rgba(11, 134, 97, 0.18);
-    backdrop-filter: blur(3px);
-    color: #0a6e51;
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 600;
-    line-height: 1.3;
-    animation: proschetyTopNotifIn 0.2s ease-out;
-}
-
-/* Ошибка — красная */
-.proschety-top-notification.proschety-top-notification-error {
-    background: rgba(244, 228, 227, 0.94);
-    border-color: rgba(170, 100, 97, 0.45);
-    box-shadow: 0 8px 20px rgba(122, 40, 35, 0.18);
-    color: #a03a35;
-}
-
-/* Предупреждение — жёлтое */
-.proschety-top-notification.proschety-top-notification-warning {
-    background: rgba(252, 244, 224, 0.94);
-    border-color: rgba(200, 160, 80, 0.45);
-    box-shadow: 0 8px 20px rgba(140, 100, 30, 0.18);
-    color: #8a6a1a;
-}
-
-@keyframes proschetyTopNotifIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Уход — плавное исчезновение */
-.proschety-top-notification.proschety-top-notification-out {
-    animation: proschetyTopNotifOut 0.3s ease-in forwards;
-}
-@keyframes proschetyTopNotifOut {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-6px); }
-}
-
-
 /* ==================== ПЛАВАЮЩИЕ УВЕДОМЛЕНИЯ (WebSocket) ==================== */
+/* (Стили тостов и верхних уведомлений оставлены без изменений) */
 
-/* Контейнер фиксирован в левом нижнем углу.
-   Карточки позиционируются АБСОЛЮТНО внутри — это нужно, чтобы
-   можно было накладывать их друг на друга со сдвигом и менять z-index. */
 .proschety-toasts {
     position: fixed;
     left: 20px;
     bottom: 20px;
     z-index: 1300;
     width: 260px;
-    height: 0;                 /* высота контейнера = 0, карточки висят от нижней точки */
-    pointer-events: none;      /* сам контейнер не перехватывает клики */
+    height: 0;
+    pointer-events: none;
 }
 
-/* Базовая карточка уведомления. */
 .proschety-toast {
     pointer-events: auto;
     position: absolute;
@@ -681,13 +540,11 @@ select.list-orders-search {
     animation: proschetyToastIn 0.18s ease-out;
 }
 
-/* Карточка «выдвинута на передний план» — приподнята и с усиленной тенью. */
 .proschety-toast.proschety-toast-raised {
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.30);
     z-index: 9000 !important;
 }
 
-/* Удаление — розово-красные тона. */
 .proschety-toast.proschety-toast-deleted {
     background: rgba(244, 228, 227, 0.92);
     border: 1px solid rgba(170, 100, 97, 0.45);
@@ -695,7 +552,6 @@ select.list-orders-search {
     color: #7a4441;
 }
 
-/* Создание — фирменные зелёные тона. */
 .proschety-toast.proschety-toast-created {
     background: rgba(228, 244, 236, 0.92);
     border: 1px solid rgba(11, 134, 97, 0.45);
@@ -703,7 +559,6 @@ select.list-orders-search {
     color: #0a6e51;
 }
 
-/* Обновление — голубые тона. */
 .proschety-toast.proschety-toast-updated {
     background: rgba(220, 235, 248, 0.92);
     border: 1px solid rgba(80, 140, 200, 0.45);
@@ -716,7 +571,6 @@ select.list-orders-search {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Кнопка-крестик в правом верхнем углу уведомления. */
 .proschety-toast-close {
     position: absolute;
     top: 2px;
@@ -736,36 +590,21 @@ select.list-orders-search {
     opacity: 1;
 }
 
-/* Жирное имя автора. */
 .proschety-toast-actor {
     font-weight: 700;
 }
-.proschety-toast.proschety-toast-deleted .proschety-toast-actor {
-    color: #a03a35;
-}
-.proschety-toast.proschety-toast-created .proschety-toast-actor {
-    color: #0a6e51;
-}
-.proschety-toast.proschety-toast-updated .proschety-toast-actor {
-    color: #14508a;
-}
+.proschety-toast.proschety-toast-deleted .proschety-toast-actor { color: #a03a35; }
+.proschety-toast.proschety-toast-created .proschety-toast-actor { color: #0a6e51; }
+.proschety-toast.proschety-toast-updated .proschety-toast-actor { color: #14508a; }
 
-/* Номер заказа — моноширинный. */
 .proschety-toast-number {
     font-family: 'Courier New', monospace;
     font-weight: 700;
 }
-.proschety-toast.proschety-toast-deleted .proschety-toast-number {
-    color: #a03a35;
-}
-.proschety-toast.proschety-toast-created .proschety-toast-number {
-    color: #0a6e51;
-}
-.proschety-toast.proschety-toast-updated .proschety-toast-number {
-    color: #14508a;
-}
+.proschety-toast.proschety-toast-deleted .proschety-toast-number { color: #a03a35; }
+.proschety-toast.proschety-toast-created .proschety-toast-number { color: #0a6e51; }
+.proschety-toast.proschety-toast-updated .proschety-toast-number { color: #14508a; }
 
-/* Кнопка «Обновить данные» в тосте. */
 .proschety-toast-refresh {
     display: block;
     margin-top: 0.3rem;
@@ -788,4 +627,115 @@ select.list-orders-search {
 }
 .proschety-toast-refresh[hidden] {
     display: none;
+}
+
+.proschety-top-notifications {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1400;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 280px;
+    pointer-events: none;
+}
+
+.proschety-top-notification {
+    pointer-events: auto;
+    background: rgba(228, 244, 236, 0.94);
+    border: 1px solid rgba(11, 134, 97, 0.45);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 8px 20px rgba(11, 134, 97, 0.18);
+    backdrop-filter: blur(3px);
+    color: #0a6e51;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    animation: proschetyTopNotifIn 0.2s ease-out;
+}
+
+.proschety-top-notification.proschety-top-notification-error {
+    background: rgba(244, 228, 227, 0.94);
+    border-color: rgba(170, 100, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(122, 40, 35, 0.18);
+    color: #a03a35;
+}
+
+.proschety-top-notification.proschety-top-notification-warning {
+    background: rgba(252, 244, 224, 0.94);
+    border-color: rgba(200, 160, 80, 0.45);
+    box-shadow: 0 8px 20px rgba(140, 100, 30, 0.18);
+    color: #8a6a1a;
+}
+
+@keyframes proschetyTopNotifIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.proschety-top-notification.proschety-top-notification-out {
+    animation: proschetyTopNotifOut 0.3s ease-in forwards;
+}
+@keyframes proschetyTopNotifOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-6px); }
+}
+
+/* ==================== СТИЛИЗОВАННЫЙ SELECT СТАТУСА ==================== */
+
+.list-orders-status-select {
+    /* Убираем стандартный вид браузера */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* Размеры и отступы как у бейджа */
+    display: inline-block;
+    padding: 0.2rem 1.5rem 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid transparent;
+    outline: none;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    
+    /* Кастомная стрелочка через SVG-фон */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem top 50%;
+    background-size: 0.6rem auto;
+}
+
+.list-orders-status-select:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Цветовые темы (аналогично бейджам) */
+.list-orders-status-select--accepted {
+    background-color: #fdeacc;
+    color: #f57c00;
+}
+.list-orders-status-select--in_progress {
+    background-color: #cbe9cd;
+    color: #388e3c;
+}
+.list-orders-status-select--ready {
+    background-color: #d3ecfd;
+    color: #0b5fb2;
+}
+.list-orders-status-select--completed {
+    background-color: #f5f5f5;
+    color: #616161;
+}
+
+/* Стили для выпадающих опций (работает в Windows/Chrome) */
+.list-orders-status-select option {
+    background: #ffffff;
+    color: #333333;
+    font-weight: 500;
 }

@@ -66,14 +66,14 @@ class ClientAdmin(admin.ModelAdmin):
     # Поля для отображения в форме редактирования
     fieldsets = [
         ('Основная информация', {
-            'fields': ['client_number', 'name', 'discount', 'has_edo']
+            'fields': ['client_number', 'name', 'discount', 'comment'] 
         }),
         ('Контактная информация', {
-            'fields': ['address', 'bank_details'],
+            'fields': ['address'],
             'classes': ['collapse']
         }),
-        ('Даты', {
-            'fields': ['created_at', 'updated_at'],
+        ('Даты и статус', { 
+            'fields': ['is_deleted', 'created_at', 'updated_at'],
             'classes': ['collapse']
         }),
     ]

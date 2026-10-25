@@ -1,0 +1,80 @@
+<!--
+baza_klientov/templates/baza_klientov/sections/contacts.html
+Секция «Сотрудники» (Контактные лица).
+-->
+<section class="contacts-section" id="contacts-section" style="display: none;">
+
+    <!-- Шапка секции: название + кнопка добавления -->
+    <div class="contacts-header">
+        <h2 class="contacts-title">Сотрудники</h2>
+        <div class="contacts-actions">
+            <button type="button" class="contacts-btn-create" id="contacts-create-btn">
+                + Добавить сотрудника
+            </button>
+        </div>
+    </div>
+
+    <!-- Форма добавления (скрыта по умолчанию, будет реализована на следующем шаге) -->
+    <!-- Форма добавления (скрыта по умолчанию) -->
+    <div class="contacts-create-form" id="contacts-create-form" style="display: none;">
+        <form id="contact-form-el">
+            {% csrf_token %}
+            
+            <div class="contact-form-row">
+                <div class="contact-form-group">
+                    <label>ФИО <span style="color:red">*</span></label>
+                    <input type="text" id="contact-full-name" class="contact-form-input" required placeholder="Иванов Иван">
+                </div>
+                <div class="contact-form-group">
+                    <label>Должность</label>
+                    <input type="text" id="contact-position" class="contact-form-input" placeholder="Менеджер">
+                </div>
+            </div>
+
+            <div class="contact-form-row">
+                <div class="contact-form-group">
+                    <label>Телефон</label>
+                    <input type="text" id="contact-phone" class="contact-form-input" placeholder="+7...">
+                </div>
+                <div class="contact-form-group">
+                    <label>Сотовый</label>
+                    <input type="text" id="contact-mobile" class="contact-form-input" placeholder="+7...">
+                </div>
+                <div class="contact-form-group">
+                    <label>E-mail</label>
+                    <input type="email" id="contact-email" class="contact-form-input" placeholder="mail@example.com">
+                </div>
+            </div>
+
+            <div class="contact-form-row">
+                <div class="contact-form-group" style="flex: 1;">
+                    <label>Комментарий</label>
+                    <input type="text" id="contact-comments" class="contact-form-input" placeholder="Дополнительная информация">
+                </div>
+                <div class="contact-form-group" style="flex: 0 0 auto; display: flex; align-items: center; margin-top: 1.2rem;">
+                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                        <input type="checkbox" id="contact-is-primary" style="accent-color: #0B8661;">
+                        <span>Основной</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="contact-form-actions">
+                <button type="button" class="baza-btn-cancel" id="contact-btn-cancel">Отмена</button>
+                <button type="submit" class="baza-btn-submit" id="contact-btn-submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Контейнер для карточек сотрудников -->
+    <div class="contacts-list" id="contacts-list">
+        <!-- Сюда JS будет вставлять карточки -->
+    </div>
+
+    <!-- Сообщение, если сотрудников нет -->
+    <div class="contacts-empty" id="contacts-empty" style="display: none;">
+        <p>Сотрудников пока нет</p>
+        <small>Нажмите «Добавить сотрудника», чтобы создать первого</small>
+    </div>
+
+</section>

@@ -54,13 +54,23 @@ def index(request):
         # список. Форма будет без выбора клиента, но страница откроется.
         pass
 
+    # Группируем заказы по статусам для вывода в 4 колонки/блока.
+    orders_in_progress = [o for o in orders if o.status == 'in_progress']
+    orders_accepted    = [o for o in orders if o.status == 'accepted']
+    orders_ready       = [o for o in orders if o.status == 'ready']
+    orders_completed   = [o for o in orders if o.status == 'completed']
+
     # Формируем контекст для шаблона.
     context = {
-        'orders': orders,                              # Список заказов
-        'clients': clients,                            # Список клиентов
-        'active_app': 'orders',                        # Активное приложение (для подсветки в панели)
-        'page_title': 'Заказы',                        # Заголовок страницы
-        'session_key': request.session.session_key or '', # НОВОЕ: для фильтрации своих WebSocket-событий
+        'orders': orders,                              # Полный список (для поиска, если понадобится)
+        'orders_in_progress': orders_in_progress,
+        'orders_accepted': orders_accepted,
+        'orders_ready': orders_ready,
+        'orders_completed': orders_completed,
+        'clients': clients,
+        'active_app': 'orders',
+        'page_title': 'Заказы',
+        'session_key': request.session.session_key or '',
     }
 
     # Рендерим шаблон.
@@ -671,7 +681,13 @@ def api_rows(request):
     return render(
         request,
         'orders/sections/_order_rows.html',
-        {'orders': orders},
+        {
+            'orders': orders,
+            'orders_in_progress': [o for o in orders if o.status == 'in_progress'],
+            'orders_accepted':    [o for o in orders if o.status == 'accepted'],
+            'orders_ready':       [o for o in orders if o.status == 'ready'],
+            'orders_completed':   [o for o in orders if o.status == 'completed'],
+        },
     )
 
 # ============================================================================

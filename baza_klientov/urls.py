@@ -35,4 +35,12 @@ urlpatterns = [
     
     # Удаление контактного лица
     path('delete_contact/<int:contact_id>/', views.delete_contact_person, name='delete_contact'),
+    # API для создания юридического лица
+    path('api/create_legal_entity/', views.create_legal_entity, name='create_legal_entity'),
+    # API для получения списка контактов клиента
+    path('api/client_contacts/<int:client_id>/', views.api_get_contacts, name='api_get_contacts'),
+    # API для юрлиц
+    path('api/legal_entities/<int:client_id>/', views.api_get_legal_entities, name='api_get_legal_entities'),
+    path('api/update_legal_entity/<int:le_id>/', views.update_legal_entity, name='update_legal_entity'),
+    path('api/delete_legal_entity/<int:le_id>/', views.delete_legal_entity, name='delete_legal_entity'),
 ]

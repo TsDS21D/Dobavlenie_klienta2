@@ -53,6 +53,15 @@ class Client(models.Model):
         null=True,
         help_text='Расчетный счет, БИК, банк и другие реквизиты'
     )
+
+
+    # Комментарий к клиенту (новое поле)
+    comment = models.TextField(
+        verbose_name='Комментарий',
+        blank=True,
+        null=True,
+        help_text='Произвольный комментарий'
+    )
     
     # Скидка в процентах (целое число от 1 до 100)
     discount = models.PositiveIntegerField(
@@ -148,6 +157,14 @@ class Client(models.Model):
             # Простой способ: количество записей + 1
             count = Client.objects.count()
             return f"K-{count + 1}"
+
+    # Флаг мягкого удаления
+    is_deleted = models.BooleanField(
+        verbose_name='Удален',
+        default=False,
+        help_text='Отметьте, если клиент удален (скрыт из списка)'
+    )
+
     
     def save(self, *args, **kwargs):
         """
@@ -200,6 +217,7 @@ class Client(models.Model):
             'name': self.name,
             'address': self.address or "",
             'bank_details': self.bank_details or "",
+            'comment': self.comment or "",
             'discount': self.discount,
             'discount_display': self.get_discount_display(),
             'has_edo': self.has_edo,
@@ -319,3 +337,101 @@ class ContactPerson(models.Model):
             'is_primary': self.is_primary,
             'created_at': self.created_at.strftime('%d.%m.%Y %H:%M'),
         }
+    # Флаг мягкого удаления
+    is_deleted = models.BooleanField(
+        verbose_name='Удален',
+        default=False
+    )
+
+
+# ==============================================================================
+# НОВАЯ МОДЕЛЬ: Юридическое лицо
+# ==============================================================================
+class LegalEntity(models.Model):
+    """
+    Модель "Юридическое лицо" (Юрлицо).
+    Один клиент может иметь несколько юрлиц.
+    """
+    # Связь с клиентом
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='legal_entities',
+        verbose_name='Клиент'
+    )
+    
+    # Название юрлица (например, ООО "Ромашка")
+    name = models.CharField(
+        max_length=255,
+        verbose_name='Название юрлица',
+        help_text='Полное или краткое наименование организации'
+    )
+    
+    # Реквизиты (адрес, ИНН, КПП, р/с и т.д.)
+    requisites = models.TextField(
+        verbose_name='Реквизиты',
+        blank=True,
+        null=True,
+        help_text='Адрес, ИНН, КПП, банковские реквизиты'
+    )
+    
+    # НОВОЕ ПОЛЕ: Статус ЭДО (3 варианта)
+    EDO_CHOICES = (
+        ('none', 'Без ЭДО'),
+        ('requested', 'Отправлен запрос'),
+        ('connected', 'Работает через ЭДО'),
+    )
+    
+    edo_status = models.CharField(
+        max_length=20,
+        choices=EDO_CHOICES,
+        default='none',
+        verbose_name='Статус ЭДО'
+    )
+    
+    is_primary = models.BooleanField(
+        verbose_name='Основное юрлицо',
+        default=False,
+        help_text='Отметьте, если это основное юрлицо клиента'
+    )    
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания'
+    )
+
+
+
+    # ДОБАВЛЯЕМ ЭТО ПОЛЕ:
+    comment = models.TextField(
+        verbose_name='Комментарий',
+        blank=True,
+        null=True,
+        help_text='Произвольный комментарий к юрлицу'
+    )
+
+
+
+    class Meta:
+        verbose_name = 'Юридическое лицо'
+        verbose_name_plural = 'Юридические лица'
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.client.name})"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'client_id': self.client.id,
+            'name': self.name,
+            'requisites': self.requisites or "",
+            'comment': self.comment or "",
+            'edo_status': self.edo_status,
+            'is_primary': self.is_primary,
+        }
+    # Флаг мягкого удаления
+    is_deleted = models.BooleanField(
+        verbose_name='Удален',
+        default=False
+    )

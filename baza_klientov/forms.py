@@ -6,7 +6,7 @@ forms.py для приложения baza_klientov
 
 from django import forms
 from django.core.validators import MinValueValidator, MaxValueValidator
-from .models import Client, ContactPerson
+from .models import Client, ContactPerson, LegalEntity
 
 
 class ClientForm(forms.ModelForm):
@@ -79,10 +79,22 @@ class ClientForm(forms.ModelForm):
         })
     )
     
+    # ДОБАВЛЯЕМ ПОЛЕ КОММЕНТАРИЯ
+    comment = forms.CharField(
+        label='Комментарий',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'baza-form-input',
+            'id': 'create-client-comment',
+            'rows': 2,
+            'placeholder': 'Произвольный комментарий',
+        })
+    )
+
     class Meta:
-        """Метаданные формы - связь с моделью Client"""
         model = Client
-        fields = ['name', 'address', 'bank_details', 'discount', 'has_edo']
+        # ОБНОВЛЯЕМ СПИСОК ПОЛЕЙ: убираем bank_details и has_edo (они теперь в LegalEntity), добавляем comment
+        fields = ['name', 'address', 'discount', 'comment']
     
     def clean_discount(self):
         """Дополнительная валидация поля скидки"""
@@ -296,4 +308,32 @@ class ContactPersonInlineUpdateForm(forms.ModelForm):
         # Основное контактное лицо (чекбокс)
         self.fields['is_primary'].widget = forms.CheckboxInput(attrs={
             'class': 'inline-edit-checkbox contact-is-primary-checkbox',
+        })
+
+class LegalEntityForm(forms.ModelForm):
+    """
+    Форма для создания юридического лица.
+    Используется для AJAX-запроса при добавлении юрлица клиенту.
+    """
+    
+    class Meta:
+        model = LegalEntity
+        fields = ['name', 'requisites', 'edo_status', 'comment', 'is_primary']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Настраиваем виджеты для дальнейшего использования в модалке/форме
+        self.fields['name'].widget = forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Например: ООО "Ромашка"',
+            'required': True
+        })
+        self.fields['requisites'].widget = forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'ИНН, КПП, р/с, БИК, адрес...',
+            'rows': 3
+        })
+        self.fields['has_edo'].widget = forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
         })

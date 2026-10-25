@@ -70,6 +70,7 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('dblclick', handleEditableCellDblClick);
         document.addEventListener('click',    handleDeleteClick);
         document.addEventListener('click',    handleRowClick);
+        document.addEventListener('change', handleStatusChange);
 
         // --- Форма создания ---
         createBtn     = document.getElementById('list-orders-create-btn');
@@ -168,28 +169,51 @@ JavaScript секции «Список заказов» страницы /orders
         const qClient = inputClient ? (inputClient.value || '').trim().toLowerCase() : '';
         const qStatus = selectStatus ? (selectStatus.value || '') : '';
 
-        const rows = tableBody.querySelectorAll('.list-orders-row');
+        // Теперь ищем карточки, а не строки таблицы
+        const cards = tableBody.querySelectorAll('.list-orders-card');
         let visibleCount = 0;
 
-        rows.forEach(function (row) {
-            const fullText   = row.textContent.toLowerCase();
-            const clientCell = row.querySelector('.col-client');
+        cards.forEach(function (card) {
+            const fullText   = card.textContent.toLowerCase();
+            const clientCell = card.querySelector('.list-orders-card-client');
             const clientText = clientCell ? clientCell.textContent.toLowerCase() : '';
-            const rowStatus  = row.dataset.status || '';
+            const rowStatus  = card.dataset.status || '';
 
             const passAll    = !qAll    || fullText.indexOf(qAll)       !== -1;
             const passClient = !qClient || clientText.indexOf(qClient) !== -1;
             const passStatus = !qStatus || rowStatus === qStatus;
 
             if (passAll && passClient && passStatus) {
-                row.style.display = '';
+                card.style.display = '';
                 visibleCount++;
             } else {
-                row.style.display = 'none';
+                card.style.display = 'none';
             }
         });
 
-        // Показываем сообщение «ничего не найдено», если есть запрос, но нет строк.
+        // Скрываем заголовки групп, если в них не осталось видимых карточек
+        document.querySelectorAll('.list-orders-group').forEach(function (group) {
+            const groupCards = group.querySelectorAll('.list-orders-card');
+            if (groupCards.length === 0) return; // Пустые группы не трогаем
+
+            let hasVisible = false;
+            groupCards.forEach(function (c) {
+                if (c.style.display !== 'none') hasVisible = true;
+            });
+            
+            const title = group.querySelector('.list-orders-group-title');
+            const emptyMsg = group.querySelector('.list-orders-group-empty');
+
+            if (hasVisible) {
+                if (title) title.style.display = '';
+                if (emptyMsg) emptyMsg.style.display = 'none';
+            } else {
+                if (title) title.style.display = 'none';
+                // Если поиск отфильтровал все карточки, но группа не была пуста изначально
+                if (emptyMsg) emptyMsg.style.display = 'none'; 
+            }
+        });
+
         const anyQuery = !!(qAll || qClient || qStatus);
         if (noResultsBlock) {
             noResultsBlock.style.display = (anyQuery && visibleCount === 0) ? 'block' : 'none';
@@ -319,21 +343,23 @@ JavaScript секции «Список заказов» страницы /orders
         if (!cell) return;
         if (cell.classList.contains('editing-cell')) return;
 
+        const card = cell.closest('.list-orders-card');
+        if (!card) return;
+        const orderId = card.dataset.orderId;
+        if (!orderId) return;
+
         const field = cell.dataset.field;
 
-        if (field === 'client')         activateClientEdit(cell);
-        else if (field === 'status')    activateStatusEdit(cell);
-        else if (field === 'ready_datetime') activateReadyEdit(cell);
-        else if (field === 'comment')   activateCommentEdit(cell);
+        if (field === 'client')         activateClientEdit(cell, orderId, card.dataset.clientId || '');
+        else if (field === 'ready_datetime') activateReadyEdit(cell, orderId);
+        else if (field === 'comment')   activateCommentEdit(cell, orderId);
     }
 
     /**
      * Редактирование клиента — селект со списком клиентов.
      * Список тянем один раз и кэшируем.
      */
-    function activateClientEdit(cell) {
-        const orderId       = cell.dataset.orderId;
-        const currentId     = cell.dataset.clientId || '';
+    function activateClientEdit(cell, orderId, currentId) {
         const originalText  = cell.dataset.originalValue || '—';
 
         // Показываем «Загрузка...», пока приходит список.
@@ -414,8 +440,7 @@ JavaScript секции «Список заказов» страницы /orders
     /**
      * Редактирование статуса — селект с четырьмя вариантами.
      */
-    function activateStatusEdit(cell) {
-        const orderId      = cell.dataset.orderId;
+    function activateStatusEdit(cell, orderId) {
         const currentValue = cell.dataset.originalValue || 'accepted';
         const originalHtml = cell.innerHTML;
 
@@ -469,8 +494,7 @@ JavaScript секции «Список заказов» страницы /orders
     /**
      * Редактирование даты готовности — <input type="datetime-local">.
      */
-    function activateReadyEdit(cell) {
-        const orderId     = cell.dataset.orderId;
+    function activateReadyEdit(cell, orderId) {
         const currentVal  = cell.dataset.originalValue || '';
         const originalText = cell.textContent.trim();
 
@@ -510,8 +534,7 @@ JavaScript секции «Список заказов» страницы /orders
     /**
      * Редактирование комментария — текстовый input.
      */
-    function activateCommentEdit(cell) {
-        const orderId      = cell.dataset.orderId;
+    function activateCommentEdit(cell, orderId) {
         const currentVal   = cell.dataset.originalValue || '';
         const originalText = currentVal || '—';
 
@@ -592,35 +615,35 @@ JavaScript секции «Список заказов» страницы /orders
 
             // Обновляем ячейку и data-атрибуты в зависимости от поля.
             const o = data.order;
-            const row = cell.closest('.list-orders-row');
+            const card = cell.closest('.list-orders-card');
 
             if (fieldName === 'client') {
                 cell.textContent = o.client_name || '—';
                 cell.dataset.originalValue = o.client_name || '—';
-                cell.dataset.clientId = o.client_id || '';
-                if (row) row.dataset.clientId = o.client_id || '';
+                if (card) card.dataset.clientId = o.client_id || '';
+                cell.classList.remove('editing-cell');
+                showNotification('Сохранено', 'success');
             }
             else if (fieldName === 'status') {
-                // Перерисовываем бейдж.
-                cell.innerHTML = '<span class="list-orders-status-badge list-orders-status-badge--' +
-                                 o.status + '">' + o.status_display + '</span>';
-                cell.dataset.originalValue = o.status;
-                if (row) row.dataset.status = o.status;
+                // При смене статуса карточка должна переехать в другую группу.
+                // Проще всего перерисовать всё дерево.
+                showNotification('Статус изменён', 'success');
+                return refreshTable(); 
             }
             else if (fieldName === 'ready_datetime') {
                 cell.textContent = o.ready_datetime;
-                // data-original-value в ISO формате для datetime-local.
                 cell.dataset.originalValue = fieldValue;
-                if (row) row.dataset.readyDatetime = fieldValue;
+                if (card) card.dataset.readyDatetime = fieldValue;
+                cell.classList.remove('editing-cell');
+                showNotification('Сохранено', 'success');
             }
             else if (fieldName === 'comment') {
                 cell.textContent = o.comment || '—';
                 cell.dataset.originalValue = o.comment || '';
-                if (row) row.dataset.comment = o.comment || '';
+                if (card) card.dataset.comment = o.comment || '';
+                cell.classList.remove('editing-cell');
+                showNotification('Сохранено', 'success');
             }
-
-            cell.classList.remove('editing-cell');
-            showNotification('Сохранено', 'success');
         })
         .catch(function (err) {
             console.error(err);
@@ -722,18 +745,19 @@ JavaScript секции «Список заказов» страницы /orders
      * На редактируемых ячейках клик ничего не делает — там работает dblclick.
      */
     function handleRowClick(event) {
-        // Клик по кнопке удаления — не наш случай.
         if (event.target.closest('.list-orders-btn-delete')) return;
-        // Клик по редактируемой ячейке или полю ввода — не наш случай.
         if (event.target.closest('.editable-cell')) return;
         if (event.target.closest('.editing-cell')) return;
         if (event.target.closest('.list-orders-inline-input')) return;
         if (event.target.closest('.list-orders-inline-select')) return;
+         // НОВОЕ: клик по селекту статуса не должен открывать карточку
+         if (event.target.closest('.list-orders-status-select')) return;
 
-        const row = event.target.closest('.list-orders-row');
-        if (!row) return;
+        // Ищем карточку
+        const card = event.target.closest('.list-orders-card');
+        if (!card) return;
 
-        const orderId = row.dataset.orderId;
+        const orderId = card.dataset.orderId;
         if (!orderId) return;
 
         window.location.href = '/orders/' + orderId + '/';
@@ -928,6 +952,46 @@ JavaScript секции «Список заказов» страницы /orders
         }
     }
 
+/**
+ * Обработка изменения выпадающего списка статусов.
+ */
+function handleStatusChange(event) {
+    const select = event.target.closest('.list-orders-status-select');
+    if (!select) return;
 
+    const orderId = select.dataset.orderId;
+    const newStatus = select.value;
+    if (!orderId) return;
+
+    select.disabled = true;
+
+    const fd = new FormData();
+    fd.append('field_name', 'status');
+    fd.append('field_value', newStatus);
+
+    fetch('/orders/api/order/' + orderId + '/update-field/', {
+        method: 'POST',
+        body: fd,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) {
+            showNotification('Статус изменён', 'success');
+            return refreshTable(); 
+        } else {
+            select.disabled = false;
+            showNotification(data.error || 'Ошибка сохранения', 'error');
+        }
+    })
+    .catch(function (err) {
+        console.error(err);
+        select.disabled = false;
+        showNotification('Ошибка сети при сохранении статуса', 'error');
+    });
+}
 
 })();

@@ -1,41 +1,96 @@
 <!--
-base.html для приложения baza_klientov
-Наследует общую структуру и стили для единообразия дизайна
+baza_klientov/templates/baza_klientov/base.html
+Базовый шаблон для приложения «База клиентов».
+
+Переписан по образцу proschety/templates/proschety/base.html:
+  - НЕ наследует sheet_formats/base.html (был общий «старый» каркас);
+  - самодостаточный: своя структура HTML, свой базовый CSS;
+  - подключает общую боковую панель приложений counter/app_panels.html
+    (тот же файл, что используют calculator, orders, proschety и др.);
+  - точки расширения для дочерних шаблонов:
+      * title       — заголовок страницы;
+      * extra_css   — дополнительные CSS секций;
+      * content     — основной контент;
+      * extra_js    — JS секций.
+
+ВАЖНОЕ ПРАВИЛО DJANGO:
+Внутри HTML-комментариев НЕЛЬЗЯ писать Django-теги (открывающая или
+закрывающая фигурная скобка с процентом). Django парсит комментарии
+как обычный текст и воспринимает их как настоящие теги — получаются
+"дубли блоков" или "незакрытые блоки", и рендер падает.
+
+Именно из-за этого в этом и во всех других шаблонах проекта
+Django-теги в комментариях намеренно пишутся БЕЗ фигурных скобок —
+только как слова, например: "блок title", "тег endblock", "директива
+include". Реальные теги — только в коде вне комментариев.
+
+Что подключено:
+  - baza_klientov/css/base.css  — канон проекта (переменные, контейнер,
+    заголовки, стили боковой панели). Создан на шаге 1.
+
+Что подключается позже (по шагам):
+  - шаг 3: секция «Список клиентов»;
+  - шаг 4: секция «Клиент»;
+  - шаг 5: секция «Контактные лица»;
+  - шаг 6: форма создания клиента и контакта;
+  - шаг 7: модалка подтверждения удаления;
+  - шаг 8: уведомления.
 -->
 
-{% extends "sheet_formats/base.html" %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Блок для дополнительных CSS стилей -->
-{% block extra_css %}
-<!-- Подключаем CSS стили для baza_klientov -->
-{% load static %}
-<link rel="stylesheet" href="{% static 'baza_klientov/css/baza_klientov.css' %}">
-<!-- Дополнительные мета-теги для адаптивности -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-    /* Дополнительные inline-стили */
-    html, body {
-        overflow-x: hidden !important;
-        max-width: 100% !important;
-        position: relative !important;
-    }
-    
-    /* Исправление для контейнера на очень узких экранах */
-    @media (max-width: 1137px) {
-        .container {
-            width: 100% !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-    }
-</style>
-{% endblock %}
+    <!-- Динамический заголовок страницы — дочерние шаблоны переопределяют. -->
+    <title>{% block title %}База клиентов{% endblock %} — BUKVA A</title>
 
-<!-- Блок для дополнительного JavaScript -->
-{% block extra_js %}
-<!-- Подключаем JavaScript для baza_klientov -->
-{% load static %}
-<script src="{% static 'baza_klientov/js/baza_klientov.js' %}"></script>
-<!-- Подключаем JavaScript для in-line редактирования -->
-<script src="{% static 'baza_klientov/js/baza_klientov_inline_edit.js' %}"></script>
-{% endblock %}
+    <!-- Загружаем тег static для ссылок на CSS/JS. -->
+    {% load static %}
+
+    <!-- Базовый CSS: переменные --brand-*, контейнер, заголовки,
+         стили боковой панели приложений. Канон проекта (как в proschety). -->
+    <link rel="stylesheet" href="{% static 'baza_klientov/css/base.css' %}">
+
+    <!-- Дополнительные CSS секций подключаются из дочерних шаблонов. -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Контейнер для всплывающих уведомлений (тостов) -->
+    <div id="baza-top-notifications" class="baza-top-notifications"></div>
+
+    <!--
+    Боковая панель приложений — общая для всей системы.
+    counter/app_panels.html — тот же файл, что используют calculator,
+    orders, proschety и другие приложения.
+    Передаём active_app='baza_klientov', чтобы панель знала, какой
+    пункт подсветить. Если в app_panels.html такой ветки нет —
+    панель просто отрисуется без подсветки (ничего не сломается).
+    -->
+    {% include "counter/app_panels.html" with active_app=active_app|default:"baza_klientov" %}
+
+    <!-- Основной белый контейнер страницы. -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Точка подключения для JS дочерних шаблонов (секций). -->
+    {% block extra_js %}{% endblock %}
+
+    <!-- ==================== МОДАЛКА ПОДТВЕРЖДЕНИЯ ==================== -->
+    <div class="baza-confirm-overlay" id="baza-confirm-overlay" style="display: none;">
+        <div class="baza-confirm">
+            <div class="baza-confirm-title" id="baza-confirm-title">Подтверждение</div>
+            <div class="baza-confirm-text" id="baza-confirm-text">Вы уверены?</div>
+            <div class="baza-confirm-actions">
+                <button type="button" class="baza-confirm-btn baza-confirm-btn-no" id="baza-confirm-no">Отмена</button>
+                <button type="button" class="baza-confirm-btn baza-confirm-btn-yes" id="baza-confirm-yes">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+</html>

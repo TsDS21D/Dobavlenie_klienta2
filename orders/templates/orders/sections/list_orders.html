@@ -134,42 +134,27 @@ orders/templates/orders/sections/list_orders.html
         </select>
     </div>
 
-    <!-- Таблица заказов -->
-    <div class="list-orders-table-wrap">
-        <table class="list-orders-table">
-            <thead>
-                <tr>
-                    <th class="col-number">Номер</th>
-                    <th class="col-client">Клиент</th>
-                    <th class="col-status">Статус</th>
-                    <th class="col-ready">Готовность</th>
-                    <th class="col-comment">Комментарий</th>
-                    <th class="col-created">Создан</th>
-                    <th class="col-products">Изделий</th>
-                    <th class="col-total">Стоимость</th>
-                    <th class="col-actions"></th>
-                </tr>
-            </thead>
-            <tbody id="list-orders-table-body">
-                {% include "orders/sections/_order_rows.html" %}
-            </tbody>
-        </table>
+    <!-- Контейнер для групп с карточками заказов.
+         JS (функция refreshTable) будет перезаписывать его содержимое,
+         поэтому id оставляем прежним (list-orders-table-body). -->
+    <div class="list-orders-groups-wrap" id="list-orders-table-body">
+        {% include "orders/sections/_order_rows.html" %}
+    </div>
 
-        <!-- Сообщение, когда заказов нет вообще -->
-        <div class="list-orders-empty"
-             id="list-orders-empty"
-             {% if orders %}style="display: none;"{% endif %}>
-            <p>Заказов пока нет</p>
-            <small>Нажмите «Создать», чтобы добавить первый заказ</small>
-        </div>
+    <!-- Сообщение, когда заказов нет вообще -->
+    <div class="list-orders-empty"
+         id="list-orders-empty"
+         {% if orders %}style="display: none;"{% endif %}>
+        <p>Заказов пока нет</p>
+        <small>Нажмите «Создать», чтобы добавить первый заказ</small>
+    </div>
 
-        <!-- Сообщение, когда поиск не дал результатов -->
-        <div class="list-orders-empty"
-             id="list-orders-no-results"
-             style="display: none;">
-            <p>Ничего не найдено</p>
-            <small>Попробуйте изменить поисковый запрос или фильтр по статусу</small>
-        </div>
+    <!-- Сообщение, когда поиск не дал результатов -->
+    <div class="list-orders-empty"
+         id="list-orders-no-results"
+         style="display: none;">
+        <p>Ничего не найдено</p>
+        <small>Попробуйте изменить поисковый запрос или фильтр по статусу</small>
     </div>
 
 </section>
