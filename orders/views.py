@@ -756,10 +756,13 @@ def api_create_order(request):
 
     # --- Клиент (необязателен). Если id задан — ищем в БД. ---
     client = None
+    client_address = ''
     if client_id_raw:
         try:
             from baza_klientov.models import Client
             client = Client.objects.get(id=client_id_raw)
+            # Запоминаем адрес клиента для доставки
+            client_address = client.address or ''
         except (ImportError, Client.DoesNotExist):
             return JsonResponse(
                 {'success': False, 'error': 'Клиент не найден'},
@@ -793,6 +796,7 @@ def api_create_order(request):
         'client':     client,
         'comment':    comment_raw,
         'created_by': request.user,
+        'delivery_address': client_address,
     }
     if ready_datetime_parsed is not None:
         create_kwargs['ready_datetime'] = ready_datetime_parsed
@@ -880,6 +884,9 @@ def api_update_order(request, order_id):
                 from baza_klientov.models import Client
                 client = Client.objects.get(id=field_value)
                 order.client = client
+                # АВТОЗАПОЛНЕНИЕ АДРЕСА ДОСТАВКИ
+                if client.address:
+                    order.delivery_address = client.address
             except (ImportError, Client.DoesNotExist):
                 return JsonResponse(
                     {'success': False, 'error': 'Клиент не найден'},
@@ -922,6 +929,84 @@ def api_update_order(request, order_id):
                 status=400,
             )
         order.comment = field_value
+    elif field_name == 'is_paid':
+        order.is_paid = field_value == 'true' or field_value == '1'
+
+    elif field_name == 'payer_type':
+        if field_value not in ['', 'legal', 'individual']:
+            return JsonResponse({'success': False, 'error': 'Недопустимый тип плательщика'}, status=400)
+        order.payer_type = field_value
+        # При смене типа плательщика очищаем поле, которое к нему не относится
+        if field_value == 'legal':
+            order.payment_method = ''
+        elif field_value == 'individual':
+            order.invoice_number = ''
+
+    elif field_name == 'invoice_number':
+        if len(field_value) > 50:
+            return JsonResponse({'success': False, 'error': 'Номер счёта слишком длинный'}, status=400)
+        order.invoice_number = field_value
+
+    elif field_name == 'payment_method':
+        if field_value not in ['', 'card', 'yookassa', 'cash']:
+            return JsonResponse({'success': False, 'error': 'Недопустимый способ оплаты'}, status=400)
+        order.payment_method = field_value
+    elif field_name == 'documents_status':
+        if field_value not in ['none', 'issued', 'edo']:
+            return JsonResponse({'success': False, 'error': 'Недопустимый статус документов'}, status=400)
+        order.documents_status = field_value
+    elif field_name == 'legal_entity':
+        if not field_value:
+            order.legal_entity = None
+        else:
+            from baza_klientov.models import LegalEntity
+            try:
+                order.legal_entity = LegalEntity.objects.get(id=field_value)
+            except LegalEntity.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Юрлицо не найдено'}, status=404)
+
+    elif field_name == 'contact_person':
+        if not field_value:
+            order.contact_person = None
+        else:
+            from baza_klientov.models import ContactPerson
+            try:
+                cp = ContactPerson.objects.get(id=field_value)
+                order.contact_person = cp
+                
+                # АВТОЗАПОЛНЕНИЕ ТЕЛЕФОНА ДОСТАВКИ
+                cp_phone = cp.mobile or cp.phone or ''
+                if cp_phone:
+                    order.delivery_phone = cp_phone
+                    
+            except ContactPerson.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Сотрудник не найден'}, status=404)
+    elif field_name == 'is_delivery':
+        order.is_delivery = field_value == 'true' or field_value == '1'
+
+    elif field_name == 'delivery_date':
+        if not field_value:
+            order.delivery_date = None
+        else:
+            try:
+                # В HTML5 input type="date" значение приходит в формате YYYY-MM-DD
+                order.delivery_date = datetime.strptime(field_value, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'error': 'Некорректный формат даты доставки'}, status=400)
+
+    elif field_name == 'delivery_address':
+        if len(field_value) > 255:
+            return JsonResponse({'success': False, 'error': 'Адрес слишком длинный (макс. 255)'}, status=400)
+        order.delivery_address = field_value
+    elif field_name == 'delivery_phone':
+        if len(field_value) > 50:
+            return JsonResponse({'success': False, 'error': 'Телефон слишком длинный'}, status=400)
+        order.delivery_phone = field_value
+
+    elif field_name == 'delivery_status':
+        if field_value not in ['pending', 'delivered']:
+            return JsonResponse({'success': False, 'error': 'Недопустимый статус доставки'}, status=400)
+        order.delivery_status = field_value
 
     else:
         return JsonResponse(
@@ -960,6 +1045,22 @@ def api_update_order(request, order_id):
             'products_count': order.products.filter(is_deleted=False).count(),
             'total_price':    order.formatted_total_price,
             'working_hours_remaining': order.get_working_hours_remaining(),
+            # НОВЫЕ ПОЛЯ:
+            'is_paid': order.is_paid,
+            'payer_type': order.payer_type,
+            'invoice_number': order.invoice_number,
+            'payment_method': order.payment_method,
+            'documents_status': order.documents_status,
+            # НОВЫЕ ПОЛЯ ДОСТАВКИ:
+            'is_delivery': order.is_delivery,
+            'delivery_date': order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else '',
+            'delivery_address': order.delivery_address,
+            'delivery_phone': order.delivery_phone,
+            'delivery_status': order.delivery_status,
+            'delivery_status': order.delivery_status,
+            'legal_entity_id': order.legal_entity.id if order.legal_entity else None,
+            'contact_person_id': order.contact_person.id if order.contact_person else None,
+            'delivery_address': order.delivery_address,
         },
     })
 
@@ -1153,3 +1254,49 @@ def api_order_info(request, order_id):
             'client_id': order.client.id if order.client else None, # <--- ДОБАВИЛИ
         }
     })
+
+
+# ============================================================================
+# API 14: ЮРЛИЦА И СОТРУДНИКИ КЛИЕНТА (для выпадающих списков)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_client_details(request, client_id):
+    """
+    Возвращает список активных юрлиц и сотрудников для указанного клиента.
+    Используется для выпадающих списков в карточке заказа.
+    """
+    try:
+        from baza_klientov.models import Client, LegalEntity, ContactPerson
+        
+        client = Client.objects.get(id=client_id)
+        
+        # Получаем неудаленные юрлица
+        legal_entities = LegalEntity.objects.filter(client=client, is_deleted=False).order_by('name')
+        le_data = [{
+            'id': le.id, 
+            'name': le.name, 
+            'is_primary': le.is_primary
+        } for le in legal_entities]
+        
+        # Получаем неудаленных сотрудников
+        contacts = ContactPerson.objects.filter(client=client, is_deleted=False).order_by('full_name')
+        cp_data = [{
+            'id': cp.id, 
+            'name': cp.full_name, 
+            'is_primary': cp.is_primary,
+            # Приоритет отдаем мобильному, если его нет - стационарному
+            'phone': cp.mobile or cp.phone or '' 
+        } for cp in contacts]
+        
+        return JsonResponse({
+            'success': True,
+            'legal_entities': le_data,
+            'contact_persons': cp_data
+        })
+        
+    except Client.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Клиент не найден'}, status=404)
+    except ImportError:
+        return JsonResponse({'success': False, 'error': 'Приложение baza_klientov не найдено'}, status=500)

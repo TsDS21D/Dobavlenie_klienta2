@@ -176,7 +176,7 @@ calculator/static/calculator/js/sections/price_orders.js
             // на страницу заказов, где пользователь отредактирует комментарий.
             showNotification('Заказ ' + data.order_number + ' создан', 'success');
             setTimeout(function () {
-                window.location.href = '/orders/';
+                window.location.href = '/orders/?expanded_order=' + data.order_id;
             }, 600);
         })
         .catch(function (err) {
@@ -391,7 +391,7 @@ calculator/static/calculator/js/sections/price_orders.js
             if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
             showNotification('Изделие добавлено в заказ ' + data.order_number, 'success');
             setTimeout(function () {
-                window.location.href = '/orders/';
+                window.location.href = '/orders/?expanded_order=' + data.order_id;
             }, 600);
         })
         .catch(function (err) {

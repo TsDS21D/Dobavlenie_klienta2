@@ -157,6 +157,12 @@ urlpatterns = [
         views.api_clients,
         name='api_clients',
     ),
+    # GET /orders/api/client-details/<client_id>/
+    path(
+        'api/client-details/<int:client_id>/',
+        views.api_client_details,
+        name='api_client_details',
+    ),
 
     # GET /orders/<order_id>/
     # Страница одного заказа (карточка со списком изделий).

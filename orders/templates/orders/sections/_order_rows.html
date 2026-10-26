@@ -35,6 +35,31 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{{ order.comment|default:'' }}">
                     {{ order.comment|default:"—" }}
                 </div>
+                <!-- КНОПКА ДОСТАВКИ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-delivery-btn list-orders-delivery-btn--compact 
+                            {% if order.is_delivery %}
+                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                            {% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения"
+                        {% if not order.is_delivery %}style="display: none;"{% endif %}>
+                    {% if not order.is_delivery %}
+                        Без доставки
+                    {% elif order.delivery_status == 'delivered' %}
+                        Доставлено
+                    {% else %}
+                        Доставка
+                    {% endif %}
+                </button>
+
+                <!-- КНОПКА ОПЛАТЫ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-payment-btn list-orders-payment-btn--compact {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения статуса">
+                    {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                </button>
 
                 <div class="list-orders-card-status">
                     <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
@@ -74,14 +99,64 @@ orders/templates/orders/sections/_order_rows.html
                 <!-- БЛОК С ПОДРОБНОСТЯМИ -->
                 <div class="list-orders-card-details">
                     <div class="list-orders-details-grid">
-                        <!-- Комментарий (редактируемый) -->
-                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
-                            <span class="list-orders-detail-label">Комментарий:</span>
-                            <span class="list-orders-detail-value editable-cell"
-                                  data-field="comment"
-                                  data-original-value="{{ order.comment|default:'' }}">
-                                {{ order.comment|default:"—" }}
-                            </span>
+                         <!-- Комментарий + Доставка (в одну строку) -->
+                        <div class="list-orders-detail-item list-orders-expanded-comment-delivery" style="grid-column: 1 / -1;">
+                            
+                            <!-- Левая половина: Комментарий -->
+                            <div class="list-orders-expanded-comment-wrap">
+                                <span class="list-orders-detail-label">Комментарий:</span>
+                                <span class="list-orders-detail-value editable-cell"
+                                      data-field="comment"
+                                      data-original-value="{{ order.comment|default:'' }}">
+                                    {{ order.comment|default:"—" }}
+                                </span>
+                            </div>
+
+                            <!-- Правая половина: Доставка -->
+                            <div class="list-orders-delivery-block">
+                                
+                                <!-- Поля слева (показываются, если есть доставка) -->
+                                <div class="list-orders-delivery-details {% if not order.is_delivery %}hidden{% endif %}" id="delivery-details-{{ order.id }}">
+                                    <input type="date" 
+                                           class="list-orders-delivery-input" 
+                                           data-field="delivery_date" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_date|date:'Y-m-d' }}" 
+                                           title="Дата доставки">
+                                           
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-address" 
+                                           data-field="delivery_address" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_address }}" 
+                                           placeholder="Адрес доставки">
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-phone" 
+                                           data-field="delivery_phone" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_phone }}" 
+                                           placeholder="+7 (___) ___-__-__">
+                                </div>
+                                
+                                <!-- Кнопка справа с 3-мя состояниями -->
+                                <button type="button" 
+                                        class="list-orders-delivery-btn 
+                                            {% if order.is_delivery %}
+                                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                            {% endif %}" 
+                                        data-order-id="{{ order.id }}" 
+                                        title="Двойной клик для изменения">
+                                    {% if not order.is_delivery %}
+                                        Без доставки
+                                    {% elif order.delivery_status == 'delivered' %}
+                                        Доставлено
+                                    {% else %}
+                                        Доставка
+                                    {% endif %}
+                                </button>
+                                
+                            </div>
+
                         </div>
 
                         <!-- Изделия -->
@@ -105,6 +180,77 @@ orders/templates/orders/sections/_order_rows.html
                     
                     <div class="list-orders-details-actions">
                         <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        
+                        <!-- ВЫПАДАЮЩИЕ СПИСКИ ЮРЛИЦА И СОТРУДНИКА -->
+                        <div class="list-orders-client-selects">
+                            <select class="list-orders-payment-select list-orders-le-select" 
+                                    data-field="legal_entity" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.legal_entity.id|default:'' }}">
+                                <option value="">— Юрлицо —</option>
+                            </select>
+
+                            <select class="list-orders-payment-select list-orders-cp-select" 
+                                    data-field="contact_person" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.contact_person.id|default:'' }}">
+                                <option value="">— Сотрудник —</option>
+                            </select>
+                        </div>
+                    
+                        <!-- БЛОК ОПЛАТЫ -->
+                        <div class="list-orders-payment-block">
+                            <!-- Оплачен / Не оплачен (кнопка-переключатель) -->
+                            <button type="button" 
+                                    class="list-orders-payment-btn {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                                    data-order-id="{{ order.id }}" 
+                                    title="Двойной клик для изменения статуса">
+                                {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                            </button>
+
+                            <!-- Тип плательщика -->
+                            <select class="list-orders-payment-select" data-field="payer_type" data-order-id="{{ order.id }}">
+                                <option value="" {% if not order.payer_type %}selected{% endif %}>— Тип —</option>
+                                <option value="legal" {% if order.payer_type == 'legal' %}selected{% endif %}>Юр.лицо</option>
+                                <option value="individual" {% if order.payer_type == 'individual' %}selected{% endif %}>Физ.лицо</option>
+                            </select>
+
+                            <!-- Поле для Юр.лица (Счёт) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'legal' %}hidden{% endif %}" id="payment-detail-legal-{{ order.id }}">
+                                <input type="text" 
+                                       class="list-orders-payment-input" 
+                                       data-field="invoice_number" 
+                                       data-order-id="{{ order.id }}"
+                                       value="{{ order.invoice_number }}" 
+                                       placeholder="Счёт №"
+                                       maxlength="50">
+                            </div>
+
+                            <!-- Поле для Физ.лица (Способ) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'individual' %}hidden{% endif %}" id="payment-detail-individual-{{ order.id }}">
+                                <select class="list-orders-payment-select" data-field="payment_method" data-order-id="{{ order.id }}">
+                                    <option value="" {% if not order.payment_method %}selected{% endif %}>— Способ —</option>
+                                    <option value="card" {% if order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+                                    <option value="yookassa" {% if order.payment_method == 'yookassa' %}selected{% endif %}>ЮKassa</option>
+                                    <option value="cash" {% if order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+                                </select>
+                            </div>
+                            <!-- Блок документов (появляется, если выбран любой тип плательщика) -->
+                            <div class="list-orders-payment-detail {% if not order.payer_type %}hidden{% endif %}" id="payment-detail-docs-{{ order.id }}">
+                                <!-- Серая надпись (как "Создан:") -->
+                                <span class="list-orders-docs-label">Документы:</span>
+                                
+                                <!-- Выпадающий список без префиксов -->
+                                <select class="list-orders-payment-select" data-field="documents_status" data-order-id="{{ order.id }}">
+                                    <option value="none" {% if order.documents_status == 'none' %}selected{% endif %}>не выданы</option>
+                                    <option value="issued" {% if order.documents_status == 'issued' %}selected{% endif %}>выданы</option>
+                                    <option value="edo" {% if order.documents_status == 'edo' %}selected{% endif %}>в ЭДО</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
@@ -165,6 +311,31 @@ orders/templates/orders/sections/_order_rows.html
                     {{ order.comment|default:"—" }}
                 </div>
 
+                <!-- КНОПКА ДОСТАВКИ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-delivery-btn list-orders-delivery-btn--compact 
+                            {% if order.is_delivery %}
+                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                            {% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения"
+                        {% if not order.is_delivery %}style="display: none;"{% endif %}>
+                    {% if not order.is_delivery %}
+                        Без доставки
+                    {% elif order.delivery_status == 'delivered' %}
+                        Доставлено
+                    {% else %}
+                        Доставка
+                    {% endif %}
+                </button>
+                <!-- КНОПКА ОПЛАТЫ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-payment-btn list-orders-payment-btn--compact {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения статуса">
+                    {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                </button>
+
                 <div class="list-orders-card-status">
                     <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
                         <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
@@ -203,14 +374,64 @@ orders/templates/orders/sections/_order_rows.html
                 <!-- БЛОК С ПОДРОБНОСТЯМИ -->
                 <div class="list-orders-card-details">
                     <div class="list-orders-details-grid">
-                        <!-- Комментарий (редактируемый) -->
-                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
-                            <span class="list-orders-detail-label">Комментарий:</span>
-                            <span class="list-orders-detail-value editable-cell"
-                                  data-field="comment"
-                                  data-original-value="{{ order.comment|default:'' }}">
-                                {{ order.comment|default:"—" }}
-                            </span>
+                        <!-- Комментарий + Доставка (в одну строку) -->
+                        <div class="list-orders-detail-item list-orders-expanded-comment-delivery" style="grid-column: 1 / -1;">
+                            
+                            <!-- Левая половина: Комментарий -->
+                            <div class="list-orders-expanded-comment-wrap">
+                                <span class="list-orders-detail-label">Комментарий:</span>
+                                <span class="list-orders-detail-value editable-cell"
+                                      data-field="comment"
+                                      data-original-value="{{ order.comment|default:'' }}">
+                                    {{ order.comment|default:"—" }}
+                                </span>
+                            </div>
+
+                            <!-- Правая половина: Доставка -->
+                            <div class="list-orders-delivery-block">
+                                
+                                <!-- Поля слева (показываются, если есть доставка) -->
+                                <div class="list-orders-delivery-details {% if not order.is_delivery %}hidden{% endif %}" id="delivery-details-{{ order.id }}">
+                                    <input type="date" 
+                                           class="list-orders-delivery-input" 
+                                           data-field="delivery_date" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_date|date:'Y-m-d' }}" 
+                                           title="Дата доставки">
+                                           
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-address" 
+                                           data-field="delivery_address" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_address }}" 
+                                           placeholder="Адрес доставки">
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-phone" 
+                                           data-field="delivery_phone" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_phone }}" 
+                                           placeholder="+7 (___) ___-__-__">
+                                </div>
+                                
+                                <!-- Кнопка справа с 3-мя состояниями -->
+                                <button type="button" 
+                                        class="list-orders-delivery-btn 
+                                            {% if order.is_delivery %}
+                                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                            {% endif %}" 
+                                        data-order-id="{{ order.id }}" 
+                                        title="Двойной клик для изменения">
+                                    {% if not order.is_delivery %}
+                                        Без доставки
+                                    {% elif order.delivery_status == 'delivered' %}
+                                        Доставлено
+                                    {% else %}
+                                        Доставка
+                                    {% endif %}
+                                </button>
+                                
+                            </div>
+
                         </div>
 
                         <!-- БЛОК С ИЗДЕЛИЯМИ -->
@@ -233,6 +454,78 @@ orders/templates/orders/sections/_order_rows.html
                     
                     <div class="list-orders-details-actions">
                         <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        
+                        <!-- ВЫПАДАЮЩИЕ СПИСКИ ЮРЛИЦА И СОТРУДНИКА -->
+                        <div class="list-orders-client-selects">
+                            <select class="list-orders-payment-select list-orders-le-select" 
+                                    data-field="legal_entity" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.legal_entity.id|default:'' }}">
+                                <option value="">— Юрлицо —</option>
+                            </select>
+
+                            <select class="list-orders-payment-select list-orders-cp-select" 
+                                    data-field="contact_person" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.contact_person.id|default:'' }}">
+                                <option value="">— Сотрудник —</option>
+                            </select>
+                        </div>
+                     
+                        <!-- БЛОК ОПЛАТЫ -->
+                        <div class="list-orders-payment-block">
+                            <!-- Оплачен / Не оплачен (кнопка-переключатель) -->
+                            <button type="button" 
+                                    class="list-orders-payment-btn {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                                    data-order-id="{{ order.id }}" 
+                                    title="Двойной клик для изменения статуса">
+                                {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                            </button>
+
+                            <!-- Тип плательщика -->
+                            <select class="list-orders-payment-select" data-field="payer_type" data-order-id="{{ order.id }}">
+                                <option value="" {% if not order.payer_type %}selected{% endif %}>— Тип —</option>
+                                <option value="legal" {% if order.payer_type == 'legal' %}selected{% endif %}>Юр.лицо</option>
+                                <option value="individual" {% if order.payer_type == 'individual' %}selected{% endif %}>Физ.лицо</option>
+                            </select>
+
+                            <!-- Поле для Юр.лица (Счёт) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'legal' %}hidden{% endif %}" id="payment-detail-legal-{{ order.id }}">
+                                <input type="text" 
+                                       class="list-orders-payment-input" 
+                                       data-field="invoice_number" 
+                                       data-order-id="{{ order.id }}"
+                                       value="{{ order.invoice_number }}" 
+                                       placeholder="Счёт №"
+                                       maxlength="50">
+                            </div>
+
+                            <!-- Поле для Физ.лица (Способ) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'individual' %}hidden{% endif %}" id="payment-detail-individual-{{ order.id }}">
+                                <select class="list-orders-payment-select" data-field="payment_method" data-order-id="{{ order.id }}">
+                                    <option value="" {% if not order.payment_method %}selected{% endif %}>— Способ —</option>
+                                    <option value="card" {% if order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+                                    <option value="yookassa" {% if order.payment_method == 'yookassa' %}selected{% endif %}>ЮKassa</option>
+                                    <option value="cash" {% if order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+                                </select>
+                            </div>
+
+                            <!-- Блок документов (появляется, если выбран любой тип плательщика) -->
+                            <div class="list-orders-payment-detail {% if not order.payer_type %}hidden{% endif %}" id="payment-detail-docs-{{ order.id }}">
+                                <!-- Серая надпись (как "Создан:") -->
+                                <span class="list-orders-docs-label">Документы:</span>
+                                
+                                <!-- Выпадающий список без префиксов -->
+                                <select class="list-orders-payment-select" data-field="documents_status" data-order-id="{{ order.id }}">
+                                    <option value="none" {% if order.documents_status == 'none' %}selected{% endif %}>не выданы</option>
+                                    <option value="issued" {% if order.documents_status == 'issued' %}selected{% endif %}>выданы</option>
+                                    <option value="edo" {% if order.documents_status == 'edo' %}selected{% endif %}>в ЭДО</option>
+                                </select>
+                            </div>
+                        </div> <!-- ЗАКРЫВАЮЩИЙ ТЕГ БЛОКА ОПЛАТЫ -->
+
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
@@ -293,6 +586,31 @@ orders/templates/orders/sections/_order_rows.html
                     {{ order.comment|default:"—" }}
                 </div>
 
+                <!-- КНОПКА ДОСТАВКИ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-delivery-btn list-orders-delivery-btn--compact 
+                            {% if order.is_delivery %}
+                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                            {% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения"
+                        {% if not order.is_delivery %}style="display: none;"{% endif %}>
+                    {% if not order.is_delivery %}
+                        Без доставки
+                    {% elif order.delivery_status == 'delivered' %}
+                        Доставлено
+                    {% else %}
+                        Доставка
+                    {% endif %}
+                </button>
+                <!-- КНОПКА ОПЛАТЫ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-payment-btn list-orders-payment-btn--compact {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения статуса">
+                    {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                </button>
+
                 <div class="list-orders-card-status">
                     <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
                         <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
@@ -331,14 +649,64 @@ orders/templates/orders/sections/_order_rows.html
                 <!-- БЛОК С ПОДРОБНОСТЯМИ -->
                 <div class="list-orders-card-details">
                     <div class="list-orders-details-grid">
-                        <!-- Комментарий (редактируемый) -->
-                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
-                            <span class="list-orders-detail-label">Комментарий:</span>
-                            <span class="list-orders-detail-value editable-cell"
-                                  data-field="comment"
-                                  data-original-value="{{ order.comment|default:'' }}">
-                                {{ order.comment|default:"—" }}
-                            </span>
+                        <!-- Комментарий + Доставка (в одну строку) -->
+                        <div class="list-orders-detail-item list-orders-expanded-comment-delivery" style="grid-column: 1 / -1;">
+                            
+                            <!-- Левая половина: Комментарий -->
+                            <div class="list-orders-expanded-comment-wrap">
+                                <span class="list-orders-detail-label">Комментарий:</span>
+                                <span class="list-orders-detail-value editable-cell"
+                                      data-field="comment"
+                                      data-original-value="{{ order.comment|default:'' }}">
+                                    {{ order.comment|default:"—" }}
+                                </span>
+                            </div>
+
+                            <!-- Правая половина: Доставка -->
+                            <div class="list-orders-delivery-block">
+                                
+                                <!-- Поля слева (показываются, если есть доставка) -->
+                                <div class="list-orders-delivery-details {% if not order.is_delivery %}hidden{% endif %}" id="delivery-details-{{ order.id }}">
+                                    <input type="date" 
+                                           class="list-orders-delivery-input" 
+                                           data-field="delivery_date" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_date|date:'Y-m-d' }}" 
+                                           title="Дата доставки">
+                                           
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-address" 
+                                           data-field="delivery_address" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_address }}" 
+                                           placeholder="Адрес доставки">
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-phone" 
+                                           data-field="delivery_phone" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_phone }}" 
+                                           placeholder="+7 (___) ___-__-__">
+                                </div>
+                                
+                                <!-- Кнопка справа с 3-мя состояниями -->
+                                <button type="button" 
+                                        class="list-orders-delivery-btn 
+                                            {% if order.is_delivery %}
+                                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                            {% endif %}" 
+                                        data-order-id="{{ order.id }}" 
+                                        title="Двойной клик для изменения">
+                                    {% if not order.is_delivery %}
+                                        Без доставки
+                                    {% elif order.delivery_status == 'delivered' %}
+                                        Доставлено
+                                    {% else %}
+                                        Доставка
+                                    {% endif %}
+                                </button>
+                                
+                            </div>
+
                         </div>
 
                         <!-- БЛОК С ИЗДЕЛИЯМИ -->
@@ -361,6 +729,78 @@ orders/templates/orders/sections/_order_rows.html
                     
                     <div class="list-orders-details-actions">
                         <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        
+                        <!-- ВЫПАДАЮЩИЕ СПИСКИ ЮРЛИЦА И СОТРУДНИКА -->
+                        <div class="list-orders-client-selects">
+                            <select class="list-orders-payment-select list-orders-le-select" 
+                                    data-field="legal_entity" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.legal_entity.id|default:'' }}">
+                                <option value="">— Юрлицо —</option>
+                            </select>
+
+                            <select class="list-orders-payment-select list-orders-cp-select" 
+                                    data-field="contact_person" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.contact_person.id|default:'' }}">
+                                <option value="">— Сотрудник —</option>
+                            </select>
+                        </div>
+                      
+                        <!-- БЛОК ОПЛАТЫ -->
+                        <div class="list-orders-payment-block">
+                            <!-- Оплачен / Не оплачен (кнопка-переключатель) -->
+                            <button type="button" 
+                                    class="list-orders-payment-btn {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                                    data-order-id="{{ order.id }}" 
+                                    title="Двойной клик для изменения статуса">
+                                {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                            </button>
+
+                            <!-- Тип плательщика -->
+                            <select class="list-orders-payment-select" data-field="payer_type" data-order-id="{{ order.id }}">
+                                <option value="" {% if not order.payer_type %}selected{% endif %}>— Тип —</option>
+                                <option value="legal" {% if order.payer_type == 'legal' %}selected{% endif %}>Юр.лицо</option>
+                                <option value="individual" {% if order.payer_type == 'individual' %}selected{% endif %}>Физ.лицо</option>
+                            </select>
+
+                            <!-- Поле для Юр.лица (Счёт) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'legal' %}hidden{% endif %}" id="payment-detail-legal-{{ order.id }}">
+                                <input type="text" 
+                                       class="list-orders-payment-input" 
+                                       data-field="invoice_number" 
+                                       data-order-id="{{ order.id }}"
+                                       value="{{ order.invoice_number }}" 
+                                       placeholder="Счёт №"
+                                       maxlength="50">
+                            </div>
+
+                            <!-- Поле для Физ.лица (Способ) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'individual' %}hidden{% endif %}" id="payment-detail-individual-{{ order.id }}">
+                                <select class="list-orders-payment-select" data-field="payment_method" data-order-id="{{ order.id }}">
+                                    <option value="" {% if not order.payment_method %}selected{% endif %}>— Способ —</option>
+                                    <option value="card" {% if order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+                                    <option value="yookassa" {% if order.payment_method == 'yookassa' %}selected{% endif %}>ЮKassa</option>
+                                    <option value="cash" {% if order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+                                </select>
+                            </div>
+
+                            <!-- Блок документов (появляется, если выбран любой тип плательщика) -->
+                            <div class="list-orders-payment-detail {% if not order.payer_type %}hidden{% endif %}" id="payment-detail-docs-{{ order.id }}">
+                                <!-- Серая надпись (как "Создан:") -->
+                                <span class="list-orders-docs-label">Документы:</span>
+                                
+                                <!-- Выпадающий список без префиксов -->
+                                <select class="list-orders-payment-select" data-field="documents_status" data-order-id="{{ order.id }}">
+                                    <option value="none" {% if order.documents_status == 'none' %}selected{% endif %}>не выданы</option>
+                                    <option value="issued" {% if order.documents_status == 'issued' %}selected{% endif %}>выданы</option>
+                                    <option value="edo" {% if order.documents_status == 'edo' %}selected{% endif %}>в ЭДО</option>
+                                </select>
+                            </div>
+                        </div> <!-- ЗАКРЫВАЮЩИЙ ТЕГ БЛОКА ОПЛАТЫ -->
+
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
@@ -421,6 +861,31 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{{ order.comment|default:'' }}">
                     {{ order.comment|default:"—" }}
                 </div>
+                <!-- КНОПКА ДОСТАВКИ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-delivery-btn list-orders-delivery-btn--compact 
+                            {% if order.is_delivery %}
+                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                            {% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения"
+                        {% if not order.is_delivery %}style="display: none;"{% endif %}>
+                    {% if not order.is_delivery %}
+                        Без доставки
+                    {% elif order.delivery_status == 'delivered' %}
+                        Доставлено
+                    {% else %}
+                        Доставка
+                    {% endif %}
+                </button>
+
+                <!-- КНОПКА ОПЛАТЫ В СВЁРНУТОМ ВИДЕ -->
+                <button type="button" 
+                        class="list-orders-payment-btn list-orders-payment-btn--compact {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                        data-order-id="{{ order.id }}" 
+                        title="Двойной клик для изменения статуса">
+                    {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                </button>
 
                 <div class="list-orders-card-status">
                     <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
@@ -460,14 +925,64 @@ orders/templates/orders/sections/_order_rows.html
                 <!-- БЛОК С ПОДРОБНОСТЯМИ -->
                 <div class="list-orders-card-details">
                     <div class="list-orders-details-grid">
-                        <!-- Комментарий (редактируемый) -->
-                        <div class="list-orders-detail-item" style="grid-column: 1 / -1;">
-                            <span class="list-orders-detail-label">Комментарий:</span>
-                            <span class="list-orders-detail-value editable-cell"
-                                  data-field="comment"
-                                  data-original-value="{{ order.comment|default:'' }}">
-                                {{ order.comment|default:"—" }}
-                            </span>
+                        <!-- Комментарий + Доставка (в одну строку) -->
+                        <div class="list-orders-detail-item list-orders-expanded-comment-delivery" style="grid-column: 1 / -1;">
+                            
+                            <!-- Левая половина: Комментарий -->
+                            <div class="list-orders-expanded-comment-wrap">
+                                <span class="list-orders-detail-label">Комментарий:</span>
+                                <span class="list-orders-detail-value editable-cell"
+                                      data-field="comment"
+                                      data-original-value="{{ order.comment|default:'' }}">
+                                    {{ order.comment|default:"—" }}
+                                </span>
+                            </div>
+
+                            <!-- Правая половина: Доставка -->
+                            <div class="list-orders-delivery-block">
+                                
+                                <!-- Поля слева (показываются, если есть доставка) -->
+                                <div class="list-orders-delivery-details {% if not order.is_delivery %}hidden{% endif %}" id="delivery-details-{{ order.id }}">
+                                    <input type="date" 
+                                           class="list-orders-delivery-input" 
+                                           data-field="delivery_date" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_date|date:'Y-m-d' }}" 
+                                           title="Дата доставки">
+                                           
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-address" 
+                                           data-field="delivery_address" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_address }}" 
+                                           placeholder="Адрес доставки">
+                                    <input type="text" 
+                                           class="list-orders-delivery-input list-orders-delivery-phone" 
+                                           data-field="delivery_phone" 
+                                           data-order-id="{{ order.id }}" 
+                                           value="{{ order.delivery_phone }}" 
+                                           placeholder="+7 (___) ___-__-__">
+                                </div>
+                                
+                                <!-- Кнопка справа с 3-мя состояниями -->
+                                <button type="button" 
+                                        class="list-orders-delivery-btn 
+                                            {% if order.is_delivery %}
+                                                {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                            {% endif %}" 
+                                        data-order-id="{{ order.id }}" 
+                                        title="Двойной клик для изменения">
+                                    {% if not order.is_delivery %}
+                                        Без доставки
+                                    {% elif order.delivery_status == 'delivered' %}
+                                        Доставлено
+                                    {% else %}
+                                        Доставка
+                                    {% endif %}
+                                </button>
+                                
+                            </div>
+
                         </div>
 
                         <!-- БЛОК С ИЗДЕЛИЯМИ -->
@@ -490,6 +1005,78 @@ orders/templates/orders/sections/_order_rows.html
                     
                     <div class="list-orders-details-actions">
                         <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        
+                        <!-- ВЫПАДАЮЩИЕ СПИСКИ ЮРЛИЦА И СОТРУДНИКА -->
+                        <div class="list-orders-client-selects">
+                            <select class="list-orders-payment-select list-orders-le-select" 
+                                    data-field="legal_entity" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.legal_entity.id|default:'' }}">
+                                <option value="">— Юрлицо —</option>
+                            </select>
+
+                            <select class="list-orders-payment-select list-orders-cp-select" 
+                                    data-field="contact_person" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                    data-current-id="{{ order.contact_person.id|default:'' }}">
+                                <option value="">— Сотрудник —</option>
+                            </select>
+                        </div>
+                       
+                        <!-- БЛОК ОПЛАТЫ -->
+                        <div class="list-orders-payment-block">
+                            <!-- Оплачен / Не оплачен (кнопка-переключатель) -->
+                            <button type="button" 
+                                    class="list-orders-payment-btn {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                                    data-order-id="{{ order.id }}" 
+                                    title="Двойной клик для изменения статуса">
+                                {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                            </button>
+
+                            <!-- Тип плательщика -->
+                            <select class="list-orders-payment-select" data-field="payer_type" data-order-id="{{ order.id }}">
+                                <option value="" {% if not order.payer_type %}selected{% endif %}>— Тип —</option>
+                                <option value="legal" {% if order.payer_type == 'legal' %}selected{% endif %}>Юр.лицо</option>
+                                <option value="individual" {% if order.payer_type == 'individual' %}selected{% endif %}>Физ.лицо</option>
+                            </select>
+
+                            <!-- Поле для Юр.лица (Счёт) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'legal' %}hidden{% endif %}" id="payment-detail-legal-{{ order.id }}">
+                                <input type="text" 
+                                       class="list-orders-payment-input" 
+                                       data-field="invoice_number" 
+                                       data-order-id="{{ order.id }}"
+                                       value="{{ order.invoice_number }}" 
+                                       placeholder="Счёт №"
+                                       maxlength="50">
+                            </div>
+
+                            <!-- Поле для Физ.лица (Способ) -->
+                            <div class="list-orders-payment-detail {% if order.payer_type != 'individual' %}hidden{% endif %}" id="payment-detail-individual-{{ order.id }}">
+                                <select class="list-orders-payment-select" data-field="payment_method" data-order-id="{{ order.id }}">
+                                    <option value="" {% if not order.payment_method %}selected{% endif %}>— Способ —</option>
+                                    <option value="card" {% if order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+                                    <option value="yookassa" {% if order.payment_method == 'yookassa' %}selected{% endif %}>ЮKassa</option>
+                                    <option value="cash" {% if order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+                                </select>
+                            </div>
+
+                            <!-- Блок документов (появляется, если выбран любой тип плательщика) -->
+                            <div class="list-orders-payment-detail {% if not order.payer_type %}hidden{% endif %}" id="payment-detail-docs-{{ order.id }}">
+                                <!-- Серая надпись (как "Создан:") -->
+                                <span class="list-orders-docs-label">Документы:</span>
+                                
+                                <!-- Выпадающий список без префиксов -->
+                                <select class="list-orders-payment-select" data-field="documents_status" data-order-id="{{ order.id }}">
+                                    <option value="none" {% if order.documents_status == 'none' %}selected{% endif %}>не выданы</option>
+                                    <option value="issued" {% if order.documents_status == 'issued' %}selected{% endif %}>выданы</option>
+                                    <option value="edo" {% if order.documents_status == 'edo' %}selected{% endif %}>в ЭДО</option>
+                                </select>
+                            </div>
+                        </div> <!-- ЗАКРЫВАЮЩИЙ ТЕГ БЛОКА ОПЛАТЫ -->
+
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
                     <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->

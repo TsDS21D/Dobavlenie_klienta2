@@ -312,18 +312,17 @@ select.list-orders-search {
     font-size: 0.9rem;
     font-weight: 600;
     color: #333;
-    flex: 1 1 90px;
+    flex: 1 1 50px; /* Было 90px */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    line-height: 1.2; /* Выравниваем высоту строки */
 }
 
 /* Комментарий */
 .list-orders-card-comment {
     font-size: 0.85rem;
     color: #666;
-    flex: 1 1 110px; /* Ужали */
+    flex: 1 1 70px; /* Было 110px */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1299,4 +1298,338 @@ select.list-orders-search {
 }
 .list-orders-link-new-proschet:hover {
     text-decoration: underline;
+}
+
+/* ==================== БЛОК ОПЛАТЫ ==================== */
+
+/* Контейнер оплаты: выстраивает элементы в строку */
+.list-orders-payment-block {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+
+
+/* Текст "Оплачен" становится зеленым, если стоит галочка */
+.list-orders-payment-label.is-paid {
+    color: #0B8661;
+}
+
+/* Выпадающие списки и поля ввода */
+.list-orders-payment-select,
+.list-orders-payment-input {
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: #333;
+    background: #fff;
+}
+
+.list-orders-payment-input {
+    width: 80px;
+}
+
+.list-orders-payment-select:focus,
+.list-orders-payment-input:focus {
+    outline: none;
+    border-color: #0B8661;
+}
+
+/* Утилита для скрытия ненужных полей */
+.list-orders-payment-detail.hidden {
+    display: none !important;
+}
+
+
+/* ==================== ОБНОВЛЕННЫЙ БЛОК ОПЛАТЫ ==================== */
+
+/* Кнопка статуса оплаты (в стиле кнопки ламинации из proschety) */
+.list-orders-payment-btn {
+    padding: 0.15rem 0.55rem;
+    border: 1px solid #ececec;
+    border-radius: 7px;
+    background: #fafafa;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 0.75rem;
+    line-height: 1.15;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.list-orders-payment-btn:hover {
+    border-color: #0B8661;
+    color: #0B8661;
+}
+
+/* Активное состояние (Оплачен) */
+.list-orders-payment-btn--on {
+    background: #0B8661;
+    color: #ffffff;
+    border-color: #0B8661;
+}
+
+.list-orders-payment-btn--on:hover {
+    background: #0B8661;
+    color: #ffffff;
+    border-color: #0B8661;
+}
+
+/* Селекты и инпуты в блоке оплаты (в стиле proschety) */
+.list-orders-payment-select,
+.list-orders-payment-input {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    background: #fafafa;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.list-orders-payment-input {
+    width: 80px;
+}
+
+/* Кастомная стрелочка для селектов оплаты */
+select.list-orders-payment-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 1.5rem;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230B8661%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem top 50%;
+    background-size: 0.55rem auto;
+}
+
+.list-orders-payment-select:focus,
+.list-orders-payment-input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+/* ==================== КОМПАКТНАЯ КНОПКА ОПЛАТЫ ==================== */
+
+.list-orders-payment-btn--compact {
+    /* Фиксированная ширина, чтобы кнопка не прыгала при смене текста */
+    min-width: 85px; 
+    text-align: center;
+    justify-content: center;
+    margin-right: 0.5rem; /* Отступ от статуса */
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+}
+
+/* ==================== НАДПИСЬ "ДОКУМЕНТЫ:" ==================== */
+
+.list-orders-payment-detail {
+    /* Убеждаемся, что надпись и селект стоят в одной строке */
+    display: flex;
+    align-items: center;
+    gap: 0.4rem; 
+}
+
+/* Стилизуем текст точно так же, как дату создания */
+.list-orders-docs-label {
+    font-size: 0.75rem; /* Размер как у "Создан" */
+    color: #999999;     /* Серый цвет как у "Создан" */
+    white-space: nowrap;
+}
+
+/* ==================== БЛОК КОММЕНТАРИЯ И ДОСТАВКИ В РАСКРЫТОМ ВИДЕ ==================== */
+
+/* Обертка строки: комментарий слева, доставка справа */
+.list-orders-expanded-comment-delivery {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start; /* Выравниваем по верхнему краю (на случай длинного адреса) */
+    margin-bottom: 0.5rem;
+}
+
+/* Комментарий занимает 50% ширины */
+.list-orders-expanded-comment-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start; /* Важно: текст и поле ввода теперь выравниваются по верхнему краю */
+}
+/* Растягиваем сам контейнер с текстом/textarea на всё свободное место */
+.list-orders-expanded-comment-wrap .list-orders-detail-value {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Блок доставки занимает 50% ширины */
+.list-orders-delivery-block {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap; /* Если экран узкий, поля перенесутся */
+}
+
+/* Кнопка "Без доставки/С доставкой" (копия стиля кнопки оплаты) */
+.list-orders-delivery-btn {
+    min-width: 105px;
+    text-align: center;
+    justify-content: center;
+    padding: 0.15rem 0.55rem;
+    border: 1px solid #ececec;
+    border-radius: 7px;
+    background: #fafafa;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+}
+.list-orders-delivery-btn:hover {
+    border-color: #0B8661;
+    color: #0B8661;
+}
+
+
+/* Детали доставки (скрываются классом hidden) */
+.list-orders-delivery-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+/* Скрываем детали доставки, если есть класс hidden */
+.list-orders-delivery-details.hidden {
+    display: none !important;
+}
+
+/* Поля даты и адреса */
+.list-orders-delivery-input {
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+.list-orders-delivery-input:focus {
+    border-color: #0B8661;
+    background: #fff;
+}
+.list-orders-delivery-address {
+    width: 140px; /* Ширина под адрес */
+}
+
+/* ==================== БЛОК ДОСТАВКИ (3 СОСТОЯНИЯ) ==================== */
+
+/* Базовый стиль кнопки (Без доставки) */
+.list-orders-delivery-btn {
+    min-width: 105px;
+    text-align: center;
+    justify-content: center;
+    padding: 0.15rem 0.55rem;
+    border: 1px solid #ececec;
+    border-radius: 7px;
+    background: #fafafa;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    margin-left: auto; /* Прижимаем кнопку к правому краю, если есть свободное место */
+}
+
+.list-orders-delivery-btn:hover {
+    border-color: #0B8661;
+    color: #0B8661;
+}
+
+/* Состояние "Доставка" (белая с зеленой рамкой) */
+.list-orders-delivery-btn--pending {
+    background: #ffffff;
+    color: #0B8661;
+    border: 1px solid #0B8661;
+}
+
+.list-orders-delivery-btn--pending:hover {
+    background: #eaf6ef;
+}
+
+/* Состояние "Доставлено" (зеленая) */
+.list-orders-delivery-btn--delivered {
+    background: #0B8661;
+    color: #ffffff;
+    border: 1px solid #0B8661;
+}
+
+.list-orders-delivery-btn--delivered:hover {
+    background: #0a6e51;
+    border-color: #0a6e51;
+}
+
+/* Ширина поля для телефона в доставке */
+.list-orders-delivery-phone {
+    width: 125px;
+}
+
+/* ==================== КОМПАКТНАЯ КНОПКА ДОСТАВКИ ==================== */
+
+.list-orders-delivery-btn--compact {
+    min-width: 95px; /* Фиксируем ширину, чтобы не прыгала */
+    text-align: center;
+    justify-content: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+
+/* Контейнер для селектов юрлица и сотрудника */
+.list-orders-client-selects {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Ограничиваем ширину селектов, чтобы они не были слишком длинными */
+.list-orders-le-select,
+.list-orders-cp-select {
+    max-width: 150px;
+    text-overflow: ellipsis;
+}
+
+/* ==================== TEXTAREA ДЛЯ КОММЕНТАРИЯ ==================== */
+
+.list-orders-inline-textarea {
+    display: block;
+    width: 100%;
+    flex: 1;
+    padding: 0.2rem 0.4rem;
+    border: 2px solid #0B8661;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: #333333;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+    resize: none; 
+    overflow: hidden; 
+    line-height: 1.4;
+    min-height: 26px;
 }

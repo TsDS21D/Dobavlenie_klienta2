@@ -119,6 +119,27 @@ class Order(models.Model):
         blank=True,                                      # В формах можно оставить пустым
         help_text='Клиент, для которого создан заказ (необязательно)'
     )
+    # Юридическое лицо (для счетов и договоров)
+    legal_entity = models.ForeignKey(
+        'baza_klientov.LegalEntity',
+        verbose_name='Юрлицо',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders',
+        help_text='Юридическое лицо, на которое выставляется счет'
+    )
+
+    # Контактное лицо (сотрудник)
+    contact_person = models.ForeignKey(
+        'baza_klientov.ContactPerson',
+        verbose_name='Сотрудник',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders',
+        help_text='Контактное лицо со стороны клиента'
+    )
 
     # ===== СТАТУСЫ ЗАКАЗА =====
     # Те же четыре статуса, что на странице /counter/ —
@@ -142,6 +163,115 @@ class Order(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_ACCEPTED,
         help_text='Текущее состояние заказа'
+    )
+
+    # ===== БЛОК ОПЛАТЫ =====
+    
+    # Флаг: оплачен заказ или нет
+    is_paid = models.BooleanField(
+        verbose_name='Оплачен',
+        default=False,
+        help_text='Отметьте, если заказ оплачен'
+    )
+
+    # Тип плательщика: Юр.лицо или Физ.лицо
+    PAYER_TYPE_CHOICES = [
+        ('', '— Не выбран —'),
+        ('legal', 'Юр.лицо'),
+        ('individual', 'Физ.лицо'),
+    ]
+    payer_type = models.CharField(
+        verbose_name='Тип плательщика',
+        max_length=20,
+        choices=PAYER_TYPE_CHOICES,
+        blank=True,
+        default='',
+        help_text='Юридическое или физическое лицо'
+    )
+
+    # Номер счёта (заполняется, если выбран Юр.лицо)
+    invoice_number = models.CharField(
+        verbose_name='Счёт №',
+        max_length=50,
+        blank=True,
+        default='',
+        help_text='Номер счёта для юридического лица'
+    )
+
+    # Способ оплаты (заполняется, если выбрано Физ.лицо)
+    PAYMENT_METHOD_CHOICES = [
+        ('', '— Не выбран —'),
+        ('card', 'Карта'),
+        ('yookassa', 'ЮKassa'),
+        ('cash', 'Наличные'),
+    ]
+    payment_method = models.CharField(
+        verbose_name='Способ оплаты',
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        blank=True,
+        default='',
+        help_text='Способ оплаты для физического лица'
+    )
+    # Статус документов
+    DOCUMENTS_STATUS_CHOICES = [
+        ('none', 'Не выданы'),
+        ('issued', 'Выданы'),
+        ('edo', 'В ЭДО'),
+    ]
+    documents_status = models.CharField(
+        verbose_name='Статус документов',
+        max_length=20,
+        choices=DOCUMENTS_STATUS_CHOICES,
+        default='none',
+        help_text='Статус закрывающих документов'
+    )
+
+    # ===== БЛОК ДОСТАВКИ =====
+    
+    # Флаг: есть доставка или нет
+    is_delivery = models.BooleanField(
+        verbose_name='С доставкой',
+        default=False,
+        help_text='Отметьте, если заказу требуется доставка'
+    )
+
+    # Дата доставки (может быть пустой)
+    delivery_date = models.DateField(
+        verbose_name='Дата доставки',
+        null=True,
+        blank=True,
+        help_text='Планируемая дата доставки'
+    )
+
+    # Адрес доставки
+    delivery_address = models.CharField(
+        verbose_name='Адрес доставки',
+        max_length=255,
+        blank=True,
+        default='',
+        help_text='Куда доставлять заказ'
+    )
+    # Телефон получателя для доставки
+    delivery_phone = models.CharField(
+        verbose_name='Телефон для доставки',
+        max_length=50,
+        blank=True,
+        default='',
+        help_text='Контактный телефон получателя'
+    )
+
+    # Статус доставки
+    DELIVERY_STATUS_CHOICES = [
+        ('pending', 'Доставляется'),
+        ('delivered', 'Доставлен'),
+    ]
+    delivery_status = models.CharField(
+        verbose_name='Статус доставки',
+        max_length=20,
+        choices=DELIVERY_STATUS_CHOICES,
+        default='pending',
+        help_text='Текущий статус доставки'
     )
 
     # Дата и время готовности.

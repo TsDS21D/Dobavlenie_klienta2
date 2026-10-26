@@ -75,6 +75,23 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('click',    handleAddFromProschetClick);
         document.addEventListener('click',    handleRowClick);
         document.addEventListener('change', handleStatusChange);
+        document.addEventListener('dblclick', handlePaymentToggleDblClick);
+        document.addEventListener('change', handlePaymentFieldChange);
+        document.addEventListener('dblclick', handleDeliveryToggleDblClick);
+        document.addEventListener('change', handleDeliveryFieldChange);
+        // Автоформатирование телефона при вводе и вставке
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('list-orders-delivery-phone')) {
+                e.target.value = formatPhoneNumber(e.target.value);
+            }
+        });
+        document.addEventListener('paste', function(e) {
+            if (e.target.classList.contains('list-orders-delivery-phone')) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                e.target.value = formatPhoneNumber(pastedText);
+            }
+        });
         document.addEventListener('click', handleToggleAddProductSection);
         document.addEventListener('click', handleAddFromProschetClick);
 
@@ -113,7 +130,9 @@ JavaScript секции «Список заказов» страницы /orders
 
         // Пересчёт тостов при изменении размера окна.
         window.addEventListener('resize', layoutToasts);
-
+        // --- Инициализация селектов юрлиц и сотрудников ---
+        initClientSelects();
+        document.addEventListener('change', handleClientSelectChange);
         // --- WebSocket для реактивности ---
         initToastsWebSocket();
 
@@ -387,6 +406,7 @@ JavaScript секции «Список заказов» страницы /orders
                 }
             }
             handleSearch();
+            initClientSelects();
         });
     }
 
@@ -601,34 +621,54 @@ JavaScript секции «Список заказов» страницы /orders
         cell.classList.add('editing-cell');
         cell.innerHTML = '';
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'list-orders-inline-input';
-        input.value = currentVal;
-        input.maxLength = 5000;
-        cell.appendChild(input);
-        input.focus();
-        input.select();
+        const textarea = document.createElement('textarea');
+        textarea.className = 'list-orders-inline-textarea';
+        textarea.value = currentVal;
+        textarea.maxLength = 5000;
+        
+        cell.appendChild(textarea);
+        
+        // АВТО-ВЫСОТА: делаем это после того, как textarea получила ширину
+        requestAnimationFrame(() => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+        
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+        // АВТО-ВЫСОТА: растягиваем при вводе текста
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
 
         let finished = false;
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (finished) return;
-                finished = true;
-                saveField(cell, orderId, 'comment', input.value, originalText);
-            } else if (e.key === 'Escape') {
+        
+        textarea.addEventListener('keydown', function (e) {
+            // Escape — отмена
+            if (e.key === 'Escape') {
                 e.preventDefault();
                 if (finished) return;
                 finished = true;
                 cancelEdit(cell, originalText);
             }
+            // Ctrl+Enter (или Cmd+Enter) — сохранить
+            else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (finished) return;
+                finished = true;
+                saveField(cell, orderId, 'comment', textarea.value, originalText);
+            }
+            // Обычный Enter теперь работает как перенос строки!
         });
-        input.addEventListener('blur', function () {
+
+        // Сохранение по клику вне поля
+        textarea.addEventListener('blur', function () {
             setTimeout(function () {
                 if (finished) return;
                 finished = true;
-                saveField(cell, orderId, 'comment', input.value, originalText);
+                saveField(cell, orderId, 'comment', textarea.value, originalText);
             }, 100);
         });
     }
@@ -680,7 +720,19 @@ JavaScript секции «Список заказов» страницы /orders
             if (fieldName === 'client') {
                 cell.textContent = o.client_name || '—';
                 cell.dataset.originalValue = o.client_name || '—';
-                if (card) card.dataset.clientId = o.client_id || '';
+                if (card) {
+                    card.dataset.clientId = o.client_id || '';
+                    
+                    // ОБНОВЛЯЕМ АДРЕС ДОСТАВКИ В DOM
+                    if (o.delivery_address !== undefined) {
+                        const addressInput = card.querySelector('.list-orders-delivery-address');
+                        if (addressInput) {
+                            addressInput.value = o.delivery_address;
+                        }
+                    }
+                    // ОБНОВЛЯЕМ СПИСКИ ЮРЛИЦ И СОТРУДНИКОВ
+                    loadClientSelectsForCard(card, o.client_id);
+                }
                 cell.classList.remove('editing-cell');
                 showNotification('Сохранено', 'success');
             }
@@ -884,6 +936,11 @@ JavaScript секции «Список заказов» страницы /orders
         
         // Игнорируем клики внутри раскрытого блока (например, по кнопке "Открыть карточку")
         if (event.target.closest('.list-orders-card-details')) return;
+        // Игнорируем клики по кнопке оплаты (чтобы не раскрывался заказ)
+        if (event.target.closest('.list-orders-payment-btn')) return;
+        if (event.target.closest('.list-orders-delivery-btn')) return;
+        if (event.target.closest('.list-orders-delivery-status-btn')) return;
+        if (event.target.closest('.list-orders-delivery-input')) return;
 
         // Ищем карточку
         const card = event.target.closest('.list-orders-card');
@@ -1387,5 +1444,402 @@ function handleStatusChange(event) {
         });
     }
 
+    // ========================================================================
+    // 12. БЛОК ОПЛАТЫ
+    // ========================================================================
 
+    /**
+     * Обработка ДВОЙНОГО клика по кнопке "Оплачен / Не оплачен".
+     */
+    function handlePaymentToggleDblClick(event) {
+        const btn = event.target.closest('.list-orders-payment-btn');
+        if (!btn) return;
+        
+        event.stopPropagation(); // Чтобы не сворачивалась карточка заказа
+        
+        const orderId = btn.dataset.orderId;
+        if (!orderId) return;
+        
+        // Определяем текущее состояние и переключаем
+        const isCurrentlyPaid = btn.classList.contains('list-orders-payment-btn--on');
+        const newIsPaid = !isCurrentlyPaid;
+        
+        // Находим карточку и ВСЕ кнопки оплаты внутри неё (в шапке и в раскрытом блоке)
+        const card = btn.closest('.list-orders-card');
+        const allPaymentBtns = card.querySelectorAll('.list-orders-payment-btn');
+        
+        // Меняем UI для всех кнопок сразу
+        allPaymentBtns.forEach(function(b) {
+            if (newIsPaid) {
+                b.classList.add('list-orders-payment-btn--on');
+                b.textContent = 'Оплачен';
+            } else {
+                b.classList.remove('list-orders-payment-btn--on');
+                b.textContent = 'Не оплачен';
+            }
+        });
+        
+        // Сохраняем на сервере
+        savePaymentField(orderId, 'is_paid', newIsPaid);
+    }
+
+    /**
+     * Обработка изменений в выпадающих списках и инпутах оплаты (тип, счет, способ).
+     */
+    function handlePaymentFieldChange(event) {
+        const target = event.target;
+        const orderId = target.dataset.orderId;
+        if (!orderId) return;
+
+        const fieldName = target.dataset.field;
+        if (fieldName) {
+            const fieldValue = target.value;
+
+            // Логика переключения видимости полей при смене типа плательщика
+            if (fieldName === 'payer_type') {
+                const card = target.closest('.list-orders-card');
+                const legalDiv = card.querySelector(`#payment-detail-legal-${orderId}`);
+                const individualDiv = card.querySelector(`#payment-detail-individual-${orderId}`);
+                const docsDiv = card.querySelector(`#payment-detail-docs-${orderId}`); // <-- НОВОЕ
+                
+                if (legalDiv) legalDiv.classList.toggle('hidden', fieldValue !== 'legal');
+                if (individualDiv) individualDiv.classList.toggle('hidden', fieldValue !== 'individual');
+                if (docsDiv) docsDiv.classList.toggle('hidden', fieldValue === ''); // Показываем, если выбран хоть какой-то тип
+            }
+
+            savePaymentField(orderId, fieldName, fieldValue);
+        }
+    }
+
+    /**
+     * Сохраняет поле оплаты на сервере.
+     */
+    function savePaymentField(orderId, fieldName, fieldValue) {
+        const fd = new FormData();
+        fd.append('field_name', fieldName);
+        fd.append('field_value', fieldValue);
+
+        fetch('/orders/api/order/' + orderId + '/update-field/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showNotification(data.error || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showNotification('Ошибка сети при сохранении', 'error');
+        });
+    }
+
+    /**
+     * Сохраняет поле оплаты на сервере (через существующий API обновления поля).
+     */
+    function savePaymentField(orderId, fieldName, fieldValue) {
+        const fd = new FormData();
+        fd.append('field_name', fieldName);
+        fd.append('field_value', fieldValue);
+
+        fetch('/orders/api/order/' + orderId + '/update-field/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showNotification(data.error || 'Ошибка сохранения', 'error');
+                // Если ошибка — можно было бы откатить UI, но для простоты 
+                // просто показываем уведомление.
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showNotification('Ошибка сети при сохранении', 'error');
+        });
+    }
+
+    // ========================================================================
+    // 13. БЛОК ДОСТАВКИ
+    // ========================================================================
+
+    function handleDeliveryToggleDblClick(event) {
+        const btn = event.target.closest('.list-orders-delivery-btn');
+        if (!btn) return;
+        
+        event.stopPropagation(); // Чтобы не сворачивалась карточка
+        const orderId = btn.dataset.orderId;
+        if (!orderId) return;
+
+        const card = btn.closest('.list-orders-card');
+        const details = card.querySelector(`#delivery-details-${orderId}`);
+        
+        // Находим карточку и ВСЕ кнопки доставки внутри неё (свёрнутую и раскрытую)
+        const allDeliveryBtns = card.querySelectorAll('.list-orders-delivery-btn');
+
+        // Определяем текущее состояние по первой попавшейся кнопке
+        let currentState = 'none';
+        if (allDeliveryBtns[0].classList.contains('list-orders-delivery-btn--delivered')) {
+            currentState = 'delivered';
+        } else if (allDeliveryBtns[0].classList.contains('list-orders-delivery-btn--pending')) {
+            currentState = 'pending';
+        }
+
+        // Определяем следующее состояние (циклично)
+        let nextState = 'pending';
+        if (currentState === 'none') nextState = 'pending';
+        else if (currentState === 'pending') nextState = 'delivered';
+        else if (currentState === 'delivered') nextState = 'none';
+
+        // Обновляем ВСЕ кнопки разом
+        allDeliveryBtns.forEach(function(b) {
+            // Очищаем старые классы
+            b.classList.remove('list-orders-delivery-btn--pending', 'list-orders-delivery-btn--delivered');
+            
+            // Проверяем, является ли эта кнопка компактной (в свёрнутой строке)
+            const isCompact = b.classList.contains('list-orders-delivery-btn--compact');
+
+            if (nextState === 'none') {
+                b.textContent = 'Без доставки';
+                if (isCompact) b.style.display = 'none'; // Прячем компактную кнопку
+            } else if (nextState === 'pending') {
+                b.textContent = 'Доставка';
+                b.classList.add('list-orders-delivery-btn--pending');
+                if (isCompact) b.style.display = ''; // Показываем компактную кнопку
+            } else if (nextState === 'delivered') {
+                b.textContent = 'Доставлено';
+                b.classList.add('list-orders-delivery-btn--delivered');
+                if (isCompact) b.style.display = ''; // Показываем компактную кнопку
+            }
+        });
+        
+        // Показываем/скрываем детали доставки в раскрытом виде
+        if (nextState === 'none') {
+            if (details) details.classList.add('hidden');
+            savePaymentField(orderId, 'is_delivery', 'false');
+        } else {
+            if (details) details.classList.remove('hidden');
+            savePaymentField(orderId, 'is_delivery', 'true');
+            
+            if (nextState === 'pending') {
+                savePaymentField(orderId, 'delivery_status', 'pending');
+            } else if (nextState === 'delivered') {
+                savePaymentField(orderId, 'delivery_status', 'delivered');
+            }
+        }
+    }
+
+
+
+    function handleDeliveryFieldChange(event) {
+        const target = event.target;
+        if (!target.classList.contains('list-orders-delivery-input')) return;
+
+        const orderId = target.dataset.orderId;
+        const fieldName = target.dataset.field;
+        const fieldValue = target.value;
+
+        if (orderId && fieldName) {
+            savePaymentField(orderId, fieldName, fieldValue);
+        }
+    }
+    /**
+     * Автоматическое форматирование номера телефона.
+     * (Копия логики из baza_klientov/contacts.js для единообразия)
+     */
+    function formatPhoneNumber(value) {
+        if (value === '+7' || value === '+7 (' || value === '+7 ( ') {
+            return '';
+        }
+
+        let digits = value.replace(/\D/g, '');
+        if (!digits) return '';
+
+        if (digits.startsWith('8')) {
+            digits = '7' + digits.slice(1);
+        } else if (!digits.startsWith('7') && digits.length <= 10) {
+            digits = '7' + digits;
+        }
+
+        if (digits.length > 11) {
+            digits = digits.slice(0, 11);
+        }
+
+        let formatted = '+7';
+        if (digits.length > 1) {
+            formatted += ' (' + digits.slice(1, 4);
+        } else {
+            formatted += ' (';
+        }
+
+        if (digits.length >= 5) {
+            formatted += ') ' + digits.slice(4, 7);
+        }
+        if (digits.length >= 8) {
+            formatted += '-' + digits.slice(7, 9);
+        }
+        if (digits.length >= 10) {
+            formatted += '-' + digits.slice(9, 11);
+        }
+        
+        return formatted;
+    }
+
+
+    // ========================================================================
+    // 14. ЮРЛИЦА И СОТРУДНИКИ (СЕЛЕКТЫ)
+    // ========================================================================
+
+    function initClientSelects() {
+        // Находим все селекты на странице
+        const leSelects = document.querySelectorAll('.list-orders-le-select');
+        const cpSelects = document.querySelectorAll('.list-orders-cp-select');
+
+        // Собираем уникальные ID клиентов, чтобы не делать лишние запросы
+        const clientIds = new Set();
+        leSelects.forEach(sel => { if (sel.dataset.clientId) clientIds.add(sel.dataset.clientId); });
+
+        // Для каждого клиента делаем один запрос и заполняем его селекты
+        clientIds.forEach(clientId => {
+            fetch('/orders/api/client-details/' + clientId + '/')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) return;
+                    
+                    // Заполняем все селекты юрлиц для этого клиента
+                    document.querySelectorAll(`.list-orders-le-select[data-client-id="${clientId}"]`).forEach(sel => {
+                        populateSelect(sel, data.legal_entities, '— Юрлицо —');
+                    });
+
+                    // Заполняем все селекты сотрудников для этого клиента
+                    document.querySelectorAll(`.list-orders-cp-select[data-client-id="${clientId}"]`).forEach(sel => {
+                        populateSelect(sel, data.contact_persons, '— Сотрудник —');
+                    });
+                })
+                .catch(err => console.error('Ошибка загрузки данных клиента:', err));
+        });
+    }
+
+    function populateSelect(selectEl, items, defaultText) {
+        const currentId = selectEl.dataset.currentId;
+        const orderId = selectEl.dataset.orderId;
+        const fieldName = selectEl.dataset.field;
+
+        let html = `<option value="">${defaultText}</option>`;
+        
+        let primaryId = null;
+        items.forEach(item => {
+            // Сохраняем телефон в data-атрибут опции (если он есть)
+            const phoneAttr = item.phone ? ` data-phone="${item.phone}"` : '';
+            html += `<option value="${item.id}" ${String(item.id) === String(currentId) ? 'selected' : ''}${phoneAttr}>${item.name}</option>`;
+            if (item.is_primary) primaryId = item.id;
+        });
+        
+        selectEl.innerHTML = html;
+
+        // Если в заказе ничего не выбрано, но есть основной — выбираем его и сохраняем
+        if (!currentId && primaryId) {
+            selectEl.value = primaryId;
+            selectEl.dataset.currentId = primaryId;
+            
+            // Тихо сохраняем на сервер
+            const fd = new FormData();
+            fd.append('field_name', fieldName);
+            fd.append('field_value', primaryId);
+            fetch('/orders/api/order/' + orderId + '/update-field/', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }
+            });
+
+            // Если это сотрудник, подтягиваем его телефон в поле доставки
+            if (fieldName === 'contact_person') {
+                const selectedOption = selectEl.options[selectEl.selectedIndex];
+                const phone = selectedOption.dataset.phone || '';
+                const card = selectEl.closest('.list-orders-card');
+                
+                if (card && phone) {
+                    const phoneInput = card.querySelector('.list-orders-delivery-phone');
+                    if (phoneInput) {
+                        phoneInput.value = phone;
+                        savePaymentField(orderId, 'delivery_phone', phone);
+                    }
+                }
+            }
+        }
+    }
+
+    function handleClientSelectChange(event) {
+        const target = event.target;
+        if (target.classList.contains('list-orders-le-select') || target.classList.contains('list-orders-cp-select')) {
+            const orderId = target.dataset.orderId;
+            const fieldName = target.dataset.field;
+            const fieldValue = target.value;
+            
+            target.dataset.currentId = fieldValue; // Обновляем локально
+
+            // Если сменили сотрудника — обновляем телефон доставки
+            if (fieldName === 'contact_person') {
+                const card = target.closest('.list-orders-card');
+                const selectedOption = target.options[target.selectedIndex];
+                const phone = selectedOption.dataset.phone || '';
+                
+                const phoneInput = card.querySelector('.list-orders-delivery-phone');
+                if (phoneInput) {
+                    phoneInput.value = phone;
+                    // Сохраняем новый телефон в базу
+                    savePaymentField(orderId, 'delivery_phone', phone);
+                }
+            }
+            
+            savePaymentField(orderId, fieldName, fieldValue); // Сохраняем самого сотрудника
+        }
+    }
+
+    /**
+     * Загружает и заполняет списки юрлиц и сотрудников для конкретной карточки заказа.
+     * Используется при смене клиента.
+     */
+    function loadClientSelectsForCard(card, clientId) {
+        const leSelect = card.querySelector('.list-orders-le-select');
+        const cpSelect = card.querySelector('.list-orders-cp-select');
+        
+        // Если клиент убран (пустая строка), очищаем селекты
+        if (!clientId) {
+            if (leSelect) leSelect.innerHTML = '<option value="">— Юрлицо —</option>';
+            if (cpSelect) cpSelect.innerHTML = '<option value="">— Сотрудник —</option>';
+            return;
+        }
+
+        // Обновляем data-атрибуты в селектах
+        if (leSelect) leSelect.dataset.clientId = clientId;
+        if (cpSelect) cpSelect.dataset.clientId = clientId;
+
+        // Делаем запрос на сервер за новыми данными
+        fetch('/orders/api/client-details/' + clientId + '/')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                
+                if (leSelect) {
+                    leSelect.dataset.currentId = ''; // Сбрасываем старый выбор, чтобы сработал автовыбор "основного"
+                    populateSelect(leSelect, data.legal_entities, '— Юрлицо —');
+                }
+                if (cpSelect) {
+                    cpSelect.dataset.currentId = ''; // Сбрасываем старый выбор
+                    populateSelect(cpSelect, data.contact_persons, '— Сотрудник —');
+                }
+            })
+            .catch(err => console.error('Ошибка загрузки данных клиента:', err));
+    }
 })();
