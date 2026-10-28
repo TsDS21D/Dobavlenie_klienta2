@@ -32,8 +32,15 @@ def index(request):
         - список клиентов (для выпадающего списка в форме создания заказа);
         - active_app/page_title — как у остальных страниц проекта.
     """
-    # Создаем правило: подтягивать к заказу только НЕудаленные изделия
-    active_products = Product.objects.filter(is_deleted=False)
+    # Создаем правило: подтягивать к заказу только НЕудаленные изделия.
+    # order_by('position', 'id') — стабильный порядок:
+    #   • сначала по position (порядок внутри заказа),
+    #   • при равных position (например, у старых изделий с position=0)
+    #     — по id (фактический порядок создания).
+    # Без этой сортировки Django возьмёт Meta.ordering модели Product
+    # (тоже ['position', 'id']), так что здесь order_by избыточен —
+    # но пишем явно, чтобы поведение не зависело от Meta.
+    active_products = Product.objects.filter(is_deleted=False).order_by('position', 'id')
     
     # Берём все не удалённые заказы, свежие сверху.
     orders = (
@@ -118,8 +125,9 @@ from asgiref.sync import async_to_sync
 
 from calculator.models_list_proschet import Proschet     # Модель просчёта
 
+from django.db import transaction                         # Атомарность для api_replace_product_in_order
 from django.db.models import Prefetch
-from .models import Order, Product                       # Наши модели
+from .models import Order, Product
 from .services import (                                  # Сервисные функции
     create_order_from_proschet,
     add_product_to_order,
@@ -450,10 +458,15 @@ def order_detail(request, order_id):
 
     # --- Загружаем изделия заказа (не удалённые) ---
     # select_related подтягивает связанные справочники одним запросом.
+    # Порядок изделий — по position, затем по id.
+    # Раньше было по created_at — но после «умного редиректа» новое
+    # изделие получает created_at = now(), а position = старое значение.
+    # Если сортировать по created_at — изделие «уедет» в конец списка,
+    # что противоречит требованию «после редактирования остаётся на месте».
     products = (
         order.products
         .filter(is_deleted=False)
-        .order_by('created_at')
+        .order_by('position', 'id')
     )
 
     # --- Формируем контекст ---
@@ -694,7 +707,9 @@ def api_rows(request):
     select_related('client') — подгружаем клиента одним JOIN-запросом,
     чтобы в шаблоне order.client.name не породил N+1.
     """
-    active_products = Product.objects.filter(is_deleted=False)
+    # Порядок изделий внутри заказа: position → id.
+    # См. подробный комментарий в index().
+    active_products = Product.objects.filter(is_deleted=False).order_by('position', 'id')
     orders = (
         Order.objects
         .filter(is_deleted=False)
@@ -1300,3 +1315,490 @@ def api_client_details(request, client_id):
         return JsonResponse({'success': False, 'error': 'Клиент не найден'}, status=404)
     except ImportError:
         return JsonResponse({'success': False, 'error': 'Приложение baza_klientov не найдено'}, status=500)
+
+
+# ============================================================================
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: БЕЗОПАСНЫЙ RETURN_TO
+# ============================================================================
+
+def _safe_return_to(value, fallback):
+    """
+    Проверяет значение return_to из запроса и возвращает безопасный URL.
+
+    Зачем: пользователь может передать в return_to произвольную строку
+    (например, https://evil.com или javascript:alert(1)). Если бы мы
+    подставляли это в window.location.href, получили бы open redirect
+    или XSS.
+
+    Правило: разрешаем ТОЛЬКО внутренние пути приложения orders
+    (начинающиеся с '/orders/'). Всё остальное — отбрасываем
+    и используем fallback. Fallback — всегда '/orders/'.
+
+    Аргументы:
+        value    — что пришло в JSON (может быть None, '', число, dict).
+        fallback — что вернуть, если value небезопасен.
+
+    Возвращает: безопасную строку URL.
+    """
+    # Не строка или пусто → fallback.
+    if not value or not isinstance(value, str):
+        return fallback
+    # Не начинается с /orders/ → fallback.
+    if not value.startswith('/orders/'):
+        return fallback
+    # Строка содержит перенос строки или null-байт → подозрительно, fallback.
+    # Это на случай попыток «отравления» заголовков.
+    if '\n' in value or '\r' in value or '\0' in value:
+        return fallback
+    return value
+
+
+# ============================================================================
+# API 15: РАЗМОРОЗИТЬ ИЗДЕЛИЕ В ПРОСЧЁТ (для кнопки «Редактировать»)
+# ============================================================================
+
+@login_required
+@require_POST
+def api_unfreeze_product(request):
+    """
+    Создаёт новый просчёт из изделия для редактирования.
+
+    Используется кнопкой «Редактировать» на карточке изделия (как в
+    списке /orders/, так и в карточке заказа /orders/<id>/).
+
+    Ожидаемый JSON в теле:
+        {
+            "product_id": 11,
+            "return_to": "/orders/45/"      // необязательно
+        }
+
+    Возвращает JSON:
+        {
+            "success": true,
+            "proschet_id": 88,
+            "proschet_number": "PR-88",
+            "return_to": "/orders/45/"       // уже провалидированный
+        }
+
+    Что делает сервер:
+        1. Находит изделие (только is_deleted=False).
+        2. Размораживает его в новый динамический просчёт через
+           create_proschet_from_product(product, source_order=product.order).
+        3. Проставляет source_order — чтобы на /proschety/ баннер знал,
+           к какому заказу возвращаться.
+        4. Возвращает ID просчёта и нормализованный return_to — фронт
+           сам сформирует URL /proschety/?proschet_id=X&edit_product_id=Y&return_to=Z.
+
+    ВАЖНО: старое изделие НЕ удаляем и НЕ помечаем is_deleted.
+    Оно продолжает существовать до тех пор, пока пользователь не нажмёт
+    «Сохранить» (api_replace_product_in_order) или «Отмена» (api_cancel_edit).
+    Если пользователь просто закроет вкладку — временный просчёт останется
+    в БД с is_deleted=False, но в UI не помешает (он не привязан ни к одному
+    активному изделию). Это осознанное решение — см. согласование.
+    """
+
+    # --- Разбираем JSON ---
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    # --- Проверяем входные данные ---
+    product_id = data.get('product_id')
+    return_to = data.get('return_to')
+
+    if not product_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Не указан ID изделия'},
+            status=400
+        )
+
+    # --- Находим изделие ---
+    product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+
+    # --- Нормализуем return_to ---
+    # Fallback — на страницу списка заказов с автораскрытием карточки этого заказа.
+    fallback_return_to = f"/orders/?expanded_order={product.order.id}"
+    safe_return_to = _safe_return_to(return_to, fallback_return_to)
+
+    # --- Размораживаем в просчёт ---
+    # source_order=product.order — чтобы баннер на /proschety/ знал,
+    # из какого заказа пришли.
+    try:
+        proschet = create_proschet_from_product(
+            product,
+            source_order=product.order,
+        )
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Внутренняя ошибка: {e}'},
+            status=500
+        )
+
+    # --- Ответ ---
+    return JsonResponse({
+        'success': True,
+        'proschet_id': proschet.id,
+        'proschet_number': proschet.number,
+        'return_to': safe_return_to,
+    })
+
+
+# ============================================================================
+# API 16: КЛОНИРОВАТЬ ИЗДЕЛИЕ В ЗАКАЗ
+# ============================================================================
+
+@login_required
+@require_POST
+@transaction.atomic
+def api_clone_product(request):
+    """
+    Создаёт точную копию изделия и добавляет её в указанный заказ.
+
+    Используется контекстным меню на карточке изделия (правый клик /
+    долгий тап).
+
+    Ожидаемый JSON в теле:
+        {
+            "product_id": 11,
+            "target_order_id": 7      // необязательно; если пусто — в тот же заказ
+        }
+
+    Возвращает JSON:
+        {
+            "success": true,
+            "order_id": 7,
+            "order_number": "ORD-3",
+            "new_product_id": 25
+        }
+
+    Что делает сервер:
+        1. Находит изделие-источник (is_deleted=False).
+        2. Определяет целевой заказ:
+           • если target_order_id указан — берёт его (только is_deleted=False);
+           • иначе — тот же заказ, что у исходного изделия.
+        3. Размораживает исходное изделие во временный просчёт
+           (create_proschet_from_product), с source_order=целевой заказ.
+        4. Замораживает просчёт обратно в новый Product целевого заказа
+           (add_product_to_order). Внутри add_product_to_order
+           автоматически проставится position = max+1 — то есть клон
+           ВСЕГДА идёт в конец списка (это требование заказчика:
+           «если копируем — в конец»).
+        5. Soft-delete временного просчёта (is_deleted=True) — чтобы
+           он не появлялся в списке /proschety/.
+        6. Отправляет WebSocket-событие updated — другие вкладки
+           обновят карточку заказа.
+
+    ВАЖНО: view обёрнут в @transaction.atomic. Если любой шаг упадёт,
+    откатятся ВСЕ изменения: не останется ни временного просчёта,
+    ни «полуизделия».
+    """
+
+    # --- Разбираем JSON ---
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    # --- Проверяем входные данные ---
+    product_id = data.get('product_id')
+    target_order_id = data.get('target_order_id')
+
+    if not product_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Не указан ID изделия'},
+            status=400
+        )
+
+    # --- Находим изделие-источник ---
+    product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+
+    # --- Определяем целевой заказ ---
+    if target_order_id:
+        # Указан явно — ищем его.
+        order = get_object_or_404(
+            Order, pk=target_order_id, is_deleted=False
+        )
+    else:
+        # Не указан — кладём в тот же заказ.
+        order = product.order
+
+    # --- Размораживаем во временный просчёт ---
+    # source_order=order — чтобы временный просчёт «помнил»,
+    # в какой заказ его клонируют (для трассировки через админку).
+    try:
+        proschet = create_proschet_from_product(
+            product,
+            source_order=order,
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Ошибка разморозки: {e}'},
+            status=500
+        )
+
+    # --- Замораживаем обратно в новый Product ---
+    try:
+        new_product = add_product_to_order(proschet=proschet, order=order)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Ошибка заморозки: {e}'},
+            status=500
+        )
+
+    # --- Soft-delete временного просчёта ---
+    # Он выполнил свою роль «переходника» между двумя снимками.
+    # В UI его не будет (фильтр is_deleted=False везде).
+    proschet.is_deleted = True
+    proschet.save(update_fields=['is_deleted'])
+
+    # --- WebSocket-событие для реактивности ---
+    _send_order_event('updated', order, request)
+
+    # --- Сравниваем цены оригинала и клона ---
+    # old_price = total_price изделия, С КОТОРОГО копируем (product).
+    # new_price = total_price нового Product (уже с учётом скидки
+    #             целевого клиента и пересчёта по актуальным справочникам).
+    #
+    # price_changed = true, если цены различаются. Фронт по этому флагу
+    # покажет пользователю развёрнутое уведомление
+    # «Скопировано в ORD-X. Цена изменилась: было Y, стало Z».
+    # Это нужно, чтобы не было сюрпризов:
+    #   • при копировании к клиенту с другой скидкой;
+    #   • при подорожании справочников (бумага, принтер, работы).
+    old_price = product.total_price
+    new_price = new_product.total_price
+    price_changed = (old_price != new_price)
+
+    # --- Ответ ---
+    return JsonResponse({
+        'success': True,
+        'order_id': order.id,
+        'order_number': order.number,
+        'new_product_id': new_product.id,
+        'old_price': str(old_price),
+        'new_price': str(new_price),
+        'price_changed': price_changed,
+    })
+
+
+# ============================================================================
+# API 17: ЗАМЕНИТЬ ИЗДЕЛИЕ В ЗАКАЗЕ (после редактирования)
+# ============================================================================
+
+@login_required
+@require_POST
+@transaction.atomic
+def api_replace_product_in_order(request):
+    """
+    Заменяет старое изделие новым (замороженным из отредактированного просчёта).
+
+    Используется кнопкой «Сохранить как изделие» в баннере на /proschety/
+    в режиме редактирования.
+
+    Ожидаемый JSON в теле:
+        {
+            "proschet_id": 88,        // отредактированный просчёт
+            "old_product_id": 11      // старое изделие, которое заменяем
+        }
+
+    Возвращает JSON:
+        {
+            "success": true,
+            "order_id": 7,
+            "order_number": "ORD-3",
+            "old_product_id": 11,
+            "new_product_id": 25,
+            "old_price": "1250.00",
+            "new_price": "1330.50",
+            "price_changed": true
+        }
+
+    Что делает сервер:
+        1. Находит просчёт и старое изделие (оба — is_deleted=False).
+        2. Проверяет, что просчёт и изделие принадлежат одному заказу
+           (через proschet.source_order). Защита от подмены.
+        3. Запоминает старую цену и старый position.
+        4. Создаёт новое изделие из просчёта (add_product_to_order).
+        5. Перезаписывает у нового изделия position на старое значение
+           — чтобы отредактированное изделие осталось на своём месте,
+           а не уехало в конец.
+        6. Помечает старое изделие is_deleted=True.
+        7. Помечает просчёт is_deleted=True — чтобы не засорять UI.
+        8. Отправляет WebSocket-событие updated.
+        9. Возвращает old_price / new_price / price_changed, чтобы
+           фронт мог показать уведомление «Цена изменилась с X на Y».
+
+    ВАЖНО: view обёрнут в @transaction.atomic. Если любой шаг упадёт —
+    откатятся ВСЕ изменения: старое изделие останется is_deleted=False,
+    просчёт останется, новое изделие не создастся. Пользователь
+    сможет повторить попытку без потери данных.
+    """
+
+    # --- Разбираем JSON ---
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    # --- Проверяем входные данные ---
+    proschet_id = data.get('proschet_id')
+    old_product_id = data.get('old_product_id')
+
+    if not proschet_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Не указан ID просчёта'},
+            status=400
+        )
+    if not old_product_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Не указан ID старого изделия'},
+            status=400
+        )
+
+    # --- Находим просчёт и изделие ---
+    proschet = get_object_or_404(Proschet, pk=proschet_id, is_deleted=False)
+    old_product = get_object_or_404(
+        Product, pk=old_product_id, is_deleted=False
+    )
+
+    # --- Защита: просчёт должен быть создан ИЗ ЭТОГО ЖЕ заказа ---
+    # Если proschet.source_order не совпадает с old_product.order.id —
+    # это либо баг, либо попытка подмены чужого изделия. Отклоняем.
+    if not proschet.source_order or proschet.source_order_id != old_product.order_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Просчёт не соответствует заказу изделия'},
+            status=400
+        )
+
+    # --- Запоминаем значения, которые надо сохранить/вернуть ---
+    old_price = old_product.total_price
+    old_position = old_product.position
+    order = old_product.order
+
+    # --- Создаём новое изделие из просчёта ---
+    try:
+        new_product = add_product_to_order(proschet=proschet, order=order)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Ошибка создания изделия: {e}'},
+            status=500
+        )
+
+    # --- Возвращаем новому изделию позицию старого ---
+    # add_product_to_order поставил position = max+1 (конец списка).
+    # Нам нужно, чтобы отредактированное изделие осталось на месте
+    # старого. Перезаписываем явно.
+    # save(update_fields=['position']) — обновит ТОЛЬКО это поле,
+    # не трогая updated_at и остальные поля.
+    new_product.position = old_position
+    new_product.save(update_fields=['position'])
+
+    # --- Мягко удаляем старое изделие ---
+    old_product.is_deleted = True
+    old_product.save(update_fields=['is_deleted'])
+
+    # --- Мягко удаляем просчёт ---
+    # Он выполнил свою роль. В UI не покажется (фильтр is_deleted=False).
+    proschet.is_deleted = True
+    proschet.save(update_fields=['is_deleted'])
+
+    # --- WebSocket-событие для реактивности ---
+    _send_order_event('updated', order, request)
+
+    # --- Сравниваем цены ---
+    # Decimal-сравнение: если цены равны — флаг false, фронт не будет
+    # показывать уведомление «Цена изменилась».
+    price_changed = (old_price != new_product.total_price)
+
+    # --- Ответ ---
+    return JsonResponse({
+        'success': True,
+        'order_id': order.id,
+        'order_number': order.number,
+        'old_product_id': old_product.id,
+        'new_product_id': new_product.id,
+        'old_price': str(old_price),
+        'new_price': str(new_product.total_price),
+        'price_changed': price_changed,
+    })
+
+
+# ============================================================================
+# API 18: ОТМЕНИТЬ РЕДАКТИРОВАНИЕ (пользователь передумал)
+# ============================================================================
+
+@login_required
+@require_POST
+def api_cancel_edit(request):
+    """
+    Отменяет редактирование: мягко удаляет временный просчёт.
+
+    Используется кнопкой «Отмена» в баннере на /proschety/.
+
+    Ожидаемый JSON в теле:
+        {
+            "proschet_id": 88
+        }
+
+    Возвращает JSON:
+        {
+            "success": true,
+            "return_to": "/orders/?expanded_order=7"   // куда вернуться
+        }
+
+    Что делает сервер:
+        1. Находит просчёт (is_deleted=False).
+        2. Мягко удаляет его (is_deleted=True).
+        3. Возвращает fallback-URL для возврата на страницу списка
+           заказов с автораскрытием нужной карточки.
+
+    ВАЖНО: старое изделие (Product) НЕ трогаем — оно как было
+    is_deleted=False, так и остаётся. Отмена редактирования не меняет
+    ничего в заказе, только «убирает» временный просчёт.
+    """
+
+    # --- Разбираем JSON ---
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    # --- Проверяем входные данные ---
+    proschet_id = data.get('proschet_id')
+    if not proschet_id:
+        return JsonResponse(
+            {'success': False, 'error': 'Не указан ID просчёта'},
+            status=400
+        )
+
+    # --- Находим просчёт ---
+    proschet = get_object_or_404(Proschet, pk=proschet_id, is_deleted=False)
+
+    # --- Запоминаем заказ-источник для fallback ---
+    # Если source_order был проставлен (api_unfreeze_product ставит его),
+    # возвращаемся на карточку этого заказа. Если нет — на общий список.
+    if proschet.source_order_id:
+        return_to = f"/orders/?expanded_order={proschet.source_order_id}"
+    else:
+        return_to = "/orders/"
+
+    # --- Мягко удаляем просчёт ---
+    proschet.is_deleted = True
+    proschet.save(update_fields=['is_deleted'])
+
+    # --- Ответ ---
+    return JsonResponse({
+        'success': True,
+        'return_to': return_to,
+    })

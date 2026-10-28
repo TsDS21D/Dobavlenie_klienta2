@@ -1633,3 +1633,190 @@ select.list-orders-payment-select {
     line-height: 1.4;
     min-height: 26px;
 }
+
+
+
+/* ========================================================================
+   УМНОЕ РЕДАКТИРОВАНИЕ И КЛОНИРОВАНИЕ ИЗДЕЛИЙ
+   ========================================================================
+   Стили для:
+     • кнопки «Редактировать» на карточке изделия (карандаш);
+     • контекстного меню (правый клик / долгий тап);
+     • модалки выбора заказа для копирования;
+     • зелёной кнопки «Скопировать» в модалке.
+   Все элементы — в стиле проекта:
+     • белые карточки со скруглением 12px,
+     • тонкие серые рамки #e0e0e0,
+     • зелёный акцент #0B8661,
+     • мягкие тени как у .list-orders-card:hover.
+   ======================================================================== */
+
+
+/* ==================== КНОПКА «РЕДАКТИРОВАТЬ» ==================== */
+
+/* Кнопка-карандаш на карточке изделия. Стоит рядом с крестиком «×».
+   По размеру такая же, как .list-orders-product-delete-btn (16×16).
+   Иконка — emoji «✎», чтобы не тянуть SVG-спрайт. */
+.list-orders-product-edit-btn {
+    display: inline-flex;              /* Flex, чтобы центрировать иконку. */
+    align-items: center;               /* По вертикали — по центру. */
+    justify-content: center;           /* По горизонтали — по центру. */
+    width: 16px;                       /* Размер как у крестика. */
+    height: 16px;                      /* Размер как у крестика. */
+    padding: 0;                        /* Без внутренних отступов. */
+    margin-left: 0.4rem;               /* Небольшой отступ от цены. */
+    border: 1px solid #e0e0e0;         /* Тонкая серая рамка. */
+    border-radius: 6px;                /* Скругление в тон крестику. */
+    background: #ffffff;               /* Белый фон. */
+    color: #b0b0b0;                    /* Серый цвет иконки (приглушённый). */
+    font-size: 0.9rem;                 /* Размер иконки. */
+    line-height: 1;                    /* Чтобы emoji не добавлял отступов. */
+    cursor: pointer;                   /* Курсор-указатель. */
+    flex-shrink: 0;                    /* Не сжимается при длинном названии. */
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease; /* Плавная смена цвета. */
+}
+
+/* При наведении — фирменный зелёный, как hover у крестика (только зелёный,
+   а не красный — редактирование не деструктивно). */
+.list-orders-product-edit-btn:hover {
+    background: #0B8661;               /* Зелёный фон. */
+    color: #ffffff;                    /* Белая иконка. */
+    border-color: #0B8661;             /* Рамка в тон фону. */
+}
+
+/* В состоянии загрузки (btn.disabled=true, пока идёт запрос) — приглушённый. */
+.list-orders-product-edit-btn:disabled {
+    opacity: 0.5;                      /* Полупрозрачность. */
+    cursor: not-allowed;               /* Курсор «недоступно». */
+}
+
+
+/* ==================== КОНТЕКСТНОЕ МЕНЮ ==================== */
+
+/* Контейнер меню. Позиционируется абсолютно в точке курсора / тапа.
+   Показывается/скрывается через style.display из JS.
+   Не занимает места в потоке, не влияет на вёрстку. */
+.list-orders-context-menu {
+    position: fixed;                   /* fixed, а не absolute — чтобы меню не «уезжало» при скролле. */
+    z-index: 2000;                     /* Выше всех карточек, модалок и тостов. */
+    min-width: 180px;                  /* Минимальная ширина — чтобы пункты не слипались. */
+    padding: 0.3rem;                   /* Внутренние отступы — вокруг пунктов. */
+    background: #ffffff;               /* Белый фон — как у карточек. */
+    border: 1px solid #e0e0e0;         /* Тонкая серая рамка. */
+    border-radius: 8px;                /* Скругление — как у кнопок. */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); /* Тень — как у .list-orders-section, но чуть заметнее. */
+    font-family: inherit;              /* Наследуем шрифт проекта. */
+    font-size: 0.82rem;                /* Размер как у большинства кнопок. */
+    color: #333333;                    /* Основной текст. */
+    animation: listOrdersContextMenuIn 0.12s ease-out; /* Появление — как у других мелких меню. */
+}
+
+/* Анимация появления меню. */
+@keyframes listOrdersContextMenuIn {
+    from { opacity: 0; transform: scale(0.96); }  /* Немного меньше и прозрачнее. */
+    to   { opacity: 1; transform: scale(1); }     /* Нормальный размер. */
+}
+
+/* Один пункт меню. */
+.list-orders-context-menu-item {
+    display: block;                    /* На всю ширину контейнера. */
+    width: 100%;                       /* На всю ширину. */
+    padding: 0.4rem 0.7rem;            /* Отступы — комфортные для клика/тапа. */
+    background: transparent;           /* Фон прозрачный (белый от родителя). */
+    border: none;                      /* Без рамки. */
+    border-radius: 6px;                /* Скругление — при hover фон закруглится. */
+    text-align: left;                  /* Текст по левому краю. */
+    font-family: inherit;              /* Наследуем шрифт. */
+    font-size: 0.82rem;                /* Размер как у контейнера. */
+    color: #333333;                    /* Основной текст. */
+    cursor: pointer;                   /* Курсор-указатель. */
+    transition: background 0.1s ease, color 0.1s ease; /* Плавный hover. */
+}
+
+/* При наведении — светло-зелёный фон, как у активных элементов проекта. */
+.list-orders-context-menu-item:hover {
+    background: #eaf6ef;               /* --brand-green-light. */
+    color: #0a6e51;                    /* --brand-green-dark — чуть темнее для контраста. */
+}
+
+/* Небольшой разделитель между пунктами — если пунктов станет больше,
+   будет аккуратнее. Используется только на втором и последующих. */
+.list-orders-context-menu-item + .list-orders-context-menu-item {
+    margin-top: 0.15rem;               /* Минимальный отступ между пунктами. */
+    border-top: 1px solid #f0f0f0;     /* Очень светлая линия сверху. */
+    padding-top: 0.45rem;              /* Чуть больше сверху, чтобы линия «дышала». */
+}
+
+
+/* ==================== МОДАЛКА КЛОНИРОВАНИЯ ==================== */
+/* Оверлей и карточка уже стилизованы через .list-orders-confirm-overlay
+   и .list-orders-confirm (переиспользуем — как у модалки удаления).
+   Добавляем только то, чего там не было. */
+
+/* Зелёный модификатор кнопки «Скопировать».
+   Используется вместе с .list-orders-confirm-btn и .list-orders-confirm-btn-yes,
+   но перекрашивает в зелёный — потому что копирование это позитивное действие. */
+.list-orders-confirm-btn--ok {
+    background: #0B8661;               /* Фирменный зелёный. */
+    color: #ffffff;                    /* Белый текст. */
+}
+.list-orders-confirm-btn--ok:hover {
+    background: #0a6e51;               /* Темнее при наведении — как у .list-orders-btn-create. */
+    transform: translateY(-1px);       /* Лёгкий подъём — как у основных кнопок. */
+}
+.list-orders-confirm-btn--ok:disabled {
+    background: #b9d9c7;               /* Светло-зелёный — как у .list-orders-btn-submit:disabled. */
+    cursor: not-allowed;               /* Курсор «недоступно». */
+    transform: none;                   /* Без анимации. */
+}
+
+/* Селект выбора заказа внутри модалки.
+   По стилю — как .list-orders-form-input (создание заказа). */
+.list-orders-clone-select {
+    display: block;                    /* На всю ширину модалки. */
+    width: 100%;                       /* На всю ширину. */
+    padding: 0.35rem 2rem 0.35rem 0.6rem; /* Справа больше — под кастомную стрелку. */
+    border: 1.5px solid #b9d9c7;       /* Светло-зелёная рамка — как у форм создания. */
+    border-radius: 8px;                /* Скругление как у полей. */
+    background: #ffffff;               /* Белый фон. */
+    font-family: inherit;              /* Наследуем шрифт. */
+    font-size: 0.85rem;                /* Размер как у полей форм. */
+    color: #333333;                    /* Основной текст. */
+    cursor: pointer;                   /* Курсор-указатель. */
+    box-sizing: border-box;            /* Ширина включает padding и border. */
+    appearance: none;                  /* Убираем стандартную стрелку браузера. */
+    -webkit-appearance: none;          /* Для Safari. */
+    -moz-appearance: none;             /* Для Firefox. */
+    /* Кастомная SVG-стрелочка — та же, что у других селектов проекта. */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230B8661%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;      /* Не повторяем. */
+    background-position: right 0.7rem top 50%; /* Справа, по центру по вертикали. */
+    background-size: 0.65rem auto;     /* Размер стрелки. */
+    transition: border-color 0.15s ease, box-shadow 0.15s ease; /* Плавный focus. */
+}
+
+/* При фокусе — рамка фирменного цвета и мягкое свечение,
+   как у .list-orders-form-input:focus. */
+.list-orders-clone-select:focus {
+    outline: none;                     /* Убираем стандартную обводку. */
+    border-color: #0B8661;             /* Фирменный зелёный. */
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12); /* Мягкое свечение. */
+}
+
+
+/* ==================== АДАПТИВ ==================== */
+
+/* На узких экранах — меню не должно «прилипать» к краям. */
+@media (max-width: 480px) {
+    .list-orders-context-menu {
+        min-width: 160px;              /* Чуть уже. */
+        font-size: 0.85rem;            /* Чуть крупнее — для удобства тапа. */
+    }
+    .list-orders-context-menu-item {
+        padding: 0.5rem 0.8rem;        /* Больше вертикальный отступ — удобнее тапать. */
+        font-size: 0.85rem;            /* Чуть крупнее. */
+    }
+    .list-orders-clone-select {
+        font-size: 0.9rem;             /* Чуть крупнее — под мобильный. */
+    }
+}

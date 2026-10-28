@@ -27,3 +27,5 @@ backup_*.sql
 
 # Локальные тестовые JSON-файлы (не коммитим)
 test_*.json
+
+clickcounter/test_settings.py

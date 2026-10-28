@@ -164,6 +164,49 @@ urlpatterns = [
         name='api_client_details',
     ),
 
+    # ===== API «УМНОГО РЕДАКТИРОВАНИЯ» И КЛОНИРОВАНИЯ =====
+
+    # POST /orders/api/unfreeze-product/
+    # Разморозить изделие в новый просчёт (для кнопки «Редактировать»).
+    # Вход: {product_id, return_to?}
+    # Выход: {success, proschet_id, proschet_number, return_to}
+    path(
+        'api/unfreeze-product/',
+        views.api_unfreeze_product,
+        name='api_unfreeze_product',
+    ),
+
+    # POST /orders/api/clone-product/
+    # Клонировать изделие в указанный заказ (или в тот же).
+    # Вход: {product_id, target_order_id?}
+    # Выход: {success, order_id, order_number, new_product_id}
+    path(
+        'api/clone-product/',
+        views.api_clone_product,
+        name='api_clone_product',
+    ),
+
+    # POST /orders/api/replace-product-in-order/
+    # Заменить старое изделие новым (после редактирования).
+    # Вход: {proschet_id, old_product_id}
+    # Выход: {success, order_id, order_number, old_product_id,
+    #         new_product_id, old_price, new_price, price_changed}
+    path(
+        'api/replace-product-in-order/',
+        views.api_replace_product_in_order,
+        name='api_replace_product_in_order',
+    ),
+
+    # POST /orders/api/cancel-edit/
+    # Отменить редактирование — мягко удалить временный просчёт.
+    # Вход: {proschet_id}
+    # Выход: {success, return_to}
+    path(
+        'api/cancel-edit/',
+        views.api_cancel_edit,
+        name='api_cancel_edit',
+    ),
+
     # GET /orders/<order_id>/
     # Страница одного заказа (карточка со списком изделий).
     # ВАЖНО: этот маршрут должен идти ПОСЛЕ всех api/… — иначе общий

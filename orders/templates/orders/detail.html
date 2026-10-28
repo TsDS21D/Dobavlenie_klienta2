@@ -101,8 +101,17 @@ orders/templates/orders/detail.html
                         <div class="order-product-title">
                             #{{ product.id }} — {{ product.title }}
                         </div>
-                        <div class="order-product-price">
-                            {{ product.formatted_total_price }}
+                        {# Правая часть шапки: цена + кнопка «Редактировать». #}
+                        {# Кнопка использует те же классы, что в /orders/ (list-orders-product-edit-btn), #}
+                        {# но дополнена order-product-edit-btn — для чуть крупного размера в карточке. #}
+                        <div class="order-product-header-right">
+                            <div class="order-product-price">
+                                {{ product.formatted_total_price }}
+                            </div>
+                            <button type="button"
+                                    class="list-orders-product-edit-btn order-product-edit-btn"
+                                    data-product-id="{{ product.id }}"
+                                    title="Редактировать изделие">✎</button>
                         </div>
                     </div>
                     <div class="order-product-meta">

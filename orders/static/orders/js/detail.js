@@ -1039,12 +1039,90 @@ orders/static/orders/js/detail.js
         });
     }
 
+    // ========================================================================
+    // 5б. РЕДАКТИРОВАНИЕ ИЗДЕЛИЯ (разморозка в просчёт)
+    // ========================================================================
 
+    /**
+     * Обработчик клика по кнопке-карандашу на карточке изделия.
+     *
+     * Логика:
+     *   1. Находим кнопку (.order-product-edit-btn), берём product_id.
+     *   2. POST /orders/api/unfreeze-product/ с {product_id, return_to}.
+     *   3. Получаем {proschet_id, return_to}.
+     *   4. Редирект на /proschety/?proschet_id=X&edit_product_id=Y&return_to=Z.
+     *
+     * return_to — текущий путь + query. Это именно /orders/<id>/, то есть
+     * после сохранения пользователь вернётся в карточку этого заказа.
+     *
+     * ВАЖНО: stopPropagation обязателен — иначе клик по кнопке всплывёт
+     * до .order-product-header и раскроет карточку.
+     */
+    function handleProductEditClick(event) {
+        // Ищем кнопку среди предков target — на случай, если клик пришёлся
+        // на вложенный элемент (например, внутрь эмодзи).
+        var btn = event.target.closest('.order-product-edit-btn');
+        if (!btn) return;
+
+        // Не даём клику всплыть до заголовка карточки — иначе сработает
+        // toggleProductCard и раскроет/свернёт состав.
+        event.stopPropagation();
+
+        var productId = btn.dataset.productId;
+        if (!productId) return;
+
+        // Блокируем кнопку — защита от повторного клика.
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '…';
+
+        // Куда вернуться после сохранения — текущая карточка заказа.
+        var returnTo = window.location.pathname + window.location.search;
+
+        fetch('/orders/api/unfreeze-product/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                return_to: returnTo
+            })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Собираем URL страницы /proschety/ с параметрами.
+                var url = '/proschety/?proschet_id=' + encodeURIComponent(data.proschet_id) +
+                          '&edit_product_id=' + encodeURIComponent(productId) +
+                          '&return_to=' + encodeURIComponent(data.return_to);
+                window.location.href = url;
+            } else {
+                showNotification(data.error || 'Ошибка редактирования', 'error');
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            showNotification('Ошибка сети при редактировании', 'error');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
+    }
+    
     // ========================================================================
     // 6. ИНИЦИАЛИЗАЦИЯ
     // ========================================================================
 
     document.addEventListener('DOMContentLoaded', function () {
+
+        // ===== Кнопка «Редактировать» на карточках изделий =====
+        // Делегированный обработчик: переживает любые перерисовки (хотя
+        // карточки изделий на этой странице и не перерисовываются).
+        document.addEventListener('click', handleProductEditClick);
 
         // ===== Комментарий заказа =====
         var display = document.getElementById('order-comment-display');

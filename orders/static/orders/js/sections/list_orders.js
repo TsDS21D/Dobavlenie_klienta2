@@ -136,6 +136,15 @@ JavaScript секции «Список заказов» страницы /orders
         // --- WebSocket для реактивности ---
         initToastsWebSocket();
 
+        // --- Умное редактирование и клонирование изделий ---
+        // Инициализируем:
+        //   • контекстное меню (правый клик / долгий тап);
+        //   • модалку выбора заказа для копирования;
+        //   • обработчик кнопки «Редактировать» на карточке изделия.
+        // Всё это — делегированные обработчики на document, поэтому
+        // они переживают перерисовку tbody через refreshTable().
+        initProductActions();
+
         // --- АВТОРАСКРЫТИЕ ЗАКАЗА ИЗ URL ---
         // Если мы пришли со страницы просчётов после добавления изделия,
         // в URL будет параметр ?expanded_order=123.
@@ -747,22 +756,24 @@ JavaScript секции «Список заказов» страницы /orders
                 cell.dataset.originalValue = fieldValue;
                 if (card) card.dataset.readyDatetime = fieldValue;
                 cell.classList.remove('editing-cell');
-                
-                // ДОБАВЛЕНО: Обновляем бейдж с часами на основе ответа сервера
-                if (card && o.working_hours_remaining !== undefined) {
-                    const hoursContainer = card.querySelector('.list-orders-card-hours');
-                    if (hoursContainer) {
-                        const hours = o.working_hours_remaining;
-                        let badgeClass = 'normal';
-                        if (hours <= 1) badgeClass = 'critical';
-                        else if (hours <= 3) badgeClass = 'warning';
-                        
-                        // Перерисовываем внутренность бейджа
-                        hoursContainer.innerHTML = `<span class="list-orders-hours-badge ${badgeClass}">⏱️ ${hours}ч</span>`;
-                    }
-                }
-                
+
                 showNotification('Сохранено', 'success');
+
+                // ВАЖНО: полностью перерисовываем tbody через refreshTable().
+                //
+                // Зачем: серверная сортировка заказов внутри каждого статуса
+                // идёт по возрастанию оставшихся рабочих часов
+                // (см. views.py::index и api_rows — sorted(... key=o.get_working_hours_remaining)).
+                // При изменении срока готовности это значение меняется, и
+                // карточка должна «переехать» на новое место в списке.
+                //
+                // Локального обновления бейджа (без refreshTable) недостаточно:
+                // бейдж покажет правильные часы, но позиция карточки останется
+                // прежней — до следующей полной перезагрузки страницы.
+                //
+                // refreshTable сохраняет открытые карточки (expandedIds —
+                // см. её реализацию), так что раскрытые заказы не «схлопнутся».
+                return refreshTable();
             }
             else if (fieldName === 'comment') {
                 if (card) {
@@ -1842,4 +1853,719 @@ function handleStatusChange(event) {
             })
             .catch(err => console.error('Ошибка загрузки данных клиента:', err));
     }
+
+    // ========================================================================
+    // 15. УМНОЕ РЕДАКТИРОВАНИЕ И КЛОНИРОВАНИЕ ИЗДЕЛИЙ
+    // ========================================================================
+    // Что здесь:
+    //   • Кнопка «Редактировать» на карточке изделия — размораживает
+    //     изделие в просчёт и редиректит на /proschety/.
+    //   • Контекстное меню (правый клик + долгий тап на мобильных)
+    //     с пунктом «Копировать изделие».
+    //   • Модалка выбора заказа для копирования.
+    //   • POST-запрос на клонирование.
+    //
+    // Всё — на делегированных обработчиках document, чтобы переживать
+    // перерисовку tbody через refreshTable().
+
+    // --- Глобальное состояние контекстного меню ---
+    let contextMenuEl = null;         // DOM-элемент меню (создаётся один раз)
+    let contextMenuProductId = null;  // ID изделия, к которому привязано меню
+
+    // --- Глобальное состояние модалки клонирования ---
+    let cloneModalEl = null;          // Затемняющий оверлей модалки (один раз)
+    let pendingCloneProductId = null; // ID изделия, которое копируем
+    let cloneOrdersCache = null;      // Кэш списка заказов (загружается один раз)
+
+    // --- Глобальное состояние долгого тапа ---
+    let longTapTimer = null;          // Таймер долгого тапа
+    let longTapStartX = 0;            // X точки нажатия (для проверки сдвига)
+    let longTapStartY = 0;            // Y точки нажатия
+    let longTapProductItem = null;    // Карточка изделия, на которой держим палец
+    let longTapTriggered = false;     // Сработал ли долгий тап (для подавления клика)
+
+    /**
+     * Инициализация всей «умной» функциональности изделий.
+     * Вызывается один раз при DOMContentLoaded.
+     *
+     * Что делает:
+     *   1. Создаёт DOM-элементы меню и модалки (программно — так проще,
+     *      чем править шаблоны).
+     *   2. Навешивает делегированные обработчики.
+     *   3. Настраивает долгий тап для тач-устройств.
+     */
+    function initProductActions() {
+        // Создаём меню и модалку (добавляются в body, скрыты по умолчанию).
+        createContextMenu();
+        createCloneModal();
+
+        // Делегированные обработчики кликов.
+        // «Редактировать» — по кнопке-карандашу на карточке изделия.
+        document.addEventListener('click', handleProductEditClick);
+        // Контекстное меню — правый клик на карточке изделия.
+        document.addEventListener('contextmenu', handleProductContextMenu);
+        // Клик по пункту контекстного меню.
+        document.addEventListener('click', handleContextMenuAction);
+        // Клик вне меню — скрыть меню.
+        document.addEventListener('click', closeContextMenuOnOutsideClick);
+        // Esc — скрыть меню.
+        document.addEventListener('keydown', handleContextMenuEscape);
+
+        // Обработчики модалки клонирования.
+        const cancelBtn = document.getElementById('list-orders-clone-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', closeCloneModal);
+
+        const confirmBtn = document.getElementById('list-orders-clone-confirm');
+        if (confirmBtn) confirmBtn.addEventListener('click', handleCloneConfirm);
+
+        if (cloneModalEl) {
+            // Клик по оверлею (не по карточке) — закрыть.
+            cloneModalEl.addEventListener('click', function (e) {
+                if (e.target === cloneModalEl) closeCloneModal();
+            });
+        }
+
+        // Долгий тап на тач-устройствах.
+        initLongTap();
+    }
+
+    /**
+     * Создаёт DOM-элемент контекстного меню и добавляет его в body.
+     * Меню скрыто по умолчанию (display: none).
+     *
+     * Содержит два пункта:
+     *   • «Копировать изделие» — data-action="copy"
+     *   • «Редактировать»      — data-action="edit"
+     *
+     * Один экземпляр на всю страницу, переиспользуется для всех карточек.
+     */
+    function createContextMenu() {
+        // Не создавать повторно.
+        if (contextMenuEl) return;
+
+        // Создаём контейнер меню.
+        contextMenuEl = document.createElement('div');
+        contextMenuEl.className = 'list-orders-context-menu';
+        contextMenuEl.id = 'list-orders-context-menu';
+        contextMenuEl.style.display = 'none';
+
+        // Пункт «Копировать изделие».
+        // textContent, а не innerHTML — защита от XSS (хотя здесь текст
+        // статический, привычка полезна для будущего расширения).
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'list-orders-context-menu-item';
+        copyBtn.dataset.action = 'copy';
+        copyBtn.textContent = 'Копировать изделие';
+        contextMenuEl.appendChild(copyBtn);
+
+        // Пункт «Редактировать».
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'list-orders-context-menu-item';
+        editBtn.dataset.action = 'edit';
+        editBtn.textContent = 'Редактировать';
+        contextMenuEl.appendChild(editBtn);
+
+        // Добавляем в body.
+        document.body.appendChild(contextMenuEl);
+    }
+
+    /**
+     * Создаёт DOM-элемент модалки выбора заказа для копирования.
+     * По структуре — как модалка подтверждения удаления (переиспользуем
+     * стили .list-orders-confirm-overlay / .list-orders-confirm), но
+     * добавлен <select> для выбора заказа.
+     */
+    function createCloneModal() {
+        // Не создавать повторно.
+        if (cloneModalEl) return;
+
+        // Оверлей (затемнение).
+        cloneModalEl = document.createElement('div');
+        cloneModalEl.className = 'list-orders-confirm-overlay';
+        cloneModalEl.id = 'list-orders-clone-overlay';
+        cloneModalEl.style.display = 'none';
+
+        // Карточка модалки.
+        const modal = document.createElement('div');
+        // Немного шире обычной (340px → 380px) — под select.
+        modal.className = 'list-orders-confirm';
+        modal.style.maxWidth = '380px';
+        cloneModalEl.appendChild(modal);
+
+        // Заголовок.
+        const title = document.createElement('div');
+        title.className = 'list-orders-confirm-title';
+        title.textContent = 'Скопировать изделие';
+        modal.appendChild(title);
+
+        // Пояснительный текст.
+        const text = document.createElement('div');
+        text.className = 'list-orders-confirm-text';
+        text.textContent = 'Выберите заказ, в который скопировать изделие:';
+        modal.appendChild(text);
+
+        // Селект заказов.
+        const select = document.createElement('select');
+        select.className = 'list-orders-clone-select';
+        select.id = 'list-orders-clone-select';
+        // Опция-заглушка, пока список не загружен.
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '— Загрузка —';
+        select.appendChild(placeholder);
+        modal.appendChild(select);
+
+        // Кнопки.
+        const actions = document.createElement('div');
+        actions.className = 'list-orders-confirm-actions';
+        actions.style.marginTop = '0.85rem';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'list-orders-confirm-btn list-orders-confirm-btn-no';
+        cancelBtn.id = 'list-orders-clone-cancel';
+        cancelBtn.textContent = 'Отмена';
+        actions.appendChild(cancelBtn);
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        // Переиспользуем зелёную стилизацию кнопки «Удалить» — но здесь
+        // это позитивное действие, поэтому добавим класс-модификатор
+        // list-orders-confirm-btn--ok (см. CSS).
+        confirmBtn.className = 'list-orders-confirm-btn list-orders-confirm-btn-yes list-orders-confirm-btn--ok';
+        confirmBtn.id = 'list-orders-clone-confirm';
+        confirmBtn.textContent = 'Скопировать';
+        actions.appendChild(confirmBtn);
+
+        modal.appendChild(actions);
+
+        // Добавляем в body.
+        document.body.appendChild(cloneModalEl);
+    }
+
+    // ------------------------------------------------------------------
+    // 15.1. Кнопка «Редактировать» на карточке изделия.
+    // ------------------------------------------------------------------
+
+    /**
+     * Обработчик клика по кнопке «Редактировать» (.list-orders-product-edit-btn).
+     *
+     * Логика:
+     *   1. Найти кнопку, взять product_id из data-product-id.
+     *   2. POST /orders/api/unfreeze-product/ с {product_id, return_to}.
+     *   3. Получить {proschet_id, return_to}.
+     *   4. Редирект на /proschety/?proschet_id=X&edit_product_id=Y&return_to=Z.
+     *
+     * return_to — текущий путь + query (window.location.pathname + search).
+     * Это позволяет вернуть пользователя именно туда, откуда он пришёл
+     * (в /orders/ с открытой карточкой или в /orders/45/).
+     */
+    function handleProductEditClick(event) {
+        // Ищем кнопку «Редактировать».
+        const btn = event.target.closest('.list-orders-product-edit-btn');
+        if (!btn) return;
+
+        // Останавливаем всплытие — клик не должен сворачивать карточку
+        // или открывать контекстное меню.
+        event.stopPropagation();
+
+        const productId = btn.dataset.productId;
+        if (!productId) return;
+
+        // Сохраняем исходный текст — на случай ошибки.
+        const originalText = btn.textContent;
+
+        // Блокируем кнопку от повторного клика.
+        btn.disabled = true;
+        btn.textContent = '…';
+
+        // Определяем, куда вернуться после сохранения.
+        // На странице /orders/ ID заказа берём из DOM (карточки заказа,
+        // в которой лежит изделие). Это нужно, чтобы:
+        //   • после сохранения пользователь вернулся в /orders/
+        //     с автораскрытием нужной карточки (?expanded_order=NN);
+        //   • плашка на /proschety/ смогла показать номер заказа
+        //     («Вы редактируете изделие из заказа ORD-45»).
+        // Для страницы /orders/<id>/ (карточка заказа) этот код не
+        // исполняется — там работает detail.js, где ID уже в пути.
+        const currentOrderId = getCurrentOrderIdFromDOM(productId);
+        const returnTo = currentOrderId
+            ? '/orders/?expanded_order=' + currentOrderId
+            : (window.location.pathname + window.location.search);
+
+        // Отправляем запрос на разморозку.
+        fetch('/orders/api/unfreeze-product/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                return_to: returnTo
+            })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Собираем URL страницы /proschety/.
+                // encodeURIComponent — чтобы ? и = в return_to не сломали URL.
+                const url = '/proschety/?proschet_id=' + encodeURIComponent(data.proschet_id) +
+                            '&edit_product_id=' + encodeURIComponent(productId) +
+                            '&return_to=' + encodeURIComponent(data.return_to);
+                window.location.href = url;
+            } else {
+                // Ошибка от сервера — разблокируем кнопку и показываем тост.
+                btn.disabled = false;
+                btn.textContent = originalText;
+                showNotification(data.error || 'Ошибка редактирования', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            showNotification('Ошибка сети при редактировании', 'error');
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 15.2. Контекстное меню (правый клик + долгий тап).
+    // ------------------------------------------------------------------
+
+    /**
+     * Обработчик правого клика на карточке изделия.
+     *
+     * Находим ближайший .list-orders-product-item, берём product_id
+     * из data-product-id. Показываем меню в точке курсора.
+     */
+    function handleProductContextMenu(event) {
+        const productItem = event.target.closest('.list-orders-product-item');
+        if (!productItem) return;
+
+        // Предотвращаем стандартное меню браузера.
+        event.preventDefault();
+        event.stopPropagation();
+
+        const productId = productItem.dataset.productId;
+        if (!productId) return;
+
+        // Запоминаем, к какому изделию привязано меню.
+        contextMenuProductId = productId;
+
+        // Показываем меню в точке курсора.
+        showContextMenuAt(event.clientX, event.clientY);
+    }
+
+    /**
+     * Показывает контекстное меню в указанных координатах.
+     * Координаты корректируются, чтобы меню не выходило за пределы экрана.
+     */
+    function showContextMenuAt(x, y) {
+        if (!contextMenuEl) return;
+
+        // Сначала показываем, чтобы браузер посчитал размеры.
+        contextMenuEl.style.display = 'block';
+        contextMenuEl.style.left = x + 'px';
+        contextMenuEl.style.top  = y + 'px';
+
+        // Замеряем размеры меню.
+        const rect = contextMenuEl.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        // Если меню выходит за правый край — сдвигаем влево.
+        if (rect.right > vw - 8) {
+            contextMenuEl.style.left = (x - rect.width) + 'px';
+        }
+        // Если выходит за нижний край — сдвигаем вверх.
+        if (rect.bottom > vh - 8) {
+            contextMenuEl.style.top = (y - rect.height) + 'px';
+        }
+    }
+
+    /**
+     * Скрывает контекстное меню и сбрасывает привязку к изделию.
+     */
+    function hideContextMenu() {
+        if (!contextMenuEl) return;
+        contextMenuEl.style.display = 'none';
+        contextMenuProductId = null;
+    }
+
+    /**
+     * Клик по пункту контекстного меню.
+     * В зависимости от data-action выполняем действие.
+     */
+    function handleContextMenuAction(event) {
+        const item = event.target.closest('.list-orders-context-menu-item');
+        if (!item) return;
+        // Клик по пункту — не считаем как «клик вне меню».
+        event.stopPropagation();
+
+        const action = item.dataset.action;
+        const productId = contextMenuProductId;
+
+        // Меню больше не нужно — сразу скрываем.
+        hideContextMenu();
+
+        if (!productId) return;
+
+        if (action === 'copy') {
+            openCloneModal(productId);
+        } else if (action === 'edit') {
+            // Эмулируем клик по кнопке «Редактировать» —
+            // но проще вызвать функцию напрямую, передав фейковый
+            // target. Сделаем через прямой запрос (как в
+            // handleProductEditClick), чтобы не плодить кнопок.
+            unfreezeProductAndRedirect(productId);
+        }
+    }
+
+    /**
+     * Скрывает меню при клике вне него.
+     * Вызывается на каждый клик по документу — очень дёшево.
+     */
+    function closeContextMenuOnOutsideClick(event) {
+        if (!contextMenuEl) return;
+        if (contextMenuEl.style.display === 'none') return;
+        // Клик по самому меню (или его пунктам) — не закрываем.
+        // Пункты обрабатываются в handleContextMenuAction (там hide).
+        if (event.target.closest('#list-orders-context-menu')) return;
+        hideContextMenu();
+    }
+
+    /**
+     * Скрывает меню по Escape.
+     */
+    function handleContextMenuEscape(event) {
+        if (event.key !== 'Escape') return;
+        hideContextMenu();
+    }
+
+    /**
+     * Программная разморозка изделия и редирект (для пункта «Редактировать»
+     * в контекстном меню). Дублирует логику handleProductEditClick,
+     * но без привязки к DOM-кнопке.
+     */
+    function unfreezeProductAndRedirect(productId) {
+        // См. комментарий в handleProductEditClick — та же логика:
+        // ID заказа берём из DOM, чтобы после сохранения вернуться
+        // в /orders/?expanded_order=NN и показать номер в плашке.
+        const currentOrderId = getCurrentOrderIdFromDOM(productId);
+        const returnTo = currentOrderId
+            ? '/orders/?expanded_order=' + currentOrderId
+            : (window.location.pathname + window.location.search);
+
+        fetch('/orders/api/unfreeze-product/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                return_to: returnTo
+            })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                const url = '/proschety/?proschet_id=' + encodeURIComponent(data.proschet_id) +
+                            '&edit_product_id=' + encodeURIComponent(productId) +
+                            '&return_to=' + encodeURIComponent(data.return_to);
+                window.location.href = url;
+            } else {
+                showNotification(data.error || 'Ошибка редактирования', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            showNotification('Ошибка сети при редактировании', 'error');
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 15.3. Долгий тап (мобильные).
+    // ------------------------------------------------------------------
+
+    /**
+     * Настраивает долгий тап на карточках изделий.
+     *
+     * Логика:
+     *   • touchstart на .list-orders-product-item → запускаем таймер на 600 мс;
+     *   • touchmove (сдвиг >10px) → отменяем таймер (это скролл, не тап);
+     *   • по истечении 600 мс → показываем контекстное меню в точке нажатия,
+     *     запоминаем, что «долгий тап сработал» (чтобы touchend не вызвал клик);
+     *   • touchend → если таймер ещё жив, отменяем; если сработал долгий
+     *     тап — preventDefault.
+     */
+    function initLongTap() {
+        // Начало тапа.
+        document.addEventListener('touchstart', function (e) {
+            const productItem = e.target.closest('.list-orders-product-item');
+            if (!productItem) return;
+            if (e.touches.length !== 1) return; // мультитач игнорируем
+
+            const productId = productItem.dataset.productId;
+            if (!productId) return;
+
+            // Запоминаем точку и контекст.
+            longTapStartX = e.touches[0].clientX;
+            longTapStartY = e.touches[0].clientY;
+            longTapProductItem = productItem;
+            longTapTriggered = false;
+
+            // Запускаем таймер.
+            longTapTimer = setTimeout(function () {
+                longTapTimer = null;
+                longTapTriggered = true;
+
+                // Показываем меню.
+                contextMenuProductId = productId;
+                showContextMenuAt(longTapStartX, longTapStartY);
+            }, 600);
+        }, { passive: true });
+
+        // Движение пальца — если сдвиг большой, отменяем тап.
+        document.addEventListener('touchmove', function (e) {
+            if (!longTapTimer) return;
+            if (e.touches.length !== 1) return;
+
+            const dx = Math.abs(e.touches[0].clientX - longTapStartX);
+            const dy = Math.abs(e.touches[0].clientY - longTapStartY);
+            if (dx > 10 || dy > 10) {
+                clearTimeout(longTapTimer);
+                longTapTimer = null;
+            }
+        }, { passive: true });
+
+        // Отпускание пальца.
+        document.addEventListener('touchend', function (e) {
+            // Если таймер ещё жив — отменяем (тап был короткий).
+            if (longTapTimer) {
+                clearTimeout(longTapTimer);
+                longTapTimer = null;
+            }
+            // Если сработал долгий тап — подавляем обычный клик.
+            if (longTapTriggered) {
+                e.preventDefault();
+                longTapTriggered = false;
+            }
+            longTapProductItem = null;
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 15.4. Модалка клонирования.
+    // ------------------------------------------------------------------
+
+    /**
+     * Открывает модалку копирования для указанного изделия.
+     * Загружает список заказов (из кэша или с сервера), заполняет select.
+     */
+    function openCloneModal(productId) {
+        if (!cloneModalEl) return;
+
+        pendingCloneProductId = productId;
+        cloneModalEl.style.display = 'flex';
+
+        // Загружаем список заказов (с кэшем).
+        loadOrdersForClone().then(function (orders) {
+            const select = document.getElementById('list-orders-clone-select');
+            if (!select) return;
+
+            // Очищаем.
+            select.innerHTML = '';
+
+            // Опция-заглушка на случай, если заказов нет.
+            // Но заказ хотя бы один есть — тот, в котором мы находимся.
+            if (!orders || orders.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = '— Нет активных заказов —';
+                select.appendChild(opt);
+                return;
+            }
+
+            // Запоминаем ID текущего заказа (тот, в котором карточка)
+            // — чтобы поставить его первым и подписать «(этот заказ)».
+            const currentOrderId = getCurrentOrderIdFromDOM(pendingCloneProductId);
+
+            // Сортируем: текущий заказ — первым.
+            const sorted = orders.slice().sort(function (a, b) {
+                if (String(a.id) === String(currentOrderId)) return -1;
+                if (String(b.id) === String(currentOrderId)) return 1;
+                return 0;
+            });
+
+            // Заполняем select.
+            sorted.forEach(function (o) {
+                const opt = document.createElement('option');
+                opt.value = String(o.id);
+                const isCurrent = String(o.id) === String(currentOrderId);
+                opt.textContent = o.number + ' — ' + (o.client_name || 'без клиента') +
+                                  (isCurrent ? ' (этот заказ)' : '');
+                // Текущий заказ — выбран по умолчанию.
+                if (isCurrent) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }).catch(function (err) {
+            console.error(err);
+            showNotification('Не удалось загрузить заказы', 'error');
+        });
+    }
+
+    /**
+     * Возвращает ID заказа, в котором находится изделие (по DOM).
+     * Нужно, чтобы в модалке клонирования подсветить текущий заказ.
+     *
+     * Ищем карточку заказа, в которой лежит .list-orders-product-item
+     * с указанным product_id, и читаем data-order-id.
+     */
+    function getCurrentOrderIdFromDOM(productId) {
+        // Ищем все карточки изделий с нужным product_id.
+        const items = document.querySelectorAll(
+            '.list-orders-product-item[data-product-id="' + productId + '"]'
+        );
+        for (let i = 0; i < items.length; i++) {
+            const card = items[i].closest('.list-orders-card');
+            if (card && card.dataset.orderId) {
+                return card.dataset.orderId;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Загружает список активных заказов. Кэширует результат.
+     * Возвращает Promise<Array>.
+     */
+    function loadOrdersForClone() {
+        // Если в кэше есть — возвращаем его.
+        if (cloneOrdersCache) {
+            return Promise.resolve(cloneOrdersCache);
+        }
+
+        return fetch('/orders/api/all-orders/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success && Array.isArray(data.orders)) {
+                cloneOrdersCache = data.orders;
+                return data.orders;
+            }
+            return [];
+        });
+    }
+
+    /**
+     * Сбрасывает кэш списка заказов.
+     * Вызывается после создания/удаления заказа (через refreshTable),
+     * чтобы при следующем копировании был свежий список.
+     */
+    function resetCloneOrdersCache() {
+        cloneOrdersCache = null;
+    }
+
+    /**
+     * Закрывает модалку копирования.
+     */
+    function closeCloneModal() {
+        if (!cloneModalEl) return;
+        cloneModalEl.style.display = 'none';
+        pendingCloneProductId = null;
+
+        // Сбрасываем состояние кнопки — на случай, если она была disabled.
+        const confirmBtn = document.getElementById('list-orders-clone-confirm');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Скопировать';
+        }
+    }
+
+    /**
+     * Обработчик кнопки «Скопировать» в модалке.
+     * Отправляет POST /orders/api/clone-product/ с {product_id, target_order_id}.
+     */
+    function handleCloneConfirm() {
+        if (!pendingCloneProductId) return;
+
+        const select = document.getElementById('list-orders-clone-select');
+        if (!select) return;
+        const targetOrderId = select.value;
+        if (!targetOrderId) {
+            showNotification('Выберите заказ', 'warning');
+            return;
+        }
+
+        const confirmBtn = document.getElementById('list-orders-clone-confirm');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Копирование…';
+        }
+
+        fetch('/orders/api/clone-product/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                product_id: pendingCloneProductId,
+                target_order_id: targetOrderId
+            })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Если цена клона отличается от цены оригинала —
+                // показываем разницу. Это бывает в двух случаях:
+                //   • копирование в заказ другого клиента (разные скидки);
+                //   • пересчёт цен по актуальным справочникам
+                //     (изменились прайсы принтеров, бумаги и т.п.).
+                // Если цены равны — просто «Изделие скопировано».
+                if (data.price_changed) {
+                    const oldP = parseFloat(data.old_price).toFixed(2);
+                    const newP = parseFloat(data.new_price).toFixed(2);
+                    showNotification(
+                        'Скопировано в ' + data.order_number +
+                        '. Цена изменилась: было ' + oldP +
+                        ' ₽, стало ' + newP + ' ₽',
+                        'success'
+                    );
+                } else {
+                    showNotification('Изделие скопировано в ' + data.order_number, 'success');
+                }
+                closeCloneModal();
+                // Сбрасываем кэш — список заказов мог измениться
+                // (например, добавилось изделие в другой заказ, поменялись
+                // products_count, total_price).
+                resetCloneOrdersCache();
+                return refreshTable();
+            } else {
+                showNotification(data.error || 'Ошибка копирования', 'error');
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Скопировать';
+                }
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            showNotification('Ошибка сети при копировании', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Скопировать';
+            }
+        });
+    }
+
 })();

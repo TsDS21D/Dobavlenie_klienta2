@@ -150,6 +150,32 @@ JavaScript секции «Список просчётов» новой стра�
         // --- WebSocket-уведомления ---
         initToastsWebSocket();
 
+
+        // --- АВТОВЫБОР ПРОСЧЁТА ПО URL ---
+        // Если в URL есть ?proschet_id=X — подсвечиваем эту строку
+        // и эмитим proschetSelected, чтобы секции «Просчёт»,
+        // «Итоги просчёта» и «Баннер» подхватили данные.
+        //
+        // Откуда proschet_id в URL:
+        //   • кнопка «Редактировать» на карточке изделия в /orders/
+        //     или /orders/<id>/ редиректит на /proschety/?proschet_id=X
+        //     (см. list_orders.js / detail.js — Шаги 5, 7);
+        //   • пользователь может открыть ссылку вручную.
+        //
+        // Задержка setTimeout(0) — не для «подумать», а чтобы дать
+        // отработать DOMContentLoaded-обработчикам других модулей
+        // (proschet.js, proschet_summary.js, order_banner.js): они
+        // подписываются на proschetSelected в своих обработчиках,
+        // и порядок между ними не гарантирован браузером. setTimeout(0)
+        // выносит наш вызов после всех синхронных DOMContentLoaded-колбэков.
+        const autoUrlParams = new URLSearchParams(window.location.search);
+        const autoProschetId = autoUrlParams.get('proschet_id');
+        if (autoProschetId) {
+            setTimeout(function () {
+                highlightRow(autoProschetId);
+            }, 0);
+        }
+
         console.log('✅ Инициализация модуля завершена');
     });
 

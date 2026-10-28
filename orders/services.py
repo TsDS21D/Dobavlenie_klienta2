@@ -20,6 +20,7 @@ from decimal import Decimal                              # Точные деся
 
 # ===== ИМПОРТЫ DJANGO =====
 from django.db import transaction                        # Атомарность (всё или ничего)
+from django.db.models import Max                         # Max — для «max(position) + 1» при добавлении изделия
 
 # ===== ИМПОРТЫ МОДЕЛЕЙ-ОРИГИНАЛОВ ИЗ calculator =====
 from calculator.models_list_proschet import (               # Модели просчёта
@@ -47,21 +48,39 @@ from .models import (
 import math
 from decimal import Decimal
 
-def _calculate_final_prices(proschet):
+def _calculate_final_prices(proschet, discount_percent=None):
     """
     Вспомогательная функция. 
     1. Считает скидку.
     2. Вычисляет цену за 1 шт., округляя её ВВЕРХ до копеек.
     3. Умножает цену за штуку на тираж, чтобы получить точную сумму к оплате.
     
+    Аргументы:
+        proschet         — просчёт, из которого берём circulation и base_total.
+        discount_percent — необязательный процент скидки (число: int/float/Decimal).
+                           Если передан (даже 0) — используется он.
+                           Если None — берём скидку из proschet.client.
+    
+    Зачем нужен discount_percent:
+        Бывает, что скидка должна браться НЕ из просчёта, а из контекста.
+        Например, при add_product_to_order изделие добавляется в заказ
+        клиента Барко (7%), а просчёт был создан для Аромако (5%).
+        Платит Барко → цена должна быть со скидкой 7%.
+    
     Возвращает: (final_total_price, multiplier)
     """
     circulation = proschet.circulation or 1
     
-    # Получаем скидку клиента
-    discount = 0
-    if proschet.client and proschet.client.discount:
+    # Определяем, чью скидку применять.
+    # ВАЖНО: проверяем именно «is not None», а не «if discount_percent»,
+    # потому что 0 — валидное значение (клиент без скидки), и его надо
+    # отличать от «параметр не передан».
+    if discount_percent is not None:
+        discount = float(discount_percent)
+    elif proschet.client and proschet.client.discount:
         discount = float(proschet.client.discount)
+    else:
+        discount = 0
         
     multiplier = Decimal(str(1 - (discount / 100.0)))
     
@@ -136,11 +155,18 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
 
     product = Product.objects.create(
         order=order,
-        source_proschet=proschet,                  
-        source_template=proschet.source_template,  
-        title=proschet.title,                      
-        circulation=proschet.circulation or 1,     
-        total_price=frozen_total_price, 
+        source_proschet=proschet,
+        source_template=proschet.source_template,
+        title=proschet.title,
+        circulation=proschet.circulation or 1,
+        # Порядковый номер внутри заказа.
+        # create_order_from_proschet всегда создаёт НОВЫЙ заказ
+        # (см. блок «Шаг 1. Создаём заказ» выше), а у нового заказа
+        # ещё нет изделий. Значит, это изделие — первое, position=1.
+        # Хардкод «1» здесь корректнее, чем SELECT max(): не нужен
+        # лишний запрос к БД на каждый вызов.
+        position=1,
+        total_price=frozen_total_price,
     )
 
     # --- Шаг 3. Проходим по всем не удалённым печатным компонентам ---
@@ -341,15 +367,52 @@ def add_product_to_order(proschet, order):
     """
 
     # --- Шаг 1. Создаём изделие ---
-    # Рассчитываем итоговую цену с учётом скидки и округления цены за штуку
-    frozen_total_price, multiplier = _calculate_final_prices(proschet)
+    # Скидка — по клиенту ЗАКАЗА, а не клиента просчёта.
+    # Логика: изделие добавляется в конкретный заказ конкретного клиента,
+    # именно он будет платить → цена должна быть по его скидке.
+    #
+    # Пример: просчёт создан для Аромако (5%), добавляем в заказ
+    # Барко (7%). Скидка должна быть 7% (Барко), а не 5% (Аромако).
+    #
+    # Если у заказа нет клиента — скидка 0% (явно передаём 0,
+    # чтобы отличать от «не передан параметр»).
+    order_discount = (
+        order.client.discount
+        if (order.client and order.client.discount)
+        else 0
+    )
+    frozen_total_price, multiplier = _calculate_final_prices(
+        proschet, discount_percent=order_discount
+    )
+
+    # Вычисляем следующий порядковый номер для нового изделия.
+    # Логика:
+    #   • смотрим максимальный position среди ТОЛЬКО активных изделий
+    #     заказа (is_deleted=False). Удалённые не учитываем — они не
+    #     отображаются в списке и не должны «занимать места»;
+    #   • если активных изделий нет (только что созданный заказ или
+    #     всё удалили) — max() вернёт None, через «or 0» получаем 0,
+    #     следующий position = 1;
+    #   • иначе следующий position = max + 1, то есть новое изделие
+    #     всегда добавляется в КОНЕЦ списка.
+    # Это поведение по умолчанию. Замена (api_replace_product_in_order)
+    # перезапишет position явно на старое значение — это делает views.py,
+    # а не сервис.
+    max_existing_position = (
+        order.products
+        .filter(is_deleted=False)
+        .aggregate(Max('position'))['position__max']
+    ) or 0
+    next_position = max_existing_position + 1
 
     product = Product.objects.create(
-        order=order,                               
-        source_proschet=proschet,                  
-        source_template=proschet.source_template,  
-        title=proschet.title,                      
-        circulation=proschet.circulation or 1,     
+        order=order,
+        source_proschet=proschet,
+        source_template=proschet.source_template,
+        title=proschet.title,
+        circulation=proschet.circulation or 1,
+        # Порядковый номер — вычислен выше.
+        position=next_position,
         total_price=frozen_total_price,
     )
 
@@ -502,7 +565,7 @@ def add_product_to_order(proschet, order):
 # ============================================================================
 
 @transaction.atomic
-def create_proschet_from_product(product):
+def create_proschet_from_product(product, source_order=None):
     """
     Создаёт новый просчёт из изделия.
 
@@ -512,7 +575,14 @@ def create_proschet_from_product(product):
     справочники.
 
     Аргументы:
-        product — экземпляр Product (что разворачиваем в просчёт).
+        product      — экземпляр Product (что разворачиваем в просчёт).
+        source_order — необязательная ссылка на orders.Order. Если передан,
+                       сохраняется в Proschet.source_order. Используется
+                       новыми эндпоинтами «умного редиректа»
+                       (api_unfreeze_product, api_clone_product), чтобы
+                       баннер на /proschety/ знал, к какому заказу
+                       возвращаться после сохранения. По умолчанию None —
+                       тогда source_order не заполняется (как раньше).
 
     Возвращает:
         proschet — созданный экземпляр calculator.Proschet.
@@ -533,14 +603,37 @@ def create_proschet_from_product(product):
         - все входные параметры (принтер, бумага, тип/режим печати,
           размеры, ориентация, плёнка, ламинатор, формулы работ и т.п.);
         - привязки к справочникам (work_id);
-        - исходный шаблон (source_template) — для трассировки цепочки.
+        - исходный шаблон (source_template) — для трассировки цепочки;
+        - исходный заказ (source_order) — если он передан параметром.
     """
 
-    # --- Шаг 1. Клиент берём из заказа изделия (может быть None) ---
-    # В Product поле order — обязательное, поэтому product.order есть всегда.
-    # А вот client у заказа может быть не указан — тогда просчёт создастся
+    # --- Шаг 1. Определяем клиента для нового просчёта ---
+    #
+    # Логика зависит от того, передан ли source_order:
+    #
+    #   • source_order передан (это делают api_clone_product и
+    #     api_unfreeze_product) — берём клиента ИМЕННО ЭТОГО заказа.
+    #     Это правильно, потому что:
+    #       - при копировании в заказ другого клиента цена
+    #         должна сразу считаться по скидке ЭТОГО клиента;
+    #       - при редактировании изделия source_order = заказ,
+    #         в котором лежит изделие, то есть клиент тот же.
+    #
+    #   • source_order не передан (старый api_proschet_from_product) —
+    #     как раньше, клиент оригинального заказа изделия.
+    #     В этом случае новая логика не ломается: изделие уже
+    #     лежит в каком-то заказе, и клиент этого заказа —
+    #     логичный выбор.
+    #
+    # client у заказа может быть None — тогда просчёт создастся
     # без клиента (пользователь потом укажет его в калькуляторе).
-    client = product.order.client if product.order else None
+    if source_order is not None:
+        client = source_order.client
+    else:
+        # Fallback для совместимости: client = клиент заказа, в котором
+        # лежит изделие. product.order обязательный FK, поэтому он есть
+        # всегда.
+        client = product.order.client if product.order else None
 
     # --- Шаг 2. Создаём корневой просчёт ---
     # Тираж берём из изделия (он был зафиксирован на момент создания).
@@ -550,7 +643,13 @@ def create_proschet_from_product(product):
         title=product.title,                       # Название копируем
         circulation=product.circulation or 1,      # Тираж копируем
         client=client,                             # Клиент — из заказа изделия
-        source_template=product.source_template,   # Цепочка трассировки
+        source_template=product.source_template,   # Цепочка трассировки через шаблон
+        # Ссылка на заказ-источник. Передаётся необязательным параметром.
+        # Если None — просчёт создаётся без привязки к заказу (как
+        # было раньше, через api_proschet_from_product).
+        # Если указан — устанавливается, чтобы баннер на /proschety/
+        # мог показать «Вы редактируете изделие из Заказа ORD-X».
+        source_order=source_order,
     )
 
     # --- Шаг 3. Перебираем компоненты изделия в исходном порядке ---

@@ -164,12 +164,28 @@ orders/templates/orders/sections/_order_rows.html
                         <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
                             <div class="list-orders-products-wrap">
                                 {% for product in order.products.all %}
-                                    <div class="list-orders-product-item">
+                                    {# Карточка изделия. #}
+                                    {# data-product-id добавлен, чтобы работали: #}
+                                    {#   • контекстное меню (правый клик / долгий тап) — из JS читаем ID; #}
+                                    {#   • модалка клонирования — по нему находим текущий заказ; #}
+                                    {#   • кнопка «Редактировать» — по нему формируется запрос на разморозку. #}
+                                    <div class="list-orders-product-item" data-product-id="{{ product.id }}">
                                         <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                         <span class="list-orders-product-title">{{ product.title }}</span>
                                         <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                         <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
-                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                        {# Кнопка «Редактировать» — карандаш. #}
+                                        {# Клик по ней разморозит изделие в просчёт и редиректит на /proschety/. #}
+                                        {# Работает через handleProductEditClick в list_orders.js. #}
+                                        <button type="button"
+                                                class="list-orders-product-edit-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Редактировать изделие">✎</button>
+                                        {# Кнопка «Удалить» — крестик (без изменений). #}
+                                        <button type="button"
+                                                class="list-orders-product-delete-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Удалить изделие">×</button>
                                     </div>
                                 {% empty %}
                                     <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
@@ -438,12 +454,28 @@ orders/templates/orders/sections/_order_rows.html
                         <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
                                <div class="list-orders-products-wrap">
                                 {% for product in order.products.all %}
-                                    <div class="list-orders-product-item">
+                                    {# Карточка изделия. #}
+                                    {# data-product-id добавлен, чтобы работали: #}
+                                    {#   • контекстное меню (правый клик / долгий тап) — из JS читаем ID; #}
+                                    {#   • модалка клонирования — по нему находим текущий заказ; #}
+                                    {#   • кнопка «Редактировать» — по нему формируется запрос на разморозку. #}
+                                    <div class="list-orders-product-item" data-product-id="{{ product.id }}">
                                         <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                         <span class="list-orders-product-title">{{ product.title }}</span>
                                         <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                         <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
-                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                        {# Кнопка «Редактировать» — карандаш. #}
+                                        {# Клик по ней разморозит изделие в просчёт и редиректит на /proschety/. #}
+                                        {# Работает через handleProductEditClick в list_orders.js. #}
+                                        <button type="button"
+                                                class="list-orders-product-edit-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Редактировать изделие">✎</button>
+                                        {# Кнопка «Удалить» — крестик (без изменений). #}
+                                        <button type="button"
+                                                class="list-orders-product-delete-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Удалить изделие">×</button>
                                     </div>
                                 {% empty %}
                                     <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
@@ -713,12 +745,28 @@ orders/templates/orders/sections/_order_rows.html
                         <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
                             <div class="list-orders-products-wrap">
                                 {% for product in order.products.all %}
-                                    <div class="list-orders-product-item">
+                                    {# Карточка изделия. #}
+                                    {# data-product-id добавлен, чтобы работали: #}
+                                    {#   • контекстное меню (правый клик / долгий тап) — из JS читаем ID; #}
+                                    {#   • модалка клонирования — по нему находим текущий заказ; #}
+                                    {#   • кнопка «Редактировать» — по нему формируется запрос на разморозку. #}
+                                    <div class="list-orders-product-item" data-product-id="{{ product.id }}">
                                         <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                         <span class="list-orders-product-title">{{ product.title }}</span>
                                         <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                         <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
-                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                        {# Кнопка «Редактировать» — карандаш. #}
+                                        {# Клик по ней разморозит изделие в просчёт и редиректит на /proschety/. #}
+                                        {# Работает через handleProductEditClick в list_orders.js. #}
+                                        <button type="button"
+                                                class="list-orders-product-edit-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Редактировать изделие">✎</button>
+                                        {# Кнопка «Удалить» — крестик (без изменений). #}
+                                        <button type="button"
+                                                class="list-orders-product-delete-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Удалить изделие">×</button>
                                     </div>
                                 {% empty %}
                                     <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
@@ -989,12 +1037,28 @@ orders/templates/orders/sections/_order_rows.html
                         <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
                             <div class="list-orders-products-wrap">
                                 {% for product in order.products.all %}
-                                    <div class="list-orders-product-item">
+                                    {# Карточка изделия. #}
+                                    {# data-product-id добавлен, чтобы работали: #}
+                                    {#   • контекстное меню (правый клик / долгий тап) — из JS читаем ID; #}
+                                    {#   • модалка клонирования — по нему находим текущий заказ; #}
+                                    {#   • кнопка «Редактировать» — по нему формируется запрос на разморозку. #}
+                                    <div class="list-orders-product-item" data-product-id="{{ product.id }}">
                                         <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                         <span class="list-orders-product-title">{{ product.title }}</span>
                                         <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                         <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
-                                        <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                        {# Кнопка «Редактировать» — карандаш. #}
+                                        {# Клик по ней разморозит изделие в просчёт и редиректит на /proschety/. #}
+                                        {# Работает через handleProductEditClick в list_orders.js. #}
+                                        <button type="button"
+                                                class="list-orders-product-edit-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Редактировать изделие">✎</button>
+                                        {# Кнопка «Удалить» — крестик (без изменений). #}
+                                        <button type="button"
+                                                class="list-orders-product-delete-btn"
+                                                data-product-id="{{ product.id }}"
+                                                title="Удалить изделие">×</button>
                                     </div>
                                 {% empty %}
                                     <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
