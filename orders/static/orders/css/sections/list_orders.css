@@ -1820,3 +1820,41 @@ select.list-orders-payment-select {
         font-size: 0.9rem;             /* Чуть крупнее — под мобильный. */
     }
 }
+
+
+
+/* ==================== КНОПКА «ДАЛЕЕ» (ПАГИНАЦИЯ ВЫДАННЫХ) ==================== */
+
+.list-orders-load-more-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.8rem;
+    margin-bottom: 0.4rem;
+}
+
+.list-orders-load-more-btn {
+    padding: 0.5rem 1.4rem;
+    background: #0B8661;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.25);
+}
+
+.list-orders-load-more-btn:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(11, 134, 97, 0.35);
+}
+
+.list-orders-load-more-btn:disabled {
+    background: #b9d9c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

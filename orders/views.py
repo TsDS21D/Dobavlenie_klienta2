@@ -81,8 +81,13 @@ def index(request):
     orders_accepted    = sorted([o for o in orders if o.status == 'accepted'], key=lambda o: o.get_working_hours_remaining())
     orders_ready       = sorted([o for o in orders if o.status == 'ready'], key=lambda o: o.get_working_hours_remaining())
     
-    # Выполненные заказы оставляем как есть (они уже отсортированы по дате создания -created_at).
-    orders_completed   = [o for o in orders if o.status == 'completed']
+    # ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
+    # Выданных может быть сотни. Отдаём сразу только 10, остальные — по кнопке
+    # «Далее» (см. api_rows). При перезагрузке страницы снова 10.
+    all_completed = [o for o in orders if o.status == 'completed']
+    total_completed_count = len(all_completed)
+    completed_limit = 10
+    orders_completed = all_completed[:completed_limit]
 
     # Формируем контекст для шаблона.
     context = {
@@ -91,6 +96,9 @@ def index(request):
         'orders_accepted': orders_accepted,
         'orders_ready': orders_ready,
         'orders_completed': orders_completed,
+        # Общее количество выданных — нужно шаблону, чтобы показать кнопку
+        # «Далее», только если есть что догружать.
+        'total_completed_count': total_completed_count,
         'clients': clients,
         'active_app': 'orders',
         'page_title': 'Заказы',
@@ -707,6 +715,17 @@ def api_rows(request):
     select_related('client') — подгружаем клиента одним JOIN-запросом,
     чтобы в шаблоне order.client.name не породил N+1.
     """
+    # ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
+    # JS-фронт передаёт ?completed_limit=N. Лимит растёт при клике на «Далее».
+    try:
+        completed_limit = int(request.GET.get('completed_limit', 10))
+    except (ValueError, TypeError):
+        completed_limit = 10
+    if completed_limit < 10:
+        completed_limit = 10
+    if completed_limit > 1000:
+        completed_limit = 1000
+
     # Порядок изделий внутри заказа: position → id.
     # См. подробный комментарий в index().
     active_products = Product.objects.filter(is_deleted=False).order_by('position', 'id')
@@ -717,6 +736,12 @@ def api_rows(request):
         .prefetch_related(Prefetch('products', queryset=active_products))
         .order_by('-created_at')
     )
+
+    # Все выданные — для подсчёта общего. Отдаём шаблону только N первых.
+    all_completed = [o for o in orders if o.status == 'completed']
+    total_completed_count = len(all_completed)
+    orders_completed = all_completed[:completed_limit]
+
     return render(
         request,
         'orders/sections/_order_rows.html',
@@ -726,7 +751,8 @@ def api_rows(request):
             'orders_in_progress': sorted([o for o in orders if o.status == 'in_progress'], key=lambda o: o.get_working_hours_remaining()),
             'orders_accepted':    sorted([o for o in orders if o.status == 'accepted'], key=lambda o: o.get_working_hours_remaining()),
             'orders_ready':       sorted([o for o in orders if o.status == 'ready'], key=lambda o: o.get_working_hours_remaining()),
-            'orders_completed':   [o for o in orders if o.status == 'completed'],
+            'orders_completed':   orders_completed,
+            'total_completed_count': total_completed_count,
         },
     )
 

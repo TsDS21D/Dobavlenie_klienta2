@@ -1172,4 +1172,12 @@ orders/templates/orders/sections/_order_rows.html
             <div class="list-orders-group-empty">Заказов нет</div>
         {% endfor %}
     </div>
+    {# ===== КНОПКА «ДАЛЕЕ» ДЛЯ ПАГИНАЦИИ ВЫДАННЫХ ===== #}
+    {# Показывается только если сервер отдал меньше, чем всего есть. #}
+    {# total_completed_count передаётся из views.py::index и views.py::api_rows. #}
+    {% if orders_completed|length < total_completed_count %}
+        <div class="list-orders-load-more-wrap">
+            <button type="button" class="list-orders-load-more-btn">Далее</button>
+        </div>
+    {% endif %}
 </div>

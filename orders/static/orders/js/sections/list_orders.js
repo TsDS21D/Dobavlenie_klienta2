@@ -46,6 +46,11 @@ JavaScript секции «Список заказов» страницы /orders
     // Кэш клиентов (загружается один раз, при первом редактировании клиента).
     let clientsCache = null;
 
+    // ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
+    // Сколько выданных показывать сейчас. По умолчанию 10.
+    // При клике на «Далее» — +10. Хранится в JS, при перезагрузке — сброс.
+    let completedDisplayLimit = 10;
+
     // WebSocket для реактивности (уведомления о чужих действиях).
     let toastsWebSocket = null;
 
@@ -73,6 +78,7 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('click',    handleProductDeleteClick);
         document.addEventListener('click',    handleToggleAddProductSection);
         document.addEventListener('click',    handleAddFromProschetClick);
+        document.addEventListener('click',    handleLoadMoreCompleted);
         document.addEventListener('click',    handleRowClick);
         document.addEventListener('change', handleStatusChange);
         document.addEventListener('dblclick', handlePaymentToggleDblClick);
@@ -394,7 +400,9 @@ JavaScript секции «Список заказов» страницы /orders
             });
         }
 
-        return fetch('/orders/api/rows/', {
+        // Передаём текущий лимит выданных заказов. JS увеличивает его
+        // при клике на «Далее» — сервер вернёт больше карточек.
+        return fetch('/orders/api/rows/?completed_limit=' + completedDisplayLimit, {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
@@ -939,6 +947,8 @@ JavaScript секции «Список заказов» страницы /orders
     function handleRowClick(event) {
         // Игнорируем клики по интерактивным элементам
         if (event.target.closest('.list-orders-btn-delete')) return;
+        // Клик по кнопке «Далее» в блоке «Выданы» — не сворачиваем карточку.
+        if (event.target.closest('.list-orders-load-more-btn')) return;
         if (event.target.closest('.editable-cell')) return;
         if (event.target.closest('.editing-cell')) return;
         if (event.target.closest('.list-orders-inline-input')) return;
@@ -964,6 +974,38 @@ JavaScript секции «Список заказов» страницы /orders
 
         // Переключаем состояние текущей карточки
         card.classList.toggle('is-expanded');
+    }
+
+    /**
+     * Клик по кнопке «Далее» в блоке «Выданы».
+     * Увеличивает лимит на 10 и перерисовывает tbody через refreshTable.
+     * Сервер (api_rows) вернёт больше выданных заказов.
+     */
+    function handleLoadMoreCompleted(event) {
+        // Ищем кнопку. Если клика не было по ней — выходим.
+        const btn = event.target.closest('.list-orders-load-more-btn');
+        if (!btn) return;
+
+        // Не даём клику всплыть до handleRowClick (там он попытается
+        // найти .list-orders-card и свернуть/развернуть её — нам не нужно).
+        event.stopPropagation();
+
+        // Блокируем кнопку и меняем текст на время загрузки.
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Загрузка...';
+
+        // Увеличиваем лимит и перерисовываем.
+        completedDisplayLimit += 10;
+
+        refreshTable().catch(function (err) {
+            console.error(err);
+            // Откатываем лимит и восстанавливаем кнопку — данные не загрузились.
+            completedDisplayLimit -= 10;
+            btn.disabled = false;
+            btn.textContent = originalText;
+            showNotification('Ошибка загрузки выданных заказов', 'error');
+        });
     }
 
     // ========================================================================
