@@ -138,7 +138,14 @@ def update_work(request, work_id):
                 new_value = int(new_value)
             except ValueError:
                 raise ValueError("Значение должно быть целым числом")
-            if field_name == 'formula_type' and new_value not in [1,2,3,4,5,6]:
+            # Валидация допустимых формул. Должна совпадать со списком
+            # в Work.FORMULA_CHOICES (spravochnik_dopolnitelnyh_rabot/models.py)
+            # и в calculator/views.py::update_additional_work.
+            # При добавлении новой формулы — обновить в трёх местах:
+            #   1. Work.FORMULA_CHOICES (модель);
+            #   2. здесь (админка справочника);
+            #   3. calculator/views.py::update_additional_work (карточка просчёта).
+            if field_name == 'formula_type' and new_value not in [1, 2, 3, 4, 5, 6, 7]:
                 raise ValueError("Недопустимый тип формулы")
             if field_name in ['default_lines_count', 'default_items_per_sheet'] and new_value < 1:
                 raise ValueError("Значение должно быть не менее 1")

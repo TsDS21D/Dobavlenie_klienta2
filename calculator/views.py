@@ -1363,7 +1363,10 @@ def update_additional_work(request):
                 field_value = int(field_value)
                 if field_name != 'formula_type' and field_value < 1:
                     field_value = 1
-                if field_name == 'formula_type' and field_value not in [1,2,3,4,5,6]:
+                # Валидация допустимых формул. Должна совпадать со списком
+                # в Work.FORMULA_CHOICES и в spravochnik_dopolnitelnyh_rabot/views.py::update_work.
+                # Добавлена формула 7 — «Количество листов × цена».
+                if field_name == 'formula_type' and field_value not in [1, 2, 3, 4, 5, 6, 7]:
                     return JsonResponse({'success': False, 'message': 'Некорректный тип формулы'})
             except:
                 return JsonResponse({'success': False, 'message': 'Некорректное целое число'})

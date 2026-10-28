@@ -926,6 +926,21 @@ class AdditionalWork(models.Model):
             total = effective_price * items * sheet_count * qty
         elif self.formula_type == 6:
             total = effective_price * items * circulation * qty
+        elif self.formula_type == 7:
+            # ===== НОВАЯ ФОРМУЛА: «Количество листов × цена» =====
+            # По сути формула 4, но БЕЗ учёта количества резов
+            # (без k_lines, без log_lines, без surcharge).
+            #
+            # Компоненты:
+            #   • effective_price — интерполированная по листам цена
+            #     (себестоимость + наценка), берётся из _get_effective_price
+            #     по ветке «формула не 2 и не 3» → по листам;
+            #   • sheet_count     — фактическое количество листов;
+            #   • qty             — количество единиц работы из карточки
+            #     (может быть 1, 2, 3… — например, «биговка ×2»).
+            #
+            # Формула: total = effective_price × sheet_count × qty
+            total = effective_price * sheet_count * qty
         else:
             total = self.price * qty
         self.total_price = total.quantize(Decimal('0.01'))
@@ -1052,6 +1067,19 @@ class AdditionalWork(models.Model):
                 total_cost = cost * items * sheet_count * qty
             elif self.formula_type == 6:
                 total_cost = cost * items * circulation * qty
+            elif self.formula_type == 7:
+                # ===== НОВАЯ ФОРМУЛА: «Количество листов × цена» =====
+                # Как формула 4, но БЕЗ учёта количества резов
+                # (без k_lines, без log_lines, без surcharge).
+                #
+                # total_cost — это себестоимость (без наценки),
+                # поэтому используем cost, а не effective_price.
+                # Формула: total_cost = cost × sheet_count × qty
+                #
+                # total_price (с наценкой) НЕ пересчитываем здесь —
+                # он уже посчитан в AdditionalWork.save() и лежит в БД.
+                # Ниже присваиваем total_price = self.total_price.
+                total_cost = cost * sheet_count * qty
             else:
                 total_cost = cost * qty
             total_cost = total_cost.quantize(Decimal('0.01'))
