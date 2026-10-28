@@ -15,7 +15,6 @@ db.sqlite3
 .DS_Store
 staticfiles/
 media/
-clickcounter/asgi.py
 
 # Локальные дампы БД (не коммитим — большие, приватные)
 *.sql
