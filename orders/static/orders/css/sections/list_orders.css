@@ -1858,3 +1858,122 @@ select.list-orders-payment-select {
     transform: none;
     box-shadow: none;
 }
+
+
+
+
+/* ==================== ПЛАШКИ «ДОСТАВКА НА СЕГОДНЯ» ==================== */
+
+/* Контейнер: левый верхний угол, растёт вниз. */
+.orders-delivery-today {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1350;
+    /* Задаем жесткую ширину, чтобы блок не сжимался и не расширялся от контента */
+    width: 230px;  /* ширина блока */
+    pointer-events: none;
+}
+
+/* Белая полупрозрачная подложка для всех плашек */
+.orders-delivery-today-wrapper {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.3); 
+    backdrop-filter: blur(1.5px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    
+    /* Блок занимает всю ширину контейнера (300px) */
+    width: 100%;
+    box-sizing: border-box; /* Чтобы padding не увеличивал ширину */
+    
+    animation: ordersDeliveryIn 0.2s ease-out;
+}
+
+/* Заголовок блока */
+.orders-delivery-today-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0B8661; /* Фирменный зелёный */
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Иконка перед заголовком (можно убрать, если не нужна) */
+.orders-delivery-today-title::before {
+    content: "📦"; 
+    font-size: 1rem;
+}
+
+/* Контейнер для плашек (задает отступы между ними) */
+.orders-delivery-today-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Одна плашка = один заказ (внутри белого блока). */
+.orders-delivery-today-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(228, 244, 236, 0.9);
+    border: 1px solid rgba(11, 134, 97, 0.3);
+    border-radius: 6px;
+    color: #0a6e51;
+    font-family: inherit;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    
+    /* Плашка тоже занимает всю ширину */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.orders-delivery-today-item:hover {
+    background: rgba(228, 244, 236, 1);
+    border-color: #0B8661;
+    transform: translateX(2px);
+}
+
+/* Номер заказа */
+.orders-delivery-today-item .orders-delivery-number {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #0a6e51;
+    white-space: nowrap;
+}
+
+/* Разделитель */
+.orders-delivery-today-item .orders-delivery-sep {
+    opacity: 0.5;
+    color: #0a6e51;
+}
+
+/* Имя клиента */
+.orders-delivery-today-item .orders-delivery-client {
+    font-weight: 600;
+    color: #0a6e51;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    
+    /* КРИТИЧНО ДЛЯ ОБРЕЗКИ: 
+       min-width: 0 разрешает элементу сжиматься меньше своего контента,
+       а flex: 1 заставляет его занять всё свободное место в строке. */
+    min-width: 0;
+    flex: 1; 
+}
+
+@keyframes ordersDeliveryIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

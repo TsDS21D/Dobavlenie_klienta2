@@ -1055,10 +1055,38 @@ def api_update_order(request, order_id):
             status=400,
         )
 
-    # --- Сохраняем. update_fields — чтобы не трогать лишнего
-    #     (updated_at = auto_now обновится автоматически при .save()). ---
+    # --- Сохраняем ТОЛЬКО те поля, которые изменены в этом запросе. ---
+    #
+    # ВАЖНО (защита от race condition):
+    #   Фронт при переключении доставки отправляет ДВА параллельных запроса:
+    #   is_delivery=true и delivery_status=pending. Также при быстром заполнении
+    #   трёх полей доставки (дата, адрес, телефон) — три параллельных запроса.
+    #
+    #   Если использовать обычный order.save() (без update_fields), Django
+    #   запишет ВСЕ поля объекта. Тогда «последний» запрос затрёт «чужие»
+    #   изменения, прочитанные из БД до сохранения. Например, is_delivery=true
+    #   от запроса A может быть затёрто на is_delivery=false из B, если B
+    #   прочитал объект раньше, чем A сохранил своё изменение.
+    #
+    #   С update_fields=['is_delivery'] запрос A пишет ТОЛЬКО is_delivery,
+    #   B — ТОЛЬКО delivery_status. Race исчезает.
+    #
+    # Побочные поля: некоторые обработчики меняют не одно, а два поля.
+    #   • client         → delivery_address (автозаполнение адреса);
+    #   • contact_person → delivery_phone   (автозаполнение телефона);
+    #   • payer_type     → payment_method + invoice_number (очистка чужого поля).
+    # Их включаем в update_fields только для этих случаев.
+    update_fields = [field_name, 'updated_at']
+    if field_name == 'client':
+        update_fields.append('delivery_address')
+    elif field_name == 'contact_person':
+        update_fields.append('delivery_phone')
+    elif field_name == 'payer_type':
+        update_fields.append('payment_method')
+        update_fields.append('invoice_number')
+
     try:
-        order.save()
+        order.save(update_fields=update_fields)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1827,4 +1855,56 @@ def api_cancel_edit(request):
     return JsonResponse({
         'success': True,
         'return_to': return_to,
+    })
+
+
+# ============================================================================
+# API 19: ЗАКАЗЫ С ДОСТАВКОЙ НА СЕГОДНЯ (для плашки в левом верхнем углу)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_orders_delivery_today(request):
+    """
+    Возвращает список заказов, которые нужно доставить СЕГОДНЯ.
+
+    Используется JS-фронтом на /orders/ для отображения зелёных плашек
+    в левом верхнем углу («доставка на сегодня: ORD-N — Клиент»).
+
+    Логика фильтра:
+      • is_deleted=False              — только активные заказы;
+      • status in ('in_progress', 'ready') — в работе или готовы к выдаче;
+      • is_delivery=True              — с доставкой;
+      • delivery_date = сегодня       — дата доставки сегодня (по МСК);
+      • delivery_status != 'delivered' — ещё не доставлен.
+
+    Порядок: по ready_datetime (самые срочные сверху).
+    """
+    # «Сегодня» — в часовом поясе проекта (Europe/Moscow).
+    # timezone.localtime переводит UTC-«сейчас» в МСК, .date() отрезает время.
+    today = timezone.localtime(timezone.now()).date()
+
+    orders = (
+        Order.objects
+        .filter(
+            is_deleted=False,
+            status__in=['in_progress', 'ready'],
+            is_delivery=True,
+            delivery_date=today,
+        )
+        .exclude(delivery_status='delivered')
+        .select_related('client')
+        .order_by('ready_datetime')
+    )
+
+    return JsonResponse({
+        'success': True,
+        'orders': [
+            {
+                'id': o.id,
+                'number': o.number,
+                'client_name': o.client.name if o.client else '',
+            }
+            for o in orders
+        ],
     })

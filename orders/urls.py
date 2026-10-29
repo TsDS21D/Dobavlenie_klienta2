@@ -149,6 +149,14 @@ urlpatterns = [
         views.api_order_info,
         name='api_order_info',
     ),
+    # GET /orders/api/orders-delivery-today/
+    # Список заказов, доставка которых назначена на сегодня.
+    # Используется для зелёных плашек в левом верхнем углу на /orders/.
+    path(
+        'api/orders-delivery-today/',
+        views.api_orders_delivery_today,
+        name='api_orders_delivery_today',
+    ),
 
     # GET /orders/api/clients/
     # Список клиентов с юрлицами для инлайн-редактирования

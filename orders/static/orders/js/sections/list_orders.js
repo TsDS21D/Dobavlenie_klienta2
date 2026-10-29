@@ -54,6 +54,13 @@ JavaScript секции «Список заказов» страницы /orders
     // WebSocket для реактивности (уведомления о чужих действиях).
     let toastsWebSocket = null;
 
+    // ===== ПЛАШКИ «ДОСТАВКА НА СЕГОДНЯ» =====
+    // Контейнер в левом верхнем углу (см. orders/index.html).
+    let deliveryTodayContainer = null;
+    // Флаг «идёт запрос» — чтобы не запускать несколько параллельных
+    // при быстрой серии WebSocket-событий.
+    let deliveryTodayFetching = false;
+
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ.
     // ========================================================================
@@ -141,6 +148,13 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('change', handleClientSelectChange);
         // --- WebSocket для реактивности ---
         initToastsWebSocket();
+
+        // --- Плашки «Доставка на сегодня» ---
+        // Контейнер в левом верхнем углу. Список грузим сразу при загрузке
+        // страницы и обновляем при каждом WebSocket-событии (см. onmessage
+        // в initToastsWebSocket).
+        deliveryTodayContainer = document.getElementById('orders-delivery-today');
+        refreshDeliveryToday();
 
         // --- Умное редактирование и клонирование изделий ---
         // Инициализируем:
@@ -424,6 +438,11 @@ JavaScript секции «Список заказов» страницы /orders
             }
             handleSearch();
             initClientSelects();
+
+            // Обновляем плашки «Доставка на сегодня». Любая перерисовка таблицы
+            // (создание, удаление, смена статуса, WS-событие от другой сессии)
+            // могла изменить набор заказов с доставкой на сегодня.
+            refreshDeliveryToday();
         });
     }
 
@@ -752,6 +771,10 @@ JavaScript секции «Список заказов» страницы /orders
                 }
                 cell.classList.remove('editing-cell');
                 showNotification('Сохранено', 'success');
+                
+                // ВАЖНО: имя клиента изменилось — нужно обновить плашки 
+                // «Доставка на сегодня» в левом верхнем углу.
+                refreshDeliveryToday();
             }
             else if (fieldName === 'status') {
                 // При смене статуса карточка должна переехать в другую группу.
@@ -1051,6 +1074,12 @@ JavaScript секции «Список заказов» страницы /orders
 
             // Чужая сессия изменила данные — перерисовываем tbody.
             refreshTable();
+
+            // Обновляем плашки «Доставка на сегодня». Делаем это на ЛЮБОЕ
+            // order_event: менялись ли дата/статус доставки, пометили ли
+            // заказ как «доставлен», создали/удалили заказ — плашки должны
+            // отразить актуальное состояние.
+            refreshDeliveryToday();
 
             // Показываем тост.
             showToast(data);
@@ -1593,14 +1622,18 @@ function handleStatusChange(event) {
     }
 
     /**
-     * Сохраняет поле оплаты на сервере (через существующий API обновления поля).
+     * Сохраняет поле заказа на сервере (через существующий API обновления поля).
+     * Возвращает Promise, который резолвится с объектом ответа сервера
+     * (data) — это нужно для последовательных цепочек запросов
+     * (см. handleDeliveryToggleDblClick: сначала is_delivery, потом
+     * delivery_status — выполнение строго по порядку).
      */
     function savePaymentField(orderId, fieldName, fieldValue) {
         const fd = new FormData();
         fd.append('field_name', fieldName);
         fd.append('field_value', fieldValue);
 
-        fetch('/orders/api/order/' + orderId + '/update-field/', {
+        return fetch('/orders/api/order/' + orderId + '/update-field/', {
             method: 'POST',
             body: fd,
             headers: {
@@ -1612,13 +1645,20 @@ function handleStatusChange(event) {
         .then(data => {
             if (!data.success) {
                 showNotification(data.error || 'Ошибка сохранения', 'error');
-                // Если ошибка — можно было бы откатить UI, но для простоты 
-                // просто показываем уведомление.
+                return data;
             }
+
+            // Поле сохранено. Обновляем плашки «Доставка на сегодня» —
+            // изменение is_delivery / delivery_status / delivery_date
+            // могло повлиять на их состав.
+            refreshDeliveryToday();
+
+            return data;
         })
         .catch(err => {
             console.error(err);
             showNotification('Ошибка сети при сохранении', 'error');
+            throw err;
         });
     }
 
@@ -1676,19 +1716,26 @@ function handleStatusChange(event) {
             }
         });
         
-        // Показываем/скрываем детали доставки в раскрытом виде
+        // Показываем/скрываем детали доставки в раскрытом виде.
+        // Запросы — последовательно (цепочка .then), а не параллельно.
+        // Это страховка на случай, если update_fields на бэке не спасёт.
         if (nextState === 'none') {
             if (details) details.classList.add('hidden');
             savePaymentField(orderId, 'is_delivery', 'false');
         } else {
             if (details) details.classList.remove('hidden');
-            savePaymentField(orderId, 'is_delivery', 'true');
-            
-            if (nextState === 'pending') {
-                savePaymentField(orderId, 'delivery_status', 'pending');
-            } else if (nextState === 'delivered') {
-                savePaymentField(orderId, 'delivery_status', 'delivered');
-            }
+            savePaymentField(orderId, 'is_delivery', 'true')
+                .then(function () {
+                    if (nextState === 'pending') {
+                        return savePaymentField(orderId, 'delivery_status', 'pending');
+                    } else if (nextState === 'delivered') {
+                        return savePaymentField(orderId, 'delivery_status', 'delivered');
+                    }
+                })
+                .catch(function () {
+                    // Ошибку уже показал savePaymentField через showNotification —
+                    // здесь просто не цепляемся дальше.
+                });
         }
     }
 
@@ -2610,4 +2657,123 @@ function handleStatusChange(event) {
         });
     }
 
+    // ========================================================================
+    // 16. ПЛАШКИ «ДОСТАВКА НА СЕГОДНЯ»
+    // ========================================================================
+
+    /**
+     * Запрашивает у сервера список заказов с доставкой на сегодня
+     * и перерисовывает плашки в левом верхнем углу.
+     *
+     * Вызывается:
+     *   • при загрузке страницы (DOMContentLoaded);
+     *   • при каждом WebSocket-событии order_event (чужая сессия
+     *     что-то изменила — плашки могли устареть).
+     *
+     * Параллельные запросы не запускаются: если предыдущий ещё идёт —
+     * просто выходим (флаг deliveryTodayFetching). Это защита от серии
+     * быстрых WS-событий.
+     */
+    function refreshDeliveryToday() {
+        if (!deliveryTodayContainer) return;
+        if (deliveryTodayFetching) return;
+
+        deliveryTodayFetching = true;
+
+        fetch('/orders/api/orders-delivery-today/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.success) return;
+            renderDeliveryToday(data.orders || []);
+        })
+        .catch(function (err) {
+            // Тихо — плашки не критичны, при следующем WS-событии попробуем снова.
+            console.warn('Не удалось обновить список доставок на сегодня:', err);
+        })
+        .finally(function () {
+            deliveryTodayFetching = false;
+        });
+    }
+
+    /**
+     * Рисует плашки по списку заказов.
+     *
+     * Для каждого заказа — отдельный <div> с номером и клиентом.
+     * Клик по плашке → переход на /orders/?expanded_order=<id>
+     * (карточка заказа автоматически раскрывается — это уже реализовано
+     * в DOMContentLoaded по параметру expanded_order).
+     *
+     * @param {Array} orders — [{id, number, client_name}, ...]
+     */
+    function renderDeliveryToday(orders) {
+        if (!deliveryTodayContainer) return;
+
+        // Если доставок нет — полностью очищаем контейнер и выходим.
+        if (!orders || orders.length === 0) {
+            deliveryTodayContainer.innerHTML = '';
+            return;
+        }
+
+        // Ищем существующую подложку (wrapper)
+        let wrapper = deliveryTodayContainer.querySelector('.orders-delivery-today-wrapper');
+        let list;
+
+        if (!wrapper) {
+            // Если подложки нет — создаем её ОДИН РАЗ.
+            wrapper = document.createElement('div');
+            wrapper.className = 'orders-delivery-today-wrapper';
+
+            const title = document.createElement('div');
+            title.className = 'orders-delivery-today-title';
+            title.textContent = 'Доставить сегодня';
+            wrapper.appendChild(title);
+
+            list = document.createElement('div');
+            list.className = 'orders-delivery-today-list';
+            wrapper.appendChild(list);
+
+            deliveryTodayContainer.appendChild(wrapper);
+        } else {
+            // Если подложка уже есть — берем её внутренний список.
+            list = wrapper.querySelector('.orders-delivery-today-list');
+            // Очищаем ТОЛЬКО список (сама белая плашка и заголовок остаются на месте).
+            list.innerHTML = '';
+        }
+
+        // Перерисовываем список заказов
+        orders.forEach(function (o) {
+            const item = document.createElement('div');
+            item.className = 'orders-delivery-today-item';
+            item.title = 'Перейти к заказу ' + o.number;
+
+            // Номер заказа
+            const numberEl = document.createElement('span');
+            numberEl.className = 'orders-delivery-number';
+            numberEl.textContent = o.number || '';
+            item.appendChild(numberEl);
+
+            // Разделитель и клиент
+            if (o.client_name) {
+                const sep = document.createElement('span');
+                sep.className = 'orders-delivery-sep';
+                sep.textContent = '—';
+                item.appendChild(sep);
+
+                const clientEl = document.createElement('span');
+                clientEl.className = 'orders-delivery-client';
+                clientEl.textContent = o.client_name;
+                item.appendChild(clientEl);
+            }
+
+            // Клик → переход в список заказов с автораскрытием этого заказа
+            item.addEventListener('click', function () {
+                window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+            });
+
+            list.appendChild(item);
+        });
+    }
 })();
