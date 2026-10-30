@@ -48,7 +48,7 @@ from .models import (
 import math
 from decimal import Decimal
 
-def _calculate_final_prices(proschet, discount_percent=None):
+def _calculate_final_prices(proschet, discount_percent=None, base_total=None):
     """
     Вспомогательная функция. 
     1. Считает скидку.
@@ -58,23 +58,12 @@ def _calculate_final_prices(proschet, discount_percent=None):
     Аргументы:
         proschet         — просчёт, из которого берём circulation и base_total.
         discount_percent — необязательный процент скидки (число: int/float/Decimal).
-                           Если передан (даже 0) — используется он.
-                           Если None — берём скидку из proschet.client.
-    
-    Зачем нужен discount_percent:
-        Бывает, что скидка должна браться НЕ из просчёта, а из контекста.
-        Например, при add_product_to_order изделие добавляется в заказ
-        клиента Барко (7%), а просчёт был создан для Аромако (5%).
-        Платит Барко → цена должна быть со скидкой 7%.
-    
-    Возвращает: (final_total_price, multiplier)
+        base_total       — необязательная базовая сумма (без скидки). Если передана,
+                           используется вместо proschet.total_price (который может
+                           включать удалённые компоненты).
     """
     circulation = proschet.circulation or 1
     
-    # Определяем, чью скидку применять.
-    # ВАЖНО: проверяем именно «is not None», а не «if discount_percent»,
-    # потому что 0 — валидное значение (клиент без скидки), и его надо
-    # отличать от «параметр не передан».
     if discount_percent is not None:
         discount = float(discount_percent)
     elif proschet.client and proschet.client.discount:
@@ -84,7 +73,13 @@ def _calculate_final_prices(proschet, discount_percent=None):
         
     multiplier = Decimal(str(1 - (discount / 100.0)))
     
-    base_total = Decimal(str(proschet.total_price))
+    # Если базовая сумма передана явно (только по активным элементам) — используем её.
+    # Иначе берём proschet.total_price (для обратной совместимости).
+    if base_total is None:
+        base_total = Decimal(str(proschet.total_price))
+    else:
+        base_total = Decimal(str(base_total))
+        
     discounted_total = base_total * multiplier
     
     # Округляем цену за штуку ВВЕРХ до 2 знаков (например, 110.60784 -> 110.61)
@@ -95,6 +90,32 @@ def _calculate_final_prices(proschet, discount_percent=None):
     final_total_price = (unit_price * circulation).quantize(Decimal('0.01'))
     
     return final_total_price, multiplier
+
+
+def _get_active_base_total(proschet):
+    """
+    Вспомогательная функция.
+    Считает базовую сумму просчёта (без скидки), проходя ТОЛЬКО по
+    активным (is_deleted=False) компонентам, работам и ламинации.
+    Это защищает от бага, когда proschet.total_price суммирует мусор
+    от удалённых элементов.
+    """
+    base_total = Decimal('0.00')
+    for comp in proschet.print_components.filter(is_deleted=False):
+        base_total += (comp.total_circulation_price or Decimal('0'))
+        base_total += (comp.material_price or Decimal('0'))
+        for work in comp.additional_works.filter(is_deleted=False):
+            base_total += (work.total_price or Decimal('0'))
+            
+        # ЛАМИНАЦИЯ
+        try:
+            lam = comp.lamination
+            if lam and lam.is_enabled:
+                base_total += (lam.total_price or Decimal('0'))
+        except Exception:
+            pass
+            
+    return base_total
 
 
 # ============================================================================
@@ -150,8 +171,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
     discount = proschet.client.discount if proschet.client and proschet.client.discount else 0
     multiplier = 1 - (float(discount) / 100.0) if discount > 0 else 1.0
     
-    # Рассчитываем итоговую цену с учётом скидки и округления цены за штуку
-    frozen_total_price, multiplier = _calculate_final_prices(proschet)
+    # Рассчитываем базовую сумму только по активным элементам (без удалённого мусора)
+    active_base_total = _get_active_base_total(proschet)
+    frozen_total_price, multiplier = _calculate_final_prices(proschet, base_total=active_base_total)
 
     product = Product.objects.create(
         order=order,
@@ -381,8 +403,11 @@ def add_product_to_order(proschet, order):
         if (order.client and order.client.discount)
         else 0
     )
+    # Считаем базовую сумму только по активным элементам
+    active_base_total = _get_active_base_total(proschet)
+    
     frozen_total_price, multiplier = _calculate_final_prices(
-        proschet, discount_percent=order_discount
+        proschet, discount_percent=order_discount, base_total=active_base_total
     )
 
     # Вычисляем следующий порядковый номер для нового изделия.
