@@ -102,12 +102,19 @@ def _get_active_base_total(proschet):
     """
     base_total = Decimal('0.00')
     for comp in proschet.print_components.filter(is_deleted=False):
+        # 1. Стоимость печати (тираж)
         base_total += (comp.total_circulation_price or Decimal('0'))
-        base_total += (comp.material_price or Decimal('0'))
+        
+        # 2. Стоимость бумаги (цена за лист * кол-во листов)
+        sheet_count = comp.get_sheet_count() or 0
+        material_price_per_unit = comp.material_price_per_unit or Decimal('0')
+        base_total += (material_price_per_unit * sheet_count)
+        
+        # 3. Дополнительные работы
         for work in comp.additional_works.filter(is_deleted=False):
             base_total += (work.total_price or Decimal('0'))
             
-        # ЛАМИНАЦИЯ
+        # 4. Ламинация
         try:
             lam = comp.lamination
             if lam and lam.is_enabled:
