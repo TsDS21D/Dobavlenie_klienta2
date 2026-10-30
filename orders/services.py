@@ -97,28 +97,28 @@ def _get_active_base_total(proschet):
     Вспомогательная функция.
     Считает базовую сумму просчёта (без скидки), проходя ТОЛЬКО по
     активным (is_deleted=False) компонентам, работам и ламинации.
-    Это защищает от бага, когда proschet.total_price суммирует мусор
-    от удалённых элементов.
+    
+    Логика полностью повторяет расчет из calculator/views.py::get_proschet_price_data,
+    чтобы цена в заказе совпадала с ценой на экране просчёта.
     """
     base_total = Decimal('0.00')
+    
+    # Берем только неудаленные печатные компоненты
     for comp in proschet.print_components.filter(is_deleted=False):
-        # 1. Стоимость печати (тираж)
-        base_total += (comp.total_circulation_price or Decimal('0'))
         
-        # 2. Стоимость бумаги (цена за лист * кол-во листов)
-        sheet_count = comp.get_sheet_count() or 0
-        material_price_per_unit = comp.material_price_per_unit or Decimal('0')
-        base_total += (material_price_per_unit * sheet_count)
+        # 1. Стоимость печати компонента (total_circulation_price уже включает 
+        # в себя и стоимость печати, и стоимость бумаги)
+        base_total += (comp.total_circulation_price or Decimal('0.00'))
         
-        # 3. Дополнительные работы
+        # 2. Дополнительные работы (только неудаленные)
         for work in comp.additional_works.filter(is_deleted=False):
-            base_total += (work.total_price or Decimal('0'))
+            base_total += (work.total_price or Decimal('0.00'))
             
-        # 4. Ламинация
+        # 3. Ламинация (если объект существует и включен)
         try:
             lam = comp.lamination
             if lam and lam.is_enabled:
-                base_total += (lam.total_price or Decimal('0'))
+                base_total += (lam.total_price or Decimal('0.00'))
         except Exception:
             pass
             
