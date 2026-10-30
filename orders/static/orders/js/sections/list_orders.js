@@ -754,7 +754,17 @@ JavaScript секции «Список заказов» страницы /orders
             const card = cell.closest('.list-orders-card');
 
             if (fieldName === 'client') {
-                cell.textContent = o.client_name || '—';
+                // Ищем клиента в кэше, чтобы узнать его статус ЭДО
+                const selectedClient = clientsCache ? clientsCache.find(c => String(c.id) === String(o.client_id)) : null;
+                let clientHtml = o.client_name || '—';
+                
+                if (selectedClient && selectedClient.has_edo) {
+                    clientHtml = `<span class="client-name-text">${o.client_name}</span> <span class="list-orders-edo-badge">ЭДО</span>`;
+                } else if (o.client_name) {
+                    clientHtml = `<span class="client-name-text">${o.client_name}</span>`;
+                }
+                
+                cell.innerHTML = clientHtml; // Вставляем HTML, чтобы бейдж не стирался
                 cell.dataset.originalValue = o.client_name || '—';
                 if (card) {
                     card.dataset.clientId = o.client_id || '';
@@ -2687,7 +2697,7 @@ function handleStatusChange(event) {
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (!data || !data.success) return;
-            renderDeliveryToday(data.orders || []);
+            renderDeliveryToday(data.today_orders || [], data.upcoming_orders || [], data.next_working_date, data.today_str);
         })
         .catch(function (err) {
             // Тихо — плашки не критичны, при следующем WS-событии попробуем снова.
@@ -2708,72 +2718,185 @@ function handleStatusChange(event) {
      *
      * @param {Array} orders — [{id, number, client_name}, ...]
      */
-    function renderDeliveryToday(orders) {
+    function renderDeliveryToday(todayOrders, upcomingOrders, nextWorkingDate, todayStr) {
         if (!deliveryTodayContainer) return;
 
-        // Если доставок нет — полностью очищаем контейнер и выходим.
-        if (!orders || orders.length === 0) {
+        if ((!todayOrders || todayOrders.length === 0) && (!upcomingOrders || upcomingOrders.length === 0)) {
             deliveryTodayContainer.innerHTML = '';
             return;
         }
 
-        // Ищем существующую подложку (wrapper)
         let wrapper = deliveryTodayContainer.querySelector('.orders-delivery-today-wrapper');
         let list;
 
         if (!wrapper) {
-            // Если подложки нет — создаем её ОДИН РАЗ.
             wrapper = document.createElement('div');
             wrapper.className = 'orders-delivery-today-wrapper';
-
             const title = document.createElement('div');
             title.className = 'orders-delivery-today-title';
-            title.textContent = 'Доставить сегодня';
             wrapper.appendChild(title);
-
             list = document.createElement('div');
             list.className = 'orders-delivery-today-list';
             wrapper.appendChild(list);
-
             deliveryTodayContainer.appendChild(wrapper);
         } else {
-            // Если подложка уже есть — берем её внутренний список.
             list = wrapper.querySelector('.orders-delivery-today-list');
-            // Очищаем ТОЛЬКО список (сама белая плашка и заголовок остаются на месте).
             list.innerHTML = '';
         }
 
-        // Перерисовываем список заказов
-        orders.forEach(function (o) {
-            const item = document.createElement('div');
-            item.className = 'orders-delivery-today-item';
-            item.title = 'Перейти к заказу ' + o.number;
+        const titleEl = wrapper.querySelector('.orders-delivery-today-title');
+        if (titleEl) {
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            titleEl.textContent = 'Доставить сегодня ' + day + '.' + month;
+        }
 
-            // Номер заказа
-            const numberEl = document.createElement('span');
-            numberEl.className = 'orders-delivery-number';
-            numberEl.textContent = o.number || '';
-            item.appendChild(numberEl);
+        // Вспомогательная функция для создания квадратика курьера
+        function createCourierIndicator(orderData, isNext) {
+            const indicator = document.createElement('span');
+            indicator.className = 'orders-delivery-courier-indicator';
+            if (isNext) indicator.classList.add('orders-delivery-courier-indicator--next');
+            if (orderData.is_courier_ordered) indicator.classList.add('is-active');
+            
+            indicator.title = 'Двойной клик: отметить, что курьер заказан';
 
-            // Разделитель и клиент
-            if (o.client_name) {
-                const sep = document.createElement('span');
-                sep.className = 'orders-delivery-sep';
-                sep.textContent = '—';
-                item.appendChild(sep);
-
-                const clientEl = document.createElement('span');
-                clientEl.className = 'orders-delivery-client';
-                clientEl.textContent = o.client_name;
-                item.appendChild(clientEl);
-            }
-
-            // Клик → переход в список заказов с автораскрытием этого заказа
-            item.addEventListener('click', function () {
-                window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+            // Блокируем одиночный клик, чтобы не срабатывал переход на заказ
+            indicator.addEventListener('click', function(e) {
+                e.stopPropagation();
             });
 
-            list.appendChild(item);
-        });
+            // Двойной клик для смены статуса
+            indicator.addEventListener('dblclick', function(e) {
+                e.stopPropagation();
+                const isNowOrdered = !indicator.classList.contains('is-active');
+                
+                // Оптимистично меняем UI сразу
+                if (isNowOrdered) {
+                    indicator.classList.add('is-active');
+                } else {
+                    indicator.classList.remove('is-active');
+                }
+
+                // Отправляем на сервер
+                const fd = new FormData();
+                fd.append('field_name', 'is_courier_ordered');
+                fd.append('field_value', isNowOrdered ? 'true' : 'false');
+
+                fetch('/orders/api/order/' + orderData.id + '/update-field/', {
+                    method: 'POST',
+                    body: fd,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        // Если ошибка — откатываем UI обратно
+                        if (isNowOrdered) indicator.classList.remove('is-active');
+                        else indicator.classList.add('is-active');
+                        showNotification('Ошибка сохранения статуса курьера', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    // Откат при ошибке сети
+                    if (isNowOrdered) indicator.classList.remove('is-active');
+                    else indicator.classList.add('is-active');
+                    showNotification('Ошибка сети', 'error');
+                });
+            });
+
+            return indicator;
+        }
+
+        // --- 1. Сегодня ---
+        if (todayOrders && todayOrders.length > 0) {
+            todayOrders.forEach(function (o) {
+                const item = document.createElement('div');
+                item.className = 'orders-delivery-today-item';
+                item.title = 'Перейти к заказу ' + o.number;
+
+                const textContainer = document.createElement('div');
+                textContainer.className = 'orders-delivery-today-text';
+
+                const numberEl = document.createElement('span');
+                numberEl.className = 'orders-delivery-number';
+                let numText = o.number || '';
+                if (o.delivery_date && o.delivery_date !== todayStr) {
+                    numText += ' (' + o.delivery_date + ')';
+                }
+                numberEl.textContent = numText;
+                textContainer.appendChild(numberEl);
+
+                if (o.client_name) {
+                    const sep = document.createElement('span');
+                    sep.className = 'orders-delivery-sep';
+                    sep.textContent = ' — ';
+                    textContainer.appendChild(sep);
+                    const clientEl = document.createElement('span');
+                    clientEl.className = 'orders-delivery-client';
+                    clientEl.textContent = o.client_name;
+                    textContainer.appendChild(clientEl);
+                }
+                item.appendChild(textContainer);
+
+                // Добавляем квадратик курьера
+                item.appendChild(createCourierIndicator(o, false));
+
+                item.addEventListener('click', function () {
+                    window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+                });
+                list.appendChild(item);
+            });
+        }
+
+        // --- 2. Будущее ---
+        if (upcomingOrders && upcomingOrders.length > 0) {
+            const nextLabel = document.createElement('div');
+            nextLabel.className = 'orders-delivery-today-next-label';
+            nextLabel.textContent = 'далее: ' + nextWorkingDate;
+            list.appendChild(nextLabel);
+
+            upcomingOrders.forEach(function (o) {
+                const item = document.createElement('div');
+                item.className = 'orders-delivery-today-item orders-delivery-today-item--next';
+                item.title = 'Перейти к заказу ' + o.number;
+
+                const textContainer = document.createElement('div');
+                textContainer.className = 'orders-delivery-today-text';
+
+                const numberEl = document.createElement('span');
+                numberEl.className = 'orders-delivery-number';
+                let numText = o.number || '';
+                if (o.delivery_date && o.delivery_date !== nextWorkingDate) {
+                    numText += ' (' + o.delivery_date + ')';
+                }
+                numberEl.textContent = numText;
+                textContainer.appendChild(numberEl);
+
+                if (o.client_name) {
+                    const sep = document.createElement('span');
+                    sep.className = 'orders-delivery-sep';
+                    sep.textContent = ' — ';
+                    textContainer.appendChild(sep);
+                    const clientEl = document.createElement('span');
+                    clientEl.className = 'orders-delivery-client';
+                    clientEl.textContent = o.client_name;
+                    textContainer.appendChild(clientEl);
+                }
+                item.appendChild(textContainer);
+
+                // Добавляем квадратик курьера (серый)
+                item.appendChild(createCourierIndicator(o, true));
+
+                item.addEventListener('click', function () {
+                    window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+                });
+                list.appendChild(item);
+            });
+        }
     }
 })();

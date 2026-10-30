@@ -309,20 +309,23 @@ select.list-orders-search {
 
 /* Клиент */
 .list-orders-card-client {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #333;
-    flex: 1 1 50px; /* Было 90px */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 0 1 auto; /* Клиент не растягивается, но может сжиматься */
+    max-width: 45%; /* Ограничиваем ширину, чтобы оставить место комментарию */
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0; /* КРИТИЧНО: Разрешает контейнеру сжиматься меньше контента */
 }
 
 /* Комментарий */
 .list-orders-card-comment {
     font-size: 0.85rem;
     color: #666;
-    flex: 1 1 70px; /* Было 110px */
+    flex: 1 1 0; /* Комментарий забирает всё оставшееся место */
+    min-width: 50px; /* Не дает комментарию полностью исчезнуть */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -499,49 +502,6 @@ select.list-orders-search {
     color: #b0b0b0;
 }
 
-/* ==================== АДАПТИВ ==================== */
-
-@media (max-width: 900px) {
-    .list-orders-card {
-        flex-direction: column;
-        align-items: flex-start;
-        position: relative;
-        padding-right: 2rem; /* Место под крестик */
-    }
-    .list-orders-card-comment {
-        border-left: none;
-        padding-left: 0;
-        margin-top: 0.2rem;
-    }
-    .list-orders-card-meta {
-        justify-content: flex-start;
-        margin-top: 0.2rem;
-    }
-    .list-orders-btn-delete {
-        position: absolute;
-        top: 0.6rem;
-        right: 0.6rem;
-    }
-}
-
-@media (max-width: 700px) {
-    .list-orders-section {
-        padding: 0.85rem 0.85rem 1rem;
-    }
-    .list-orders-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .list-orders-search-wrap {
-        flex-direction: column;
-    }
-    .list-orders-search {
-        flex: 0 0 auto;
-    }
-    select.list-orders-search {
-        flex: 0 0 auto;
-    }
-}
 
 /* ==================== ПЛАВАЮЩИЕ УВЕДОМЛЕНИЯ (WebSocket) ==================== */
 /* (Стили тостов и верхних уведомлений оставлены без изменений) */
@@ -1452,31 +1412,34 @@ select.list-orders-payment-select {
 .list-orders-expanded-comment-delivery {
     display: flex;
     gap: 1rem;
-    align-items: flex-start; /* Выравниваем по верхнему краю (на случай длинного адреса) */
+    align-items: flex-start;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap; /* Разрешаем перенос блоков друг под друга */
 }
 
-/* Комментарий занимает 50% ширины */
+/* Комментарий */
 .list-orders-expanded-comment-wrap {
-    flex: 1;
+    flex: 1 1 250px; /* Занимает всё место, но не сжимается меньше 250px */
     min-width: 0;
     display: flex;
     gap: 0.5rem;
-    align-items: flex-start; /* Важно: текст и поле ввода теперь выравниваются по верхнему краю */
+    align-items: flex-start;
 }
+
 /* Растягиваем сам контейнер с текстом/textarea на всё свободное место */
 .list-orders-expanded-comment-wrap .list-orders-detail-value {
     flex: 1;
     min-width: 0;
 }
 
-/* Блок доставки занимает 50% ширины */
+/* Блок доставки */
 .list-orders-delivery-block {
-    flex: 1;
+    flex: 1 1 320px; /* Занимает всё место, но не сжимается меньше 320px */
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap; /* Если экран узкий, поля перенесутся */
+    flex-wrap: wrap; /* Разрешаем полям внутри переноситься */
+    min-width: 0;
 }
 
 /* Кнопка "Без доставки/С доставкой" (копия стиля кнопки оплаты) */
@@ -1502,18 +1465,20 @@ select.list-orders-payment-select {
 }
 
 
-/* Детали доставки (скрываются классом hidden) */
+/* Детали доставки (поля даты, адреса, телефона) */
 .list-orders-delivery-details {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap; /* Разрешаем полям вставать друг под друга */
+    min-width: 0;
 }
 /* Скрываем детали доставки, если есть класс hidden */
 .list-orders-delivery-details.hidden {
     display: none !important;
 }
 
-/* Поля даты и адреса */
+/* Поля даты и адреса (добавляем box-sizing) */
 .list-orders-delivery-input {
     padding: 0.25rem 0.4rem;
     border: 1px solid #e0e0e0;
@@ -1524,13 +1489,15 @@ select.list-orders-payment-select {
     color: #333;
     outline: none;
     transition: border-color 0.15s ease;
+    box-sizing: border-box; /* Защита от вылезания за края */
+    max-width: 100%; /* Не шире родителя */
 }
 .list-orders-delivery-input:focus {
     border-color: #0B8661;
     background: #fff;
 }
 .list-orders-delivery-address {
-    width: 140px; /* Ширина под адрес */
+    width: 120px; /* Ширина под адрес */
 }
 
 /* ==================== БЛОК ДОСТАВКИ (3 СОСТОЯНИЯ) ==================== */
@@ -1584,7 +1551,7 @@ select.list-orders-payment-select {
 
 /* Ширина поля для телефона в доставке */
 .list-orders-delivery-phone {
-    width: 125px;
+    width: 110px;
 }
 
 /* ==================== КОМПАКТНАЯ КНОПКА ДОСТАВКИ ==================== */
@@ -1976,4 +1943,286 @@ select.list-orders-payment-select {
 @keyframes ordersDeliveryIn {
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ==================== АДАПТИВ: УЗКИЕ ЭКРАНЫ (<=900px) ==================== */
+@media (max-width: 900px) {
+
+    /* ===== 1. СВЁРНУТАЯ ЧАСТЬ КАРТОЧКИ ===== */
+    .list-orders-card {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 0.6rem;
+        position: relative;
+        padding: 0.8rem 0.6rem;
+        padding-right: 2rem;
+    }
+    .list-orders-card-client {
+        flex: 1 1 auto;
+        min-width: 100px;
+        white-space: normal;
+    }
+    .list-orders-card-comment {
+        flex: 1 1 100%;
+        border-left: none;
+        padding-left: 0;
+        margin-top: 0;
+        white-space: normal;
+    }
+    .list-orders-card-meta {
+        flex: 1 1 100%;
+        justify-content: space-between;
+        margin-top: 0.2rem;
+        padding-top: 0.6rem;
+        border-top: 1px dashed rgba(0,0,0,0.1);
+    }
+    .list-orders-card-ready { flex: 0 0 auto; text-align: left; }
+    .list-orders-card-hours,
+    .list-orders-card-status { flex: 0 0 auto; }
+    .list-orders-payment-btn--compact,
+    .list-orders-delivery-btn--compact {
+        margin-right: 0;
+        flex: 0 0 auto;
+    }
+    .list-orders-btn-delete {
+        position: absolute;
+        top: 0.8rem;
+        right: 0.6rem;
+    }
+
+    /* ===== 2. РАСКРЫТАЯ ЧАСТЬ КАРТОЧКИ ===== */
+    
+    /* Сетка деталей — одна колонка */
+    .list-orders-card-details .list-orders-details-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* ГЛАВНЫЙ ФИКС: Разрешаем элементам сетки сжиматься меньше их контента */
+    .list-orders-card-details .list-orders-details-grid > * {
+        min-width: 0 !important;
+    }
+
+    /* Один параметр (label + value) — в столбик */
+    .list-orders-card-details .list-orders-detail-item {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.2rem !important;
+        min-width: 0 !important;
+    }
+
+    /* Комментарий + доставка — в столбик */
+    .list-orders-card-details .list-orders-expanded-comment-delivery {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.8rem !important;
+        min-width: 0 !important;
+    }
+
+    /* Внутри комментария: label + editable — в столбик */
+    .list-orders-card-details .list-orders-expanded-comment-wrap {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.2rem !important;
+        min-width: 0 !important;
+    }
+
+    /* Блок доставки — в столбик */
+    .list-orders-card-details .list-orders-delivery-block {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Поля даты/адреса/телефона — в столбик, на всю ширину */
+    .list-orders-card-details .list-orders-delivery-details {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 0.4rem !important;
+    }
+    
+    /* Инпуты даты, адреса, телефона — строго 100% */
+    .list-orders-card-details .list-orders-delivery-input,
+    .list-orders-card-details .list-orders-delivery-address,
+    .list-orders-card-details .list-orders-delivery-phone {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Кнопка «Доставка» — на всю ширину */
+    .list-orders-card-details .list-orders-delivery-btn {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Нижняя панель действий — в столбик */
+    .list-orders-card-details .list-orders-details-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .list-orders-card-details .list-orders-detail-created {
+        text-align: left !important;
+    }
+
+    /* Селекты Юрлицо / Сотрудник — в столбик */
+    .list-orders-card-details .list-orders-client-selects {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.4rem !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .list-orders-card-details .list-orders-le-select,
+    .list-orders-card-details .list-orders-cp-select {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Блок оплаты — в столбик */
+    .list-orders-card-details .list-orders-payment-block {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.4rem !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Вложенные «Документы: [select]» — в столбик */
+    .list-orders-card-details .list-orders-payment-detail {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.2rem !important;
+        min-width: 0 !important;
+    }
+
+    /* Селекты/инпуты/кнопки в блоке оплаты — на всю ширину */
+    .list-orders-card-details .list-orders-payment-select,
+    .list-orders-card-details .list-orders-payment-input,
+    .list-orders-card-details .list-orders-payment-btn {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        margin-right: 0 !important;
+    }
+
+    /* Кнопка «Открыть карточку заказа» — на всю ширину */
+    .list-orders-card-details .list-orders-btn-open {
+        width: 100% !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Изделия в раскрытой карточке — тоже разрешаем перенос */
+    .list-orders-card-details .list-orders-product-item {
+        flex-wrap: wrap !important;
+        gap: 0.3rem !important;
+        min-width: 0 !important;
+    }
+    .list-orders-card-details .list-orders-product-title {
+        flex: 1 1 100% !important;
+        white-space: normal !important;
+        min-width: 0 !important;
+    }
+    .list-orders-card-details .list-orders-product-circulation,
+    .list-orders-card-details .list-orders-product-price {
+        margin: 0 !important;
+    }
+}
+
+/* Заголовок для следующих доставок */
+.orders-delivery-today-next-label {
+    font-size: 0.75rem;
+    color: #888888;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+/* Стиль для плашек следующих доставок (светло-серые, не яркие) */
+.orders-delivery-today-item--next {
+    background: rgba(240, 240, 240, 0.9);
+    border: 1px solid rgba(200, 200, 200, 0.6);
+    color: #666666;
+}
+
+.orders-delivery-today-item--next:hover {
+    background: rgba(230, 230, 230, 1);
+    border-color: #aaaaaa;
+}
+
+.orders-delivery-today-item--next .orders-delivery-number {
+    color: #555555;
+}
+
+.orders-delivery-today-item--next .orders-delivery-sep {
+    color: #999999;
+}
+
+.orders-delivery-today-item--next .orders-delivery-client {
+    color: #666666;
+}
+
+/* Небольшая корректировка флексбокса для текста внутри плашки */
+.orders-delivery-today-text {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 1; /* Текст занимает всё свободное место */
+    min-width: 0; /* Позволяет тексту сжиматься */
+}
+
+/* Общий стиль квадратика курьера */
+.orders-delivery-courier-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #0B8661; /* Зеленая обводка */
+    border-radius: 2px;
+    margin-left: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Закрашенное состояние (курьер заказан) */
+.orders-delivery-courier-indicator.is-active {
+    background-color: #0B8661;
+}
+
+/* Модификатор для серых (будущих) плашек */
+.orders-delivery-courier-indicator--next {
+    border-color: #888888;
+}
+
+.orders-delivery-courier-indicator--next.is-active {
+    background-color: #888888;
+}
+
+/* ==================== БЕЙДЖ ЭДО В СПИСКЕ ЗАКАЗОВ ==================== */
+
+.list-orders-edo-badge {
+    display: inline-block;
+    background: #FF9800; /* Оранжевый цвет, как в проекте */
+    color: #ffffff;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.65rem; /* Мелкий шрифт */
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex-shrink: 0; /* Чтобы не сжимался при длинном имени */
 }

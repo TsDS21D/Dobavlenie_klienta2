@@ -1048,6 +1048,8 @@ def api_update_order(request, order_id):
         if field_value not in ['pending', 'delivered']:
             return JsonResponse({'success': False, 'error': 'Недопустимый статус доставки'}, status=400)
         order.delivery_status = field_value
+    elif field_name == 'is_courier_ordered':
+        order.is_courier_ordered = field_value == 'true' or field_value == '1'
 
     else:
         return JsonResponse(
@@ -1218,7 +1220,7 @@ def _send_order_event(event_type, order, request):
 def api_clients(request):
     """
     Возвращает список клиентов для выпадающего списка при редактировании заказа.
-    Включает название основного юрлица (если есть).
+    Включает название основного юрлица и флаг ЭДО.
     """
     clients_data = []
     try:
@@ -1240,7 +1242,8 @@ def api_clients(request):
             clients_data.append({
                 'id': c.id,
                 'name': c.name,
-                'primary_le_name': c.primary_le_name or ''
+                'primary_le_name': c.primary_le_name or '',
+                'has_edo': c.has_edo,  # <--- ДОБАВИЛИ ЭТУ СТРОКУ
             })
     except ImportError:
         pass
@@ -1864,47 +1867,57 @@ def api_cancel_edit(request):
 
 @login_required
 @require_GET
+@login_required
+@require_GET
 def api_orders_delivery_today(request):
     """
-    Возвращает список заказов, которые нужно доставить СЕГОДНЯ.
-
-    Используется JS-фронтом на /orders/ для отображения зелёных плашек
-    в левом верхнем углу («доставка на сегодня: ORD-N — Клиент»).
-
-    Логика фильтра:
-      • is_deleted=False              — только активные заказы;
-      • status in ('in_progress', 'ready') — в работе или готовы к выдаче;
-      • is_delivery=True              — с доставкой;
-      • delivery_date = сегодня       — дата доставки сегодня (по МСК);
-      • delivery_status != 'delivered' — ещё не доставлен.
-
-    Порядок: по ready_datetime (самые срочные сверху).
+    Возвращает список заказов на сегодня (включая просроченные) 
+    и на ближайший рабочий день.
     """
-    # «Сегодня» — в часовом поясе проекта (Europe/Moscow).
-    # timezone.localtime переводит UTC-«сейчас» в МСК, .date() отрезает время.
-    today = timezone.localtime(timezone.now()).date()
+    import datetime
 
-    orders = (
+    today = timezone.localtime(timezone.now()).date()
+    today_str = today.strftime('%d.%m')  # Строка "30.10" для сравнения в JS
+
+    # ===== РАСЧЁТ СЛЕДУЮЩЕГО РАБОЧЕГО ДНЯ =====
+    next_day = today + datetime.timedelta(days=1)
+    # 5 = суббота, 6 = воскресенье. Пропускаем их.
+    while next_day.weekday() >= 5:
+        next_day += datetime.timedelta(days=1)
+
+    # Базовый запрос (в работе/готовы, с доставкой, не доставлены)
+    base_qs = (
         Order.objects
         .filter(
             is_deleted=False,
             status__in=['in_progress', 'ready'],
             is_delivery=True,
-            delivery_date=today,
         )
         .exclude(delivery_status='delivered')
         .select_related('client')
-        .order_by('ready_datetime')
     )
+
+    # Заказы на сегодня И ПРОСРОЧЕННЫЕ (включая ошибочно указанные дни)
+    # Сортируем по дате: самые старые (просроченные) будут выше.
+    today_orders = base_qs.filter(delivery_date__lte=today).order_by('delivery_date', 'ready_datetime')
+    
+    # Заказы на будущее
+    upcoming_orders = base_qs.filter(delivery_date__gt=today).order_by('delivery_date', 'ready_datetime')
+
+    # Функция для сериализации
+    def serialize_order(o):
+        return {
+            'id': o.id,
+            'number': o.number,
+            'client_name': o.client.name if o.client else '',
+            'delivery_date': o.delivery_date.strftime('%d.%m') if o.delivery_date else '',
+            'is_courier_ordered': o.is_courier_ordered,
+        }
 
     return JsonResponse({
         'success': True,
-        'orders': [
-            {
-                'id': o.id,
-                'number': o.number,
-                'client_name': o.client.name if o.client else '',
-            }
-            for o in orders
-        ],
+        'today_orders': [serialize_order(o) for o in today_orders],
+        'upcoming_orders': [serialize_order(o) for o in upcoming_orders],
+        'next_working_date': next_day.strftime('%d.%m'),
+        'today_str': today_str, # <--- Передаем сегодняшнюю дату в JS
     })
