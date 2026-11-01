@@ -992,14 +992,65 @@ select.list-orders-search {
 /* Каждое отдельное изделие (теперь это самостоятельная карточка) */
 .list-orders-product-item {
     display: flex;
+    flex-direction: column; /* Теперь контейнер вертикальный */
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    margin-bottom: 0.4rem;
+}
+
+/* Верхняя строка карточки изделия (по ней происходит клик) */
+.list-orders-product-header-row {
+    display: flex;
     justify-content: space-between;
     align-items: baseline;
+    width: 100%;
+    cursor: pointer; /* Курсор-указатель */
+}
+
+/* Скрытый блок с деталями (компонентами) */
+.list-orders-product-expanded {
+    display: none; /* Скрыт по умолчанию */
+    flex-basis: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e0e0e0;
+    cursor: default;
+}
+
+/* Оформление компонентов внутри раскрытой карточки */
+.order-product-component {
+    background: #fafafa;
+    border: 1px solid #ececec;
+    border-radius: 6px;
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.5rem;
+}
+.order-product-component:last-child {
+    margin-bottom: 0;
+}
+.order-product-component-title {
+    font-weight: 600;
+    color: #0B8661;
     font-size: 0.85rem;
-    padding: 0.5rem 0.8rem;       /* Отступы внутри каждой карточки */
-    background: #ffffff;          /* Белый фон для каждой карточки */
-    border: 1px solid #e0e0e0;    /* Тонкая рамка */
-    border-radius: 6px;           /* Скругление */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02); /* Легкая тень для объема */
+    margin-bottom: 0.4rem;
+}
+.order-product-component-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.2rem;
+    font-size: 0.8rem;
+    color: #555;
+}
+.order-product-component-info span {
+    white-space: nowrap;
+}
+.order-product-component-info b {
+    color: #333;
+    font-weight: 600;
 }
 
 
@@ -2128,9 +2179,11 @@ select.list-orders-payment-select {
 
     /* Изделия в раскрытой карточке — тоже разрешаем перенос */
     .list-orders-card-details .list-orders-product-item {
+        min-width: 0 !important;
+    }
+    .list-orders-card-details .list-orders-product-header-row {
         flex-wrap: wrap !important;
         gap: 0.3rem !important;
-        min-width: 0 !important;
     }
     .list-orders-card-details .list-orders-product-title {
         flex: 1 1 100% !important;
@@ -2225,4 +2278,275 @@ select.list-orders-payment-select {
     line-height: 1.2;
     white-space: nowrap;
     flex-shrink: 0; /* Чтобы не сжимался при длинном имени */
+}
+
+
+/* ==================== АДАПТИВ ДЛЯ ПАНЕЛИ ДОСТАВОК ==================== */
+
+/* На экранах <= 1600px немного сжимаем панель */
+@media (max-width: 1600px) {
+    .orders-delivery-today {
+        width: 190px;
+        left: 15px;
+    }
+    .orders-delivery-today-item {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.5rem;
+    }
+}
+
+/* На экранах <= 1350px (узкие ноутбуки) ПОЛНОСТЬЮ СКРЫВАЕМ панель */
+@media (max-width: 1350px) {
+    .orders-delivery-today {
+        display: none !important;
+    }
+}
+
+/* ==================== СТИЛИ ДЛЯ ТИПА ПЕЧАТИ (КАК В ПРОСЧЁТАХ) ==================== */
+
+.order-badge-type {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+}
+
+/* Цветная — белый фон, радужная рамка, зелёный текст */
+.order-badge-color {
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(90deg,
+            #0f94c8 0%,
+            #d00e7c 60%,
+            #eae322 80%,
+            #6b6176 100%) border-box;
+    border: 1.5px solid transparent;
+    color: #0B8661;
+}
+
+/* Ч/б — серый градиент, белый текст */
+.order-badge-bw {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    border: 1.5px solid transparent;
+}
+
+/* ==================== СТИЛИ ДЛЯ КАРТОЧКИ КОМПОНЕНТА В ЗАКАЗЕ ==================== */
+
+.order-product-component-card {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #d6ecdf;
+    background: #f5fcf8; /* Светло-зеленый фон как у одностраничного */
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    transition: border-color 0.12s ease;
+}
+.order-product-component-card:hover {
+    border-color: #b9d9c7;
+}
+.order-product-component-card--multi {
+    background: #f2f7fc;
+    border-color: #d6e6f5;
+}
+
+.order-product-component-card .proschet-inline-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.order-product-component-card .proschet-inline-field-label {
+    font-size: 0.75rem;
+    color: #555555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Имитация заблокированного селекта (как в просчётах) */
+.order-product-component-card .order-field-locked {
+    padding: 0.25rem 0.6rem;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Переключатели (цветная / ч/б и т.д.) */
+.order-product-component-card .proschet-mode-switch {
+    display: inline-flex;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.order-product-component-card .proschet-mode-btn {
+    padding: 0.22rem 0.55rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #666666;
+    white-space: nowrap;
+    pointer-events: none; /* Отключаем клики */
+}
+
+/* Активное состояние (Цветная) */
+.order-product-component-card .proschet-mode-btn.active.proschet-mode-btn--side-color {
+    background: linear-gradient(#ffffff, #ffffff) padding-box,
+                linear-gradient(90deg, #0f94c8 0%, #d00e7c 60%, #eae322 80%, #6b6176 100%) border-box;
+    border: 1.5px solid transparent;
+    padding: calc(0.22rem - 1.5px) calc(0.55rem - 1.5px);
+    color: #0B8661;
+    font-weight: 600;
+}
+
+/* Активное состояние (Ч/б) */
+.order-product-component-card .proschet-mode-btn.active.proschet-mode-btn--side-bw {
+    background: linear-gradient(90deg, #d0d0d0 0%, #808080 100%);
+    color: #ffffff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Активное состояние (Режим печати) */
+.order-product-component-card .proschet-mode-btn.active {
+    background: #0B8661;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* Числовые значения (Листов, Ширина и т.д.) */
+.order-product-component-card .order-field-value {
+    font-size: 0.75rem;
+    color: #333;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ==================== БЛОК ЛАМИНАЦИИ В КАРТОЧКЕ ИЗДЕЛИЯ ==================== */
+
+.order-product-component-lamination {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #d6ecdf; /* Пунктир в тон фона карточки */
+}
+
+/* ==================== БЛОК ДОПОЛНИТЕЛЬНЫХ РАБОТ В КАРТОЧКЕ ИЗДЕЛИЯ ==================== */
+
+.order-product-component-works {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.8rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #ececec;
+}
+
+.order-works-label {
+    font-size: 0.75rem;
+    color: #555555;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.order-work-item {
+    font-size: 0.75rem;
+    color: #333333;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.order-work-item b {
+    font-weight: 600;
+    color: #0a6e51; /* Темно-зеленый для количества */
+}
+
+.order-work-price {
+    color: #0B8661;
+    font-weight: 600;
+}
+
+/* ==================== РАСКЛАДКА КАРТОЧКИ КОМПОНЕНТА (ТЕКСТ + СХЕМА) ==================== */
+
+/* Контейнер карточки теперь Flex-контейнер, разрешаем перенос на узких экранах */
+.order-product-component-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem;
+    /* Остальные стили (padding, border, background) остаются прежними */
+}
+
+/* Левая колонка с данными (2/3 ширины) */
+.order-component-data-col {
+    flex: 2 1 400px; /* Занимает 2 доли, минимум 400px */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+/* Правая колонка со схемой (1/3 ширины) */
+.order-component-viz-col {
+    flex: 1 1 200px; /* Занимает 1 долю, минимум 200px */
+    display: flex;
+    justify-content: flex-end; /* Прижимаем схему вправо */
+    align-items: flex-start;
+    padding-top: 0.2rem;
+}
+
+/* Обертка для двух схем (лицо/оборот) */
+.order-component-viz {
+    display: flex;
+    gap: 0.6rem;
+}
+
+/* Одна сторона */
+.order-viz-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+/* Подпись стороны */
+.order-viz-label {
+    font-size: 0.6rem;
+    color: #999999;
+    font-weight: 500;
+    line-height: 1;
+}
+
+/* Сам холст */
+.order-viz-canvas {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fafafa;
+    max-width: 100%;
+    height: auto;
 }

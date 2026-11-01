@@ -94,7 +94,28 @@
         background: #d32f2f !important;
     }
 
-    /* ======================================================================== */
+    /* ==================== АДАПТИВ ДЛЯ ПРАВОЙ ПАНЕЛИ ==================== */
+    @media (max-width: 1600px) {
+        .app-nav-container {
+            width: 250px;
+            padding: 8px 10px;
+        }
+        .app-nav-container .nav-info strong { font-size: 0.8rem; }
+        .app-nav-container .nav-info div { font-size: 0.65rem; }
+        .app-nav-container .nav-btn {
+            width: 85px !important;
+            font-size: 0.7rem !important;
+        }
+    }
+
+    @media (max-width: 1350px) {
+        .app-nav-container {
+            width: 230px;
+        }
+        .app-nav-container .nav-btn {
+            width: 75px !important;
+        }
+    }
 </style>
 
 <!-- Контейнер для всех панелей навигации -->

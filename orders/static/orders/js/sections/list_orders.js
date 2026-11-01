@@ -2899,4 +2899,418 @@ function handleStatusChange(event) {
             });
         }
     }
+
+    // ========================================================================
+    // 17. РАСКРЫТИЕ КАРТОЧЕК ИЗДЕЛИЙ
+    // ========================================================================
+
+    // Обработчик клика по карточке изделия (делегирование)
+    document.addEventListener('click', function(e) {
+        // Игнорируем клики по кнопкам ред./удал.
+        if (e.target.closest('.list-orders-product-edit-btn') || e.target.closest('.list-orders-product-delete-btn')) {
+            return;
+        }
+
+        // Ищем карточку
+        const productItem = e.target.closest('.list-orders-product-item');
+        if (!productItem) return;
+
+        const headerRow = productItem.querySelector('.list-orders-product-header-row');
+        // Если клик был не по шапке и не по пустому месту карточки, а по раскрытому блоку — игнорируем
+        if (!headerRow.contains(e.target)) return;
+
+        // Переключаем состояние
+        const expandedBlock = productItem.querySelector('.list-orders-product-expanded');
+        if (!expandedBlock) return;
+
+        const isHidden = expandedBlock.style.display === 'none' || expandedBlock.style.display === '';
+        
+        if (isHidden) {
+            // Открываем
+            expandedBlock.style.display = 'block';
+            
+            // Если данные еще не загружены — загружаем
+            if (!expandedBlock.dataset.loaded) {
+                const productId = productItem.dataset.productId;
+                expandedBlock.innerHTML = '<div style="font-size:0.8rem; color:#888; font-style:italic;">Загрузка...</div>';
+                
+                fetch('/orders/api/product/' + productId + '/details/', {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.product && data.product.components) {
+                        let html = '';
+                        data.product.components.forEach((comp, idx) => {
+                            // Извлекаем размеры и вылеты (приоритет — многостраничному режиму)
+                            let width = '—', height = '—', vyleta = '—';
+                            let mpDetailsHtml = '';
+                            
+                            if (comp.multipage) {
+                                width = comp.multipage.finished_width;
+                                height = comp.multipage.finished_height;
+                                vyleta = comp.multipage.vyleta;
+                                const bookOrient = comp.multipage.booklet_orientation === 'portrait' ? 'Портретная' : 'Альбомная';
+                                mpDetailsHtml = `
+                                    <div class="proschet-inline-field">
+                                        <span class="proschet-inline-field-label">Страниц:</span>
+                                        <span class="order-field-value">${comp.multipage.total_pages}</span>
+                                    </div>
+                                    <div class="proschet-inline-field">
+                                        <span class="proschet-inline-field-label">Скрепление:</span>
+                                        <span class="order-field-locked">${comp.multipage.binding_name || '—'}</span>
+                                    </div>
+                                    <div class="proschet-inline-field">
+                                        <span class="proschet-inline-field-label">Ориентация:</span>
+                                        <span class="order-field-locked">${bookOrient}</span>
+                                    </div>
+                                `;
+                            } else if (comp.vichisliniya) {
+                                width = comp.vichisliniya.item_width;
+                                height = comp.vichisliniya.item_height;
+                                vyleta = comp.vichisliniya.vyleta;
+                            }
+
+                            // Определяем классы для типа печати
+                            const isColor = comp.print_type === 'color';
+                            const bgColorClass = isColor ? 'proschet-mode-btn--side-color' : 'proschet-mode-btn--side-bw';
+                            const isDuplex = comp.printing_mode === 'duplex';
+
+                            // Карточка компонента (класс --single или --multi в зависимости от типа)
+                            const cardClass = comp.multipage ? 'order-product-component-card--multi' : '';
+
+                            html += `
+                                <div class="order-product-component-card ${cardClass}">
+                                    
+                                    <!-- ЛЕВАЯ КОЛОНКА (2/3) -->
+                                    <div class="order-component-data-col">
+                                        <!-- ПЕРВАЯ СТРОКА -->
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Принтер:</span>
+                                                <span class="order-field-locked">${comp.printer_name || '—'}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Бумага:</span>
+                                                <span class="order-field-locked">${comp.paper_name || '—'}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Тип:</span>
+                                                <div class="proschet-mode-switch">
+                                                    <button class="proschet-mode-btn active ${bgColorClass}">${comp.print_type_display}</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- ВТОРАЯ СТРОКА -->
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Режим:</span>
+                                                <span class="order-field-locked">${comp.printing_mode_display}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Листов:</span>
+                                                <span class="order-field-value">${comp.formatted_sheet_count}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Вылеты:</span>
+                                                <span class="order-field-value">${vyleta} мм</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Размер:</span>
+                                                <span class="order-field-value">${width} × ${height} мм</span>
+                                            </div>
+                                            ${mpDetailsHtml}
+                                        </div>
+
+                                        <!-- БЛОК ЛАМИНАЦИИ -->
+                                        ${comp.lamination ? `
+                                        <div class="order-product-component-lamination">
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Ламинатор:</span>
+                                                <span class="order-field-locked">${comp.lamination.laminator_name || '—'}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Плёнка:</span>
+                                                <span class="order-field-locked">${comp.lamination.film_name || '—'}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Сторона:</span>
+                                                <span class="order-field-locked">${comp.lamination.side_display}</span>
+                                            </div>
+                                        </div>
+                                        ` : ''}
+
+                                        <!-- БЛОК ДОПОЛНИТЕЛЬНЫХ РАБОТ -->
+                                        ${(comp.works && comp.works.length > 0) ? `
+                                        <div class="order-product-component-works">
+                                            <span class="order-works-label">Доп. работы:</span>
+                                            ${comp.works.map(w => `
+                                                <span class="order-work-item">
+                                                    ${w.title}: <b>${w.quantity} шт.</b> — <span class="order-work-price">${w.formatted_total_price}</span>
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                        ` : ''}
+                                    </div> <!-- КОНЕЦ ЛЕВОЙ КОЛОНКИ -->
+
+                                    <!-- ПРАВАЯ КОЛОНКА (1/3) -->
+                                    <div class="order-component-viz-col">
+                                        <div class="order-component-viz">
+                                            <div class="order-viz-side">
+                                                <div class="order-viz-label">Лицевая</div>
+                                                <canvas class="order-viz-canvas" data-comp-id="${comp.id}" data-side="front"></canvas>
+                                            </div>
+                                            <div class="order-viz-side">
+                                                <div class="order-viz-label">Обратная</div>
+                                                <canvas class="order-viz-canvas" data-comp-id="${comp.id}" data-side="back"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            `;
+                        });
+                        
+                        // --- БЛОК: МАССА, ОБЪЁМ, ВЫСОТА СТОПКИ ---
+                        // Рассчитываем физические параметры изделия (замороженные при создании).
+                        // Это те же данные, что мы выводим в карточке заказа (/orders/<id>/).
+                        var massG = parseFloat(data.product.frozen_total_mass_g) || 0;
+                        var volumeCm3 = parseFloat(data.product.frozen_total_volume_cm3) || 0;
+                        var massKg = (massG / 1000).toFixed(3);
+                        var volumeL = (volumeCm3 / 1000).toFixed(3);
+                        
+                        // Считаем общую высоту стопки (суммируем только валидные записи)
+                        var totalStackMm = 0;
+                        var stacks = data.product.frozen_stacks || [];
+                        stacks.forEach(function(s) {
+                            if (s.valid && s.stack_height_mm != null) {
+                                totalStackMm += Number(s.stack_height_mm);
+                            }
+                        });
+                        
+                        // Форматируем высоту (убираем лишние нули, если число целое)
+                        var stackText = '—';
+                        if (totalStackMm > 0) {
+                            var r = Math.round(totalStackMm * 10) / 10;
+                            stackText = (r % 1 === 0 ? String(r) : r.toFixed(1)) + ' мм';
+                        }
+
+                        // Добавляем строку с итогами в самый конец HTML-блока.
+                        // Используем стили, аналогичные "Создан: ..." (мелкий серый текст).
+                        if (html !== '') {
+                            html += '<div style="font-size: 0.75rem; color: #999; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px dashed #ececec; display: flex; gap: 1.5rem;">' +
+                                        '<span>Масса: <b>' + massKg + ' кг</b></span>' +
+                                        '<span>Объём: <b>' + volumeL + ' л</b></span>' +
+                                        '<span>Высота стопки: <b>' + stackText + '</b></span>' +
+                                    '</div>';
+                        }
+
+                        if (html === '') html = '<div style="font-size:0.8rem; color:#888; font-style:italic;">Нет компонентов</div>';
+                        expandedBlock.innerHTML = html;
+                        expandedBlock.dataset.loaded = '1';
+
+                        // Отрисовываем схемы для всех компонентов (функция находится внизу файла)
+                        data.product.components.forEach(c => drawOrderComponentViz(c));
+                    } else {
+                        expandedBlock.innerHTML = '<div style="color:red; font-size:0.8rem;">Ошибка загрузки</div>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    expandedBlock.innerHTML = '<div style="color:red; font-size:0.8rem;">Ошибка сети</div>';
+                });
+            }
+        } else {
+            // Закрываем
+            expandedBlock.style.display = 'none';
+        }
+    });
+
+    // Функция для отрисовки схемы одного компонента на листе
+    // Функция для отрисовки схемы одного компонента на листе
+    function drawOrderComponentViz(comp) {
+        const canvases = document.querySelectorAll(`.order-viz-canvas[data-comp-id="${comp.id}"]`);
+        if (canvases.length === 0) return;
+
+        const sheetW = parseFloat(comp.sheet_width) || 0;
+        const sheetH = parseFloat(comp.sheet_height) || 0;
+        const margin = parseFloat(comp.margin) || 0;
+
+        let itemW = 0, itemH = 0, vyleta = 0, fitH = 0, fitV = 0;
+        let isMultipage = !!comp.multipage;
+        let isStapled = false;
+        let bookletOrient = 'portrait';
+        let effectiveOrient = 'landscape';
+
+        if (isMultipage) {
+            itemW = parseFloat(comp.multipage.finished_width) || 0;
+            itemH = parseFloat(comp.multipage.finished_height) || 0;
+            vyleta = parseFloat(comp.multipage.vyleta) || 0;
+            fitH = parseInt(comp.multipage.fit_horizontal) || 0;
+            fitV = parseInt(comp.multipage.fit_vertical) || 0;
+            isStapled = (comp.multipage.binding_name || '').toLowerCase().includes('скрепка');
+            bookletOrient = comp.multipage.booklet_orientation || 'portrait';
+            effectiveOrient = comp.multipage.fit_selected_orientation || 'landscape';
+        } else if (comp.vichisliniya) {
+            itemW = parseFloat(comp.vichisliniya.item_width) || 0;
+            itemH = parseFloat(comp.vichisliniya.item_height) || 0;
+            vyleta = parseFloat(comp.vichisliniya.vyleta) || 0;
+            fitH = parseInt(comp.vichisliniya.fit_horizontal) || 0;
+            fitV = parseInt(comp.vichisliniya.fit_vertical) || 0;
+            effectiveOrient = comp.vichisliniya.fit_selected_orientation || 'landscape';
+        }
+
+        const isDuplex = comp.printing_mode === 'duplex';
+        const isColor = comp.print_type === 'color';
+
+        canvases.forEach(canvas => {
+            const isBack = canvas.dataset.side === 'back';
+            const fill = isBack ? isDuplex : true; // Оборот заливаем только если дуплекс
+
+            // Определяем, ламинирована ли эта сторона
+            const isLaminated = !!comp.lamination;
+            const isLamDuplex = isLaminated && comp.lamination.side === 'duplex';
+            const shouldLaminate = isBack ? isLamDuplex : isLaminated;
+            
+            const ctx = canvas.getContext('2d');
+            // Увеличиваем размер схем (было 150). 
+            // 240 — это тот же размер, который используется на странице /proschety/.
+            const MAX = 240; 
+            const PADDING = 4;
+
+            if (!sheetW || !sheetH) {
+                canvas.width = MAX; canvas.height = MAX;
+                return;
+            }
+
+            // Масштабируем под пропорции листа
+            const maxSheetDim = Math.max(sheetW, sheetH);
+            const scale = (MAX - 2 * PADDING) / maxSheetDim;
+
+            canvas.width = Math.round(sheetW * scale + 2 * PADDING);
+            canvas.height = Math.round(sheetH * scale + 2 * PADDING);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(PADDING, PADDING);
+
+            // Контур листа
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(0, 0, sheetW * scale, sheetH * scale);
+
+            // Пунктир печатной области
+            ctx.strokeStyle = '#999';
+            ctx.setLineDash([2, 1]);
+            ctx.strokeRect(margin * scale, margin * scale, (sheetW - 2 * margin) * scale, (sheetH - 2 * margin) * scale);
+            ctx.setLineDash([]);
+
+            // Цвета
+            // Определяем цвета в зависимости от типа компонента:
+            // - Многостраничные (isMultipage) — голубые тона (в тон карточке --multi)
+            // - Одностраничные — зелёные тона (фирменный #0B8661)
+            let fillColor, strokeColor;
+            
+            if (isMultipage) {
+                // Голубая палитра для многостраничных изделий (как на странице /proschety/)
+                fillColor   = fill ? (isColor ? 'rgba(42, 111, 201, 0.2)' : 'rgba(200, 200, 200, 0.4)') : 'transparent';
+                strokeColor = fill ? (isColor ? '#2a6fc9' : '#999999') : '#b3cce6';
+            } else {
+                // Зелёная палитра для одностраничных изделий (фирменный стиль)
+                fillColor   = fill ? (isColor ? 'rgba(11, 134, 97, 0.18)' : 'rgba(200, 200, 200, 0.4)') : 'transparent';
+                strokeColor = fill ? (isColor ? '#0B8661' : '#999999') : '#cccccc';
+            }
+            
+            ctx.fillStyle = fillColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 0.5;
+
+            const isPortraitPlacement = (effectiveOrient === 'portrait');
+
+            if (isMultipage && isStapled) {
+                // ===== РИСУЕМ РАЗВОРОТЫ (СКРЕПКА) =====
+                let spreadWidthBase = (bookletOrient === 'portrait') ? itemW * 2 : itemW;
+                let spreadHeightBase = (bookletOrient === 'portrait') ? itemH : itemH * 2;
+
+                let spreadWidth = isPortraitPlacement ? spreadHeightBase : spreadWidthBase;
+                let spreadHeight = isPortraitPlacement ? spreadWidthBase : spreadHeightBase;
+
+                const originalPagePlacement = (bookletOrient === 'portrait') ? 'horizontal' : 'vertical';
+                const effectivePagePlacement = isPortraitPlacement ? (originalPagePlacement === 'horizontal' ? 'vertical' : 'horizontal') : originalPagePlacement;
+
+                const effectivePageW = isPortraitPlacement ? itemH : itemW;
+                const effectivePageH = isPortraitPlacement ? itemW : itemH;
+
+                for (let r = 0; r < fitV; r++) {
+                    for (let c = 0; c < fitH; c++) {
+                        const x = margin + c * (spreadWidth + vyleta);
+                        const y = margin + r * (spreadHeight + vyleta);
+
+                        if (effectivePagePlacement === 'horizontal') {
+                            const leftX = x;
+                            const rightX = x + effectivePageW;
+                            const pageY = y;
+                            
+                            if (fill) ctx.fillRect(leftX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(leftX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            
+                            if (fill) ctx.fillRect(rightX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(rightX * scale, pageY * scale, effectivePageW * scale, effectivePageH * scale);
+
+                            // Пунктир сгиба + скрепки
+                            ctx.save();
+                            ctx.strokeStyle = '#e67e22'; ctx.fillStyle = '#e67e22'; ctx.setLineDash([3, 2]);
+                            ctx.beginPath(); ctx.moveTo((x + effectivePageW) * scale, y * scale); ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale); ctx.stroke();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW) * scale, (y + effectivePageH * 0.25) * scale, 1.5, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW) * scale, (y + effectivePageH * 0.75) * scale, 1.5, 0, Math.PI * 2); ctx.fill();
+                            ctx.restore();
+                        } else {
+                            const topY = y;
+                            const bottomY = y + effectivePageH;
+                            const pageX = x;
+                            
+                            if (fill) ctx.fillRect(pageX * scale, topY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(pageX * scale, topY * scale, effectivePageW * scale, effectivePageH * scale);
+                            
+                            if (fill) ctx.fillRect(pageX * scale, bottomY * scale, effectivePageW * scale, effectivePageH * scale);
+                            ctx.strokeRect(pageX * scale, bottomY * scale, effectivePageW * scale, effectivePageH * scale);
+
+                            // Пунктир сгиба + скрепки
+                            ctx.save();
+                            ctx.strokeStyle = '#e67e22'; ctx.fillStyle = '#e67e22'; ctx.setLineDash([3, 2]);
+                            ctx.beginPath(); ctx.moveTo(x * scale, (y + effectivePageH) * scale); ctx.lineTo((x + effectivePageW) * scale, (y + effectivePageH) * scale); ctx.stroke();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW * 0.25) * scale, (y + effectivePageH) * scale, 1.5, 0, Math.PI * 2); ctx.fill();
+                            ctx.beginPath(); ctx.arc((x + effectivePageW * 0.75) * scale, (y + effectivePageH) * scale, 1.5, 0, Math.PI * 2); ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+                }
+            } else {
+                // ===== ОБЫЧНАЯ СЕТКА (одностраничный или без скрепки) =====
+                const drawW = isPortraitPlacement ? itemH : itemW;
+                const drawH = isPortraitPlacement ? itemW : itemH;
+
+                for (let r = 0; r < fitV; r++) {
+                    for (let c = 0; c < fitH; c++) {
+                        const x = margin + c * (drawW + vyleta);
+                        const y = margin + r * (drawH + vyleta);
+                        
+                        if (fill) ctx.fillRect(x * scale, y * scale, drawW * scale, drawH * scale);
+                        ctx.strokeRect(x * scale, y * scale, drawW * scale, drawH * scale);
+                    }
+                }
+            }
+
+            // Оранжевое наложение для ламинации
+            if (shouldLaminate) {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.09)';
+                ctx.fillRect(0, 0, sheetW * scale, sheetH * scale);
+            }
+
+            ctx.restore();
+        });
+    }
 })();

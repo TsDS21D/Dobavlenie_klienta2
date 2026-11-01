@@ -753,11 +753,15 @@ orders/static/orders/js/detail.js
         ctx.setLineDash([]);
 
         // Цвета.
+        // Для многостраничных изделий используем голубую палитру,
+        // чтобы соответствовать визуализации на странице /proschety/.
         var fillColor, strokeColor;
         if (printType === 'color') {
-            fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
-            strokeColor = fill ? '#2980b9' : '#a0c4ff';
+            // Цветная печать: голубая заливка и контур (в тон карточке многостраничного компонента)
+            fillColor = fill ? 'rgba(42, 111, 201, 0.2)' : 'transparent';
+            strokeColor = fill ? '#2a6fc9' : '#b3cce6';
         } else {
+            // Ч/б печать: серые тона (без изменений)
             fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
             strokeColor = fill ? '#999999' : '#cccccc';
         }
@@ -912,11 +916,15 @@ orders/static/orders/js/detail.js
         ctx.setLineDash([]);
 
         // Цвета.
+        // Для многостраничных изделий используем голубую палитру,
+        // чтобы соответствовать визуализации на странице /proschety/.
         var fillColor, strokeColor;
         if (printType === 'color') {
-            fillColor = fill ? 'rgba(52, 152, 219, 0.3)' : 'transparent';
-            strokeColor = fill ? '#2980b9' : '#a0c4ff';
+            // Цветная печать: голубая заливка и контур (в тон карточке многостраничного компонента)
+            fillColor = fill ? 'rgba(42, 111, 201, 0.2)' : 'transparent';
+            strokeColor = fill ? '#2a6fc9' : '#b3cce6';
         } else {
+            // Ч/б печать: серые тона (без изменений)
             fillColor = fill ? 'rgba(200, 200, 200, 0.4)' : 'transparent';
             strokeColor = fill ? '#999999' : '#cccccc';
         }

@@ -121,36 +121,17 @@ proschety/static/proschety/js/sections/order_banner.js
         bannerEl.appendChild(textEl);
 
         // --- Кнопка «Сохранить как изделие» ---
-        // Классы копируем у существующей кнопки #proschety-btn-add-to-order
-        // (она в шаблоне и стилизована). Так новая кнопка будет выглядеть
-        // единообразно, без риска рассинхронизации стилей.
         const btnSave = document.createElement('button');
         btnSave.type = 'button';
-        const existingAddBtn = document.getElementById('proschety-btn-add-to-order');
-        if (existingAddBtn) {
-            btnSave.className = existingAddBtn.className;
-        }
+        btnSave.className = 'proschety-order-banner-btn'; // <--- Явно задаем класс
         btnSave.textContent = 'Сохранить как изделие';
         bannerEl.appendChild(btnSave);
 
         // --- Кнопка «Отмена» ---
-        // Стилизуем inline: у нас нет в proschety/css готового класса
-        // для secondary-кнопки. Inline даёт независимость от CSS.
         const btnCancel = document.createElement('button');
         btnCancel.type = 'button';
+        btnCancel.className = 'proschety-order-banner-btn-cancel'; // <--- Явно задаем новый класс
         btnCancel.textContent = 'Отмена';
-        btnCancel.style.cssText = [
-            'padding: 6px 14px',
-            'background: #fff',
-            'color: #555',
-            'border: 1px solid #d0d0d0',
-            'border-radius: 6px',
-            'font-size: 0.85rem',
-            'font-weight: 600',
-            'cursor: pointer',
-            'font-family: inherit',
-            'margin-left: 0.5rem'
-        ].join(';');
         bannerEl.appendChild(btnCancel);
 
         // --- Уточняем номер заказа запросом (если знаем order_id) ---
