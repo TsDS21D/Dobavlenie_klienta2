@@ -3046,11 +3046,14 @@ function handleStatusChange(event) {
                                         ${(comp.works && comp.works.length > 0) ? `
                                         <div class="order-product-component-works">
                                             <span class="order-works-label">Доп. работы:</span>
-                                            ${comp.works.map(w => `
-                                                <span class="order-work-item">
-                                                    ${w.title}: <b>${w.quantity} шт.</b> — <span class="order-work-price">${w.formatted_total_price}</span>
-                                                </span>
-                                            `).join('')}
+                                            <!-- Оборачиваем работы в отдельный контейнер для выстраивания в колонку -->
+                                            <div class="order-works-list">
+                                                ${comp.works.map(w => `
+                                                    <span class="order-work-item">
+                                                        ${w.title}: <b>${w.quantity} шт.</b> — <span class="order-work-price">${w.formatted_total_price}</span>
+                                                    </span>
+                                                `).join('')}
+                                            </div>
                                         </div>
                                         ` : ''}
                                     </div> <!-- КОНЕЦ ЛЕВОЙ КОЛОНКИ -->
