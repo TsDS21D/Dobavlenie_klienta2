@@ -48,7 +48,9 @@ def index(request):
       - active_app      — для подсветки в боковой панели.
     """
     proschets = Proschet.objects.filter(is_deleted=False).order_by('-created_at')
-    clients = Client.objects.all().order_by('client_number')
+    # Сортируем клиентов по алфавиту (по имени), чтобы в выпадающем списке
+    # они шли в порядке, привычном для поиска.
+    clients = Client.objects.all().order_by('name')
 
     # Категории в MPTT-порядке (tree_id, lft).
     categories_qs = TemplateCategory.objects.all()

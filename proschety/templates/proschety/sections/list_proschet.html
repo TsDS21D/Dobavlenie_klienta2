@@ -96,7 +96,8 @@ proschety/templates/proschety/sections/list_proschet.html
                     <option value="">— Не выбран —</option>
                     {% for client in clients %}
                         <option value="{{ client.id }}">
-                            {{ client.client_number }}: {{ client.name }}
+                            <!-- Выводим только имя, без номера, чтобы работал поиск по первым буквам -->
+                            {{ client.name }}
                         </option>
                     {% endfor %}
                 </select>

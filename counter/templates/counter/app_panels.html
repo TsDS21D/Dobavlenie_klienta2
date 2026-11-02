@@ -3,10 +3,8 @@
 
 <style>
     /* ========================================================================
-       НОВЫЙ ДИЗАЙН ПАНЕЛИ НАВИГАЦИИ (в стиле левой плашки доставок)
+       НОВЫЙ ДИЗАЙН ПАНЕЛИ НАВИГАЦИИ
        ======================================================================== */
-
-    /* 1. Общий контейнер (прозрачный, с блюром) */
     .app-nav-container {
         position: fixed;
         top: 20px;
@@ -14,10 +12,8 @@
         z-index: 1000;
         display: flex;
         flex-direction: column;
-        gap: 0; /* Убираем зазор между панелями, они теперь внутри одной подложки */
+        gap: 0;
         width: 280px;
-        
-        /* Стили подложки как у левой панели */
         background: rgba(255, 255, 255, 0.3); 
         backdrop-filter: blur(1.5px);
         border: 1px solid rgba(255, 255, 255, 0.8);
@@ -25,29 +21,21 @@
         padding: 10px 12px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     }
-
-    /* 2. Убираем фон и тени у отдельных панелей, чтобы они сливались */
     .app-nav-container .nav-panel {
         background: transparent;
         box-shadow: none;
         border-radius: 0;
         padding: 8px 0;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Тонкий разделитель между кнопками */
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         min-height: auto;
     }
-    
-    /* Убираем разделитель у последней панели */
     .app-nav-container .nav-panel:last-child {
         border-bottom: none;
         padding-bottom: 0;
     }
-    
-    /* Убираем разделитель у первой панели */
     .app-nav-container .nav-panel:first-child {
         padding-top: 0;
     }
-
-    /* 3. Текст в панелях (делаем чуть темнее для читаемости на прозрачном) */
     .app-nav-container .nav-info strong {
         font-size: 0.85rem;
         color: #333;
@@ -56,8 +44,6 @@
         font-size: 0.7rem;
         color: #666;
     }
-
-    /* 4. Кнопки (белые неактивные, зеленые активные) */
     .app-nav-container .nav-btn {
         background: #ffffff !important;
         color: #333333 !important;
@@ -65,26 +51,20 @@
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
         padding: 4px 12px !important;
         font-size: 0.75rem !important;
-        width: 95px !important; /* <--- ИЗМЕНЕНО */
-        text-align: center !important; /* На всякий случай центрируем текст */
+        width: 95px !important;
+        text-align: center !important;
     }
-
-    /* Наведение на белую кнопку */
     .app-nav-container .nav-btn:hover {
         background: #f8f9fa !important;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-        transform: none !important; /* Убираем прыжок вверх */
+        transform: none !important;
     }
-
-    /* Активная кнопка (зеленая) */
     .app-nav-container .nav-btn-active {
         background: #0B8661 !important;
         color: #ffffff !important;
         border-color: #0B8661 !important;
         box-shadow: 0 2px 6px rgba(11, 134, 97, 0.3) !important;
     }
-
-    /* Кнопка выхода (красная) */
     .app-nav-container .nav-btn-logout {
         background: #f44336 !important;
         color: #ffffff !important;
@@ -94,27 +74,159 @@
         background: #d32f2f !important;
     }
 
-    /* ==================== АДАПТИВ ДЛЯ ПРАВОЙ ПАНЕЛИ ==================== */
     @media (max-width: 1600px) {
-        .app-nav-container {
-            width: 250px;
-            padding: 8px 10px;
-        }
+        .app-nav-container { width: 250px; padding: 8px 10px; }
         .app-nav-container .nav-info strong { font-size: 0.8rem; }
         .app-nav-container .nav-info div { font-size: 0.65rem; }
-        .app-nav-container .nav-btn {
-            width: 85px !important;
-            font-size: 0.7rem !important;
-        }
+        .app-nav-container .nav-btn { width: 85px !important; font-size: 0.7rem !important; }
+    }
+    @media (max-width: 1350px) {
+        .app-nav-container { width: 230px; }
+        .app-nav-container .nav-btn { width: 75px !important; }
     }
 
-    @media (max-width: 1350px) {
-        .app-nav-container {
-            width: 230px;
-        }
-        .app-nav-container .nav-btn {
-            width: 75px !important;
-        }
+    /* ==================== СТИЛИ ДЛЯ МОДАЛКИ БЭКАПА ==================== */
+    
+    .backup-modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: backupFadeIn 0.2s ease-out;
+    }
+    
+    @keyframes backupFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .backup-modal {
+        /* Уменьшили плотность до 0.75 (75% белого), чтобы фон просвечивал */
+        background: rgba(255, 255, 255, 0.75);
+        /* Увеличили размытие до 8px для эффекта матового стекла */
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+        font-family: inherit;
+        animation: backupSlideUp 0.2s ease-out;
+    }
+
+    @keyframes backupSlideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .backup-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    
+    .backup-modal-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: #0B8661; /* Фирменный зеленый */
+    }
+    
+    .backup-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #999;
+        transition: color 0.15s;
+    }
+    .backup-modal-close:hover { color: #333; }
+    
+    .backup-modal-body {
+        padding: 1.25rem;
+    }
+
+    /* Карточка выбора режима */
+    .backup-modes {
+        background: rgba(250, 250, 250, 0.54); /* Еще более прозрачный серый */
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        padding: 10px;
+    }
+    .backup-modes label {
+        font-size: 0.85rem;
+        color: #333;
+        transition: background 0.15s;
+        padding: 6px 8px;
+        border-radius: 6px;
+    }
+    .backup-modes label:hover {
+        background: rgba(11, 134, 97, 0.05);
+    }
+
+    .backup-modal-footer {
+        padding: 1rem 1.25rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    /* Кнопки в модалке */
+    .backup-modal-footer .nav-btn {
+        width: auto !important;
+        min-width: 100px;
+    }
+
+    /* ==================== СТИЛИ ДЛЯ ТОСТОВ (УВЕДОМЛЕНИЙ) ==================== */
+    
+    .backup-toast-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+    }
+
+    .backup-toast {
+        pointer-events: auto;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-family: inherit;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        backdrop-filter: blur(4px);
+        animation: toastSlideDown 0.3s ease-out;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .backup-toast.success {
+        background: rgba(228, 244, 236, 0.95);
+        border: 1px solid rgba(11, 134, 97, 0.45);
+        color: #0a6e51;
+    }
+
+    .backup-toast.error {
+        background: rgba(244, 228, 227, 0.95);
+        border: 1px solid rgba(170, 100, 97, 0.45);
+        color: #a03a35;
+    }
+
+    @keyframes toastSlideDown {
+        from { opacity: 0; transform: translateY(-15px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 
@@ -205,5 +317,162 @@
             </button>
         </form>
     </div>
+    <!-- НОВАЯ ПАНЕЛЬ ДЛЯ БЭКАПОВ -->
+    <div class="nav-panel nav-backup" style="margin-top: 10px; flex-direction: column; align-items: stretch; padding: 10px;">
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Резервное копирование</div>
+        <div style="display: flex; gap: 5px;">
+            <a href="{% url 'orders:download_backup' %}" class="nav-btn" style="background: #eaf6ef; color: #0B8661; border: 1px solid #0B8661; font-size: 0.75rem; padding: 5px 8px; flex: 1; text-align: center; text-decoration: none;">
+                Скачать
+            </a>
+            <button type="button" id="btn-restore-backup" class="nav-btn" style="background: #fff4e5; color: #e67e22; border: 1px solid #e67e22; font-size: 0.75rem; padding: 5px 8px; flex: 1;">
+                Восстановить
+            </button>
+        </div>
+    </div>
 
 </div>
+
+<!-- ==================== МОДАЛКА ВОССТАНОВЛЕНИЯ ИЗ БЭКАПА ==================== -->
+<div id="backup-restore-modal" class="backup-modal-overlay" style="display: none;">
+    <div class="backup-modal">
+        <div class="backup-modal-header">
+            <h3>Восстановление из резервной копии</h3>
+            <button type="button" class="backup-modal-close" onclick="closeRestoreModal()">×</button>
+        </div>
+        
+        <div class="backup-modal-body">
+            <p style="font-size: 0.85rem; color: #555; margin-bottom: 1rem;">
+                Выберите ZIP-архив с резервной копией, который вы ранее скачали.
+            </p>
+            
+            <div style="margin-bottom: 1rem;">
+                <input type="file" id="backup-file-input" accept=".zip" style="font-size: 0.85rem; width: 100%;">
+            </div>
+
+            <div class="backup-modes">
+                <label style="display: block; margin-bottom: 0.5rem; cursor: pointer;">
+                    <input type="radio" name="restore-mode" value="merge" checked>
+                    <strong>Умное слияние (рекомендуется)</strong><br>
+                    <span style="font-size: 0.75rem; color: #888; margin-left: 1.5rem;">
+                        Обновит заказы и просчёты из файла. Новые записи, созданные после бэкапа, останутся нетронутыми.
+                    </span>
+                </label>
+                <label style="display: block; cursor: pointer; margin-top: 5px;">
+                    <input type="radio" name="restore-mode" value="replace">
+                    <strong style="color: #a03a35;">Полная замена (Hard Delete)</strong><br>
+                    <span style="font-size: 0.75rem; color: #888; margin-left: 1.5rem;">
+                        ВНИМАНИЕ! Все текущие заказы и просчёты будут <b>физически удалены</b> из базы. Останутся только данные из файла.
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <div class="backup-modal-footer">
+            <button type="button" class="nav-btn" style="background: #e0e0e0; color: #333;" onclick="closeRestoreModal()">Отмена</button>
+            <button type="button" class="nav-btn" id="btn-do-restore" style="background: #0B8661; color: #fff;">Восстановить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Контейнер для красивых уведомлений -->
+<div id="backup-toast-container" class="backup-toast-container"></div>
+
+<script>
+    // Функция для показа красивых уведомлений
+    function showBackupToast(message, type = 'success') {
+        const container = document.getElementById('backup-toast-container');
+        const toast = document.createElement('div');
+        toast.className = `backup-toast ${type}`;
+        
+        const icon = type === 'success' ? '✅' : '❌';
+        toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+        
+        container.appendChild(toast);
+
+        // Автоудаление через 4 секунды
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    // Открытие модалки
+    document.getElementById('btn-restore-backup').addEventListener('click', function() {
+        document.getElementById('backup-restore-modal').style.display = 'flex';
+    });
+
+    // Закрытие модалки
+    function closeRestoreModal() {
+        document.getElementById('backup-restore-modal').style.display = 'none';
+        document.getElementById('backup-file-input').value = ''; 
+    }
+
+    // Процесс восстановления
+    document.getElementById('btn-do-restore').addEventListener('click', function() {
+        const fileInput = document.getElementById('backup-file-input');
+        const file = fileInput.files[0];
+        const mode = document.querySelector('input[name="restore-mode"]:checked').value;
+        const btn = this;
+
+        if (!file) {
+            showBackupToast('Пожалуйста, выберите ZIP-файл с резервной копией.', 'error');
+            return;
+        }
+
+        if (mode === 'replace') {
+            // Оставляем стандартный confirm, так как это критическое действие
+            if (!confirm('ВНИМАНИЕ! ВЫ УВЕРЕНЫ?\n\nВсе текущие заказы и просчёты будут ФИЗИЧЕСКИ УДАЛЕНЫ из базы данных. Останутся только те данные, которые есть в загружаемом файле.\n\nЭто действие невозможно отменить!')) {
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        formData.append('backup_file', file);
+        formData.append('mode', mode);
+
+        btn.disabled = true;
+        btn.textContent = 'Восстановление...';
+
+        fetch('/orders/api/restore-backup/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeRestoreModal();
+                showBackupToast('Восстановление прошло успешно! Страница будет перезагружена.', 'success');
+                setTimeout(() => window.location.reload(), 1500); // Даем время увидеть тост
+            } else {
+                showBackupToast('Ошибка: ' + (data.error || 'неизвестная ошибка'), 'error');
+                btn.disabled = false;
+                btn.textContent = 'Восстановить';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showBackupToast('Ошибка сети при восстановлении.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Восстановить';
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>

@@ -1921,3 +1921,49 @@ def api_orders_delivery_today(request):
         'next_working_date': next_day.strftime('%d.%m'),
         'today_str': today_str, # <--- Передаем сегодняшнюю дату в JS
     })
+
+
+from django.http import FileResponse
+from .backup_utils import create_backup_zip
+
+@login_required
+@require_GET
+def download_backup(request):
+    """
+    Генерирует ZIP-архив со всей базой и отдает на скачивание.
+    """
+    try:
+        zip_buffer = create_backup_zip()
+        response = FileResponse(
+            zip_buffer, 
+            as_attachment=True, 
+            filename='beauty_print_backup.zip',
+            content_type='application/zip'
+        )
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': f'Ошибка создания бэкапа: {e}'}, status=500)
+
+from .backup_utils import create_backup_zip, restore_from_zip
+
+@login_required
+@require_POST
+def api_restore_backup(request):
+    """
+    Принимает ZIP-файл и режим восстановления (merge/replace).
+    """
+    if 'backup_file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': 'Файл не передан'}, status=400)
+    
+    mode = request.POST.get('mode', 'merge')
+    zip_file = request.FILES['backup_file']
+
+    try:
+        restore_from_zip(zip_file, mode)
+        return JsonResponse({'success': True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

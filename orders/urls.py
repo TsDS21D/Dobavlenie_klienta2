@@ -215,6 +215,19 @@ urlpatterns = [
         name='api_cancel_edit',
     ),
 
+    # GET /orders/api/download-backup/
+    path(
+        'api/download-backup/',
+        views.download_backup,
+        name='download_backup',
+    ),
+    # POST /orders/api/restore-backup/
+    path(
+        'api/restore-backup/',
+        views.api_restore_backup,
+        name='api_restore_backup',
+    ),
+
     # GET /orders/<order_id>/
     # Страница одного заказа (карточка со списком изделий).
     # ВАЖНО: этот маршрут должен идти ПОСЛЕ всех api/… — иначе общий
