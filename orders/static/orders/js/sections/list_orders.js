@@ -1053,6 +1053,22 @@ JavaScript секции «Список заказов» страницы /orders
      * При получении события от другой сессии — перерисовывает таблицу
      * и показывает тост в левом нижнем углу.
      */
+    // Функция для смены цвета иконки вкладки
+    function setFaviconStatus(status) {
+        const favicon = document.getElementById('dynamic-favicon');
+        if (!favicon) return;
+        
+        // Выбираем цвет: зеленый для онлайна, красный для оффлайна, серый для подключения
+        let color = '%23999'; // серый
+        if (status === 'online') color = '%230B8661'; // фирменный зеленый
+        if (status === 'offline') color = '%23f44336'; // красный
+        
+        // Собираем SVG код с нужным цветом круга
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='none' stroke='${color}' stroke-width='8'/><text x='50' y='75' font-size='55' text-anchor='middle'>📦</text></svg>`;
+        
+        favicon.href = `data:image/svg+xml,${svg}`;
+    }
+
     function initToastsWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const url = protocol + window.location.host + '/ws/orders/';
@@ -1061,11 +1077,13 @@ JavaScript секции «Список заказов» страницы /orders
             toastsWebSocket = new WebSocket(url);
         } catch (e) {
             console.warn('WebSocket не удалось открыть:', e);
+            setFaviconStatus('offline'); // Если не удалось создать сокет
             return;
         }
 
         toastsWebSocket.onopen = function () {
             console.log('✅ WebSocket /ws/orders/ подключён');
+            setFaviconStatus('online'); // Сокет открыт - иконка зеленая
         };
 
         toastsWebSocket.onmessage = function (event) {
@@ -1100,6 +1118,7 @@ JavaScript секции «Список заказов» страницы /orders
 
         toastsWebSocket.onclose = function () {
             console.warn('WebSocket /ws/orders/ закрыт, переподключение через 3 сек.');
+            setFaviconStatus('offline'); // Сокет закрыт - иконка красная
             setTimeout(initToastsWebSocket, 3000);
         };
 

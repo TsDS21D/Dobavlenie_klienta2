@@ -16,6 +16,13 @@ orders/templates/orders/base.html
     <meta name="csrf-token" content="{{ csrf_token }}">    
     <!-- Загружаем тег static для работы с CSS/JS. -->
     {% load static %}
+    
+    <!-- ИКОНКА ДЛЯ ВКЛАДКИ БРАУЗЕРА (Favicon) -->
+    <!-- Используем SVG-иконку (коробка), встроенную прямо в код (data URI), -->
+    <!-- чтобы не создавать лишних файлов картинок и не зависеть от путей к статике. -->
+    <!-- Иконка вкладки с индикатором статуса -->
+    <link id="dynamic-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='none' stroke='%23999' stroke-width='8'/><text x='50' y='75' font-size='55' text-anchor='middle'>📦</text></svg>">
+
     <!-- CSS приложения orders. -->
     <link rel="stylesheet" href="{% static 'orders/css/base.css' %}">
     <!-- Дополнительные CSS дочерних шаблонов. -->
