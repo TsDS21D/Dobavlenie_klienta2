@@ -959,6 +959,15 @@ def api_update_order(request, order_id):
                 status=400,
             )
         order.status = field_value
+        
+        # ЛОГИКА ФИКСАЦИИ ДАТЫ ВЫДАЧИ:
+        # Если перевели в 'completed' — ставим текущее время (если еще не стоит).
+        # Если вернули в другой статус — очищаем дату выдачи.
+        if field_value == 'completed':
+            if not order.completed_at:
+                order.completed_at = timezone.now()
+        else:
+            order.completed_at = None
 
     elif field_name == 'ready_datetime':
         # Пустое значение не принимаем — поле обязательное.
@@ -1102,6 +1111,9 @@ def api_update_order(request, order_id):
     elif field_name == 'payer_type':
         update_fields.append('payment_method')
         update_fields.append('invoice_number')
+    elif field_name == 'status':
+        # Если меняли статус — нужно сохранить и completed_at
+        update_fields.append('completed_at')
 
     try:
         order.save(update_fields=update_fields)
@@ -1949,11 +1961,19 @@ def download_backup(request):
     Генерирует ZIP-архив со всей базой и отдает на скачивание.
     """
     try:
+        # Импортируем datetime для формирования имени файла
+        from datetime import datetime
+        
         zip_buffer = create_backup_zip()
+        
+        # Формируем красивое имя: beauty_print_backup_2026-11-02_15-30.zip
+        date_str = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        filename = f'beauty_print_backup_{date_str}.zip'
+        
         response = FileResponse(
             zip_buffer, 
             as_attachment=True, 
-            filename='beauty_print_backup.zip',
+            filename=filename,
             content_type='application/zip'
         )
         return response

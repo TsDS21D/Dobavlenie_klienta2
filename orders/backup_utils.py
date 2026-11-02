@@ -143,8 +143,8 @@ def serialize_data():
             'completed_at': o.completed_at.isoformat() if o.completed_at else None,
             'ready_datetime': o.ready_datetime.isoformat() if o.ready_datetime else None,
             'comment': o.comment, 'created_at': o.created_at.isoformat() if o.created_at else None,
-            'updated_at': o.updated_at.isoformat() if o.updated_at else None, # <--- ДОБАВИЛИ
-            'is_deleted': o.get('is_deleted', False), 'products': []
+            'updated_at': o.updated_at.isoformat() if o.updated_at else None,
+            'is_deleted': o.is_deleted, 'products': []  # <--- Убрали .get(), поставили o.is_deleted
         }
         for prod in o.products.all():
             prod_data = {

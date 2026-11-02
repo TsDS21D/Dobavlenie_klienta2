@@ -464,6 +464,9 @@ JavaScript секции «Список заказов» страницы /orders
         const orderId = card.dataset.orderId;
         if (!orderId) return;
 
+        // Дополнительная страховка: не даем редактировать дату у выданных заказов
+        if (card.dataset.status === 'completed') return;
+
         const field = cell.dataset.field;
 
         if (field === 'client')         activateClientEdit(cell, orderId, card.dataset.clientId || '');

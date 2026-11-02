@@ -957,10 +957,13 @@ orders/templates/orders/sections/_order_rows.html
                     </select>
                 </div>
 
-                <div class="list-orders-card-ready editable-cell"
-                     data-field="ready_datetime"
-                     data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
-                    {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                <div class="list-orders-card-ready" 
+                     title="Дата фактической выдачи">
+                    {% if order.completed_at %}
+                        {{ order.completed_at|date:"d.m.Y H:i" }}
+                    {% else %}
+                        {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                    {% endif %}
                 </div>
 
                 <div class="list-orders-card-meta">
