@@ -280,6 +280,13 @@ class Order(models.Model):
         default=False,
         help_text='Отмечается, если курьер на эту доставку уже заказан'
     )
+    # Дата и время фактической выдачи заказа (когда перевели в статус 'completed')
+    completed_at = models.DateTimeField(
+        verbose_name='Дата выдачи',
+        null=True,
+        blank=True,
+        help_text='Автоматически заполняется при переводе заказа в статус "Выдан"'
+    )
 
     # Дата и время готовности.
     # Дефолт — 15:00 следующего рабочего дня (см. default_ready_datetime).
@@ -387,6 +394,7 @@ class Order(models.Model):
         """
         Переопределённый метод сохранения.
         Генерирует номер ORD-N, если поле number пустое.
+        Фиксирует время выдачи при смене статуса.
         """
         # Если номер не задан (пустая строка или None) — сгенерировать.
         if not self.number or self.number.strip() == '':
@@ -404,20 +412,25 @@ class Order(models.Model):
                 max_num = 0
                 for num_str in existing:
                     try:
-                        # Отрезаем префикс "ORD-" и берём число.
                         num_part = num_str.split('-')[1]
                         current_num = int(num_part)
                         if current_num > max_num:
                             max_num = current_num
                     except (ValueError, IndexError, AttributeError):
-                        # Если строка битая — просто пропускаем её.
                         continue
 
-                # Формируем следующий номер.
                 self.number = f"ORD-{max_num + 1}"
             except Exception:
-                # Запасной вариант — просто количество + 1.
                 self.number = f"ORD-{Order.objects.count() + 1}"
+
+        # --- ЛОГИКА ДАТЫ ВЫДАЧИ ---
+        if self.status == self.STATUS_COMPLETED:
+            # Если заказ выдан и дата выдачи пуста — ставим текущее время
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+        else:
+            # Если заказ вернули в работу — очищаем дату выдачи
+            self.completed_at = None
 
         # Вызываем оригинальный save() — сохраняем в БД.
         super().save(*args, **kwargs)

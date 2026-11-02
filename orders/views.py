@@ -84,7 +84,14 @@ def index(request):
     # ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
     # Выданных может быть сотни. Отдаём сразу только 10, остальные — по кнопке
     # «Далее» (см. api_rows). При перезагрузке страницы снова 10.
-    all_completed = [o for o in orders if o.status == 'completed']
+    # Выданные заказы сортируем по дате фактической выдачи (completed_at).
+    # Если дата выдачи не указана (старые заказы) — используем дату обновления (updated_at).
+    # Сначала самые свежие (reverse=True).
+    all_completed = sorted(
+        [o for o in orders if o.status == 'completed'], 
+        key=lambda o: (o.completed_at or o.updated_at or o.created_at), 
+        reverse=True
+    )
     total_completed_count = len(all_completed)
     completed_limit = 10
     orders_completed = all_completed[:completed_limit]
@@ -737,8 +744,17 @@ def api_rows(request):
         .order_by('-created_at')
     )
 
-    # Все выданные — для подсчёта общего. Отдаём шаблону только N первых.
-    all_completed = [o for o in orders if o.status == 'completed']
+    # ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
+    # Выданных может быть сотни. Отдаём сразу только 10, остальные — по кнопке
+    # «Далее» (см. api_rows). При перезагрузке страницы снова 10.
+    # Выданные заказы сортируем по дате фактической выдачи (completed_at).
+    # Если дата выдачи не указана (старые заказы) — используем дату обновления (updated_at).
+    # Сначала самые свежие (reverse=True).
+    all_completed = sorted(
+        [o for o in orders if o.status == 'completed'], 
+        key=lambda o: (o.completed_at or o.updated_at or o.created_at), 
+        reverse=True
+    )
     total_completed_count = len(all_completed)
     orders_completed = all_completed[:completed_limit]
 

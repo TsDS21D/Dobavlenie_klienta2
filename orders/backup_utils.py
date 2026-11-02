@@ -140,9 +140,11 @@ def serialize_data():
             'delivery_date': o.delivery_date.isoformat() if o.delivery_date else None,
             'delivery_address': o.delivery_address, 'delivery_phone': o.delivery_phone,
             'delivery_status': o.delivery_status, 'is_courier_ordered': o.is_courier_ordered,
+            'completed_at': o.completed_at.isoformat() if o.completed_at else None,
             'ready_datetime': o.ready_datetime.isoformat() if o.ready_datetime else None,
             'comment': o.comment, 'created_at': o.created_at.isoformat() if o.created_at else None,
-            'is_deleted': o.is_deleted, 'products': []
+            'updated_at': o.updated_at.isoformat() if o.updated_at else None, # <--- ДОБАВИЛИ
+            'is_deleted': o.get('is_deleted', False), 'products': []
         }
         for prod in o.products.all():
             prod_data = {
@@ -248,6 +250,8 @@ from devices.models import Printer, Laminator
 from sklad.models import Material
 from spravochnik_dopolnitelnyh_rabot.models import Work
 from vichisliniya_listov.multipage_models import MultipageBinding
+from shablony_proschetov.models import ProschetTemplate
+
 
 # ============================================================================
 # ФУНКЦИЯ ВОССТАНОВЛЕНИЯ ИЗ ZIP
@@ -280,11 +284,27 @@ def restore_from_zip(zip_file, mode='merge'):
         
         # 2. РЕЖИМ ПОЛНОЙ ЗАМЕНЫ (Hard Delete)
         if mode == 'replace':
-            # ФИЗИЧЕСКИ удаляем все текущие заказы и просчёты.
-            # Благодаря on_delete=models.CASCADE в моделях, 
-            # все связанные изделия (Product) и компоненты удалятся автоматически.
-            Order.objects.all().delete()
-            Proschet.objects.all().delete()
+            from django.db import connection
+            
+            # Используем прямой SQL-запрос TRUNCATE ... CASCADE.
+            # Это самый надежный способ физически очистить все связанные таблицы
+            # (Order, Product, Proschet, PrintComponent и все снимки/расчеты),
+            # игнорируя ограничения внешних ключей, которые могут не иметь CASCADE.
+            if connection.vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    # CASCADE автоматически удалит данные во всех таблицах, 
+                    # которые ссылаются на orders_order и calculator_proschet
+                    cursor.execute("TRUNCATE TABLE orders_order, calculator_proschet CASCADE;")
+            else:
+                # Запасной вариант для локальной разработки на SQLite
+                # (если у вас локально не Postgres)
+                try:
+                    from vichisliniya_listov.models import ComponentCalculatedCirculation
+                    ComponentCalculatedCirculation.objects.all().delete()
+                except ImportError:
+                    pass
+                Order.objects.all().delete()
+                Proschet.objects.all().delete()
 
         # 3. ВОССТАНОВЛЕНИЕ КЛИЕНТОВ И СВЯЗАННЫХ ДАННЫХ
         for c in data.get('clients', []):
@@ -335,7 +355,8 @@ def restore_from_zip(zip_file, mode='merge'):
                     'comment': p.get('comment', ''),
                     # Пока ставим None, привяжем к заказу позже (если он есть)
                     'source_order_id': None, 
-                    'source_template_id': p.get('source_template_id'), # Шаблоны пропускаем, если их нет
+                    # Применяем защиту: если шаблона нет в базе, ставим None
+                    'source_template_id': get_safe_id(ProschetTemplate, p.get('source_template_id')),
                     'is_deleted': p.get('is_deleted', False)
                 }
             )[0]
@@ -471,10 +492,19 @@ def restore_from_zip(zip_file, mode='merge'):
                     'is_courier_ordered': o.get('is_courier_ordered', False),
                     'ready_datetime': parse_datetime(o['ready_datetime']) if o.get('ready_datetime') else None,
                     'comment': o.get('comment', ''),
-                    'created_at': parse_datetime(o['created_at']) if o.get('created_at') else None,
                     'is_deleted': o.get('is_deleted', False)
                 }
             )[0]
+            # ПРИНУДИТЕЛЬНО обновляем даты через .update(), чтобы обойти auto_now/auto_now_add
+            time_updates = {}
+            if o.get('created_at'):
+                time_updates['created_at'] = parse_datetime(o['created_at'])
+            if o.get('updated_at'):
+                time_updates['updated_at'] = parse_datetime(o['updated_at'])
+            if time_updates:
+                Order.objects.filter(id=order.id).update(**time_updates)
+            if o.get('completed_at'):
+                time_updates['completed_at'] = parse_datetime(o['completed_at'])                
             
             # Восстанавливаем изделия заказа
             for prod in o.get('products', []):
@@ -484,7 +514,8 @@ def restore_from_zip(zip_file, mode='merge'):
                         'order_id': order.id,
                         # Привязываем к просчёту, если он восстановился
                         'source_proschet_id': get_safe_id(Proschet, prod.get('source_proschet_id')),
-                        'source_template_id': prod.get('source_template_id'),
+                        # Та же защита для шаблона
+                        'source_template_id': get_safe_id(ProschetTemplate, prod.get('source_template_id')),
                         'title': prod.get('title'),
                         'circulation': prod.get('circulation', 1),
                         'position': prod.get('position', 1),
