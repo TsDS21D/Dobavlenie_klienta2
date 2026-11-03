@@ -3154,7 +3154,6 @@ function handleStatusChange(event) {
     });
 
     // Функция для отрисовки схемы одного компонента на листе
-    // Функция для отрисовки схемы одного компонента на листе
     function drawOrderComponentViz(comp) {
         const canvases = document.querySelectorAll(`.order-viz-canvas[data-comp-id="${comp.id}"]`);
         if (canvases.length === 0) return;
@@ -3192,16 +3191,13 @@ function handleStatusChange(event) {
 
         canvases.forEach(canvas => {
             const isBack = canvas.dataset.side === 'back';
-            const fill = isBack ? isDuplex : true; // Оборот заливаем только если дуплекс
+            const fill = isBack ? isDuplex : true;
 
-            // Определяем, ламинирована ли эта сторона
             const isLaminated = !!comp.lamination;
             const isLamDuplex = isLaminated && comp.lamination.side === 'duplex';
             const shouldLaminate = isBack ? isLamDuplex : isLaminated;
             
             const ctx = canvas.getContext('2d');
-            // Увеличиваем размер схем (было 150). 
-            // 240 — это тот же размер, который используется на странице /proschety/.
             const MAX = 240; 
             const PADDING = 4;
 
@@ -3210,7 +3206,6 @@ function handleStatusChange(event) {
                 return;
             }
 
-            // Масштабируем под пропорции листа
             const maxSheetDim = Math.max(sheetW, sheetH);
             const scale = (MAX - 2 * PADDING) / maxSheetDim;
 
@@ -3218,7 +3213,6 @@ function handleStatusChange(event) {
             canvas.height = Math.round(sheetH * scale + 2 * PADDING);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
             ctx.save();
             ctx.translate(PADDING, PADDING);
 
@@ -3234,21 +3228,14 @@ function handleStatusChange(event) {
             ctx.setLineDash([]);
 
             // Цвета
-            // Определяем цвета в зависимости от типа компонента:
-            // - Многостраничные (isMultipage) — голубые тона (в тон карточке --multi)
-            // - Одностраничные — зелёные тона (фирменный #0B8661)
             let fillColor, strokeColor;
-            
             if (isMultipage) {
-                // Голубая палитра для многостраничных изделий (как на странице /proschety/)
                 fillColor   = fill ? (isColor ? 'rgba(42, 111, 201, 0.2)' : 'rgba(200, 200, 200, 0.4)') : 'transparent';
                 strokeColor = fill ? (isColor ? '#2a6fc9' : '#999999') : '#b3cce6';
             } else {
-                // Зелёная палитра для одностраничных изделий (фирменный стиль)
                 fillColor   = fill ? (isColor ? 'rgba(11, 134, 97, 0.18)' : 'rgba(200, 200, 200, 0.4)') : 'transparent';
                 strokeColor = fill ? (isColor ? '#0B8661' : '#999999') : '#cccccc';
             }
-            
             ctx.fillStyle = fillColor;
             ctx.strokeStyle = strokeColor;
             ctx.lineWidth = 0.5;
@@ -3260,12 +3247,31 @@ function handleStatusChange(event) {
                 let spreadWidthBase = (bookletOrient === 'portrait') ? itemW * 2 : itemW;
                 let spreadHeightBase = (bookletOrient === 'portrait') ? itemH : itemH * 2;
 
-                let spreadWidth = isPortraitPlacement ? spreadHeightBase : spreadWidthBase;
-                let spreadHeight = isPortraitPlacement ? spreadWidthBase : spreadHeightBase;
+                let spreadWidth = spreadWidthBase;
+                let spreadHeight = spreadHeightBase;
 
+                // Определяем, как ориентирован лист по факту.
+                // Если пользователь выбрал 'auto', мы должны сами понять, 
+                // как лучше разместить разворот на листе.
+                let isPortraitPlacement = (effectiveOrient === 'portrait');
+                if (effectiveOrient === 'auto') {
+                    isPortraitPlacement = (spreadWidthBase > spreadHeightBase);
+                }
+                
+                // Если нужно "положить" разворот на лист портретно, 
+                // мы физически меняем его местами (ширина становится высотой)
+                if (isPortraitPlacement) {
+                    let temp = spreadWidth;
+                    spreadWidth = spreadHeight;
+                    spreadHeight = temp;
+                }
+
+                // Как ориентированы страницы внутри разворота.
                 const originalPagePlacement = (bookletOrient === 'portrait') ? 'horizontal' : 'vertical';
-                const effectivePagePlacement = isPortraitPlacement ? (originalPagePlacement === 'horizontal' ? 'vertical' : 'horizontal') : originalPagePlacement;
-
+                const effectivePagePlacement = isPortraitPlacement 
+                    ? (originalPagePlacement === 'horizontal' ? 'vertical' : 'horizontal') 
+                    : originalPagePlacement;
+                
                 const effectivePageW = isPortraitPlacement ? itemH : itemW;
                 const effectivePageH = isPortraitPlacement ? itemW : itemH;
 
@@ -3275,6 +3281,7 @@ function handleStatusChange(event) {
                         const y = margin + r * (spreadHeight + vyleta);
 
                         if (effectivePagePlacement === 'horizontal') {
+                            // Две страницы рядом (вертикальная брошюра).
                             const leftX = x;
                             const rightX = x + effectivePageW;
                             const pageY = y;
@@ -3293,6 +3300,7 @@ function handleStatusChange(event) {
                             ctx.beginPath(); ctx.arc((x + effectivePageW) * scale, (y + effectivePageH * 0.75) * scale, 1.5, 0, Math.PI * 2); ctx.fill();
                             ctx.restore();
                         } else {
+                            // Две страницы друг над другом (альбомная брошюра).
                             const topY = y;
                             const bottomY = y + effectivePageH;
                             const pageX = x;
