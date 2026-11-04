@@ -436,9 +436,9 @@ JavaScript секции «Просчёт» новой страницы /proschet
         input.type = 'number';
         input.className = 'proschet-inline-input';
         input.value = original;
-        input.min = '0';
+        input.min = '-100';
         input.max = '100';
-        input.step = '0.01';
+        input.step = '1';
         discountSpan.appendChild(input);
 
         input.focus();
@@ -450,8 +450,8 @@ JavaScript секции «Просчёт» новой страницы /proschet
             if (e.key === 'Enter') {
                 e.preventDefault();
                 if (finished) return;
-                finished = true;
-                saveDiscount(input, original);
+                // Если saveDiscount вернул true, значит сохранение пошло, блокируем поле
+                if (saveDiscount(input, original)) finished = true;
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 if (finished) return;
@@ -463,8 +463,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         input.addEventListener('blur', function () {
             setTimeout(function () {
                 if (finished) return;
-                finished = true;
-                saveDiscount(input, original);
+                if (saveDiscount(input, original)) finished = true;
             }, 100);
         });
     }
@@ -474,7 +473,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
         if (newValue === String(original)) {
             cancelDiscount(original);
-            return;
+            return true; // Закрываем поле, так как ничего не изменилось
+        }
+
+        if (newValue !== '' && !/^-?\d+$/.test(newValue)) {
+            showNotification('Скидка должна быть целым числом', 'error');
+            input.focus();
+            return false; // НЕ закрываем поле, даем исправить
         }
 
         discountSpan.innerHTML = '<span class="proschet-inline-saving">Сохранение...</span>';
@@ -493,28 +498,21 @@ JavaScript секции «Просчёт» новой страницы /proschet
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.success) {
-                // Если вернулось пустое значение — значит, теперь берется скидка клиента.
-                // Для отображения мы можем просто показать скидку клиента (если она есть), либо 0.
                 let displayVal = data.discount;
                 if (displayVal === '') {
-                    // Пытаемся взять из данных клиента (нужно будет получить, но пока просто напишем "клиент")
-                    // В идеале нужно дергать API, но проще показать текущую скидку клиента, если мы её знаем.
-                    // Пока просто выведем прочерк, чтобы было понятно, что это авто.
-                    // Можно доработать: если data.discount пустое, то запрашивать данные клиента.
-                    // Но для простоты просто выведем "авто".
                     displayVal = 'авто';
                     activeProschet.discount = ''; 
                 } else {
+                    // Округляем для отображения на всякий случай
+                    displayVal = parseInt(displayVal, 10);
                     activeProschet.discount = displayVal;
                 }
                 discountSpan.textContent = displayVal === 'авто' ? 'авто' : displayVal + '%';
                 showNotification('Скидка обновлена', 'success');
                 notifyChange(activeProschet.id, 'discount');
                 
-                // Перезагружаем компоненты (карточки)
                 loadComponents(activeProschet.id);
                 
-                // ВАЖНО: принудительно обновляем блок итогов и все остальные цены
                 document.dispatchEvent(new CustomEvent('proschetComponentsRendered', {
                     detail: { proschetId: String(activeProschet.id) }
                 }));
@@ -528,6 +526,8 @@ JavaScript секции «Просчёт» новой страницы /proschet
             discountSpan.textContent = original || '—';
             showNotification('Ошибка сети', 'error');
         });
+        
+        return true; // Разрешаем родителю установить finished = true
     }
 
     function cancelDiscount(original) {

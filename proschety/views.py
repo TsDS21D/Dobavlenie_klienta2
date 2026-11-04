@@ -197,10 +197,10 @@ def api_proschet_detail(request, proschet_id):
 
     # Приоритет 1: Ручная скидка
     if proschet.discount_override is not None:
-        discount = str(proschet.discount_override)
+        discount = str(int(proschet.discount_override))  # <--- ДОБАВИЛИ int()
     # Приоритет 2: Скидка клиента
     elif proschet.client and proschet.client.discount is not None:
-        discount = str(proschet.client.discount)
+        discount = str(int(proschet.client.discount))    # <--- ДОБАВИЛИ int()
     else:
         discount = ''
     
@@ -269,9 +269,10 @@ from calculator.views import (
 
 def apply_discount(price, discount_percent):
     """Вспомогательная функция для применения скидки к числу."""
-    if not discount_percent or discount_percent <= 0:
+    if not discount_percent: # Убрали проверку "<= 0"
         return price
     return price * (1 - float(discount_percent) / 100.0)
+
 
 def get_proschet_discount(proschet):
     """
@@ -303,7 +304,7 @@ def api_price_data_with_discount(request, proschet_id):
     discount = get_proschet_discount(proschet)
 
     # 3. Применяем скидку ко всем числовым полям
-    if discount > 0:
+    if discount != 0:  # <--- ИЗМЕНЕНО С > 0 НА != 0
         # Итоговая сумма
         if 'summary' in data and 'total_price' in data['summary']:
             orig_total = float(data['summary']['total_price'])
@@ -346,7 +347,7 @@ def api_print_components_with_discount(request, proschet_id):
     proschet = Proschet.objects.get(id=proschet_id)
     discount = get_proschet_discount(proschet)
 
-    if discount > 0:
+    if discount != 0:  # <--- ИЗМЕНЕНО С > 0 НА != 0
         for comp in data.get('components', []):
             comp['original_price_per_sheet'] = float(comp['price_per_sheet'])
             comp['price_per_sheet'] = str(apply_discount(float(comp['price_per_sheet']), discount))
@@ -405,7 +406,7 @@ def api_additional_works_with_discount(request, component_id):
     comp = PrintComponent.objects.get(id=component_id)
     discount = get_proschet_discount(comp.proschet)
 
-    if discount > 0:
+    if discount != 0:  # <--- ИЗМЕНЕНО С > 0 НА != 0
         for work in data.get('works', []):
             work['original_total_price'] = float(work['total_price'])
             work['total_price'] = str(apply_discount(float(work['total_price']), discount))
@@ -429,9 +430,14 @@ def update_proschet_discount(request, proschet_id):
         proschet.discount_override = None
     else:
         try:
-            val = float(new_discount)
-            if val < 0 or val > 100:
-                return JsonResponse({'success': False, 'message': 'Скидка должна быть от 0 до 100%'}, status=400)
+            # Округляем до целого числа (отбрасываем дробную часть)
+            val = int(float(new_discount))
+            
+            # Разрешаем отрицательные значения (наценка).
+            # Ограничиваем разумными пределами от -100% (двойная цена) до 100% (бесплатно).
+            if val < -100 or val > 100:
+                return JsonResponse({'success': False, 'message': 'Скидка должна быть от -100 до 100%'}, status=400)
+                
             proschet.discount_override = Decimal(str(val))
         except ValueError:
             return JsonResponse({'success': False, 'message': 'Некорректное число'}, status=400)

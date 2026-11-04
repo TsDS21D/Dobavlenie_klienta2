@@ -62,6 +62,8 @@ JavaScript секции «Список заказов» страницы /orders
     // при быстрой серии WebSocket-событий.
     let deliveryTodayFetching = false;
 
+    let restoreDone = false;
+
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ.
     // ========================================================================
@@ -149,6 +151,7 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('change', handleClientSelectChange);
         // --- WebSocket для реактивности ---
         initToastsWebSocket();
+        restoreToasts();
 
         // --- Плашки «Доставка на сегодня» ---
         // Контейнер в левом верхнем углу. Список грузим сразу при загрузке
@@ -1154,7 +1157,7 @@ JavaScript секции «Список заказов» страницы /orders
                 showToast(data);
             }
         };
-        
+
         toastsWebSocket.onclose = function () {
             console.warn('WebSocket /ws/orders/ закрыт, переподключение через 3 сек.');
             setFaviconStatus('offline'); // Сокет закрыт - иконка красная
@@ -3605,9 +3608,12 @@ function handleStatusChange(event) {
 
         // Создаём input.
         const input = document.createElement('input');
-        input.type = 'text';
+        input.type = 'number'; // <--- ИЗМЕНЕНО
         input.className = 'list-orders-tovar-inline-input';
         input.value = originalValue;
+        input.min = '-100';    // <--- ДОБАВЛЕНО
+        input.max = '100';     // <--- ДОБАВЛЕНО
+        input.step = '1';      // <--- ДОБАВЛЕНО
 
         cell.classList.add('editing-cell');
         cell.innerHTML = '';
@@ -3623,6 +3629,14 @@ function handleStatusChange(event) {
             finished = true;
 
             const newValue = input.value.trim();
+
+            // НОВОЕ: Проверка на целое число
+            if (newValue !== '' && !/^-?\d+$/.test(newValue)) {
+                showNotification('Значение должно быть целым числом', 'error');
+                input.focus();
+                return;
+            }
+
             if (newValue === String(originalValue)) {
                 cell.classList.remove('editing-cell');
                 cell.textContent = originalText;
@@ -3709,4 +3723,20 @@ function handleStatusChange(event) {
             overlay.style.display = 'flex';
         }
     });
+
+    /**
+     * Восстанавливает уведомления, сохраненные в sessionStorage 
+     * (например, при создании заказа из просчёта).
+     */
+    function restoreToasts() {
+        const pending = JSON.parse(sessionStorage.getItem('pending_order_toasts') || '[]');
+        if (pending.length > 0) {
+            pending.forEach(function(data) {
+                // showToast уже определен в этом файле
+                showToast(data); 
+            });
+            sessionStorage.removeItem('pending_order_toasts');
+        }
+    }
+
 })();

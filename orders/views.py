@@ -234,6 +234,9 @@ def api_create_order_from_proschet(request):
         )
 
     # --- Успех ---
+    # Отправляем WebSocket-событие «заказ создан».
+    _send_order_event('created', order, request)
+
     return JsonResponse({
         'success': True,
         'order_id': order.id,
@@ -307,6 +310,8 @@ def api_add_to_order(request):
         )
 
     # --- Успех ---
+    # Отправляем WebSocket-событие «заказ обновлён».
+    _send_order_event('updated', order, request)
     return JsonResponse({
         'success': True,
         'order_id': order.id,
@@ -2222,12 +2227,16 @@ def api_update_order_tovar(request, tovar_id):
             order_tovar.discount_source = OrderTovar.DISCOUNT_SOURCE_CLIENT
         else:
             try:
-                disc = Decimal(str(field_value))
+                # Округляем до целого числа
+                disc = int(float(str(field_value)))
             except (ValueError, ArithmeticError):
                 return JsonResponse({'success': False, 'error': 'Некорректная скидка'}, status=400)
-            if disc < 0 or disc > 100:
-                return JsonResponse({'success': False, 'error': 'Скидка должна быть от 0 до 100'}, status=400)
-            order_tovar.discount = disc
+            
+            # Разрешаем от -100 (наценка 100%) до 100 (бесплатно)
+            if disc < -100 or disc > 100:
+                return JsonResponse({'success': False, 'error': 'Скидка должна быть от -100 до 100%'}, status=400)
+            
+            order_tovar.discount = Decimal(str(disc))
             order_tovar.discount_source = OrderTovar.DISCOUNT_SOURCE_MANUAL
     else:
         return JsonResponse({'success': False, 'error': f'Поле "{field_name}" не поддерживается'}, status=400)

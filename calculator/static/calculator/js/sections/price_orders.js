@@ -85,56 +85,45 @@ calculator/static/calculator/js/sections/price_orders.js
     }
 
     /**
-     * Показывает всплывающее уведомление в правом верхнем углу.
-     * Стиль — минимальный, чтобы не конфликтовать с существующими.
-     *
-     * @param {string} message — текст сообщения.
-     * @param {string} type — 'success' | 'error' | 'warning' | 'info'.
+     * Показывает кратковременное уведомление в левом верхнем углу.
+     * Стилизовано под новую страницу /proschety/.
      */
     function showNotification(message, type) {
-        // Цвет и иконка по типу сообщения.
-        var bg = '#2196F3';        // синий по умолчанию
-        var icon = 'ℹ️';
-        if (type === 'success') { bg = '#0B8661'; icon = '✅'; }
-        else if (type === 'error') { bg = '#e74c3c'; icon = '❌'; }
-        else if (type === 'warning') { bg = '#f39c12'; icon = '⚠️'; }
+        const container = document.getElementById('proschety-top-notifications');
+        if (!container) return;
 
-        // Создаём контейнер уведомления.
-        var box = document.createElement('div');
-        box.style.cssText = [
-            'position: fixed',
-            'top: 20px',
-            'right: 20px',
-            'max-width: 340px',
-            'padding: 12px 18px',
-            'background: ' + bg,
-            'color: #fff',
-            'border-radius: 8px',
-            'box-shadow: 0 6px 20px rgba(0,0,0,0.2)',
-            'font-family: inherit',
-            'font-size: 1rem',
-            'z-index: 10000',
-            'opacity: 0',
-            'transition: opacity 0.25s ease',
-            'cursor: pointer'
-        ].join(';');
-        box.textContent = icon + ' ' + message;
-        document.body.appendChild(box);
+        const box = document.createElement('div');
+        box.className = 'proschety-top-notification';
+        if (type === 'error')   box.classList.add('proschety-top-notification-error');
+        if (type === 'warning') box.classList.add('proschety-top-notification-warning');
+        box.textContent = message;
+        container.appendChild(box);
 
-        // Плавное появление.
-        setTimeout(function () { box.style.opacity = '1'; }, 20);
-
-        // Автоскрытие через 5 секунд (или раньше — по клику).
-        var hide = function () {
-            box.style.opacity = '0';
+        function hide() {
+            box.classList.add('proschety-top-notification-out');
             setTimeout(function () {
                 if (box.parentNode) box.parentNode.removeChild(box);
             }, 300);
-        };
+        }
         box.addEventListener('click', hide);
-        setTimeout(hide, 5000);
+        setTimeout(hide, 2500);
     }
 
+    /**
+     * Сохраняет событие в sessionStorage, чтобы после перезагрузки
+     * на странице /orders/ показать его в левом нижнем углу.
+     */
+    function queueOrderToast(orderNumber, orderId) {
+        const toast = {
+            event: 'created',
+            actor_username: 'Система', // или можно передать имя текущего пользователя
+            order_number: orderNumber,
+            order_id: orderId
+        };
+        let pending = JSON.parse(sessionStorage.getItem('pending_order_toasts') || '[]');
+        pending.push(toast);
+        sessionStorage.setItem('pending_order_toasts', JSON.stringify(pending));
+    }
 
     // ========================================================================
     // 3. КНОПКА «СОЗДАТЬ НОВЫЙ ЗАКАЗ»
@@ -172,9 +161,12 @@ calculator/static/calculator/js/sections/price_orders.js
                 showNotification('Ошибка: ' + (data.error || 'неизвестная ошибка'), 'error');
                 return;
             }
-            // Успех — показываем сообщение и через полсекунды уходим
-            // на страницу заказов, где пользователь отредактирует комментарий.
+            // Успех — показываем сообщение
             showNotification('Заказ ' + data.order_number + ' создан', 'success');
+            
+            // Сохраняем событие для страницы /orders/
+            queueOrderToast(data.order_number, data.order_id);
+
             setTimeout(function () {
                 window.location.href = '/orders/?expanded_order=' + data.order_id;
             }, 600);
@@ -387,9 +379,11 @@ calculator/static/calculator/js/sections/price_orders.js
                 return;
             }
             // Успех — закрываем модалку, показываем сообщение
-            // и через полсекунды уходим на страницу заказов.
             if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
             showNotification('Изделие добавлено в заказ ' + data.order_number, 'success');
+            
+            queueOrderToast(data.order_number, data.order_id);
+
             setTimeout(function () {
                 window.location.href = '/orders/?expanded_order=' + data.order_id;
             }, 600);

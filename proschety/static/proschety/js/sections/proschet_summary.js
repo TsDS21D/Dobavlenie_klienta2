@@ -231,7 +231,7 @@ JavaScript блока «Итоги просчёта».
             unitPriceEl.textContent = formatMoney(unitPrice);
         }
 
-        if (discountPercent > 0) {
+        if (discountPercent !== 0) { // <--- ИЗМЕНЕНО С > 0 НА !== 0
             if (priceLabel) priceLabel.textContent = 'К оплате:';
             if (priceEl) priceEl.textContent = formatMoney(finalTotalPrice);
             
@@ -239,11 +239,16 @@ JavaScript блока «Итоги просчёта».
                 discountBlock.style.display = 'inline-flex';
                 if (discountPercentEl) discountPercentEl.textContent = discountPercent;
                 if (discountAmountEl) {
+                    // originalTotalPrice - rawTotalPrice
+                    // Если скидка -7%, то rawTotalPrice больше originalTotalPrice.
+                    // Разница будет отрицательной (например, -100). Покажем её как есть или возьмем по модулю.
+                    // Оставим математически верно (минус на минус даст плюс при отображении).
                     const discountAmount = originalTotalPrice - rawTotalPrice;
                     discountAmountEl.textContent = formatMoney(discountAmount);
                 }
             }
         } else {
+            // Если скидка 0% — скрываем блок
             if (priceLabel) priceLabel.textContent = 'К оплате:';
             if (priceEl) priceEl.textContent = formatMoney(finalTotalPrice);
             if (discountBlock) discountBlock.style.display = 'none';

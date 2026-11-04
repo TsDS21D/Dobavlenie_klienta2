@@ -923,9 +923,12 @@
 
         // Создаём поле ввода
         const input = document.createElement('input');
-        input.type = 'text';
+        input.type = 'number'; // <--- ИЗМЕНЕНО
         input.className = 'list-orders-tovar-inline-input';
         input.value = originalValue;
+        input.min = '-100';    // <--- ДОБАВЛЕНО
+        input.max = '100';     // <--- ДОБАВЛЕНО
+        input.step = '1';      // <--- ДОБАВЛЕНО
 
         cell.classList.add('editing-cell');
         cell.innerHTML = '';
@@ -938,6 +941,14 @@
         // Функция сохранения
         const save = () => {
             if (finished) return;
+
+            // НОВОЕ: Проверка на целое число
+            if (newValue !== '' && !/^-?\d+$/.test(newValue)) {
+                showNotification('Значение должно быть целым числом', 'error');
+                input.focus();
+                return;
+            }
+
             finished = true;
 
             const newValue = input.value.trim();
