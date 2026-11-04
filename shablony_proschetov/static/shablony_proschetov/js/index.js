@@ -744,7 +744,11 @@ var tplApp = {
                     throw new Error(data.error || 'Ошибка создания просчёта');
                 }
                 console.log('✅ Просчёт создан:', data.proschet_id);
-                window.location.href = '/calculator/?proschet_id=' + data.proschet_id;
+                // Редирект на новую страницу просчётов.
+                // list_proschet.js на странице /proschety/ сам прочитает
+                // параметр proschet_id из URL, найдет эту строку в таблице,
+                // прокрутит к ней, выделит её и загрузит данные в блоки.
+                window.location.href = '/proschety/?proschet_id=' + data.proschet_id;
             })
             .catch(function (err) {
                 console.error('Ошибка создания просчёта:', err);

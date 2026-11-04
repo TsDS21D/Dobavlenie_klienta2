@@ -233,17 +233,6 @@
 <!-- Контейнер для всех панелей навигации -->
 <div class="app-nav-container">
     
-    <!-- Панель калькулятора -->
-    <div class="nav-panel nav-calculator">
-        <div class="nav-info">
-            <strong>Калькулятор заказов</strong>
-            <div>Расчет стоимости печати</div>
-        </div>
-        <a href="{% url 'calculator:index' %}" 
-           class="nav-btn {% if active_app == 'calculator' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
-            {% if active_app == 'calculator' %}На экране{% else %}Открыть{% endif %}
-        </a>
-    </div>
     <!-- Панель просчётов -->
     <div class="nav-panel nav-proschety">
         <div class="nav-info">
@@ -256,18 +245,6 @@
         </a>
     </div>
 
-    <!-- Панель списка заказов -->
-    <div class="nav-panel nav-counter">
-        <div class="nav-info">
-            <strong>Список заказов</strong>
-            <div>Управление и отслеживание</div>
-        </div>
-        <a href="{% url 'index' %}" 
-           class="nav-btn {% if active_app == 'counter' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
-            {% if active_app == 'counter' %}На экране{% else %}Открыть{% endif %}
-        </a>
-    </div>
-    
     <!-- Панель заказов и изделий -->
     <div class="nav-panel nav-orders">
         <div class="nav-info">
@@ -355,6 +332,31 @@
         <button type="button" id="btn-restore-full-replace" class="nav-btn" style="background: #fdecea; color: #a03a35; border: 1px solid #a03a35; font-size: 0.75rem; padding: 5px 8px;">
             Заменить всё
         </button>
+    </div>
+
+    <!-- СКРЫВАЕМЫЕ ПАНЕЛИ СТАРОГО ИНТЕРФЕЙСА -->
+    <!-- Панель калькулятора -->
+    <div class="nav-panel nav-calculator backup-panel-content" style="display: none;">
+        <div class="nav-info">
+            <strong>Калькулятор заказов</strong>
+            <div>Расчет стоимости печати</div>
+        </div>
+        <a href="{% url 'calculator:index' %}" 
+           class="nav-btn {% if active_app == 'calculator' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'calculator' %}На экране{% else %}Открыть{% endif %}
+        </a>
+    </div>
+
+    <!-- Панель списка заказов -->
+    <div class="nav-panel nav-counter backup-panel-content" style="display: none;">
+        <div class="nav-info">
+            <strong>Список заказов</strong>
+            <div>Управление и отслеживание</div>
+        </div>
+        <a href="{% url 'index' %}" 
+           class="nav-btn {% if active_app == 'counter' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'counter' %}На экране{% else %}Открыть{% endif %}
+        </a>
     </div>
 
 </div>

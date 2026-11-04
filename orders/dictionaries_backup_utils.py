@@ -55,6 +55,18 @@ from shablony_proschetov.models import (
     TemplateMultipage,
 )
 
+# ===== СПРАВОЧНИКИ — ВЕБ-КАЛЬКУЛЯТОРЫ =====
+from web_calculators.models import (
+    WebCalculator,
+    WebCalculatorComponent,
+    WebCalculatorComponentFilm,
+    WebCalculatorComponentPaper,
+    WebCalculatorComponentWork,
+    WebCalculatorCirculationPreset,
+    WebCalculatorQuantityPreset,
+    WebCalculatorSizePreset,
+)
+
 
 def serialize_dictionaries():
     """
@@ -92,6 +104,15 @@ def serialize_dictionaries():
             'template_laminates': [],
             'template_vichisliniya': [],
             'template_multipage': [],
+            # ВЕБ-КАЛЬКУЛЯТОРЫ
+            'web_calculators': [],
+            'web_calc_components': [],
+            'web_calc_size_presets': [],
+            'web_calc_circulation_presets': [],
+            'web_calc_quantity_presets': [],
+            'web_calc_component_papers': [],
+            'web_calc_component_films': [],
+            'web_calc_component_works': [],
         }
     }
 
@@ -422,6 +443,106 @@ def serialize_dictionaries():
             'last_login': u.last_login.isoformat() if u.last_login else None,
             'group_ids': list(u.groups.values_list('id', flat=True)),
             'user_permission_ids': list(u.user_permissions.values_list('id', flat=True)),
+        })
+
+    # 23. ВЕБ-КАЛЬКУЛЯТОРЫ
+    for wc in WebCalculator.objects.all():
+        d['web_calculators'].append({
+            'id': wc.id,
+            'name': wc.name,
+            'slug': wc.slug,
+            'product_type': wc.product_type,
+            'min_circulation': wc.min_circulation,
+            'max_circulation': wc.max_circulation,
+            'default_circulation': wc.default_circulation,
+            'circulation_step': wc.circulation_step,
+            'is_active': wc.is_active,
+            'comment': wc.comment,
+            'order': wc.order,
+            'created_at': wc.created_at.isoformat() if wc.created_at else None,
+            'updated_at': wc.updated_at.isoformat() if wc.updated_at else None,
+        })
+
+    for wc_comp in WebCalculatorComponent.objects.all():
+        d['web_calc_components'].append({
+            'id': wc_comp.id,
+            'calculator_id': wc_comp.calculator_id,
+            'name': wc_comp.name,
+            'order': wc_comp.order,
+            'printer_id': wc_comp.printer_id,
+            'allow_color_single': wc_comp.allow_color_single,
+            'allow_color_duplex': wc_comp.allow_color_duplex,
+            'allow_bw_single': wc_comp.allow_bw_single,
+            'allow_bw_duplex': wc_comp.allow_bw_duplex,
+            'lamination_enabled': wc_comp.lamination_enabled,
+            'laminator_id': wc_comp.laminator_id,
+            'allow_lamination_single': wc_comp.allow_lamination_single,
+            'allow_lamination_duplex': wc_comp.allow_lamination_duplex,
+            'min_width_mm': str(wc_comp.min_width_mm),
+            'max_width_mm': str(wc_comp.max_width_mm),
+            'min_height_mm': str(wc_comp.min_height_mm),
+            'max_height_mm': str(wc_comp.max_height_mm),
+            'vyleta_mm': wc_comp.vyleta_mm,
+            'binding_id': wc_comp.binding_id,
+            'allow_booklet_portrait': wc_comp.allow_booklet_portrait,
+            'allow_booklet_landscape': wc_comp.allow_booklet_landscape,
+            'min_pages': wc_comp.min_pages,
+            'max_pages': wc_comp.max_pages,
+        })
+
+    for p in WebCalculatorSizePreset.objects.all():
+        d['web_calc_size_presets'].append({
+            'id': p.id,
+            'component_id': p.component_id,
+            'width_mm': str(p.width_mm),
+            'height_mm': str(p.height_mm),
+            'label': p.label,
+            'order': p.order,
+        })
+
+    for p in WebCalculatorCirculationPreset.objects.all():
+        d['web_calc_circulation_presets'].append({
+            'id': p.id,
+            'calculator_id': p.calculator_id,
+            'value': p.value,
+            'order': p.order,
+        })
+
+    for p in WebCalculatorQuantityPreset.objects.all():
+        d['web_calc_quantity_presets'].append({
+            'id': p.id,
+            'calculator_id': p.calculator_id,
+            'value': p.value,
+            'order': p.order,
+        })
+
+    for p in WebCalculatorComponentPaper.objects.all():
+        d['web_calc_component_papers'].append({
+            'id': p.id,
+            'component_id': p.component_id,
+            'material_id': p.material_id,
+            'customer_name': p.customer_name,
+            'order': p.order,
+        })
+
+    for p in WebCalculatorComponentFilm.objects.all():
+        d['web_calc_component_films'].append({
+            'id': p.id,
+            'component_id': p.component_id,
+            'material_id': p.material_id,
+            'customer_name': p.customer_name,
+            'order': p.order,
+        })
+
+    for p in WebCalculatorComponentWork.objects.all():
+        d['web_calc_component_works'].append({
+            'id': p.id,
+            'component_id': p.component_id,
+            'work_id': p.work_id,
+            'trigger': p.trigger,
+            'preview_effect': p.preview_effect,
+            'show_quantity': p.show_quantity,
+            'order': p.order,
         })
 
     return data
@@ -963,6 +1084,128 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
             ]
             up_ids = [pid for pid in up_ids if pid]
             u_obj.user_permissions.set(up_ids)
+
+        # --- 23. ВЕБ-КАЛЬКУЛЯТОРЫ ---
+        for wc in d.get('web_calculators', []):
+            wc_obj = WebCalculator.objects.update_or_create(
+                id=wc['id'],
+                defaults={
+                    'name': wc['name'],
+                    'slug': wc['slug'],
+                    'product_type': wc.get('product_type', 'single'),
+                    'min_circulation': wc.get('min_circulation', 1),
+                    'max_circulation': wc.get('max_circulation', 1000),
+                    'default_circulation': wc.get('default_circulation', 100),
+                    'circulation_step': wc.get('circulation_step', 50),
+                    'is_active': wc.get('is_active', True),
+                    'comment': wc.get('comment', ''),
+                    'order': wc.get('order', 0),
+                }
+            )[0]
+            time_updates = {}
+            if wc.get('created_at'):
+                time_updates['created_at'] = parse_datetime(wc['created_at'])
+            if wc.get('updated_at'):
+                time_updates['updated_at'] = parse_datetime(wc['updated_at'])
+            if time_updates:
+                WebCalculator.objects.filter(id=wc_obj.id).update(**time_updates)
+
+        # --- 24. ПРЕСЕТЫ ТИРАЖА И КОЛИЧЕСТВА ---
+        for p in d.get('web_calc_circulation_presets', []):
+            WebCalculatorCirculationPreset.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'calculator_id': get_safe_id(WebCalculator, p.get('calculator_id')),
+                    'value': p['value'],
+                    'order': p.get('order', 0),
+                }
+            )
+        for p in d.get('web_calc_quantity_presets', []):
+            WebCalculatorQuantityPreset.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'calculator_id': get_safe_id(WebCalculator, p.get('calculator_id')),
+                    'value': p['value'],
+                    'order': p.get('order', 0),
+                }
+            )
+
+        # --- 25. КОМПОНЕНТЫ ВЕБ-КАЛЬКУЛЯТОРОВ ---
+        for comp in d.get('web_calc_components', []):
+            WebCalculatorComponent.objects.update_or_create(
+                id=comp['id'],
+                defaults={
+                    'calculator_id': get_safe_id(WebCalculator, comp.get('calculator_id')),
+                    'name': comp.get('name', 'Основной'),
+                    'order': comp.get('order', 1),
+                    'printer_id': get_safe_id(Printer, comp.get('printer_id')),
+                    'allow_color_single': comp.get('allow_color_single', False),
+                    'allow_color_duplex': comp.get('allow_color_duplex', False),
+                    'allow_bw_single': comp.get('allow_bw_single', False),
+                    'allow_bw_duplex': comp.get('allow_bw_duplex', False),
+                    'lamination_enabled': comp.get('lamination_enabled', False),
+                    'laminator_id': get_safe_id(Laminator, comp.get('laminator_id')),
+                    'allow_lamination_single': comp.get('allow_lamination_single', False),
+                    'allow_lamination_duplex': comp.get('allow_lamination_duplex', False),
+                    'min_width_mm': Decimal(comp.get('min_width_mm', '60')),
+                    'max_width_mm': Decimal(comp.get('max_width_mm', '120')),
+                    'min_height_mm': Decimal(comp.get('min_height_mm', '40')),
+                    'max_height_mm': Decimal(comp.get('max_height_mm', '120')),
+                    'vyleta_mm': comp.get('vyleta_mm', 4),
+                    'binding_id': get_safe_id(MultipageBinding, comp.get('binding_id')),
+                    'allow_booklet_portrait': comp.get('allow_booklet_portrait', True),
+                    'allow_booklet_landscape': comp.get('allow_booklet_landscape', False),
+                    'min_pages': comp.get('min_pages', 4),
+                    'max_pages': comp.get('max_pages', 64),
+                }
+            )
+
+        # --- 26. ПРЕСЕТЫ РАЗМЕРОВ ---
+        for p in d.get('web_calc_size_presets', []):
+            WebCalculatorSizePreset.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'component_id': get_safe_id(WebCalculatorComponent, p.get('component_id')),
+                    'width_mm': Decimal(p.get('width_mm', '0')),
+                    'height_mm': Decimal(p.get('height_mm', '0')),
+                    'label': p.get('label', ''),
+                    'order': p.get('order', 0),
+                }
+            )
+
+        # --- 27. ДОСТУПНЫЕ МАТЕРИАЛЫ И РАБОТЫ ВЕБ-КАЛЬКУЛЯТОРА ---
+        for p in d.get('web_calc_component_papers', []):
+            WebCalculatorComponentPaper.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'component_id': get_safe_id(WebCalculatorComponent, p.get('component_id')),
+                    'material_id': get_safe_id(Material, p.get('material_id')),
+                    'customer_name': p.get('customer_name', ''),
+                    'order': p.get('order', 0),
+                }
+            )
+        for p in d.get('web_calc_component_films', []):
+            WebCalculatorComponentFilm.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'component_id': get_safe_id(WebCalculatorComponent, p.get('component_id')),
+                    'material_id': get_safe_id(Material, p.get('material_id')),
+                    'customer_name': p.get('customer_name', ''),
+                    'order': p.get('order', 0),
+                }
+            )
+        for p in d.get('web_calc_component_works', []):
+            WebCalculatorComponentWork.objects.update_or_create(
+                id=p['id'],
+                defaults={
+                    'component_id': get_safe_id(WebCalculatorComponent, p.get('component_id')),
+                    'work_id': get_safe_id(Work, p.get('work_id')),
+                    'trigger': p.get('trigger', 'optional'),
+                    'preview_effect': p.get('preview_effect', 'none'),
+                    'show_quantity': p.get('show_quantity', False),
+                    'order': p.get('order', 0),
+                }
+            )
 
         # --- 25. REBUILD MPTT-ДЕРЕВЬЕВ ---
         # Надёжный способ гарантировать целостность: MPTT сам пересчитает
