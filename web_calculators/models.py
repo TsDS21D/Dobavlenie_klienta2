@@ -283,6 +283,21 @@ class WebCalculatorComponent(models.Model):
         default=False,
     )
 
+    # ===== СТОРОНА ЛАМИНАЦИИ ПО УМОЛЧАНИЮ =====
+    # Определяет, какая сторона будет выбрана в калькуляторе при загрузке.
+    # Имеет смысл только если разрешены обе стороны (allow_lamination_single и allow_lamination_duplex).
+    LAMINATION_SIDE_CHOICES = [
+        ('single', 'Односторонняя'),
+        ('duplex', 'Двусторонняя'),
+    ]
+    default_lamination_side = models.CharField(
+        verbose_name='Сторона ламинации по умолчанию',
+        max_length=10,
+        choices=LAMINATION_SIDE_CHOICES,
+        default='single',
+        help_text='Какая сторона будет выбрана при открытии калькулятора'
+    )
+
 
     # ===== ДИАПАЗОН РАЗМЕРОВ =====
     # Клиент может задать ширину/высоту в этих границах (мм).

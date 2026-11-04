@@ -146,7 +146,7 @@ var WC = {
                 width_mm: comp.size.presets.length ? comp.size.presets[0].w : comp.size.min_width_mm,
                 height_mm: comp.size.presets.length ? comp.size.presets[0].h : comp.size.min_height_mm,
                 lamination_enabled: false,
-                lamination_side: (comp.lamination && comp.lamination.sides.length) ? comp.lamination.sides[0].value : 'single',
+                                lamination_side: (comp.lamination && comp.lamination.default_side) ? comp.lamination.default_side : 'single',
                 film_id: (comp.lamination && comp.lamination.films.length) ? comp.lamination.films[0].id : null,
                 work_ids: [],
                 work_quantities: {}    // ID работы (строкой) → количество (число)

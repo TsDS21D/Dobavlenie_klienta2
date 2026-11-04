@@ -488,6 +488,7 @@ def serialize_dictionaries():
             'allow_booklet_landscape': wc_comp.allow_booklet_landscape,
             'min_pages': wc_comp.min_pages,
             'max_pages': wc_comp.max_pages,
+            'default_lamination_side': wc_comp.default_lamination_side,
         })
 
     for p in WebCalculatorSizePreset.objects.all():
@@ -1157,6 +1158,7 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                     'allow_booklet_landscape': comp.get('allow_booklet_landscape', False),
                     'min_pages': comp.get('min_pages', 4),
                     'max_pages': comp.get('max_pages', 64),
+                    'default_lamination_side': comp.get('default_lamination_side', 'single'),
                 }
             )
 

@@ -119,7 +119,7 @@ def get_options(calculator):
                     'id': cf.material.id,
                     'name': cf.customer_name or cf.material.name,
                 })
-            lamination_data = {'enabled': True, 'sides': sides, 'films': films}
+            lamination_data = {'enabled': True, 'sides': sides, 'films': films, 'default_side': comp.default_lamination_side,}
 
         # Работы: в API отдаём только опциональные (галочки в калькуляторе).
         # Работы с trigger='always' и 'lamination' — серверные, клиент их

@@ -138,6 +138,7 @@ class WebCalculatorComponentInline(NestedStackedInline):
                 'laminator',
                 'allow_lamination_single',
                 'allow_lamination_duplex',
+                'default_lamination_side',
             ),
             'description': 'Бумаги и плёнки добавляются в инлайн-таблицах ниже.',
         }),
