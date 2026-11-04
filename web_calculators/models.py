@@ -298,7 +298,44 @@ class WebCalculatorComponent(models.Model):
         help_text='Какая сторона будет выбрана при открытии калькулятора'
     )
 
+    # ===== ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ =====
+    # Эти поля определяют, что клиент увидит в калькуляторе при загрузке страницы.
+    
+    # 1. Печать по умолчанию
+    PRINT_COMBO_CHOICES = [
+        ('color_single', 'Цветная односторонняя'),
+        ('color_duplex', 'Цветная двусторонняя'),
+        ('bw_single', 'Ч/б односторонняя'),
+        ('bw_duplex', 'Ч/б двусторонняя'),
+    ]
+    default_print_combo = models.CharField(
+        verbose_name='Печать по умолчанию',
+        max_length=20,
+        choices=PRINT_COMBO_CHOICES,
+        default='color_single',
+    )
 
+    # 2. Бумага по умолчанию
+    default_paper = models.ForeignKey(
+        'WebCalculatorComponentPaper',
+        verbose_name='Бумага по умолчанию',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='default_for_components',
+        help_text='Какая бумага будет выбрана при открытии',
+    )
+
+    # 3. Размер по умолчанию (выбирается из пресетов размеров)
+    default_size_preset = models.ForeignKey(
+        'WebCalculatorSizePreset',
+        verbose_name='Размер по умолчанию',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='default_for_components',
+        help_text='Какой размер будет выбран при открытии',
+    )
     # ===== ДИАПАЗОН РАЗМЕРОВ =====
     # Клиент может задать ширину/высоту в этих границах (мм).
     min_width_mm = models.DecimalField(

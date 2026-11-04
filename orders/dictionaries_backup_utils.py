@@ -489,6 +489,9 @@ def serialize_dictionaries():
             'min_pages': wc_comp.min_pages,
             'max_pages': wc_comp.max_pages,
             'default_lamination_side': wc_comp.default_lamination_side,
+            'default_print_combo': wc_comp.default_print_combo,             # <-- добавили
+            'default_paper_id': wc_comp.default_paper_id,                   # <-- добавили
+            'default_size_preset_id': wc_comp.default_size_preset_id,       # <-- добавили
         })
 
     for p in WebCalculatorSizePreset.objects.all():
@@ -1159,6 +1162,10 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                     'min_pages': comp.get('min_pages', 4),
                     'max_pages': comp.get('max_pages', 64),
                     'default_lamination_side': comp.get('default_lamination_side', 'single'),
+                    'default_lamination_side': comp.get('default_lamination_side', 'single'),
+                    'default_print_combo': comp.get('default_print_combo', 'color_single'),      # <-- добавили
+                    'default_paper_id': get_safe_id(WebCalculatorComponentPaper, comp.get('default_paper_id')), # <-- добавили
+                    'default_size_preset_id': get_safe_id(WebCalculatorSizePreset, comp.get('default_size_preset_id')), # <-- добавили
                 }
             )
 

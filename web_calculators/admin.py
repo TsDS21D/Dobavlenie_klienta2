@@ -122,7 +122,7 @@ class WebCalculatorComponentInline(NestedStackedInline):
     # Группировка полей внутри компонента для читаемости.
     fieldsets = (
         ('Основное', {
-            'fields': ('name', 'order', 'printer'),
+            'fields': ('name', 'order', 'printer', 'default_print_combo', 'default_paper'),
         }),
         ('Доступные комбинации печати', {
             'fields': (
@@ -153,6 +153,7 @@ class WebCalculatorComponentInline(NestedStackedInline):
                 ('min_width_mm', 'max_width_mm'),
                 ('min_height_mm', 'max_height_mm'),
                 'vyleta_mm',
+                'default_size_preset',
             ),
         }),
         ('Скрепление (только для многостраничных)', {

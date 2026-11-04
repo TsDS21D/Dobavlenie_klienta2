@@ -199,6 +199,10 @@ def get_options(calculator):
             },
             'binding': binding_data,
             'multipage': multipage_data,
+            # === НОВЫЕ ПОЛЯ ===
+            'default_print_combo': comp.default_print_combo,
+            'default_paper_id': comp.default_paper.material.id if comp.default_paper else None,
+            'default_size_preset_id': comp.default_size_preset.id if comp.default_size_preset else None,
         })
 
     return {

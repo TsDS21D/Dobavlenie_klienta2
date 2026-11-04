@@ -140,11 +140,27 @@ var WC = {
         // Для каждого компонента — свой блок.
         this.options.components.forEach(comp => {
             // Инициализируем состояние компонента.
+            // Определяем размер по умолчанию (из пресета или первый доступный)
+            var defW = comp.size.min_width_mm;
+            var defH = comp.size.min_height_mm;
+            if (comp.default_size_preset_id && comp.size.presets.length) {
+                var defPreset = comp.size.presets.find(p => p.id === comp.default_size_preset_id);
+                if (defPreset) { defW = defPreset.w; defH = defPreset.h; }
+            } else if (comp.size.presets.length) {
+                defW = comp.size.presets[0].w; defH = comp.size.presets[0].h;
+            }
+
+            // Проверяем, что печать по умолчанию разрешена в списке опций
+            var defPrint = comp.print_options.length ? comp.print_options[0].value : null;
+            if (comp.default_print_combo && comp.print_options.some(o => o.value === comp.default_print_combo)) {
+                defPrint = comp.default_print_combo;
+            }
+
             this.state[comp.id] = {
-                print_combo: comp.print_options.length ? comp.print_options[0].value : null,
-                paper_id: comp.papers.length ? comp.papers[0].id : null,
-                width_mm: comp.size.presets.length ? comp.size.presets[0].w : comp.size.min_width_mm,
-                height_mm: comp.size.presets.length ? comp.size.presets[0].h : comp.size.min_height_mm,
+                print_combo: defPrint,
+                paper_id: comp.default_paper_id || (comp.papers.length ? comp.papers[0].id : null),
+                width_mm: defW,
+                height_mm: defH,
                 lamination_enabled: false,
                                 lamination_side: (comp.lamination && comp.lamination.default_side) ? comp.lamination.default_side : 'single',
                 film_id: (comp.lamination && comp.lamination.films.length) ? comp.lamination.films[0].id : null,
