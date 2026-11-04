@@ -272,7 +272,10 @@ var WC = {
             comp.size.presets.forEach(function (p, index) {
                 var opt = document.createElement('option');
                 opt.value = 'preset_' + index;
-                opt.textContent = self.formatMm(p.w) + '×' + self.formatMm(p.h);
+                // ИСПОЛЬЗУЕМ ПОДПИСЬ С СЕРВЕРА:
+                // Бэкенд (services.py) уже подставляет туда "Подпись" из админки, 
+                // а если её нет — формат "Ширина×Высота".
+                opt.textContent = p.label; 
                 opt.dataset.w = p.w;
                 opt.dataset.h = p.h;
                 
