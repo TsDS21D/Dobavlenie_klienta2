@@ -1100,15 +1100,10 @@ JavaScript секции «Список заказов» страницы /orders
     function setFaviconStatus(status) {
         const favicon = document.getElementById('dynamic-favicon');
         if (!favicon) return;
-        
-        // Выбираем цвет: зеленый для онлайна, красный для оффлайна, серый для подключения
-        let color = '%23999'; // серый
-        if (status === 'online') color = '%230B8661'; // фирменный зеленый
-        if (status === 'offline') color = '%23f44336'; // красный
-        
-        // Собираем SVG код с нужным цветом круга
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='none' stroke='${color}' stroke-width='8'/><text x='50' y='75' font-size='55' text-anchor='middle'>📦</text></svg>`;
-        
+        let color = '%23999';
+        if (status === 'online') color = '%230B8661';
+        if (status === 'offline') color = '%23f44336';
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${color}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='8' y1='6' x2='21' y2='6'></line><line x1='8' y1='12' x2='21' y2='12'></line><line x1='8' y1='18' x2='21' y2='18'></line><line x1='3' y1='6' x2='3.01' y2='6'></line><line x1='3' y1='12' x2='3.01' y2='12'></line><line x1='3' y1='18' x2='3.01' y2='18'></line></svg>`;
         favicon.href = `data:image/svg+xml,${svg}`;
     }
 
@@ -1140,25 +1135,26 @@ JavaScript секции «Список заказов» страницы /orders
 
             const container = document.getElementById('proschety-toasts');
             const mySessionKey = container ? (container.dataset.sessionKey || '') : '';
+            
+            // Определяем, наше ли это действие (та же сессия)
+            const isMyAction = (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key);
 
-            // Игнорируем события, которые породили мы сами.
-            if (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key) {
+            // Если пользователь сейчас что-то редактирует (инлайн), не мешаем ему обновлением
+            if (document.querySelector('.editing-cell')) {
                 return;
             }
 
-            // Чужая сессия изменила данные — перерисовываем tbody.
+            // Обновляем данные в ЛЮБОМ случае (даже если это наша сессия, 
+            // так как изменения могли прийти из другой вкладки того же браузера)
             refreshTable();
-
-            // Обновляем плашки «Доставка на сегодня». Делаем это на ЛЮБОЕ
-            // order_event: менялись ли дата/статус доставки, пометили ли
-            // заказ как «доставлен», создали/удалили заказ — плашки должны
-            // отразить актуальное состояние.
             refreshDeliveryToday();
 
-            // Показываем тост.
-            showToast(data);
+            // А вот тост показываем только если действие совершил кто-то ДРУГОЙ
+            if (!isMyAction) {
+                showToast(data);
+            }
         };
-
+        
         toastsWebSocket.onclose = function () {
             console.warn('WebSocket /ws/orders/ закрыт, переподключение через 3 сек.');
             setFaviconStatus('offline'); // Сокет закрыт - иконка красная

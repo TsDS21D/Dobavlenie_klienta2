@@ -1,18 +1,3 @@
-<!--
-orders/templates/orders/detail.html
-Страница одного заказа — карточка с шапкой и списком изделий.
-
-Структура:
-1. Шапка заказа: номер, клиент, даты, общая стоимость.
-2. Комментарий — редактируется инлайн (двойной клик).
-3. Кнопка «← К списку заказов».
-4. Контейнер под карточки изделий (пока пустой — карточки сделаем
-   следующим шагом, сейчас здесь только «изделий пока нет» либо простой
-   перечень).
-
-Стиль — как у секции «Цена» в калькуляторе: белый блок со скруглением
-и тенью, зелёный акцент #0B8661.
--->
 {% extends "orders/base.html" %}
 {% load static %}
 
@@ -20,122 +5,307 @@ orders/templates/orders/detail.html
 
 {% block extra_css %}
 {{ block.super }}
+<!-- Динамическая иконка (лупа). Изначально серая, пока нет связи. -->
+<link id="detail-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><line x1='21' y1='21' x2='16.65' y2='16.65'></line></svg>">
+
 <link rel="stylesheet" href="{% static 'orders/css/detail.css' %}">
 {% endblock %}
 
 {% block content %}
+    <!-- Контейнер для кратковременных уведомлений (свои действия). -->
+    <div id="proschety-top-notifications" class="proschety-top-notifications"></div>
+    <!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ -->
+    <div class="list-orders-confirm-overlay" id="list-orders-confirm-overlay" style="display: none;">
+        <div class="list-orders-confirm">
+            <div class="list-orders-confirm-title" id="confirm-modal-title">Удалить?</div>
+            <div class="list-orders-confirm-text" id="confirm-modal-text">
+                Действие нельзя отменить.
+            </div>
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" id="list-orders-confirm-no">Отмена</button>
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" id="list-orders-confirm-yes">Удалить</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- ==================== ВЕРХНЯЯ ПАНЕЛЬ ==================== -->
     <div class="order-topbar">
-        <a href="{% url 'orders:index' %}" class="order-back-link">
-            ← К списку заказов
-        </a>
+        <a href="{% url 'orders:index' %}" class="order-back-link">← К списку заказов</a>
     </div>
 
-    <!-- ==================== КАРТОЧКА ЗАКАЗА ==================== -->
-    <div class="order-card">
+    <!-- Оборачиваем всё в секцию, чтобы повторить фон и отступы -->
+    <section class="list-orders-section">
+        <div class="list-orders-group">
+            <h3 class="list-orders-group-title">Заказ {{ order.number }}</h3>
+            
+            <div class="list-orders-cards">
+                <!-- КАРТОЧКА ЗАКАЗА (ТОЧНАЯ КОПИЯ ИЗ _order_rows.html) -->
+                <div class="list-orders-card list-orders-card--{{ order.status }} is-expanded"
+                     data-order-id="{{ order.id }}"
+                     data-status="{{ order.status }}"
+                     data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
+                     data-comment="{{ order.comment|default:'' }}"
+                     data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                     style="cursor: default;">
 
-        <!-- ===== ШАПКА ===== -->
-        <div class="order-card-header">
-            <h1 class="order-number">{{ order.number }}</h1>
+                    <div class="list-orders-card-number">{{ order.number }}</div>
 
-            <div class="order-header-right">
-                <div class="order-total-label">Общая стоимость:</div>
-                <div class="order-total-value">{{ order.formatted_total_price }}</div>
-            </div>
-        </div>
-
-        <!-- ===== ИНФОРМАЦИОННЫЙ БЛОК ===== -->
-        <div class="order-info-grid">
-            <div class="order-info-item">
-                <span class="order-info-label">Клиент:</span>
-                <span class="order-info-value">{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}</span>
-            </div>
-            <div class="order-info-item">
-                <span class="order-info-label">Создан:</span>
-                <span class="order-info-value">{{ order.created_at|date:"d.m.Y H:i" }}</span>
-            </div>
-            <div class="order-info-item">
-                <span class="order-info-label">Обновлён:</span>
-                <span class="order-info-value">{{ order.updated_at|date:"d.m.Y H:i" }}</span>
-            </div>
-            <div class="order-info-item">
-                <span class="order-info-label">Изделий:</span>
-                <span class="order-info-value">{{ products|length }}</span>
-            </div>
-        </div>
-
-        <!-- ===== КОММЕНТАРИЙ (инлайн-редактирование) ===== -->
-        <div class="order-comment-block">
-            <div class="order-comment-label">Комментарий:</div>
-            <div class="order-comment-value"
-                 id="order-comment-display"
-                 data-order-id="{{ order.id }}"
-                 data-original-value="{{ order.comment }}"
-                 title="Двойной клик для редактирования">
-                {% if order.comment %}{{ order.comment }}{% else %}<span class="order-comment-empty">— (двойной клик, чтобы добавить) —</span>{% endif %}
-            </div>
-            <!-- Скрытое поле ввода: показывается при редактировании. -->
-            <input type="text"
-                   class="order-comment-input"
-                   id="order-comment-input"
-                   style="display: none;"
-                   maxlength="500"
-                   placeholder="Введите комментарий">
-        </div>
-
-    </div>
-
-    <!-- ==================== СПИСОК ИЗДЕЛИЙ ==================== -->
-    <h2 class="order-products-title">Изделия</h2>
-
-    {% if not products %}
-        <div class="order-products-empty">
-            В этом заказе пока нет изделий.
-        </div>
-    {% else %}
-        <div class="order-products-list">
-            {% for product in products %}
-                <div class="order-product-card" data-product-id="{{ product.id }}">
-                    <div class="order-product-header">
-                        <div class="order-product-title">
-                            #{{ product.id }} — {{ product.title }}
-                        </div>
-                        {# Правая часть шапки: цена + кнопка «Редактировать». #}
-                        {# Кнопка использует те же классы, что в /orders/ (list-orders-product-edit-btn), #}
-                        {# но дополнена order-product-edit-btn — для чуть крупного размера в карточке. #}
-                        <div class="order-product-header-right">
-                            <div class="order-product-price">
-                                {{ product.formatted_total_price }}
-                            </div>
-                            <button type="button"
-                                    class="list-orders-product-edit-btn order-product-edit-btn"
-                                    data-product-id="{{ product.id }}"
-                                    title="Редактировать изделие">✎</button>
-                        </div>
-                    </div>
-                    <div class="order-product-meta">
-                        <span>Тираж: <b>{{ product.circulation }}</b></span>
-                        <span>Добавлено: {{ product.created_at|date:"d.m.Y H:i" }}</span>
-                        {% if product.source_proschet %}
-                            <span>Из просчёта: <b>{{ product.source_proschet.number }}</b></span>
+                    <div class="list-orders-card-client editable-cell"
+                         data-field="client"
+                         data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
+                        {% if order.client %}
+                            <span class="client-name-text">{{ order.client.name }}</span>
+                            {% if order.client.has_edo %}
+                                <span class="list-orders-edo-badge">ЭДО</span>
+                            {% endif %}
+                        {% else %}
+                            —
                         {% endif %}
                     </div>
-                    <!-- Кнопку «Создать просчёт из изделия» и разворот состава
-                         добавим на следующем шаге. Пока — заглушка-контейнер. -->
-                    <div class="order-product-body" data-product-body="{{ product.id }}">
-                        <!-- Следующим шагом здесь будет:
-                             - состав (компоненты, работы, ламинация, вычисления);
-                             - кнопка «Создать просчёт из изделия». -->
+
+                    <div class="list-orders-card-comment editable-cell"
+                         data-field="comment"
+                         data-original-value="{{ order.comment|default:'' }}">
+                        {{ order.comment|default:"—" }}
+                    </div>
+
+                    <button type="button" 
+                            class="list-orders-delivery-btn list-orders-delivery-btn--compact 
+                                {% if order.is_delivery %}
+                                    {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                {% endif %}" 
+                            data-order-id="{{ order.id }}" 
+                            title="Двойной клик для изменения"
+                            {% if not order.is_delivery %}style="display: none;"{% endif %}>
+                        {% if not order.is_delivery %}Без доставки{% elif order.delivery_status == 'delivered' %}Доставлено{% else %}Доставка{% endif %}
+                    </button>
+
+                    <button type="button" 
+                            class="list-orders-payment-btn list-orders-payment-btn--compact {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                            data-order-id="{{ order.id }}" 
+                            title="Двойной клик для изменения статуса">
+                        {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                    </button>
+
+                    <div class="list-orders-card-status">
+                        <select class="list-orders-status-select list-orders-status-select--{{ order.status }}" data-order-id="{{ order.id }}">
+                            <option value="accepted" {% if order.status == 'accepted' %}selected{% endif %}>Принят</option>
+                            <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                            <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Готов</option>
+                            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выдан</option>
+                        </select>
+                    </div>
+
+                    <div class="list-orders-card-ready editable-cell"
+                         data-field="ready_datetime"
+                         data-original-value="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}">
+                        {{ order.ready_datetime|date:"d.m.Y H:i" }}
+                    </div>
+
+                    <div class="list-orders-card-meta">
+                        <span class="list-orders-card-products" title="Изделий и товаров">{{ order.products_and_tovary_count }} изд.</span>
+                        <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
+                    </div>
+
+                    <div class="list-orders-card-hours">
+                        {% if order.status == 'completed' %}
+                            <span class="list-orders-hours-badge normal">✓</span>
+                        {% else %}
+                            {% with hours=order.get_working_hours_remaining %}
+                                <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                                    ⏱️ {{ hours }}ч
+                                </span>
+                            {% endwith %}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Кнопку удаления в карточке заказа можно скрыть, чтобы не удалить случайно, либо оставить -->
+                    <button type="button" class="list-orders-btn-delete" data-order-id="{{ order.id }}" title="Удалить заказ">×</button>
+
+                    <!-- РАСКРЫТАЯ ЧАСТЬ -->
+                    <div class="list-orders-card-details" style="display: block;">
+                        <div class="list-orders-details-grid">
+                            
+                            <div class="list-orders-detail-item list-orders-expanded-comment-delivery" style="grid-column: 1 / -1;">
+                                <div class="list-orders-expanded-comment-wrap">
+                                    <span class="list-orders-detail-label">Комментарий:</span>
+                                    <span class="list-orders-detail-value editable-cell"
+                                          data-field="comment"
+                                          data-original-value="{{ order.comment|default:'' }}">
+                                        {{ order.comment|default:"—" }}
+                                    </span>
+                                </div>
+
+                                <div class="list-orders-delivery-block">
+                                    <div class="list-orders-delivery-details {% if not order.is_delivery %}hidden{% endif %}" id="delivery-details-{{ order.id }}">
+                                        <input type="date" class="list-orders-delivery-input" data-field="delivery_date" data-order-id="{{ order.id }}" value="{{ order.delivery_date|date:'Y-m-d' }}" title="Дата доставки">
+                                        <input type="text" class="list-orders-delivery-input list-orders-delivery-address" data-field="delivery_address" data-order-id="{{ order.id }}" value="{{ order.delivery_address }}" placeholder="Адрес доставки">
+                                        <input type="text" class="list-orders-delivery-input list-orders-delivery-phone" data-field="delivery_phone" data-order-id="{{ order.id }}" value="{{ order.delivery_phone }}" placeholder="+7 (___) ___-__-__">
+                                    </div>
+                                    
+                                    <button type="button" 
+                                            class="list-orders-delivery-btn 
+                                                {% if order.is_delivery %}
+                                                    {% if order.delivery_status == 'delivered' %}list-orders-delivery-btn--delivered{% else %}list-orders-delivery-btn--pending{% endif %}
+                                                {% endif %}" 
+                                            data-order-id="{{ order.id }}" title="Двойной клик для изменения">
+                                        {% if not order.is_delivery %}Без доставки{% elif order.delivery_status == 'delivered' %}Доставлено{% else %}Доставка{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="list-orders-detail-item" style="grid-column: 1 / -1; margin-top: 0.5rem;">
+                                <div class="list-orders-products-wrap">
+                                    {% for product in products %}
+                                        <div class="list-orders-product-item" data-product-id="{{ product.id }}">
+                                            <div class="list-orders-product-header-row">
+                                                <span class="list-orders-product-number">{{ forloop.counter }}.</span>
+                                                <span class="list-orders-product-title">{{ product.title }}</span>
+                                                <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                                {% if product.frozen_discount is not None %}
+                                                    {% if order.client and product.frozen_discount == order.client.discount %}
+                                                        <span class="list-orders-product-discount list-orders-product-discount--client">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                    {% else %}
+                                                        <span class="list-orders-product-discount list-orders-product-discount--manual">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
+                                                <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
+                                                <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
+                                            </div>
+                                            <div class="list-orders-product-expanded" style="display: none;"></div>
+                                        </div>
+                                    {% empty %}
+                                        <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if tovary %}
+                            <div class="list-orders-tovary-wrap">
+                                <div class="list-orders-tovary-title">Товары</div>
+                                {% for tovar in tovary %}
+                                    <div class="list-orders-tovar-item" data-tovar-id="{{ tovar.id }}">
+                                        <span class="list-orders-tovar-number">{{ forloop.counter }}.</span>
+                                        <span class="list-orders-tovar-name">
+                                            {{ tovar.name }}
+                                            {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
+                                        </span>
+                                        <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
+                                        <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
+                                        <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
+                                            {% if tovar.discount %}скидка {{ tovar.discount|floatformat:"-2" }}%{% else %}скидка 0%{% endif %}
+                                        </span>
+                                        <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="list-orders-details-actions">
+                            <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
+                            
+                            <div class="list-orders-client-selects">
+                                <select class="list-orders-payment-select list-orders-le-select" 
+                                        data-field="legal_entity" 
+                                        data-order-id="{{ order.id }}" 
+                                        data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                        data-current-id="{{ order.legal_entity.id|default:'' }}">
+                                    <option value="">— Юрлицо —</option>
+                                </select>
+
+                                <select class="list-orders-payment-select list-orders-cp-select" 
+                                        data-field="contact_person" 
+                                        data-order-id="{{ order.id }}" 
+                                        data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                                        data-current-id="{{ order.contact_person.id|default:'' }}">
+                                    <option value="">— Сотрудник —</option>
+                                </select>
+                            </div>
+                          
+                            <div class="list-orders-payment-block">
+                                <button type="button" 
+                                        class="list-orders-payment-btn {% if order.is_paid %}list-orders-payment-btn--on{% endif %}" 
+                                        data-order-id="{{ order.id }}" 
+                                        title="Двойной клик для изменения статуса">
+                                    {% if order.is_paid %}Оплачен{% else %}Не оплачен{% endif %}
+                                </button>
+
+                                <select class="list-orders-payment-select" data-field="payer_type" data-order-id="{{ order.id }}">
+                                    <option value="" {% if not order.payer_type %}selected{% endif %}>— Тип —</option>
+                                    <option value="legal" {% if order.payer_type == 'legal' %}selected{% endif %}>Юр.лицо</option>
+                                    <option value="individual" {% if order.payer_type == 'individual' %}selected{% endif %}>Физ.лицо</option>
+                                </select>
+
+                                <div class="list-orders-payment-detail {% if order.payer_type != 'legal' %}hidden{% endif %}" id="payment-detail-legal-{{ order.id }}">
+                                    <input type="text" class="list-orders-payment-input" data-field="invoice_number" data-order-id="{{ order.id }}" value="{{ order.invoice_number }}" placeholder="Счёт №" maxlength="50">
+                                </div>
+
+                                <div class="list-orders-payment-detail {% if order.payer_type != 'individual' %}hidden{% endif %}" id="payment-detail-individual-{{ order.id }}">
+                                    <select class="list-orders-payment-select" data-field="payment_method" data-order-id="{{ order.id }}">
+                                        <option value="" {% if not order.payment_method %}selected{% endif %}>— Способ —</option>
+                                        <option value="card" {% if order.payment_method == 'card' %}selected{% endif %}>Карта</option>
+                                        <option value="yookassa" {% if order.payment_method == 'yookassa' %}selected{% endif %}>ЮKassa</option>
+                                        <option value="cash" {% if order.payment_method == 'cash' %}selected{% endif %}>Наличные</option>
+                                    </select>
+                                </div>
+
+                                <div class="list-orders-payment-detail {% if not order.payer_type %}hidden{% endif %}" id="payment-detail-docs-{{ order.id }}">
+                                    <span class="list-orders-docs-label">Документы:</span>
+                                    <select class="list-orders-payment-select" data-field="documents_status" data-order-id="{{ order.id }}">
+                                        <option value="none" {% if order.documents_status == 'none' %}selected{% endif %}>не выданы</option>
+                                        <option value="issued" {% if order.documents_status == 'issued' %}selected{% endif %}>выданы</option>
+                                        <option value="edo" {% if order.documents_status == 'edo' %}selected{% endif %}>в ЭДО</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="list-orders-add-product-section">
+                            <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
+                                <span class="list-orders-toggle-arrow">▼</span>
+                                <span class="list-orders-toggle-label">Добавить изделие</span>
+                            </button>
+                            <div class="list-orders-add-product-content">
+                                <div class="list-orders-add-product-form">
+                                    <label>Выбрать просчёт:</label>
+                                    <select class="list-orders-select-proschet"><option value="">— Загрузка списка... —</option></select>
+                                    <button type="button" class="list-orders-btn-add-from-proschet" data-order-id="{{ order.id }}">Добавить в заказ</button>
+                                    <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">+ Создать новый просчёт</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="list-orders-add-tovar-section">
+                            <button type="button" class="list-orders-toggle-add-tovar" title="Добавить товар">
+                                <span class="list-orders-toggle-arrow">▼</span>
+                                <span class="list-orders-toggle-label">Добавить товар</span>
+                            </button>
+                            <div class="list-orders-add-tovar-content">
+                                <div class="list-orders-add-tovar-form">
+                                    <label>Выбрать товар:</label>
+                                    <select class="list-orders-select-tovar" data-order-id="{{ order.id }}"><option value="">— Загрузка списка... —</option></select>
+                                    <label>Кол-во:</label>
+                                    <input type="number" class="list-orders-tovar-qty-input" min="1" value="1" data-order-id="{{ order.id }}">
+                                    <label>Цена:</label>
+                                    <input type="text" class="list-orders-tovar-price-input" data-order-id="{{ order.id }}" placeholder="Из справочника">
+                                    <button type="button" class="list-orders-btn-add-tovar" data-order-id="{{ order.id }}">Добавить в заказ</button>
+                                    <a href="/tovary/" target="_blank" class="list-orders-link-new-tovar" style="margin-left: auto;">+ Создать новый товар</a>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-            {% endfor %}
+            </div>
         </div>
-    {% endif %}
+    </section>
 
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
+<div id="proschety-toasts" class="proschety-toasts" data-session-key="{{ session_key }}"></div>
 <script src="{% static 'orders/js/detail.js' %}"></script>
 {% endblock %}

@@ -5,6 +5,11 @@
 {% block title %}Товары{% endblock %}
 
 {% block extra_css %}
+
+{{ block.super }}
+<!-- Динамическая иконка (сетка категорий). Изначально серая. -->
+<link id="tovar-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='0.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7'></rect><rect x='14' y='3' width='7' height='7'></rect><rect x='14' y='14' width='7' height='7'></rect><rect x='3' y='14' width='7' height='7'></rect></svg>">
+
 <link rel="stylesheet" href="{% static 'orders/css/sections/list_orders.css' %}">
 <link rel="stylesheet" href="{% static 'tovary/css/tovar.css' %}">
 {% endblock %}
@@ -514,6 +519,52 @@
             });
         });
     });
+</script>
+
+<!-- Скрипт динамической иконки для товаров -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция смены цвета иконки
+    function setTovarFaviconStatus(status) {
+        const favicon = document.getElementById('tovar-favicon');
+        if (!favicon) return;
+        
+        let color = '%23999'; // Серый (подключение)
+        if (status === 'online') color = '%230B8661'; // Зеленый (онлайн)
+        if (status === 'offline') color = '%23f44336'; // Красный (оффлайн)
+        
+        // Используем код сетки с толщиной 0.8 (как вы выбрали)
+        favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${color}' stroke-width='0.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7'></rect><rect x='14' y='3' width='7' height='7'></rect><rect x='14' y='14' width='7' height='7'></rect><rect x='3' y='14' width='7' height='7'></rect></svg>`;
+    }
+
+    // Подключение к WebSocket (используем тот же канал, что и заказы, чтобы видеть статус сети)
+    function initTovarWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const url = protocol + window.location.host + '/ws/orders/';
+        let ws;
+        try {
+            ws = new WebSocket(url);
+        } catch (e) {
+            setTovarFaviconStatus('offline');
+            return;
+        }
+
+        ws.onopen = function () {
+            setTovarFaviconStatus('online');
+        };
+
+        ws.onclose = function () {
+            setTovarFaviconStatus('offline');
+            setTimeout(initTovarWebSocket, 3000);
+        };
+
+        ws.onerror = function () {
+            setTovarFaviconStatus('offline');
+        };
+    }
+
+    initTovarWebSocket();
+});
 </script>
 
 {% endblock %}

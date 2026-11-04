@@ -1103,11 +1103,13 @@ JavaScript секции «Список просчётов» новой стра�
             toastsWebSocket = new WebSocket(url);
         } catch (e) {
             console.warn('WebSocket не удалось открыть:', e);
+            setFaviconStatus('offline');
             return;
         }
 
         toastsWebSocket.onopen = function () {
             console.log('✅ WebSocket /ws/proschety/ подключён');
+            setFaviconStatus('online'); // <--- Загорается зеленая иконка
         };
 
         toastsWebSocket.onmessage = function (event) {
@@ -1125,11 +1127,6 @@ JavaScript секции «Список просчётов» новой стра�
                 return;
             }
 
-            // Если событие — «обновление»:
-            //   • если это активная строка — подтягиваем свежие данные
-            //     в секцию «Просчёт»;
-            //   • в любом случае перерисовываем таблицу, чтобы обновлённые
-            //     ячейки (комментарий, название, клиент) показали новые данные.
             if (data.event === 'updated' && data.proschet_id) {
                 const activeRow = document.querySelector(
                     '.list-proschet-row.selected[data-proschet-id="' + data.proschet_id + '"]'
@@ -1138,8 +1135,6 @@ JavaScript секции «Список просчётов» новой стра�
                     refreshProschetData(data.proschet_id);
                 }
 
-                // Перерисовка tbody (кроме случаев, когда пользователь
-                // прямо сейчас редактирует ячейку — иначе правка потеряется).
                 const editing = document.querySelector('.editing-cell');
                 if (!editing) {
                     refreshTable();
@@ -1151,11 +1146,13 @@ JavaScript секции «Список просчётов» новой стра�
 
         toastsWebSocket.onclose = function () {
             console.warn('WebSocket /ws/proschety/ закрыт, переподключение через 3 сек.');
+            setFaviconStatus('offline'); // <--- Загорается красная иконка
             setTimeout(initToastsWebSocket, 3000);
         };
 
         toastsWebSocket.onerror = function (err) {
             console.warn('WebSocket ошибка:', err);
+            setFaviconStatus('offline'); // <--- Загорается красная иконка
         };
     }
 
@@ -1531,6 +1528,22 @@ JavaScript секции «Список просчётов» новой стра�
             // Не критично — данные из DOM уже показаны.
             console.warn('Не удалось получить свежие данные просчёта:', err);
         });
+    }
+
+
+    // ========================================================================
+    // 12. ДИНАМИЧЕСКАЯ ИКОНКА ВКЛАДКИ (Favicon)
+    // ========================================================================
+    function setFaviconStatus(status) {
+        const favicon = document.getElementById('proschety-favicon');
+        if (!favicon) return;
+
+        let color = '%23999'; // серый (подключение)
+        if (status === 'online') color = '%230B8661'; // зеленый (онлайн)
+        if (status === 'offline') color = '%23f44336'; // красный (оффлайн)
+
+        // Тот самый код калькулятора, но с подстановкой цвета
+        favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${color}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='2' width='16' height='20' rx='2' ry='2'></rect><line x1='8' y1='6' x2='16' y2='6'></line><line x1='16' y1='14' x2='16' y2='18'></line><path d='M16 10h.01'></path><path d='M12 10h.01'></path><path d='M8 10h.01'></path><path d='M12 14h.01'></path><path d='M8 14h.01'></path><path d='M12 18h.01'></path><path d='M8 18h.01'></path></svg>`;
     }
 
 })();

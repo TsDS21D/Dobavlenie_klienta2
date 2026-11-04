@@ -14,9 +14,9 @@ from counter import views as counter_views  # Импортируем views из 
 
 # Список URL-шаблонов проекта
 urlpatterns = [
-    # Перенаправление с корневого URL на страницу управления заказами
-    # permanent=True означает постоянное перенаправление (код 301)
-    path('', RedirectView.as_view(url='/counter/', permanent=True)),
+    # Перенаправление с корневого URL на страницу заказов
+    # permanent=False означает ВРЕМЕННОЕ перенаправление (код 302) — браузер не кэширует его намертво
+    path('', RedirectView.as_view(url='/orders/', permanent=False)),
     
     # Административная панель Django (доступна по адресу /admin/)
     path('admin/', admin.site.urls),

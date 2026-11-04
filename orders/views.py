@@ -457,36 +457,58 @@ def order_detail(request, order_id):
         - комментарий (редактируется инлайн на этой странице);
         - общую стоимость;
         - список изделий этого заказа (карточки с составом и кнопкой
-          «Создать просчёт из изделия»).
-
-    На этом шаге шаблон рисует только «шапку» заказа и пустой контейнер
-    под изделия. Сами карточки изделий сделаем следующим шагом.
+          «Создать просчёт из изделия»);
+        - список товаров (штампы, оснастка и т.п.);
+        - селекты для смены клиента, юрлица и сотрудника.
     """
     # --- Находим заказ или 404 ---
-    # Разрешаем смотреть и удалённые заказы (is_deleted мы тут не фильтруем),
-    # потому что по прямой ссылке в карточку может зайти админ — например,
-    # чтобы восстановить. Если хочешь фильтровать — скажи, добавим.
     order = get_object_or_404(Order, pk=order_id)
 
     # --- Загружаем изделия заказа (не удалённые) ---
     # select_related подтягивает связанные справочники одним запросом.
     # Порядок изделий — по position, затем по id.
-    # Раньше было по created_at — но после «умного редиректа» новое
-    # изделие получает created_at = now(), а position = старое значение.
-    # Если сортировать по created_at — изделие «уедет» в конец списка,
-    # что противоречит требованию «после редактирования остаётся на месте».
     products = (
         order.products
         .filter(is_deleted=False)
         .order_by('position', 'id')
     )
 
+    # --- НОВОЕ: Загружаем товары заказа (не удалённые) ---
+    tovary = (
+        order.tovary
+        .filter(is_deleted=False)
+        .order_by('position', 'id')
+    )
+
+    # --- НОВОЕ: Загружаем клиентов для выпадающего списка ---
+    clients = []
+    try:
+        from baza_klientov.models import Client, LegalEntity
+        from django.db.models import Subquery, OuterRef
+
+        # Подзапрос: название основного юрлица для текущего клиента
+        primary_le_name = LegalEntity.objects.filter(
+            client=OuterRef('pk'),
+            is_primary=True,
+            is_deleted=False
+        ).values('name')[:1]
+
+        # Прикрепляем это название к клиентам (берем только неудаленных клиентов)
+        clients = Client.objects.filter(is_deleted=False).annotate(
+            primary_le_name=Subquery(primary_le_name)
+        ).order_by('name')
+    except ImportError:
+        pass
+
     # --- Формируем контекст ---
     context = {
         'order': order,
         'products': products,
+        'tovary': tovary,       # <--- Передаем товары
+        'clients': clients,     # <--- Передаем клиентов
         'active_app': 'orders',
         'page_title': f'Заказ {order.number}',
+        'session_key': request.session.session_key or '',
     }
     return render(request, 'orders/detail.html', context)
 
