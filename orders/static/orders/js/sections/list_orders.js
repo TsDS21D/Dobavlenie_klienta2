@@ -3119,6 +3119,23 @@ function handleStatusChange(event) {
                                             </div>
                                             ${mpDetailsHtml}
                                         </div>
+                                        <!-- ТРЕТЬЯ СТРОКА (Колонки / Ряды / Изделия) -->
+                                        ${(comp.vichisliniya || comp.multipage) ? `
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Колонок:</span>
+                                                <span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_horizontal : comp.multipage.fit_horizontal}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Рядов:</span>
+                                                <span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_vertical : comp.multipage.fit_vertical}</span>
+                                            </div>
+                                            <div class="proschet-inline-field">
+                                                <span class="proschet-inline-field-label">Изделий на листе:</span>
+                                                <span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_total : comp.multipage.fit_total}</span>
+                                            </div>
+                                        </div>
+                                        ` : ''}
 
                                         <!-- БЛОК ЛАМИНАЦИИ -->
                                         ${comp.lamination ? `

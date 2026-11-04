@@ -450,13 +450,20 @@
                             <div class="proschet-inline-field"><span class="proschet-inline-field-label">Бумага:</span><span class="order-field-locked">${comp.paper_name || '—'}</span></div>
                             <div class="proschet-inline-field"><span class="proschet-inline-field-label">Тип:</span><div class="proschet-mode-switch"><button class="proschet-mode-btn active ${bgColorClass}">${comp.print_type_display}</button></div></div>
                         </div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
-                            <div class="proschet-inline-field"><span class="proschet-inline-field-label">Режим:</span><span class="order-field-locked">${comp.printing_mode_display}</span></div>
-                            <div class="proschet-inline-field"><span class="proschet-inline-field-label">Листов:</span><span class="order-field-value">${comp.formatted_sheet_count}</span></div>
-                            <div class="proschet-inline-field"><span class="proschet-inline-field-label">Вылеты:</span><span class="order-field-value">${vyleta} мм</span></div>
-                            <div class="proschet-inline-field"><span class="proschet-inline-field-label">Размер:</span><span class="order-field-value">${width} × ${height} мм</span></div>
-                            ${mpDetailsHtml}
-                        </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Режим:</span><span class="order-field-locked">${comp.printing_mode_display}</span></div>
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Листов:</span><span class="order-field-value">${comp.formatted_sheet_count}</span></div>
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Вылеты:</span><span class="order-field-value">${vyleta} мм</span></div>
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Размер:</span><span class="order-field-value">${width} × ${height} мм</span></div>
+                                ${mpDetailsHtml}
+                            </div>
+                            ${(comp.vichisliniya || comp.multipage) ? `
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.8rem;">
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Колонок:</span><span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_horizontal : comp.multipage.fit_horizontal}</span></div>
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Рядов:</span><span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_vertical : comp.multipage.fit_vertical}</span></div>
+                                <div class="proschet-inline-field"><span class="proschet-inline-field-label">Изделий на листе:</span><span class="order-field-value">${comp.vichisliniya ? comp.vichisliniya.fit_total : comp.multipage.fit_total}</span></div>
+                            </div>
+                            ` : ''}
                         ${comp.lamination ? `<div class="order-product-component-lamination"><div class="proschet-inline-field"><span class="proschet-inline-field-label">Ламинатор:</span><span class="order-field-locked">${comp.lamination.laminator_name || '—'}</span></div><div class="proschet-inline-field"><span class="proschet-inline-field-label">Плёнка:</span><span class="order-field-locked">${comp.lamination.film_name || '—'}</span></div><div class="proschet-inline-field"><span class="proschet-inline-field-label">Сторона:</span><span class="order-field-locked">${comp.lamination.side_display}</span></div></div>` : ''}
                         ${(comp.works && comp.works.length > 0) ? `<div class="order-product-component-works"><span class="order-works-label">Доп. работы:</span><div class="order-works-list">${comp.works.map(w => `<span class="order-work-item">${w.title}: <b>${w.quantity} шт.</b> — <span class="order-work-price">${w.formatted_total_price}</span></span>`).join('')}</div></div>` : ''}
                     </div>
