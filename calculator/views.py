@@ -424,7 +424,10 @@ def update_proschet_client(request, proschet_id):
         else:
             proschet.client = None
 
-        proschet.save()
+        # ВАЖНО: при смене клиента сбрасываем ручную скидку,
+        # чтобы она пересчиталась по скидке нового клиента.
+        proschet.discount_override = None
+        proschet.save(update_fields=['client', 'discount_override'])
 
         client_data = None
         if proschet.client:

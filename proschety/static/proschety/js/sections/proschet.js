@@ -164,6 +164,10 @@ JavaScript секции «Просчёт» новой страницы /proschet
             componentsSection.addEventListener('dblclick', handleWorkQtyDblClick);
         }
 
+        if (discountSpan) {
+            discountSpan.addEventListener('dblclick', handleDiscountDblClick);
+        }
+
         // Кнопка «+ Добавить печатный компонент».
         const addComponentBtn = document.getElementById('proschet-btn-add-component');
         if (addComponentBtn) {
@@ -416,6 +420,118 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 saveCirculation(input, original);
             }, 100);
         });
+    }
+
+    function handleDiscountDblClick(event) {
+        event.stopPropagation();
+        if (!activeProschet || !activeProschet.id) return;
+        if (discountSpan.querySelector('input')) return;
+
+        const original = activeProschet.discount || '';
+
+        discountSpan.textContent = '';
+        discountSpan.classList.remove('proschet-section-comment-empty');
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'proschet-inline-input';
+        input.value = original;
+        input.min = '0';
+        input.max = '100';
+        input.step = '0.01';
+        discountSpan.appendChild(input);
+
+        input.focus();
+        input.select();
+
+        let finished = false;
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (finished) return;
+                finished = true;
+                saveDiscount(input, original);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                if (finished) return;
+                finished = true;
+                cancelDiscount(original);
+            }
+        });
+
+        input.addEventListener('blur', function () {
+            setTimeout(function () {
+                if (finished) return;
+                finished = true;
+                saveDiscount(input, original);
+            }, 100);
+        });
+    }
+
+    function saveDiscount(input, original) {
+        const newValue = (input.value || '').trim();
+
+        if (newValue === String(original)) {
+            cancelDiscount(original);
+            return;
+        }
+
+        discountSpan.innerHTML = '<span class="proschet-inline-saving">Сохранение...</span>';
+
+        const fd = new FormData();
+        fd.append('discount', newValue);
+
+        fetch('/proschety/api/update-proschet-discount/' + activeProschet.id + '/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // Если вернулось пустое значение — значит, теперь берется скидка клиента.
+                // Для отображения мы можем просто показать скидку клиента (если она есть), либо 0.
+                let displayVal = data.discount;
+                if (displayVal === '') {
+                    // Пытаемся взять из данных клиента (нужно будет получить, но пока просто напишем "клиент")
+                    // В идеале нужно дергать API, но проще показать текущую скидку клиента, если мы её знаем.
+                    // Пока просто выведем прочерк, чтобы было понятно, что это авто.
+                    // Можно доработать: если data.discount пустое, то запрашивать данные клиента.
+                    // Но для простоты просто выведем "авто".
+                    displayVal = 'авто';
+                    activeProschet.discount = ''; 
+                } else {
+                    activeProschet.discount = displayVal;
+                }
+                discountSpan.textContent = displayVal === 'авто' ? 'авто' : displayVal + '%';
+                showNotification('Скидка обновлена', 'success');
+                notifyChange(activeProschet.id, 'discount');
+                
+                // Перезагружаем компоненты (карточки)
+                loadComponents(activeProschet.id);
+                
+                // ВАЖНО: принудительно обновляем блок итогов и все остальные цены
+                document.dispatchEvent(new CustomEvent('proschetComponentsRendered', {
+                    detail: { proschetId: String(activeProschet.id) }
+                }));
+            } else {
+                discountSpan.textContent = original || '—';
+                showNotification(data.message || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            discountSpan.textContent = original || '—';
+            showNotification('Ошибка сети', 'error');
+        });
+    }
+
+    function cancelDiscount(original) {
+        discountSpan.textContent = (original === '' || original === null || original === undefined) ? '—' : original + '%';
     }
 
     function saveCirculation(input, original) {

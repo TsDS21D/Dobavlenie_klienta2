@@ -33,14 +33,9 @@ def index(request):
         - active_app/page_title — как у остальных страниц проекта.
     """
     # Создаем правило: подтягивать к заказу только НЕудаленные изделия.
-    # order_by('position', 'id') — стабильный порядок:
-    #   • сначала по position (порядок внутри заказа),
-    #   • при равных position (например, у старых изделий с position=0)
-    #     — по id (фактический порядок создания).
-    # Без этой сортировки Django возьмёт Meta.ordering модели Product
-    # (тоже ['position', 'id']), так что здесь order_by избыточен —
-    # но пишем явно, чтобы поведение не зависело от Meta.
     active_products = Product.objects.filter(is_deleted=False).order_by('position', 'id')
+    # То же для товаров в заказе.
+    active_tovary = OrderTovar.objects.filter(is_deleted=False).order_by('position', 'id')
     
     # Берём все не удалённые заказы, свежие сверху.
     orders = (
@@ -49,6 +44,7 @@ def index(request):
         .select_related('client')
         # Применяем наше правило: в order.products попадут только активные изделия
         .prefetch_related(Prefetch('products', queryset=active_products))
+        .prefetch_related(Prefetch('tovary', queryset=active_tovary))
         .order_by('-created_at')
     )
 
@@ -128,6 +124,7 @@ def index(request):
 
 import json                                              # Разбор JSON из тела запроса
 from datetime import datetime                            # Парсинг строки в дату (для готовности)
+from decimal import Decimal                              # Точные десятичные числа (для цен)
 
 from django.http import JsonResponse                     # Ответ в формате JSON
 from django.shortcuts import get_object_or_404           # 404, если объект не найден
@@ -142,7 +139,7 @@ from calculator.models_list_proschet import Proschet     # Модель прос
 
 from django.db import transaction                         # Атомарность для api_replace_product_in_order
 from django.db.models import Prefetch
-from .models import Order, Product
+from .models import Order, Product, OrderTovar
 from .services import (                                  # Сервисные функции
     create_order_from_proschet,
     add_product_to_order,
@@ -691,6 +688,8 @@ def api_product_details(request, product_id):
             'created_at': product.created_at.strftime('%d.%m.%Y %H:%M'),
             'source_proschet_number': product.source_proschet.number if product.source_proschet else None,
             'source_template_name': product.source_template.name if product.source_template else None,
+            # ===== СКИДКА =====
+            'discount': float(product.frozen_discount) if product.frozen_discount is not None else None,
             # ===== ЗАМОРОЖЕННЫЕ МАССА / ОБЪЁМ / СТОПКИ =====
             'frozen_total_mass_g': float(product.frozen_total_mass_g),
             'frozen_total_volume_cm3': float(product.frozen_total_volume_cm3),
@@ -736,11 +735,13 @@ def api_rows(request):
     # Порядок изделий внутри заказа: position → id.
     # См. подробный комментарий в index().
     active_products = Product.objects.filter(is_deleted=False).order_by('position', 'id')
+    active_tovary = OrderTovar.objects.filter(is_deleted=False).order_by('position', 'id')
     orders = (
         Order.objects
         .filter(is_deleted=False)
         .select_related('client')
         .prefetch_related(Prefetch('products', queryset=active_products))
+        .prefetch_related(Prefetch('tovary', queryset=active_tovary))
         .order_by('-created_at')
     )
 
@@ -2003,3 +2004,248 @@ def api_restore_backup(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+
+# ============================================================================
+# API 20: СПИСОК ТОВАРОВ ИЗ СПРАВОЧНИКА (для выпадающего списка)
+# ============================================================================
+
+@login_required
+@require_GET
+def api_tovary_list(request):
+    """
+    Возвращает список товаров из справочника (tovary.Tovar) для <select>
+    в аккордеоне «Добавить товар» на странице /orders/.
+    """
+    from tovary.models import Tovar
+
+    # Сортируем по дереву категорий (tree_id, lft), затем по имени товара.
+    # Это сгруппирует товары одной категории вместе.
+    tovary = Tovar.objects.filter(is_deleted=False).select_related('category').order_by(
+        'category__tree_id', 'category__lft', 'name'
+    )
+
+    data = []
+    for t in tovary:
+        data.append({
+            'id': t.id,
+            'name': t.name,
+            'category_id': t.category.id if t.category else None,
+            'category_name': t.category.name if t.category else 'Без категории',
+            'article': t.article,
+            'price': str(t.price),
+            'unit': t.unit,
+        })
+
+    return JsonResponse({'success': True, 'tovary': data})
+
+
+# ============================================================================
+# API 21: ДОБАВИТЬ ТОВАР В ЗАКАЗ
+# ============================================================================
+
+@login_required
+@require_POST
+def api_add_tovar_to_order(request):
+    """
+    Добавляет товар из справочника в заказ.
+
+    Ожидаемый JSON:
+        {
+            "order_id": 7,
+            "tovar_id": 3,
+            "quantity": 2,
+            "price": "500.00"    // необязательно — если не передано,
+                                 // берётся из tovar.price
+        }
+
+    Возвращает:
+        {success: true, tovar: {...}}
+    """
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    order_id = data.get('order_id')
+    tovar_id = data.get('tovar_id')
+    quantity = data.get('quantity') or 1
+    price_raw = data.get('price')
+
+    if not order_id or not tovar_id:
+        return JsonResponse({'success': False, 'error': 'Не указан заказ или товар'}, status=400)
+
+    order = get_object_or_404(Order, pk=order_id, is_deleted=False)
+
+    from tovary.models import Tovar
+    tovar = get_object_or_404(Tovar, pk=tovar_id, is_deleted=False)
+
+    # Базовая цена: из запроса (если есть) или из справочника.
+    if price_raw is not None and str(price_raw).strip() != '':
+        try:
+            price = Decimal(str(price_raw))
+        except (ValueError, ArithmeticError):
+            return JsonResponse({'success': False, 'error': 'Некорректная цена'}, status=400)
+    else:
+        price = tovar.price
+
+    # Скидка: если у клиента есть — фиксируем её как клиентскую.
+    if order.client and order.client.discount:
+        discount = order.client.discount
+        discount_source = OrderTovar.DISCOUNT_SOURCE_CLIENT
+    else:
+        discount = Decimal('0.00')
+        discount_source = OrderTovar.DISCOUNT_SOURCE_CLIENT
+
+    # Позиция — в конец списка.
+    from django.db.models import Max
+    max_pos = (
+        order.tovary.filter(is_deleted=False)
+        .aggregate(Max('position'))['position__max']
+    ) or 0
+
+    # Создаём.
+    try:
+        qty = int(quantity)
+        if qty < 1:
+            qty = 1
+    except (ValueError, TypeError):
+        qty = 1
+
+    order_tovar = OrderTovar.objects.create(
+        order=order,
+        tovar=tovar,
+        name=tovar.name,
+        article=tovar.article,
+        quantity=qty,
+        price=price,
+        discount=discount,
+        discount_source=discount_source,
+        position=max_pos + 1,
+    )
+
+    _send_order_event('updated', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'tovar': {
+            'id': order_tovar.id,
+            'name': order_tovar.name,
+            'quantity': order_tovar.quantity,
+            'price': str(order_tovar.price),
+            'discount': str(order_tovar.discount),
+            'discount_source': order_tovar.discount_source,
+            'formatted_total_price': order_tovar.formatted_total_price,
+        }
+    })
+
+
+# ============================================================================
+# API 22: ОБНОВИТЬ ТОВАР В ЗАКАЗЕ (кол-во / цена / скидка)
+# ============================================================================
+
+@login_required
+@require_POST
+def api_update_order_tovar(request, tovar_id):
+    """
+    Обновляет одно поле товара в заказе.
+
+    Ожидаемый JSON:
+        {
+            "field_name": "quantity" | "price" | "discount",
+            "field_value": "..."
+        }
+
+    Для скидки:
+        - если field_value = "" или null — вернуть клиентскую скидку.
+        - иначе — discount_source = 'manual'.
+    """
+    order_tovar = get_object_or_404(OrderTovar, pk=tovar_id, is_deleted=False)
+    order = order_tovar.order
+
+    try:
+        data = _parse_json(request)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    field_name = (data.get('field_name') or '').strip()
+    field_value = data.get('field_value')
+
+    if field_name == 'quantity':
+        try:
+            qty = int(field_value)
+            if qty < 1:
+                qty = 1
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'error': 'Некорректное количество'}, status=400)
+        order_tovar.quantity = qty
+
+    elif field_name == 'price':
+        try:
+            price = Decimal(str(field_value))
+        except (ValueError, ArithmeticError):
+            return JsonResponse({'success': False, 'error': 'Некорректная цена'}, status=400)
+        if price < 0:
+            return JsonResponse({'success': False, 'error': 'Цена не может быть отрицательной'}, status=400)
+        order_tovar.price = price
+
+    elif field_name == 'discount':
+        # Пустое значение → клиентская скидка.
+        if field_value is None or str(field_value).strip() == '':
+            if order.client and order.client.discount:
+                order_tovar.discount = order.client.discount
+            else:
+                order_tovar.discount = Decimal('0.00')
+            order_tovar.discount_source = OrderTovar.DISCOUNT_SOURCE_CLIENT
+        else:
+            try:
+                disc = Decimal(str(field_value))
+            except (ValueError, ArithmeticError):
+                return JsonResponse({'success': False, 'error': 'Некорректная скидка'}, status=400)
+            if disc < 0 or disc > 100:
+                return JsonResponse({'success': False, 'error': 'Скидка должна быть от 0 до 100'}, status=400)
+            order_tovar.discount = disc
+            order_tovar.discount_source = OrderTovar.DISCOUNT_SOURCE_MANUAL
+    else:
+        return JsonResponse({'success': False, 'error': f'Поле "{field_name}" не поддерживается'}, status=400)
+
+    order_tovar.save()
+    _send_order_event('updated', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'tovar': {
+            'id': order_tovar.id,
+            'quantity': order_tovar.quantity,
+            'price': str(order_tovar.price),
+            'discount': str(order_tovar.discount),
+            'discount_source': order_tovar.discount_source,
+            'formatted_total_price': order_tovar.formatted_total_price,
+        }
+    })
+
+
+# ============================================================================
+# API 23: МЯГКОЕ УДАЛЕНИЕ ТОВАРА ИЗ ЗАКАЗА
+# ============================================================================
+
+@login_required
+@require_POST
+def api_delete_order_tovar(request, tovar_id):
+    """
+    Помечает товар в заказе как удалённый (is_deleted=True).
+    """
+    order_tovar = get_object_or_404(OrderTovar, pk=tovar_id, is_deleted=False)
+    order = order_tovar.order
+
+    order_tovar.is_deleted = True
+    order_tovar.save(update_fields=['is_deleted'])
+
+    _send_order_event('updated', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'tovar_id': order_tovar.id,
+        'message': f'Товар «{order_tovar.name}» удалён из заказа',
+    })

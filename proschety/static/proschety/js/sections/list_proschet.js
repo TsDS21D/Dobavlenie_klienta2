@@ -906,6 +906,14 @@ JavaScript секции «Список просчётов» новой стра�
                                 proschetDiscount: newDiscountAttr
                             }
                         }));
+
+                        // ВАЖНО: принудительно перезагружаем все данные (цены, компоненты),
+                        // чтобы они пересчитались с учетом новой скидки.
+                        // Вызываем событие proschetComponentsRendered, на которое подписан блок итогов
+                        // и которое заставит его перезапросить данные с сервера.
+                        document.dispatchEvent(new CustomEvent('proschetComponentsRendered', { 
+                            detail: { proschetId: String(proschetId) } 
+                        }));
                     }
                 }
 

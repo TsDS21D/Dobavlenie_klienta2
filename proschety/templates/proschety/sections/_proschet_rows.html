@@ -14,7 +14,7 @@ proschety/templates/proschety/sections/_proschet_rows.html
         data-proschet-id="{{ proschet.id }}"
         data-circulation="{{ proschet.circulation|default:'' }}"
         data-comment="{{ proschet.comment|default:'' }}"
-        data-client-discount="{% if proschet.client %}{{ proschet.client.discount|default:'' }}{% endif %}">
+        data-client-discount="{% if proschet.discount_override is not None %}{{ proschet.discount_override }}{% elif proschet.client %}{{ proschet.client.discount|default:'' }}{% endif %}">
         <td class="col-number">{{ proschet.number }}</td>
         <td class="col-title editable-cell"
             data-proschet-id="{{ proschet.id }}"

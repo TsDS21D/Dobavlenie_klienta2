@@ -84,7 +84,9 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий и товаров">
+                        {{ order.products_and_tovary_count }} изд.
+                    </span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
                 <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
@@ -182,6 +184,13 @@ orders/templates/orders/sections/_order_rows.html
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                            {% if product.frozen_discount is not None %}
+                                                {% if order.client and product.frozen_discount == order.client.discount %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--client">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% else %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--manual">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% endif %}
+                                            {% endif %}
                                             <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
@@ -189,12 +198,42 @@ orders/templates/orders/sections/_order_rows.html
                                         <!-- СКРЫТЫЙ БЛОК С ДЕТАЛЯМИ (сюда JS вставит компоненты) -->
                                         <div class="list-orders-product-expanded" style="display: none;"></div>
                                     </div>
-                                {% empty %}
-                                    <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                    {% empty %}
+                                        <span class="list-orders-detail-value" style="color: #999; font-weight: normal; font-style: italic;">В заказе нет изделий</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- БЛОК С ТОВАРАМИ (штампы, оснастка, услуги и т.п.).
+                                 Показывается под изделиями, отделён пунктирной линией
+                                 (CSS .list-orders-tovary-wrap). См. ТЗ. -->
+                            {% if order.tovary.all %}
+                            <div class="list-orders-tovary-wrap">
+                                <div class="list-orders-tovary-title">Товары</div>
+                                {% for tovar in order.tovary.all %}
+                                    {# Одна строка товара. Поля quantity / price / discount — #}
+                                    {# редактируются инлайн (двойной клик). Кнопка × удаляет. #}
+                                    <div class="list-orders-tovar-item" data-tovar-id="{{ tovar.id }}">
+                                        {# Сквозная нумерация: продолжаем после изделий. #}
+                                        {# order.products.all|length — количество активных изделий. #}
+                                        {# См. `order.products_and_tovary_count` — там тоже учтены обе группы. #}
+                                        <span class="list-orders-tovar-number">{{ order.products.all|length|add:forloop.counter }}.</span>
+                                        <span class="list-orders-tovar-name">
+                                            {{ tovar.name }}
+                                            {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
+                                        </span>
+                                        <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
+                                        <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
+                                        <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
+                                            {% if tovar.discount %}скидка {{ tovar.discount|floatformat:"-2" }}%{% else %}скидка 0%{% endif %}
+                                        </span>
+                                        <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
+                                        <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
+                                    </div>
                                 {% endfor %}
                             </div>
+                            {% endif %}
                         </div>
-                    </div>
                     
                     <div class="list-orders-details-actions">
                         <span class="list-orders-detail-created">Создан: {{ order.created_at|date:"d.m.Y H:i" }}</span>
@@ -276,6 +315,7 @@ orders/templates/orders/sections/_order_rows.html
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
                             <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить изделие</span>
                         </button>
                         
                         <div class="list-orders-add-product-content">
@@ -291,6 +331,36 @@ orders/templates/orders/sections/_order_rows.html
                                 <!-- Ссылка на калькулятор для создания нового просчёта -->
                                 <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
                                     + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ТОВАРА (АККОРДЕОН).
+                         По аналогии с «Добавить изделие», но для товаров
+                         из справочника tovary.Tovar. Позволяет переопределить
+                         цену перед добавлением (если поле «Цена» не пустое). -->
+                    <div class="list-orders-add-tovar-section">
+                        <button type="button" class="list-orders-toggle-add-tovar" title="Добавить товар">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить товар</span>
+                        </button>
+                        
+                        <div class="list-orders-add-tovar-content">
+                            <div class="list-orders-add-tovar-form">
+                                <label>Выбрать товар:</label>
+                                <select class="list-orders-select-tovar" data-order-id="{{ order.id }}">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <label>Кол-во:</label>
+                                <input type="number" class="list-orders-tovar-qty-input" min="1" value="1" data-order-id="{{ order.id }}">
+                                <label>Цена:</label>
+                                <input type="text" class="list-orders-tovar-price-input" data-order-id="{{ order.id }}" placeholder="Из справочника">
+                                <button type="button" class="list-orders-btn-add-tovar" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <a href="/tovary/" target="_blank" class="list-orders-link-new-tovar" style="margin-left: auto;">
+                                    + Создать новый товар
                                 </a>
                             </div>
                         </div>
@@ -377,7 +447,9 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий и товаров">
+                        {{ order.products_and_tovary_count }} изд.
+                    </span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
                 <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
@@ -474,6 +546,13 @@ orders/templates/orders/sections/_order_rows.html
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                            {% if product.frozen_discount is not None %}
+                                                {% if order.client and product.frozen_discount == order.client.discount %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--client">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% else %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--manual">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% endif %}
+                                            {% endif %}
                                             <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
@@ -486,6 +565,36 @@ orders/templates/orders/sections/_order_rows.html
                                 {% endfor %}
                             </div>
                         </div>
+
+                        <!-- БЛОК С ТОВАРАМИ (штампы, оснастка, услуги и т.п.).
+                             Показывается под изделиями, отделён пунктирной линией
+                             (CSS .list-orders-tovary-wrap). См. ТЗ. -->
+                        {% if order.tovary.all %}
+                        <div class="list-orders-tovary-wrap">
+                            <div class="list-orders-tovary-title">Товары</div>
+                            {% for tovar in order.tovary.all %}
+                                {# Одна строка товара. Поля quantity / price / discount — #}
+                                {# редактируются инлайн (двойной клик). Кнопка × удаляет. #}
+                                <div class="list-orders-tovar-item" data-tovar-id="{{ tovar.id }}">
+                                        {# Сквозная нумерация: продолжаем после изделий. #}
+                                        {# order.products.all|length — количество активных изделий. #}
+                                        {# См. `order.products_and_tovary_count` — там тоже учтены обе группы. #}
+                                        <span class="list-orders-tovar-number">{{ order.products.all|length|add:forloop.counter }}.</span>
+                                    <span class="list-orders-tovar-name">
+                                        {{ tovar.name }}
+                                        {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
+                                    <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
+                                    <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
+                                        {% if tovar.discount %}скидка {{ tovar.discount|floatformat:"-2" }}%{% else %}скидка 0%{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
+                                    <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <div class="list-orders-details-actions">
@@ -569,6 +678,7 @@ orders/templates/orders/sections/_order_rows.html
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
                             <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить изделие</span>
                         </button>
                         
                         <div class="list-orders-add-product-content">
@@ -584,6 +694,36 @@ orders/templates/orders/sections/_order_rows.html
                                 <!-- Ссылка на калькулятор для создания нового просчёта -->
                                 <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
                                     + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ТОВАРА (АККОРДЕОН).
+                         По аналогии с «Добавить изделие», но для товаров
+                         из справочника tovary.Tovar. Позволяет переопределить
+                         цену перед добавлением (если поле «Цена» не пустое). -->
+                    <div class="list-orders-add-tovar-section">
+                        <button type="button" class="list-orders-toggle-add-tovar" title="Добавить товар">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить товар</span>
+                        </button>
+                        
+                        <div class="list-orders-add-tovar-content">
+                            <div class="list-orders-add-tovar-form">
+                                <label>Выбрать товар:</label>
+                                <select class="list-orders-select-tovar" data-order-id="{{ order.id }}">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <label>Кол-во:</label>
+                                <input type="number" class="list-orders-tovar-qty-input" min="1" value="1" data-order-id="{{ order.id }}">
+                                <label>Цена:</label>
+                                <input type="text" class="list-orders-tovar-price-input" data-order-id="{{ order.id }}" placeholder="Из справочника">
+                                <button type="button" class="list-orders-btn-add-tovar" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <a href="/tovary/" target="_blank" class="list-orders-link-new-tovar" style="margin-left: auto;">
+                                    + Создать новый товар
                                 </a>
                             </div>
                         </div>
@@ -670,7 +810,9 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий и товаров">
+                        {{ order.products_and_tovary_count }} изд.
+                    </span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
                 <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
@@ -767,6 +909,13 @@ orders/templates/orders/sections/_order_rows.html
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                            {% if product.frozen_discount is not None %}
+                                                {% if order.client and product.frozen_discount == order.client.discount %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--client">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% else %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--manual">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% endif %}
+                                            {% endif %}
                                             <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
@@ -779,6 +928,36 @@ orders/templates/orders/sections/_order_rows.html
                                 {% endfor %}
                             </div>
                         </div>
+
+                        <!-- БЛОК С ТОВАРАМИ (штампы, оснастка, услуги и т.п.).
+                             Показывается под изделиями, отделён пунктирной линией
+                             (CSS .list-orders-tovary-wrap). См. ТЗ. -->
+                        {% if order.tovary.all %}
+                        <div class="list-orders-tovary-wrap">
+                            <div class="list-orders-tovary-title">Товары</div>
+                            {% for tovar in order.tovary.all %}
+                                {# Одна строка товара. Поля quantity / price / discount — #}
+                                {# редактируются инлайн (двойной клик). Кнопка × удаляет. #}
+                                <div class="list-orders-tovar-item" data-tovar-id="{{ tovar.id }}">
+                                        {# Сквозная нумерация: продолжаем после изделий. #}
+                                        {# order.products.all|length — количество активных изделий. #}
+                                        {# См. `order.products_and_tovary_count` — там тоже учтены обе группы. #}
+                                        <span class="list-orders-tovar-number">{{ order.products.all|length|add:forloop.counter }}.</span>
+                                    <span class="list-orders-tovar-name">
+                                        {{ tovar.name }}
+                                        {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
+                                    <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
+                                    <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
+                                        {% if tovar.discount %}скидка {{ tovar.discount|floatformat:"-2" }}%{% else %}скидка 0%{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
+                                    <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <div class="list-orders-details-actions">
@@ -862,6 +1041,7 @@ orders/templates/orders/sections/_order_rows.html
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
                             <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить изделие</span>
                         </button>
                         
                         <div class="list-orders-add-product-content">
@@ -877,6 +1057,36 @@ orders/templates/orders/sections/_order_rows.html
                                 <!-- Ссылка на калькулятор для создания нового просчёта -->
                                 <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
                                     + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ТОВАРА (АККОРДЕОН).
+                         По аналогии с «Добавить изделие», но для товаров
+                         из справочника tovary.Tovar. Позволяет переопределить
+                         цену перед добавлением (если поле «Цена» не пустое). -->
+                    <div class="list-orders-add-tovar-section">
+                        <button type="button" class="list-orders-toggle-add-tovar" title="Добавить товар">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить товар</span>
+                        </button>
+                        
+                        <div class="list-orders-add-tovar-content">
+                            <div class="list-orders-add-tovar-form">
+                                <label>Выбрать товар:</label>
+                                <select class="list-orders-select-tovar" data-order-id="{{ order.id }}">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <label>Кол-во:</label>
+                                <input type="number" class="list-orders-tovar-qty-input" min="1" value="1" data-order-id="{{ order.id }}">
+                                <label>Цена:</label>
+                                <input type="text" class="list-orders-tovar-price-input" data-order-id="{{ order.id }}" placeholder="Из справочника">
+                                <button type="button" class="list-orders-btn-add-tovar" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <a href="/tovary/" target="_blank" class="list-orders-link-new-tovar" style="margin-left: auto;">
+                                    + Создать новый товар
                                 </a>
                             </div>
                         </div>
@@ -967,7 +1177,9 @@ orders/templates/orders/sections/_order_rows.html
                 </div>
 
                 <div class="list-orders-card-meta">
-                    <span class="list-orders-card-products" title="Изделий">{{ order.products.all|length }} изд.</span>
+                    <span class="list-orders-card-products" title="Изделий и товаров">
+                        {{ order.products_and_tovary_count }} изд.
+                    </span>
                     <span class="list-orders-card-total" title="Стоимость">{{ order.formatted_total_price }}</span>
                 </div>
                 <!-- Блок с количеством рабочих часов (или галочкой для выполненных) -->
@@ -1064,6 +1276,13 @@ orders/templates/orders/sections/_order_rows.html
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
+                                            {% if product.frozen_discount is not None %}
+                                                {% if order.client and product.frozen_discount == order.client.discount %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--client">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% else %}
+                                                    <span class="list-orders-product-discount list-orders-product-discount--manual">скидка {{ product.frozen_discount|floatformat:"-2" }}%</span>
+                                                {% endif %}
+                                            {% endif %}
                                             <span class="list-orders-product-price">{{ product.formatted_total_price }}</span>
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
@@ -1076,6 +1295,36 @@ orders/templates/orders/sections/_order_rows.html
                                 {% endfor %}
                             </div>
                         </div>
+
+                        <!-- БЛОК С ТОВАРАМИ (штампы, оснастка, услуги и т.п.).
+                             Показывается под изделиями, отделён пунктирной линией
+                             (CSS .list-orders-tovary-wrap). См. ТЗ. -->
+                        {% if order.tovary.all %}
+                        <div class="list-orders-tovary-wrap">
+                            <div class="list-orders-tovary-title">Товары</div>
+                            {% for tovar in order.tovary.all %}
+                                {# Одна строка товара. Поля quantity / price / discount — #}
+                                {# редактируются инлайн (двойной клик). Кнопка × удаляет. #}
+                                <div class="list-orders-tovar-item" data-tovar-id="{{ tovar.id }}">
+                                        {# Сквозная нумерация: продолжаем после изделий. #}
+                                        {# order.products.all|length — количество активных изделий. #}
+                                        {# См. `order.products_and_tovary_count` — там тоже учтены обе группы. #}
+                                        <span class="list-orders-tovar-number">{{ order.products.all|length|add:forloop.counter }}.</span>
+                                    <span class="list-orders-tovar-name">
+                                        {{ tovar.name }}
+                                        {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
+                                    <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
+                                    <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
+                                        {% if tovar.discount %}скидка {{ tovar.discount|floatformat:"-2" }}%{% else %}скидка 0%{% endif %}
+                                    </span>
+                                    <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
+                                    <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <div class="list-orders-details-actions">
@@ -1158,6 +1407,7 @@ orders/templates/orders/sections/_order_rows.html
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
                             <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить изделие</span>
                         </button>
                         
                         <div class="list-orders-add-product-content">
@@ -1173,6 +1423,36 @@ orders/templates/orders/sections/_order_rows.html
                                 <!-- Ссылка на калькулятор для создания нового просчёта -->
                                 <a href="/proschety/?order_id={{ order.id }}" target="_blank" class="list-orders-link-new-proschet" style="margin-left: auto;">
                                     + Создать новый просчёт
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- БЛОК ДОБАВЛЕНИЯ ТОВАРА (АККОРДЕОН).
+                         По аналогии с «Добавить изделие», но для товаров
+                         из справочника tovary.Tovar. Позволяет переопределить
+                         цену перед добавлением (если поле «Цена» не пустое). -->
+                    <div class="list-orders-add-tovar-section">
+                        <button type="button" class="list-orders-toggle-add-tovar" title="Добавить товар">
+                            <span class="list-orders-toggle-arrow">▼</span>
+                            <span class="list-orders-toggle-label">Добавить товар</span>
+                        </button>
+                        
+                        <div class="list-orders-add-tovar-content">
+                            <div class="list-orders-add-tovar-form">
+                                <label>Выбрать товар:</label>
+                                <select class="list-orders-select-tovar" data-order-id="{{ order.id }}">
+                                    <option value="">— Загрузка списка... —</option>
+                                </select>
+                                <label>Кол-во:</label>
+                                <input type="number" class="list-orders-tovar-qty-input" min="1" value="1" data-order-id="{{ order.id }}">
+                                <label>Цена:</label>
+                                <input type="text" class="list-orders-tovar-price-input" data-order-id="{{ order.id }}" placeholder="Из справочника">
+                                <button type="button" class="list-orders-btn-add-tovar" data-order-id="{{ order.id }}">
+                                    Добавить в заказ
+                                </button>
+                                <a href="/tovary/" target="_blank" class="list-orders-link-new-tovar" style="margin-left: auto;">
+                                    + Создать новый товар
                                 </a>
                             </div>
                         </div>

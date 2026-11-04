@@ -66,6 +66,10 @@ def _calculate_final_prices(proschet, discount_percent=None, base_total=None):
     
     if discount_percent is not None:
         discount = float(discount_percent)
+    # ПРИОРИТЕТ 1: Ручная скидка в просчёте (discount_override)
+    elif proschet.discount_override is not None:
+        discount = float(proschet.discount_override)
+    # ПРИОРИТЕТ 2: Скидка клиента
     elif proschet.client and proschet.client.discount:
         discount = float(proschet.client.discount)
     else:
@@ -89,7 +93,8 @@ def _calculate_final_prices(proschet, discount_percent=None, base_total=None):
     # Итоговая сумма = цена за шт * тираж
     final_total_price = (unit_price * circulation).quantize(Decimal('0.01'))
     
-    return final_total_price, multiplier
+    # Возвращаем итоговую цену, множитель (для совместимости) и саму скидку
+    return final_total_price, multiplier, discount
 
 
 def _get_active_base_total(proschet):
@@ -180,7 +185,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
     
     # Рассчитываем базовую сумму только по активным элементам (без удалённого мусора)
     active_base_total = _get_active_base_total(proschet)
-    frozen_total_price, multiplier = _calculate_final_prices(proschet, base_total=active_base_total)
+    
+    # Получаем цену, множитель и фактическую скидку
+    frozen_total_price, multiplier, applied_discount = _calculate_final_prices(proschet, base_total=active_base_total)
 
     product = Product.objects.create(
         order=order,
@@ -188,14 +195,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
         source_template=proschet.source_template,
         title=proschet.title,
         circulation=proschet.circulation or 1,
-        # Порядковый номер внутри заказа.
-        # create_order_from_proschet всегда создаёт НОВЫЙ заказ
-        # (см. блок «Шаг 1. Создаём заказ» выше), а у нового заказа
-        # ещё нет изделий. Значит, это изделие — первое, position=1.
-        # Хардкод «1» здесь корректнее, чем SELECT max(): не нужен
-        # лишний запрос к БД на каждый вызов.
         position=1,
         total_price=frozen_total_price,
+        frozen_discount=applied_discount,  # Используем возвращённую скидку
     )
 
     # --- Шаг 3. Проходим по всем не удалённым печатным компонентам ---
@@ -396,25 +398,24 @@ def add_product_to_order(proschet, order):
     """
 
     # --- Шаг 1. Создаём изделие ---
-    # Скидка — по клиенту ЗАКАЗА, а не клиента просчёта.
-    # Логика: изделие добавляется в конкретный заказ конкретного клиента,
-    # именно он будет платить → цена должна быть по его скидке.
-    #
-    # Пример: просчёт создан для Аромако (5%), добавляем в заказ
-    # Барко (7%). Скидка должна быть 7% (Барко), а не 5% (Аромако).
-    #
-    # Если у заказа нет клиента — скидка 0% (явно передаём 0,
-    # чтобы отличать от «не передан параметр»).
-    order_discount = (
-        order.client.discount
-        if (order.client and order.client.discount)
-        else 0
-    )
+    # Определяем скидку для расчёта цены.
+    # ПРИОРИТЕТ 1: Ручная скидка в просчёте (discount_override).
+    # ПРИОРИТЕТ 2: Скидка клиента ЗАКАЗА.
+    if proschet.discount_override is not None:
+        applied_discount = proschet.discount_override
+    else:
+        applied_discount = (
+            order.client.discount
+            if (order.client and order.client.discount)
+            else 0
+        )
+
     # Считаем базовую сумму только по активным элементам
     active_base_total = _get_active_base_total(proschet)
     
-    frozen_total_price, multiplier = _calculate_final_prices(
-        proschet, discount_percent=order_discount, base_total=active_base_total
+    # Получаем цену, множитель и фактическую скидку (принудительно передаём applied_discount)
+    frozen_total_price, multiplier, applied_discount = _calculate_final_prices(
+        proschet, discount_percent=applied_discount, base_total=active_base_total
     )
 
     # Вычисляем следующий порядковый номер для нового изделия.
@@ -446,6 +447,7 @@ def add_product_to_order(proschet, order):
         # Порядковый номер — вычислен выше.
         position=next_position,
         total_price=frozen_total_price,
+        frozen_discount=applied_discount,  # Берём из _calculate_final_prices
     )
 
     # --- Шаг 2. Проходим по всем не удалённым печатным компонентам ---
@@ -676,12 +678,8 @@ def create_proschet_from_product(product, source_order=None):
         circulation=product.circulation or 1,      # Тираж копируем
         client=client,                             # Клиент — из заказа изделия
         source_template=product.source_template,   # Цепочка трассировки через шаблон
-        # Ссылка на заказ-источник. Передаётся необязательным параметром.
-        # Если None — просчёт создаётся без привязки к заказу (как
-        # было раньше, через api_proschet_from_product).
-        # Если указан — устанавливается, чтобы баннер на /proschety/
-        # мог показать «Вы редактируете изделие из Заказа ORD-X».
         source_order=source_order,
+        discount_override=product.frozen_discount, # <--- ПЕРЕНОСИМ СКИДКУ
     )
 
     # --- Шаг 3. Перебираем компоненты изделия в исходном порядке ---

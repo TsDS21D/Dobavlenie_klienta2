@@ -195,10 +195,15 @@ def api_proschet_detail(request, proschet_id):
     """
     proschet = get_object_or_404(Proschet, pk=proschet_id, is_deleted=False)
 
-    discount = ''
-    if proschet.client and proschet.client.discount is not None:
+    # Приоритет 1: Ручная скидка
+    if proschet.discount_override is not None:
+        discount = str(proschet.discount_override)
+    # Приоритет 2: Скидка клиента
+    elif proschet.client and proschet.client.discount is not None:
         discount = str(proschet.client.discount)
-
+    else:
+        discount = ''
+    
     return JsonResponse({
         'success': True,
         'proschet': {
@@ -268,6 +273,18 @@ def apply_discount(price, discount_percent):
         return price
     return price * (1 - float(discount_percent) / 100.0)
 
+def get_proschet_discount(proschet):
+    """
+    Возвращает актуальную скидку для просчёта.
+    Приоритет 1: discount_override (ручная скидка).
+    Приоритет 2: скидка клиента.
+    """
+    if proschet.discount_override is not None:
+        return float(proschet.discount_override)
+    if proschet.client and proschet.client.discount:
+        return float(proschet.client.discount)
+    return 0.0
+
 @login_required(login_url='/login/')
 @require_GET
 def api_price_data_with_discount(request, proschet_id):
@@ -283,7 +300,7 @@ def api_price_data_with_discount(request, proschet_id):
 
     # 2. Получаем скидку
     proschet = Proschet.objects.get(id=proschet_id)
-    discount = float(proschet.client.discount) if proschet.client and proschet.client.discount else 0.0
+    discount = get_proschet_discount(proschet)
 
     # 3. Применяем скидку ко всем числовым полям
     if discount > 0:
@@ -327,7 +344,7 @@ def api_print_components_with_discount(request, proschet_id):
         return resp
 
     proschet = Proschet.objects.get(id=proschet_id)
-    discount = float(proschet.client.discount) if proschet.client and proschet.client.discount else 0.0
+    discount = get_proschet_discount(proschet)
 
     if discount > 0:
         for comp in data.get('components', []):
@@ -360,7 +377,7 @@ def api_lamination_with_discount(request, component_id):
     # Нам нужен просчёт, к которому относится компонент, чтобы узнать скидку
     from calculator.models_list_proschet import PrintComponent
     comp = PrintComponent.objects.get(id=component_id)
-    discount = float(comp.proschet.client.discount) if comp.proschet.client and comp.proschet.client.discount else 0.0
+    discount = get_proschet_discount(comp.proschet)
 
     if discount > 0:
         lam = data.get('lamination', {})
@@ -386,7 +403,7 @@ def api_additional_works_with_discount(request, component_id):
 
     from calculator.models_list_proschet import PrintComponent
     comp = PrintComponent.objects.get(id=component_id)
-    discount = float(comp.proschet.client.discount) if comp.proschet.client and comp.proschet.client.discount else 0.0
+    discount = get_proschet_discount(comp.proschet)
 
     if discount > 0:
         for work in data.get('works', []):
@@ -396,3 +413,32 @@ def api_additional_works_with_discount(request, component_id):
 
     data['discount_percent'] = discount
     return JsonResponse(data)
+
+@login_required(login_url='/login/')
+@require_POST
+def update_proschet_discount(request, proschet_id):
+    """
+    Обновляет ручную скидку просчёта (discount_override).
+    Если передано пустое значение — сбрасывает на скидку клиента.
+    """
+    proschet = get_object_or_404(Proschet, pk=proschet_id, is_deleted=False)
+
+    new_discount = request.POST.get('discount', '').strip()
+
+    if new_discount == '':
+        proschet.discount_override = None
+    else:
+        try:
+            val = float(new_discount)
+            if val < 0 or val > 100:
+                return JsonResponse({'success': False, 'message': 'Скидка должна быть от 0 до 100%'}, status=400)
+            proschet.discount_override = Decimal(str(val))
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Некорректное число'}, status=400)
+
+    proschet.save(update_fields=['discount_override'])
+
+    return JsonResponse({
+        'success': True,
+        'discount': str(proschet.discount_override) if proschet.discount_override is not None else '',
+    })

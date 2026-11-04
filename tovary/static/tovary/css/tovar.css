@@ -1,0 +1,479 @@
+/* ============================================================
+   tovary/static/tovary/css/tovar.css
+   Стили страницы «Справочник товаров» (/tovary/).
+   ============================================================ */
+
+.tovary-page-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Двухколоночный layout. */
+.tovary-layout {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+/* --- ЛЕВАЯ КОЛОНКА: ДЕРЕВО КАТЕГОРИЙ --- */
+.tovary-sidebar {
+    flex: 0 0 260px;
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem 1rem 1.15rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.tovary-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #ececec;
+}
+
+.tovary-sidebar-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.tovary-btn-add-category {
+    padding: 0.25rem 0.5rem;
+    background: #0B8661;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.tovary-btn-add-category:hover {
+    background: #0a6e51;
+}
+
+/* Дерево MPTT. */
+.category-tree {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.category-tree ul {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0;
+}
+
+.category-tree li {
+    margin: 0.15rem 0;
+}
+
+.category-node {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    transition: background 0.12s ease;
+    cursor: pointer;
+}
+
+.category-node:hover {
+    background: #f0f9f5;
+}
+
+.category-node.active {
+    background: #eaf6ef;
+    font-weight: 600;
+    color: #0B8661;
+}
+
+.category-node a {
+    color: inherit;
+    text-decoration: none;
+    flex: 1;
+}
+
+.category-node.active a {
+    color: #0B8661;
+}
+
+.category-actions {
+    display: none;
+    gap: 0.2rem;
+}
+
+.category-node:hover .category-actions {
+    display: flex;
+}
+
+.category-actions button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #bbb;
+    padding: 0 0.2rem;
+    line-height: 1;
+    border-radius: 4px;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+
+.category-actions button:hover {
+    color: #0B8661;
+    background: rgba(11, 134, 97, 0.1);
+}
+
+.category-actions button.category-btn-delete:hover {
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.tovary-sidebar-empty {
+    font-size: 0.8rem;
+    color: #999;
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* --- ПРАВАЯ КОЛОНКА: СПИСОК ТОВАРОВ --- */
+.tovary-content {
+    flex: 1;
+    min-width: 0;
+    background: #ffffff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    padding: 1rem 1.15rem 1.15rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.tovary-content-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tovary-content-title .tovary-filter-info {
+    font-size: 0.8rem;
+    color: #888;
+    font-weight: 400;
+}
+
+/* Форма добавления. */
+.tovary-add-form {
+    background: #f0f9f5;
+    border: 1px solid #b9d9c7;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.tovary-add-form .tovary-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+}
+
+.tovary-add-form .tovary-field-wide {
+    flex: 1 1 180px;
+}
+
+.tovary-add-form label {
+    font-size: 0.78rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.tovary-input {
+    padding: 0.35rem 0.55rem;
+    border: 1.5px solid #b9d9c7;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: #333;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    text-align: left; /* Выравниваем текст по левому краю */
+}
+
+/* Выравниваем текст по левому краю во всех селектах */
+select.tovary-input {
+    text-align: left;
+    text-align-last: left;
+}
+
+select.tovary-input option {
+    text-align: left;
+}
+
+
+/* Выравниваем текст внутри самого выпадающего списка */
+.tovary-input option {
+    text-align: left;
+}
+
+.tovary-input:focus {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+.tovary-btn-add {
+    padding: 0.42rem 0.95rem;
+    background: #0B8661;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    white-space: nowrap;
+}
+
+.tovary-btn-add:hover {
+    background: #0a6e51;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 134, 97, 0.35);
+}
+
+/* Заголовки-столбцы. */
+.tovary-list-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0 0.8rem 0.4rem;
+    border-bottom: 1px solid #ececec;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: #999;
+    font-weight: 600;
+}
+
+.tovary-list-header > span {
+    padding: 0 0.4rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tovary-list-header .col-name    { flex: 1; }
+.tovary-list-header .col-category { flex: 0 0 130px; }
+.tovary-list-header .col-article  { flex: 0 0 100px; }
+.tovary-list-header .col-price    { flex: 0 0 90px; text-align: right; }
+.tovary-list-header .col-unit     { flex: 0 0 50px; text-align: right; }
+.tovary-list-header .col-actions  { flex: 0 0 130px; text-align: right; }
+
+.tovary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.tovary-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.45rem 0.8rem;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: border-color 0.12s ease;
+}
+
+.tovary-row:hover {
+    border-color: #b9d9c7;
+}
+
+.tovary-row .tovary-cell {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: #333;
+    background: transparent;
+    transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tovary-row .tovary-cell:hover {
+    background: #fafafa;
+    border-color: #e0e0e0;
+}
+
+.tovary-row .tovary-cell:focus {
+    outline: none;
+    background: #fff;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+}
+
+.tovary-row .col-name     { flex: 1; width: 100%; font-weight: 500; }
+.tovary-row .col-category { flex: 0 0 130px; }
+.tovary-row .col-article  { flex: 0 0 100px; }
+.tovary-row .col-price    { flex: 0 0 90px; text-align: right; color: #0B8661; font-weight: 600; }
+.tovary-row .col-unit     { flex: 0 0 50px; text-align: right; }
+.tovary-row .col-actions  { flex: 0 0 130px; display: flex; justify-content: flex-end; align-items: center; gap: 0.3rem; }
+
+.tovary-btn-save {
+    padding: 0.28rem 0.65rem;
+    background: #0B8661;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+}
+
+.tovary-btn-save:hover {
+    background: #0a6e51;
+}
+
+.tovary-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-left: 0.4rem;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #b0b0b0;
+    font-size: 0.95rem;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.tovary-btn-delete:hover {
+    background: #cf6b66;
+    color: #fff;
+    border-color: #cf6b66;
+}
+
+.tovary-empty {
+    padding: 1.2rem 1rem;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.tovary-messages {
+    margin-bottom: 1rem;
+}
+
+.tovary-message {
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.tovary-message-success {
+    background: #eaf6ef;
+    border: 1px solid #b9d9c7;
+    color: #0a6e51;
+}
+
+.tovary-message-error {
+    background: #f4e4e3;
+    border: 1px solid #d9a09d;
+    color: #a03a35;
+}
+
+/* Адаптив. */
+@media (max-width: 900px) {
+    .tovary-layout {
+        flex-direction: column;
+    }
+    .tovary-sidebar {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    .tovary-list-header {
+        display: none;
+    }
+    .tovary-row {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.4rem 0.6rem;
+    }
+    .tovary-row .col-name { flex: 1 1 100%; }
+    .tovary-row .col-category,
+    .tovary-row .col-article,
+    .tovary-row .col-price,
+    .tovary-row .col-unit {
+        flex: 1 1 auto;
+        min-width: 100px;
+    }
+    .tovary-row .col-actions {
+        flex: 1 1 100%;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.4rem;
+    }
+}
+
+.tovary-btn-move {
+    padding: 0.28rem 0.4rem;
+    background: #f0f9f5;
+    color: #0B8661;
+    border: 1px solid #b9d9c7;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+.tovary-btn-move:hover {
+    background: #eaf6ef;
+}
+
+/* Текст категории в строке товара (вместо селекта) */
+.tovary-category-text {
+    font-size: 0.75rem;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.25rem 0.4rem; /* Такие же отступы, как у инпутов */
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+/* Стили для состояния сохранения */
+.tovary-cell:focus {
+    border-color: #0B8661 !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12) !important;
+}

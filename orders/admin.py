@@ -19,6 +19,7 @@ from .models import (
     ProductLaminate,
     ProductVichisliniya,
     ProductMultipage,
+    OrderTovar,
 )
 
 
@@ -183,3 +184,25 @@ class ProductMultipageAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'binding')
     search_fields = ('product_component__product__title',)
     autocomplete_fields = ('product_component', 'binding')
+
+
+
+
+# ============================================================================
+# ТОВАРЫ В ЗАКАЗЕ
+# ============================================================================
+
+@admin.register(OrderTovar)
+class OrderTovarAdmin(admin.ModelAdmin):
+    """Админка товаров в заказах."""
+    list_display = (
+        'id', 'order', 'name', 'article', 'quantity', 'price',
+        'discount', 'discount_source', 'formatted_total_price', 'is_deleted',
+    )
+    list_filter = ('is_deleted', 'discount_source', 'order')
+    search_fields = ('name', 'article', 'order__number')
+    autocomplete_fields = ('order', 'tovar')
+
+    def formatted_total_price(self, obj):
+        return obj.formatted_total_price
+    formatted_total_price.short_description = 'Итого'

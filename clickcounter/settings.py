@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'spravochnik_dopolnitelnyh_rabot',
     'shablony_proschetov',         # справочник шаблонов просчётов
     'orders', # заказы
+    'tovary', # справочник товаров
     'web_calculators',
 ]
 

@@ -91,6 +91,11 @@ urlpatterns = [
     # Все URL, начинающиеся с /proschety/, обрабатываются в proschety.urls
     # namespace='proschety' — для {% url 'proschety:index' %} в шаблонах
     path('proschety/', include(('proschety.urls', 'proschety'), namespace='proschety')),
+
+    # НОВОЕ ПРИЛОЖЕНИЕ: tovary (справочник товаров)
+    # Все URL, начинающиеся с /tovary/, обрабатываются в tovary.urls
+    # namespace='tovary' — для {% url 'tovary:index' %} в шаблонах
+    path('tovary/', include(('tovary.urls', 'tovary'), namespace='tovary')),
 ]
 
 # В режиме отладки добавляем обслуживание статических и медиа файлов

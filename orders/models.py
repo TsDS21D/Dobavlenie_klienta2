@@ -439,19 +439,34 @@ class Order(models.Model):
     def total_price(self):
         """
         Общая стоимость заказа (вычисляемое поле, не хранится в БД).
-        Сумма total_price всех НЕ удалённых изделий заказа.
+        Сумма total_price всех НЕ удалённых изделий и товаров заказа.
         """
-        # Decimal('0.00') — точный нуль для финансовых расчётов.
         total = Decimal('0.00')
-        # Перебираем изделия, фильтруя удалённые.
+        # Изделия из просчётов.
         for product in self.products.filter(is_deleted=False):
             total += product.total_price
+        # Товары (штампы, оснастка, услуги и т.п.).
+        for tovar in self.tovary.filter(is_deleted=False):
+            total += tovar.total_price
         return total
 
     @property
     def formatted_total_price(self):
         """Общая стоимость с символом ₽ и двумя знаками после запятой."""
         return f"{self.total_price:.2f} ₽"
+
+    @property
+    def products_and_tovary_count(self):
+        """
+        Суммарное количество активных изделий и товаров в заказе.
+        Используется в шаблоне _order_rows.html для вывода «Изделий: N».
+        При prefetch_related('products') / prefetch_related('tovary')
+        считается из кеша без дополнительных запросов к БД.
+        """
+        return (
+            len(self.products.all())
+            + len(self.tovary.all())
+        )
 
 
 # ============================================================================
@@ -540,6 +555,20 @@ class Product(models.Model):
         default=Decimal('0.00'),
         help_text='Замороженная стоимость изделия на момент создания'
     )
+
+    # ===== ЗАМОРОЖЕННАЯ СКИДКА =====
+    # Скидка, с которой было создано изделие.
+    # Нужна для того, чтобы при редактировании изделия (разморозке в просчёт)
+    # цена пересчитывалась по той же скидке, а не по скидке клиента.
+    frozen_discount = models.DecimalField(
+        verbose_name='Скидка при создании, %',
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Скидка, примененная к изделию при создании'
+    )
+
 
     # ===== ЗАМОРОЖЕННЫЕ МАССА И ОБЪЁМ =====
     # Считаются один раз при создании изделия через общую функцию
@@ -1270,3 +1299,163 @@ class ProductMultipage(models.Model):
     def __str__(self):
         """Строковое представление."""
         return f"Многостраничное: {self.total_pages} стр."
+
+
+
+# ============================================================================
+# МОДЕЛЬ 8: ТОВАР В ЗАКАЗЕ (ORDER TOVAR)
+# ============================================================================
+#
+# Это НЕ изделие из просчёта. Это самостоятельная позиция заказа:
+# штамп, оснастка, услуга «Доставка» и т.п. Товар берётся из справочника
+# tovary.Tovar, но при добавлении в заказ его данные копируются сюда
+# как снимок (название, артикул, базовая цена).
+#
+# Скидка:
+#   - discount_source = 'client' — применяется скидка клиента заказа,
+#     зафиксированная на момент добавления (число в discount).
+#   - discount_source = 'manual' — пользователь задал скидку вручную
+#     (в том числе 0% — это «полная цена», клиентская скидка игнорируется).
+#
+# Итоговая цена за единицу:
+#   final_price_per_unit = price * (1 - discount/100), округление до копеек.
+#
+# Итог по позиции:
+#   total_price = final_price_per_unit * quantity.
+
+class OrderTovar(models.Model):
+    """
+    Товар в заказе — самостоятельная позиция (не изделие из просчёта).
+
+    Создаётся при добавлении товара из справочника в заказ.
+    Хранит снимок названия/артикула/базовой цены на момент добавления,
+    количество, процент скидки и источник скидки (client / manual).
+    """
+
+    # ===== ИСТОЧНИК СКИДКИ =====
+    DISCOUNT_SOURCE_CLIENT = 'client'
+    DISCOUNT_SOURCE_MANUAL = 'manual'
+    DISCOUNT_SOURCE_CHOICES = [
+        (DISCOUNT_SOURCE_CLIENT, 'Клиентская'),
+        (DISCOUNT_SOURCE_MANUAL, 'Ручная'),
+    ]
+
+    # Ссылка на заказ. При удалении заказа — удаляется и позиция.
+    order = models.ForeignKey(
+        Order,
+        verbose_name='Заказ',
+        on_delete=models.CASCADE,
+        related_name='tovary',          # order.tovary.all()
+        help_text='Заказ, к которому относится эта позиция'
+    )
+
+    # Ссылка на товар из справочника.
+    # SET_NULL: если товар удалят из справочника, позиция в заказе останется
+    # (у неё есть снимок name / article / price).
+    tovar = models.ForeignKey(
+        'tovary.Tovar',
+        verbose_name='Товар',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_tovary',    # tovar.order_tovary.all()
+        help_text='Товар из справочника, из которого создан снимок'
+    )
+
+    # Снимок названия на момент добавления.
+    name = models.CharField(
+        verbose_name='Название',
+        max_length=200
+    )
+
+    # Снимок артикула на момент добавления (может быть пустым).
+    article = models.CharField(
+        verbose_name='Артикул',
+        max_length=50,
+        blank=True,
+        default=''
+    )
+
+    # Количество.
+    quantity = models.PositiveIntegerField(
+        verbose_name='Количество',
+        default=1
+    )
+
+    # Базовая цена за единицу (из справочника или заданная вручную
+    # при добавлении). Это цена БЕЗ скидки.
+    price = models.DecimalField(
+        verbose_name='Цена, ₽',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Базовая цена за единицу (без скидки)'
+    )
+
+    # Процент скидки.
+    discount = models.DecimalField(
+        verbose_name='Скидка, %',
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+
+    # Источник скидки: клиентская или ручная.
+    discount_source = models.CharField(
+        verbose_name='Источник скидки',
+        max_length=10,
+        choices=DISCOUNT_SOURCE_CHOICES,
+        default=DISCOUNT_SOURCE_CLIENT
+    )
+
+    # Порядковый номер внутри заказа (для стабильной сортировки).
+    position = models.PositiveIntegerField(
+        verbose_name='Порядок',
+        default=0
+    )
+
+    # Метки времени.
+    created_at = models.DateTimeField(
+        verbose_name='Дата создания',
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        verbose_name='Дата обновления',
+        auto_now=True
+    )
+
+    # Мягкое удаление.
+    is_deleted = models.BooleanField(
+        verbose_name='Удалён',
+        default=False
+    )
+
+    class Meta:
+        verbose_name = 'Товар в заказе'
+        verbose_name_plural = 'Товары в заказах'
+        ordering = ['position', 'id']
+
+    def __str__(self):
+        """Строковое представление: «Штамп × 2»."""
+        return f"{self.name} × {self.quantity}"
+
+    # ===== ВЫЧИСЛЯЕМЫЕ СВОЙСТВА =====
+
+    @property
+    def final_price_per_unit(self):
+        """
+        Цена за единицу с учётом скидки, округлённая до копеек (обычное
+        банковское округление через quantize).
+        """
+        multiplier = Decimal('1') - (self.discount / Decimal('100'))
+        return (self.price * multiplier).quantize(Decimal('0.01'))
+
+    @property
+    def total_price(self):
+        """Общая стоимость позиции: цена со скидкой × количество."""
+        return (self.final_price_per_unit * self.quantity).quantize(Decimal('0.01'))
+
+    @property
+    def formatted_total_price(self):
+        """Итог с символом ₽."""
+        return f"{self.total_price:.2f} ₽"

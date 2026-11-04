@@ -37,6 +37,10 @@ urlpatterns = [
     path('api/update-proschet-comment/<int:proschet_id>/',
          views.update_proschet_comment,
          name='update_proschet_comment'),
+    # Обновление ручной скидки (inline-редактирование из секции «Просчёт»).
+    path('api/update-proschet-discount/<int:proschet_id>/',
+         views.update_proschet_discount,
+         name='update_proschet_discount'),
     # НОВОЕ: детальные данные просчёта (свежие, при клике по строке).
     path('api/proschet/<int:proschet_id>/',
          views.api_proschet_detail, name='api_proschet_detail'),

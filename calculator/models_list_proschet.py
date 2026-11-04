@@ -128,6 +128,27 @@ class Proschet(models.Model):
         related_name='created_proschets',   # template.created_proschets.all()
         help_text='Шаблон, из которого был создан этот просчёт (может быть пустым)'
     )
+    source_template = models.ForeignKey(
+        'shablony_proschetov.ProschetTemplate',
+        verbose_name='Исходный шаблон',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_proschets',
+        help_text='Шаблон, из которого был создан этот просчёт (может быть пустым)'
+    )
+
+    # === НОВОЕ ПОЛЕ ===
+    # Переопределение скидки. Если NULL — берется скидка клиента.
+    # Если число (0-100) — используется именно оно.
+    discount_override = models.DecimalField(
+        verbose_name='Скидка (ручная)',
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Если задано, переопределяет скидку клиента для этого просчёта'
+    )
 
 
     # Дата и время создания (автоматически устанавливается при создании записи).

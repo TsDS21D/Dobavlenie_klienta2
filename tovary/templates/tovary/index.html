@@ -1,0 +1,519 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% load mptt_tags %}
+
+{% block title %}Товары{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'orders/css/sections/list_orders.css' %}">
+<link rel="stylesheet" href="{% static 'tovary/css/tovar.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="tovary-page-wrap">
+
+    {% if messages %}
+    <div class="tovary-messages">
+        {% for m in messages %}
+            <div class="tovary-message {% if m.tags == 'error' %}tovary-message-error{% else %}tovary-message-success{% endif %}">
+                {{ m }}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="tovary-layout">
+
+        <!-- ==================== ЛЕВАЯ КОЛОНКА: ДЕРЕВО КАТЕГОРИЙ ==================== -->
+        <div class="tovary-sidebar">
+            <div class="tovary-sidebar-header">
+                <span class="tovary-sidebar-title">Категории</span>
+                <button type="button" class="tovary-btn-add-category" onclick="addCategory()">+ Категория</button>
+            </div>
+
+            {% if categories %}
+                <ul class="category-tree"> <!-- ДОБАВЛЕНА ОБЁРТКА UL -->
+                    {% recursetree categories %}
+                        <li>
+                            <div class="category-node {% if selected_category_id == node.id|stringformat:'s' %}active{% endif %}">
+                                <a href="?category_id={{ node.id }}">{{ node.name }}</a>
+                                <span class="category-actions">
+                                    <button type="button" onclick="renameCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Переименовать">✎</button>
+                                    <button type="button" class="category-btn-delete" onclick="deleteCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Удалить">×</button>
+                                </span>
+                            </div>
+                            {% if not node.is_leaf_node %}
+                                <ul class="children">
+                                    {{ children }}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endrecursetree %}
+                </ul>
+            {% else %}
+                <div class="tovary-sidebar-empty">Категорий пока нет. Нажмите «+ Категория».</div>
+            {% endif %}
+        </div>
+
+        <!-- ==================== ПРАВАЯ КОЛОНКА: СПИСОК ТОВАРОВ ==================== -->
+        <div class="tovary-content">
+            <h2 class="tovary-content-title">
+                {% if selected_category %}
+                    Товары в «{{ selected_category.name }}»
+                {% else %}
+                    Все товары
+                {% endif %}
+                <span class="tovary-filter-info">
+                    {% if selected_category %}
+                        <a href="{% url 'tovary:index' %}" style="color: #0B8661; text-decoration: none;">× Сбросить фильтр</a>
+                    {% endif %}
+                </span>
+            </h2>
+
+            <!-- ===== ФОРМА ДОБАВЛЕНИЯ ===== -->
+            <form method="post" action="{% url 'tovary:index' %}{% if selected_category %}?category_id={{ selected_category.id }}{% endif %}" class="tovary-add-form">
+                {% csrf_token %}
+                <div class="tovary-field tovary-field-wide">
+                    <label>Название *</label>
+                    <input class="tovary-input" type="text" name="name" required maxlength="200">
+                </div>
+                <div class="tovary-field">
+                    <label>Категория</label>
+                    <select class="tovary-input" name="category">
+                        <option value="">— Без категории —</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if selected_category_id == cat.id|stringformat:'s' %}selected{% endif %}>
+                                {% for i in "123456789"|make_list %}{% if forloop.counter0 < cat.level %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}{{ cat.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="tovary-field">
+                    <label>Артикул</label>
+                    <input class="tovary-input" type="text" name="article" maxlength="50">
+                </div>
+                <div class="tovary-field" style="min-width: 90px;">
+                    <label>Цена, ₽ *</label>
+                    <input class="tovary-input" type="text" name="price" required placeholder="0.00">
+                </div>
+                <div class="tovary-field" style="min-width: 60px;">
+                    <label>Ед.</label>
+                    <input class="tovary-input" type="text" name="unit" value="шт." maxlength="20">
+                </div>
+                <button type="submit" class="tovary-btn-add">Добавить</button>
+            </form>
+
+            <!-- ===== СПИСОК ТОВАРОВ ===== -->
+            {% if tovary %}
+
+            <div class="tovary-list-header">
+                <span class="col-name">Название</span>
+                <span class="col-category">Категория</span>
+                <span class="col-article">Артикул</span>
+                <span class="col-price">Цена, ₽</span>
+                <span class="col-unit">Ед.</span>
+                <span class="col-actions"></span>
+            </div>
+
+            <div class="tovary-list">
+                {% for t in tovary %}
+                    <div class="tovary-row" data-tovar-id="{{ t.id }}">
+                        <input class="tovary-cell col-name" type="text" name="name" value="{{ t.name }}" data-field="name" data-original-value="{{ t.name }}">
+                        
+                        <div class="col-category tovary-category-text" title="{{ t.category.name|default:'Без категории' }}">
+                            {{ t.category.name|default:"—" }}
+                        </div>
+                        
+                        <input class="tovary-cell col-article" type="text" name="article" value="{{ t.article }}" data-field="article" data-original-value="{{ t.article }}">
+                        <input class="tovary-cell col-price" type="text" name="price" value="{{ t.price }}" data-field="price" data-original-value="{{ t.price }}">
+                        <input class="tovary-cell col-unit" type="text" name="unit" value="{{ t.unit }}" data-field="unit" data-original-value="{{ t.unit }}">
+
+                        <div class="col-actions">
+                            <button type="button" class="tovary-btn-move" onclick="openMoveModal({{ t.id }}, '{{ t.name|escapejs }}')" title="Перенести">📁</button>
+                            <button type="button" class="tovary-btn-delete" onclick="deleteTovar({{ t.id }}, '{{ t.name|escapejs }}')" title="Удалить товар">×</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Невидимые формы для обновления товаров (см. form="tovar-form-ID"). -->
+            {% for t in tovary %}
+                <form method="post" action="{% url 'tovary:update_tovar' t.id %}" id="tovar-form-{{ t.id }}" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            {% endfor %}
+
+            {% else %}
+                <div class="tovary-empty">
+                    {% if selected_category %}
+                        В этой категории пока нет товаров. Добавьте первый через форму выше.
+                    {% else %}
+                        Товаров пока нет. Добавьте первый через форму выше.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<!-- Скрытая форма для действий с категориями (переиспользуется). -->
+<form id="category-action-form" method="post" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="name" id="category-action-name">
+    <input type="hidden" name="parent_id" id="category-action-parent-id">
+</form>
+
+<!-- Модалка переноса товара -->
+<div id="move-tovar-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" style="color: #0B8661;">Перенести товар</div>
+        <div class="list-orders-confirm-text" id="move-tovar-name" style="color: #333; margin-bottom: 1rem;"></div>
+        
+        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 1rem; text-align: left;">
+            <ul class="category-tree" style="font-size: 0.9rem;">
+                <li>
+                    <div class="category-node" onclick="doMoveTovar(null)">
+                        <a href="javascript:void(0)">— Без категории —</a>
+                    </div>
+                </li>
+                {% recursetree categories %}
+                    <li>
+                        <div class="category-node" onclick="doMoveTovar({{ node.id }})">
+                            <a href="javascript:void(0)">{{ node.name }}</a>
+                        </div>
+                        {% if not node.is_leaf_node %}
+                            <ul class="children">
+                                {{ children }}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endrecursetree %}
+            </ul>
+        </div>
+
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeMoveModal()">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка добавления категории -->
+<div id="add-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" style="color: #0B8661;">Новая категория</div>
+        
+        <form method="post" action="{% url 'tovary:category_create' %}" style="margin-top: 1rem; text-align: left;">
+            {% csrf_token %}
+            
+            <div class="tovary-field" style="margin-bottom: 0.8rem;">
+                <label>Название *</label>
+                <input class="tovary-input" type="text" name="name" id="add-cat-name" required maxlength="100" style="width: 100%;">
+            </div>
+            
+            <div class="tovary-field" style="margin-bottom: 1.2rem;">
+                <label>Родительская категория</label>
+                <select class="tovary-input" name="parent_id" style="width: 100%;">
+                    <option value="">— Корневая —</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}">
+                            {% for i in "123456789"|make_list %}{% if forloop.counter0 < cat.level %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}{{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeAddCategoryModal()">Отмена</button>
+                <!-- Кнопка "Добавить" в зелёном стиле (используем класс --ok из list_orders.css) -->
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" style="background: #0B8661; color: #fff;">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модалка удаления категории (в стиле страницы заказов) -->
+<div id="delete-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить категорию?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить категорию <b id="delete-cat-name"></b>?<br>
+            Если в ней есть товары или подкатегории — удаление будет запрещено.
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteCategoryModal()">Отмена</button>
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" onclick="confirmDeleteCategory()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка удаления товара (в стиле страницы заказов) -->
+<div id="delete-tovar-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить товар?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить товар <b id="delete-tovar-name"></b> из справочника?<br>
+            Его можно будет восстановить через админку.
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteTovarModal()">Отмена</button>
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" onclick="confirmDeleteTovar()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка переименования категории -->
+<div id="rename-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" style="color: #0B8661;">Переименовать категорию</div>
+        
+        <form id="rename-category-form" method="post" action="" style="margin-top: 1rem; text-align: left;">
+            {% csrf_token %}
+            
+            <div class="tovary-field" style="margin-bottom: 1.2rem;">
+                <label>Новое название *</label>
+                <input class="tovary-input" type="text" name="name" id="rename-cat-name" required maxlength="100" style="width: 100%;">
+            </div>
+            
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeRenameCategoryModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" style="background: #0B8661; color: #fff;">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    /**
+     * Действия с категориями.
+     * Пока — простые prompt()/confirm(), позже можно переделать
+     * на красивые модалки (по аналогии с /orders/).
+     */
+
+    function getCategoryForm(actionUrl) {
+        const form = document.getElementById('category-action-form');
+        form.action = actionUrl;
+        return form;
+    }
+
+    // Открыть модалку добавления категории
+    function addCategory() {
+        document.getElementById('add-cat-name').value = ''; // Очищаем поле
+        document.getElementById('add-category-overlay').style.display = 'flex';
+        // Фокусируемся на поле ввода с небольшой задержкой для анимации
+        setTimeout(function() {
+            document.getElementById('add-cat-name').focus();
+        }, 50);
+    }
+
+    // Закрыть модалку добавления категории
+    function closeAddCategoryModal() {
+        document.getElementById('add-category-overlay').style.display = 'none';
+    }
+
+    // ===== ПЕРЕИМЕНОВАНИЕ КАТЕГОРИИ =====
+
+    // Открыть модалку переименования
+    function renameCategory(categoryId, currentName) {
+        // Заполняем текущее название
+        document.getElementById('rename-cat-name').value = currentName;
+        
+        // Устанавливаем правильный URL для отправки формы
+        document.getElementById('rename-category-form').action = '/tovary/category/' + categoryId + '/update/';
+        
+        // Показываем модалку
+        document.getElementById('rename-category-overlay').style.display = 'flex';
+        
+        // Ставим фокус на поле ввода с небольшой задержкой
+        setTimeout(function() {
+            const input = document.getElementById('rename-cat-name');
+            input.focus();
+            input.select(); // Выделяем текст, чтобы можно было сразу печатать
+        }, 50);
+    }
+
+    // Закрыть модалку переименования
+    function closeRenameCategoryModal() {
+        document.getElementById('rename-category-overlay').style.display = 'none';
+    }
+
+    // ===== УДАЛЕНИЕ КАТЕГОРИИ =====
+    let pendingDeleteCategoryId = null;
+
+    // Открыть модалку удаления
+    function deleteCategory(categoryId, categoryName) {
+        pendingDeleteCategoryId = categoryId;
+        document.getElementById('delete-cat-name').textContent = '«' + categoryName + '»';
+        document.getElementById('delete-category-overlay').style.display = 'flex';
+    }
+
+    // Закрыть модалку удаления
+    function closeDeleteCategoryModal() {
+        pendingDeleteCategoryId = null;
+        document.getElementById('delete-category-overlay').style.display = 'none';
+    }
+
+    // Подтвердить удаление (переход по ссылке)
+    function confirmDeleteCategory() {
+        if (!pendingDeleteCategoryId) return;
+        window.location.href = '/tovary/category/' + pendingDeleteCategoryId + '/delete/';
+    }
+
+    // ===== ПЕРЕНОС ТОВАРА =====
+    let pendingMoveTovarId = null;
+
+    function openMoveModal(tovarId, tovarName) {
+        pendingMoveTovarId = tovarId;
+        document.getElementById('move-tovar-name').textContent = 'Товар: «' + tovarName + '»';
+        document.getElementById('move-tovar-overlay').style.display = 'flex';
+    }
+
+    function closeMoveModal() {
+        pendingMoveTovarId = null;
+        document.getElementById('move-tovar-overlay').style.display = 'none';
+    }
+
+    function doMoveTovar(categoryId) {
+        if (!pendingMoveTovarId) return;
+
+        const url = '/tovary/tovar/' + pendingMoveTovarId + '/move/';
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ category_id: categoryId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeMoveModal();
+                // Перезагружаем страницу с текущим фильтром
+                window.location.reload();
+            } else {
+                alert('Ошибка: ' + (data.error || 'неизвестная'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Ошибка сети при переносе');
+        });
+    }
+
+    // ===== СБРОС ФИЛЬТРА ПО КЛИКУ НА ПУСТОЕ МЕСТО =====
+    document.addEventListener('DOMContentLoaded', function () {
+        const wrapper = document.querySelector('.tovary-page-wrap');
+        if (!wrapper) return;
+
+        wrapper.addEventListener('click', function (e) {
+            // Если клик был ВНУТРИ левой колонки или правой колонки — 
+            // НИЧЕГО не делаем, фильтр не сбрасываем.
+            if (e.target.closest('.tovary-sidebar') || e.target.closest('.tovary-content')) {
+                return;
+            }
+
+            // Если мы дошли сюда, значит клик был по пустому фону.
+            // Если сейчас есть активный фильтр — сбрасываем его.
+            if (window.location.search.includes('category_id')) {
+                window.location.href = window.location.pathname;
+            }
+        });
+    });
+    // ===== УДАЛЕНИЕ ТОВАРА =====
+    let pendingDeleteTovarId = null;
+
+    // Открыть модалку удаления товара
+    function deleteTovar(tovarId, tovarName) {
+        pendingDeleteTovarId = tovarId;
+        document.getElementById('delete-tovar-name').textContent = '«' + tovarName + '»';
+        document.getElementById('delete-tovar-overlay').style.display = 'flex';
+    }
+
+    // Закрыть модалку удаления товара
+    function closeDeleteTovarModal() {
+        pendingDeleteTovarId = null;
+        document.getElementById('delete-tovar-overlay').style.display = 'none';
+    }
+
+    // Подтвердить удаление (переход по ссылке)
+    function confirmDeleteTovar() {
+        if (!pendingDeleteTovarId) return;
+        // Переходим по URL, который вызывает мягкое удаление во views.py
+        window.location.href = '/tovary/tovar/' + pendingDeleteTovarId + '/delete/';
+    }
+
+    // ===== ИНЛАЙН-РЕДАКТИРОВАНИЕ ТОВАРОВ =====
+    document.addEventListener('DOMContentLoaded', function () {
+        // Находим все поля ввода в строках товаров
+        document.querySelectorAll('.tovary-row input[data-field]').forEach(input => {
+            const row = input.closest('.tovary-row');
+            const tovarId = row.dataset.tovarId;
+            
+            // Обработка Enter
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur(); // Вызовет сохранение
+                }
+            });
+
+            // Обработка потери фокуса (клик мимо)
+            input.addEventListener('blur', function() {
+                const field = input.dataset.field;
+                const newValue = input.value;
+                const oldValue = input.dataset.originalValue || '';
+                
+                // Если значение не изменилось — ничего не делаем
+                if (newValue === oldValue) return;
+                
+                // Сохраняем старое значение, чтобы откатить в случае ошибки
+                const prevValue = input.value;
+                
+                // Визуально показываем, что идет сохранение
+                input.style.opacity = '0.5';
+
+                // Получаем CSRF-токен
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+                fetch('/tovary/tovar/' + tovarId + '/update-field/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        field_name: field,
+                        field_value: newValue
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    input.style.opacity = '1';
+                    if (data.success) {
+                        // Обновляем оригинальное значение
+                        input.dataset.originalValue = newValue;
+                        
+                        // Короткое мигание зелёным (успех)
+                        input.style.backgroundColor = '#eaf6ef';
+                        setTimeout(() => input.style.backgroundColor = '', 500);
+                    } else {
+                        // Ошибка (например, пустое имя или кривая цена)
+                        alert('Ошибка: ' + data.error);
+                        input.value = input.dataset.originalValue; // Откат
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    input.style.opacity = '1';
+                    alert('Ошибка сети при сохранении');
+                    input.value = input.dataset.originalValue; // Откат
+                });
+            });
+        });
+    });
+</script>
+
+{% endblock %}

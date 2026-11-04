@@ -41,7 +41,8 @@ JavaScript секции «Список заказов» страницы /orders
     // Модалка удаления.
     let pendingDeleteOrderId = null;
     let pendingDeleteButton  = null;
-    let pendingDeleteProductId = null; // <-- ДОБАВЛЕНО: для запоминания ID изделия
+    let pendingDeleteProductId = null; // для запоминания ID изделия
+    let pendingDeleteTovarId   = null; // для запоминания ID товара
 
     // Кэш клиентов (загружается один раз, при первом редактировании клиента).
     let clientsCache = null;
@@ -178,10 +179,13 @@ JavaScript секции «Список заказов» страницы /orders
                 // Раскрываем её
                 cardToExpand.classList.add('is-expanded');
                 
-                // Плавно прокручиваем экран к ней (с небольшой задержкой, чтобы DOM успел отрисоваться)
-                setTimeout(() => {
+                // Плавно прокручиваем экран к карточке.
+                // requestAnimationFrame — гарантирует, что браузер сначала отрисует
+                // раскрытую карточку (с классом is-expanded), и только потом начнёт скролл.
+                // Без setTimeout 100мс — не будет «прыжка» страницы вверх перед скроллом.
+                requestAnimationFrame(function() {
                     cardToExpand.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
+                });
             }
         }
 
@@ -893,10 +897,49 @@ JavaScript секции «Список заказов» страницы /orders
         if (overlay) overlay.style.display = 'none';
         pendingDeleteOrderId = null;
         pendingDeleteButton  = null;
-        pendingDeleteProductId = null; // Очищаем и ID изделия
+        pendingDeleteProductId = null;
+        pendingDeleteTovarId   = null;
     }
 
     function confirmDeleteYes() {
+        // ===== ВАРИАНТ 0: Удаление ТОВАРА =====
+        if (pendingDeleteTovarId) {
+            const tovarId = pendingDeleteTovarId;
+            const btn = pendingDeleteButton;
+
+            closeConfirmModal();
+            if (btn) btn.disabled = true;
+
+            fetch('/orders/api/order-tovar/' + tovarId + '/delete/', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(function (r) {
+                // Если 404 (товар уже удалён) — просто обновляем таблицу
+                if (r.status === 404) return { success: true };
+                return r.json();
+            })
+            .then(function (data) {
+                if (data.success) {
+                    showNotification('Товар удалён', 'success');
+                    return refreshTable();
+                } else {
+                    if (btn) btn.disabled = false;
+                    showNotification(data.error || 'Ошибка удаления', 'error');
+                }
+            })
+            .catch(function (err) {
+                console.error(err);
+                if (btn) btn.disabled = false;
+                showNotification('Ошибка сети при удалении товара', 'error');
+            });
+
+            return;
+        }
+
         // ===== ВАРИАНТ 1: Удаление ИЗДЕЛИЯ =====
         if (pendingDeleteProductId) {
             const productId = pendingDeleteProductId;
@@ -2731,6 +2774,38 @@ function handleStatusChange(event) {
     }
 
     /**
+     * Раскрывает карточку заказа с указанным ID и плавно прокручивает к ней.
+     * Не перезагружает страницу — работает на текущей странице.
+     *
+     * Если карточки с таким ID нет в DOM (например, она скрыта фильтром
+     * поиска или заказ не отрисован из-за пагинации) — молча выходим.
+     * В этом случае можно было бы сделать fallback через перезагрузку,
+     * но пока считаем, что карточка на странице есть.
+     */
+    function focusOrderOnPage(orderId) {
+        if (!tableBody || !orderId) return;
+
+        const card = tableBody.querySelector('.list-orders-card[data-order-id="' + orderId + '"]');
+        if (!card) {
+            // Карточка не найдена (возможно, скрыта фильтром или не загружена).
+            // Fallback — перезагрузка (как было раньше).
+            window.location.href = '/orders/?expanded_order=' + encodeURIComponent(orderId);
+            return;
+        }
+
+        // Сворачиваем все остальные открытые карточки.
+        tableBody.querySelectorAll('.list-orders-card.is-expanded').forEach(function (c) {
+            if (c !== card) c.classList.remove('is-expanded');
+        });
+
+        // Раскрываем нужную.
+        card.classList.add('is-expanded');
+
+        // Плавно прокручиваем к ней.
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    /**
      * Рисует плашки по списку заказов.
      *
      * Для каждого заказа — отдельный <div> с номером и клиентом.
@@ -2869,7 +2944,7 @@ function handleStatusChange(event) {
                 item.appendChild(createCourierIndicator(o, false));
 
                 item.addEventListener('click', function () {
-                    window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+                    focusOrderOnPage(o.id);
                 });
                 list.appendChild(item);
             });
@@ -2915,7 +2990,7 @@ function handleStatusChange(event) {
                 item.appendChild(createCourierIndicator(o, true));
 
                 item.addEventListener('click', function () {
-                    window.location.href = '/orders/?expanded_order=' + encodeURIComponent(o.id);
+                    focusOrderOnPage(o.id);
                 });
                 list.appendChild(item);
             });
@@ -3346,4 +3421,296 @@ function handleStatusChange(event) {
             ctx.restore();
         });
     }
+
+
+
+    // ========================================================================
+    // 18. ТОВАРЫ В ЗАКАЗЕ (штампы, оснастка, услуги)
+    // ========================================================================
+    // Что здесь:
+    //   • Аккордеон «Добавить товар» — открытие/закрытие формы, загрузка
+    //     списка товаров из справочника tovary.Tovar.
+    //   • Обработчик кнопки «Добавить в заказ» — POST /orders/api/add-tovar-to-order/.
+    //   • Инлайн-редактирование количества / цены / скидки по двойному клику.
+    //   • Обработчик кнопки × (удаление товара из заказа).
+
+    /**
+     * Делегированный обработчик: открытие/закрытие аккордеона «Добавить товар».
+     * При первом открытии — грузим список товаров из справочника.
+     */
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('.list-orders-toggle-add-tovar');
+        if (!btn) return;
+
+        event.stopPropagation();
+
+        const section = btn.closest('.list-orders-add-tovar-section');
+        if (!section) return;
+
+        const willOpen = !section.classList.contains('is-open');
+        section.classList.toggle('is-open');
+
+        // Если открываем впервые — грузим список.
+        if (willOpen) {
+            const select = section.querySelector('.list-orders-select-tovar');
+            if (select && select.options.length <= 1) {
+                loadTovaryForSelect(select);
+            }
+        }
+    });
+
+    /**
+     * Загружает список товаров из справочника в <select>.
+     * Вызывается при открытии аккордеона.
+     */
+    function loadTovaryForSelect(selectEl) {
+        fetch('/orders/api/tovary-list/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.tovary) {
+                selectEl.innerHTML = '<option value="">— Ошибка загрузки —</option>';
+                return;
+            }
+
+            let html = '<option value="">— Выберите товар —</option>';
+            let currentCategory = null;
+
+            data.tovary.forEach(t => {
+                const catName = t.category_name || 'Без категории';
+
+                // Если категория сменилась — закрываем предыдущую и открываем новую
+                if (catName !== currentCategory) {
+                    if (currentCategory !== null) {
+                        html += '</optgroup>';
+                    }
+                    html += `<optgroup label="${catName}">`;
+                    currentCategory = catName;
+                }
+
+                const art = t.article ? ' (арт. ' + t.article + ')' : '';
+                html += `<option value="${t.id}" data-price="${t.price}">${t.name}${art} — ${t.price} ₽</option>`;
+            });
+
+            // Закрываем последнюю группу, если она была
+            if (currentCategory !== null) {
+                html += '</optgroup>';
+            }
+
+            selectEl.innerHTML = html;
+        })
+        .catch(err => {
+            console.error(err);
+            selectEl.innerHTML = '<option value="">— Ошибка сети —</option>';
+        });
+    }
+
+    /**
+     * При выборе товара в <select> — автоматически заполняем поле «Цена»
+     * его ценой из справочника (пользователь может потом переопределить).
+     */
+    document.addEventListener('change', function (event) {
+        const select = event.target.closest('.list-orders-select-tovar');
+        if (!select) return;
+
+        const priceInput = select.closest('.list-orders-add-tovar-form')
+            ?.querySelector('.list-orders-tovar-price-input');
+        if (!priceInput) return;
+
+        const selectedOption = select.options[select.selectedIndex];
+        const price = selectedOption.dataset.price || '';
+        priceInput.value = price;
+    });
+
+    /**
+     * Обработчик кнопки «Добавить в заказ» в аккордеоне «Добавить товар».
+     */
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('.list-orders-btn-add-tovar');
+        if (!btn) return;
+
+        event.stopPropagation();
+
+        const orderId = btn.dataset.orderId;
+        const section = btn.closest('.list-orders-add-tovar-section');
+        const select = section.querySelector('.list-orders-select-tovar');
+        const qtyInput = section.querySelector('.list-orders-tovar-qty-input');
+        const priceInput = section.querySelector('.list-orders-tovar-price-input');
+
+        const tovarId = select.value;
+        if (!tovarId) {
+            showNotification('Выберите товар', 'warning');
+            return;
+        }
+
+        const quantity = parseInt(qtyInput.value) || 1;
+        const price = priceInput.value.trim();
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Добавление...';
+
+        fetch('/orders/api/add-tovar-to-order/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                tovar_id: tovarId,
+                quantity: quantity,
+                price: price || null,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Товар добавлен в заказ', 'success');
+                // Сбрасываем форму.
+                select.value = '';
+                qtyInput.value = '1';
+                priceInput.value = '';
+                section.classList.remove('is-open');
+                return refreshTable();
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'неизвестная'), 'error');
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showNotification('Ошибка сети при добавлении товара', 'error');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
+    });
+
+    /**
+     * Двойной клик по редактируемой ячейке товара (кол-во / цена / скидка).
+     */
+    document.addEventListener('dblclick', function (event) {
+        const cell = event.target.closest('.editable-tovar-cell');
+        if (!cell) return;
+        if (cell.classList.contains('editing-cell')) return;
+
+        const item = cell.closest('.list-orders-tovar-item');
+        if (!item) return;
+        const tovarId = item.dataset.tovarId;
+        if (!tovarId) return;
+
+        const field = cell.dataset.field;
+        const originalValue = cell.dataset.originalValue || '';
+        const originalText = cell.textContent.trim();
+
+        // Создаём input.
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'list-orders-tovar-inline-input';
+        input.value = originalValue;
+
+        cell.classList.add('editing-cell');
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+
+        let finished = false;
+
+        // Сохранение.
+        const save = () => {
+            if (finished) return;
+            finished = true;
+
+            const newValue = input.value.trim();
+            if (newValue === String(originalValue)) {
+                cell.classList.remove('editing-cell');
+                cell.textContent = originalText;
+                return;
+            }
+
+            cell.innerHTML = '<span class="list-orders-tovar-inline-saving">Сохранение...</span>';
+
+            fetch('/orders/api/order-tovar/' + tovarId + '/update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    field_name: field,
+                    field_value: newValue,
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Сохранено', 'success');
+                    return refreshTable();
+                } else {
+                    showNotification('Ошибка: ' + (data.error || 'неизвестная'), 'error');
+                    cell.classList.remove('editing-cell');
+                    cell.textContent = originalText;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showNotification('Ошибка сети при сохранении', 'error');
+                cell.classList.remove('editing-cell');
+                cell.textContent = originalText;
+            });
+        };
+
+        const cancel = () => {
+            if (finished) return;
+            finished = true;
+            cell.classList.remove('editing-cell');
+            cell.textContent = originalText;
+        };
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        });
+        input.addEventListener('blur', () => setTimeout(save, 100));
+    });
+
+    /**
+     * Кнопка × у товара — удаление из заказа.
+     * Открывает ту же розовую модалку, что и удаление заказа / изделия.
+     */
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('.list-orders-tovar-delete-btn');
+        if (!btn) return;
+
+        event.stopPropagation();
+
+        const tovarId = btn.dataset.tovarId;
+        if (!tovarId) return;
+
+        // Запоминаем контекст: мы удаляем ТОВАР.
+        pendingDeleteTovarId    = tovarId;
+        pendingDeleteOrderId    = null;
+        pendingDeleteProductId  = null;
+        pendingDeleteButton     = btn;
+
+        // Открываем общую модалку удаления с текстом про товар.
+        const overlay = document.getElementById('list-orders-confirm-overlay');
+        if (overlay) {
+            const titleEl = overlay.querySelector('.list-orders-confirm-title');
+            const textEl  = overlay.querySelector('.list-orders-confirm-text');
+
+            if (titleEl) titleEl.textContent = 'Удалить товар?';
+            if (textEl) {
+                textEl.innerHTML = 'Товар пропадёт из этого заказа.<br>Его можно будет восстановить через админку.';
+            }
+
+            overlay.style.display = 'flex';
+        }
+    });
 })();

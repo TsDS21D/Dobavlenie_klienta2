@@ -228,6 +228,36 @@ urlpatterns = [
         name='api_restore_backup',
     ),
 
+    # ===== ТОВАРЫ В ЗАКАЗЕ =====
+
+    # GET /orders/api/tovary-list/
+    path(
+        'api/tovary-list/',
+        views.api_tovary_list,
+        name='api_tovary_list',
+    ),
+
+    # POST /orders/api/add-tovar-to-order/
+    path(
+        'api/add-tovar-to-order/',
+        views.api_add_tovar_to_order,
+        name='api_add_tovar_to_order',
+    ),
+
+    # POST /orders/api/order-tovar/<tovar_id>/update/
+    path(
+        'api/order-tovar/<int:tovar_id>/update/',
+        views.api_update_order_tovar,
+        name='api_update_order_tovar',
+    ),
+
+    # POST /orders/api/order-tovar/<tovar_id>/delete/
+    path(
+        'api/order-tovar/<int:tovar_id>/delete/',
+        views.api_delete_order_tovar,
+        name='api_delete_order_tovar',
+    ),
+
     # GET /orders/<order_id>/
     # Страница одного заказа (карточка со списком изделий).
     # ВАЖНО: этот маршрут должен идти ПОСЛЕ всех api/… — иначе общий
