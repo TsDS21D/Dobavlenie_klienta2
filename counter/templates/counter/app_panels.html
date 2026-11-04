@@ -317,9 +317,9 @@
             </button>
         </form>
     </div>
-    <!-- НОВАЯ ПАНЕЛЬ ДЛЯ БЭКАПОВ -->
+    <!-- ПАНЕЛЬ БЭКАПОВ: ДАННЫЕ -->
     <div class="nav-panel nav-backup" style="margin-top: 10px; flex-direction: column; align-items: stretch; padding: 10px;">
-        <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Резервное копирование</div>
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Данные (заказы, просчёты)</div>
         <div style="display: flex; gap: 5px;">
             <a href="{% url 'orders:download_backup' %}" class="nav-btn" style="background: #eaf6ef; color: #0B8661; border: 1px solid #0B8661; font-size: 0.75rem; padding: 5px 8px; flex: 1; text-align: center; text-decoration: none;">
                 Скачать
@@ -328,6 +328,27 @@
                 Восстановить
             </button>
         </div>
+    </div>
+
+    <!-- ПАНЕЛЬ БЭКАПОВ: СПРАВОЧНИКИ -->
+    <div class="nav-panel nav-backup-dict" style="flex-direction: column; align-items: stretch; padding: 10px;">
+        <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Справочники</div>
+        <div style="display: flex; gap: 5px;">
+            <a href="{% url 'orders:download_dictionaries_backup' %}" class="nav-btn" style="background: #eaf6ef; color: #0B8661; border: 1px solid #0B8661; font-size: 0.75rem; padding: 5px 8px; flex: 1; text-align: center; text-decoration: none;">
+                Скачать
+            </a>
+            <button type="button" id="btn-restore-dictionaries-backup" class="nav-btn" style="background: #fff4e5; color: #e67e22; border: 1px solid #e67e22; font-size: 0.75rem; padding: 5px 8px; flex: 1;">
+                Восстановить
+            </button>
+        </div>
+    </div>
+
+    <!-- ПАНЕЛЬ БЭКАПОВ: ПОЛНАЯ ЗАМЕНА ПАРЫ -->
+    <div class="nav-panel nav-backup-full" style="flex-direction: column; align-items: stretch; padding: 10px;">
+        <div style="font-size: 0.8rem; color: #a03a35; margin-bottom: 8px; text-align: center;">Полная замена (опасно)</div>
+        <button type="button" id="btn-restore-full-replace" class="nav-btn" style="background: #fdecea; color: #a03a35; border: 1px solid #a03a35; font-size: 0.75rem; padding: 5px 8px;">
+            Заменить всё
+        </button>
     </div>
 
 </div>
@@ -370,6 +391,96 @@
         <div class="backup-modal-footer">
             <button type="button" class="nav-btn" style="background: #e0e0e0; color: #333;" onclick="closeRestoreModal()">Отмена</button>
             <button type="button" class="nav-btn" id="btn-do-restore" style="background: #0B8661; color: #fff;">Восстановить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== МОДАЛКА ВОССТАНОВЛЕНИЯ СПРАВОЧНИКОВ ==================== -->
+<div id="dict-restore-modal" class="backup-modal-overlay" style="display: none;">
+    <div class="backup-modal">
+        <div class="backup-modal-header">
+            <h3>Восстановление справочников</h3>
+            <button type="button" class="backup-modal-close" onclick="closeDictRestoreModal()">×</button>
+        </div>
+
+        <div class="backup-modal-body">
+            <p style="font-size: 0.85rem; color: #555; margin-bottom: 1rem;">
+                Выберите ZIP-архив со справочниками (оборудование, склад, товары, работы,
+                цены, скрепления, шаблоны, пользователи, группы).
+            </p>
+
+            <div style="margin-bottom: 1rem;">
+                <input type="file" id="dict-file-input" accept=".zip" style="font-size: 0.85rem; width: 100%;">
+            </div>
+
+            <div class="backup-modes">
+                <label style="display: block; cursor: pointer;">
+                    <strong>Умное слияние</strong><br>
+                    <span style="font-size: 0.75rem; color: #888; margin-left: 1.5rem;">
+                        Обновит существующие справочники по id и добавит новые.
+                        Существующие данные (заказы, просчёты) не пострадают.
+                    </span>
+                </label>
+            </div>
+
+            <p style="font-size: 0.75rem; color: #a03a35; margin-top: 1rem;">
+                Полная замена справочников отдельно запрещена (FK-зависимости данных).
+                Для полной замены используйте «Заменить всё» (пара «данные+справочники»).
+            </p>
+        </div>
+
+        <div class="backup-modal-footer">
+            <button type="button" class="nav-btn" style="background: #e0e0e0; color: #333;" onclick="closeDictRestoreModal()">Отмена</button>
+            <button type="button" class="nav-btn" id="btn-do-dict-restore" style="background: #0B8661; color: #fff;">Восстановить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== МОДАЛКА ПОЛНОЙ ЗАМЕНЫ ПАРЫ ==================== -->
+<div id="full-replace-modal" class="backup-modal-overlay" style="display: none;">
+    <div class="backup-modal">
+        <div class="backup-modal-header">
+            <h3 style="color: #a03a35;">Полная замена: данные + справочники</h3>
+            <button type="button" class="backup-modal-close" onclick="closeFullReplaceModal()">×</button>
+        </div>
+
+        <div class="backup-modal-body">
+            <p style="font-size: 0.85rem; color: #a03a35; margin-bottom: 1rem; font-weight: 600;">
+                ВНИМАНИЕ! Все текущие данные и справочники будут ФИЗИЧЕСКИ УДАЛЕНЫ.
+                После восстановления система будет полностью соответствовать
+                загруженным файлам. Это действие невозможно отменить.
+            </p>
+
+            <div style="margin-bottom: 0.8rem;">
+                <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">
+                    1. Файл ДАННЫХ (orders_backup_*.zip)
+                </label>
+                <input type="file" id="full-data-file-input" accept=".zip" style="font-size: 0.85rem; width: 100%;">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.85rem; margin-bottom: 4px;">
+                    2. Файл СПРАВОЧНИКОВ (dictionaries_backup_*.zip)
+                </label>
+                <input type="file" id="full-dict-file-input" accept=".zip" style="font-size: 0.85rem; width: 100%;">
+            </div>
+
+            <div class="backup-modes">
+                <p style="font-size: 0.75rem; color: #555;">
+                    <strong>Что произойдёт:</strong><br>
+                    • Очистка заказов и просчётов;<br>
+                    • Очистка всех справочников (включая пользователей);<br>
+                    • Восстановление справочников из файла №2;<br>
+                    • Восстановление данных из файла №1.<br><br>
+                    <strong>Защита:</strong> вы должны присутствовать в бэкапе справочников
+                    (под тем же id), иначе замена отменится.
+                </p>
+            </div>
+        </div>
+
+        <div class="backup-modal-footer">
+            <button type="button" class="nav-btn" style="background: #e0e0e0; color: #333;" onclick="closeFullReplaceModal()">Отмена</button>
+            <button type="button" class="nav-btn" id="btn-do-full-replace" style="background: #a03a35; color: #fff;">Заменить всё</button>
         </div>
     </div>
 </div>
@@ -475,4 +586,125 @@
         }
         return cookieValue;
     }
+
+    // ============================================================
+    // СПРАВОЧНИКИ: открытие / закрытие / восстановление (merge)
+    // ============================================================
+
+    document.getElementById('btn-restore-dictionaries-backup').addEventListener('click', function() {
+        document.getElementById('dict-restore-modal').style.display = 'flex';
+    });
+
+    function closeDictRestoreModal() {
+        document.getElementById('dict-restore-modal').style.display = 'none';
+        document.getElementById('dict-file-input').value = '';
+    }
+
+    document.getElementById('btn-do-dict-restore').addEventListener('click', function() {
+        const fileInput = document.getElementById('dict-file-input');
+        const file = fileInput.files[0];
+        const btn = this;
+
+        if (!file) {
+            showBackupToast('Выберите ZIP-файл со справочниками.', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('backup_file', file);
+        formData.append('mode', 'merge');
+
+        btn.disabled = true;
+        btn.textContent = 'Восстановление...';
+
+        fetch('/orders/api/restore-dictionaries-backup/', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeDictRestoreModal();
+                showBackupToast('Справочники восстановлены. Страница будет перезагружена.', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showBackupToast('Ошибка: ' + (data.error || 'неизвестная'), 'error');
+                btn.disabled = false;
+                btn.textContent = 'Восстановить';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showBackupToast('Ошибка сети при восстановлении справочников.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Восстановить';
+        });
+    });
+
+    // ============================================================
+    // ПОЛНАЯ ЗАМЕНА ПАРЫ (данные + справочники)
+    // ============================================================
+
+    document.getElementById('btn-restore-full-replace').addEventListener('click', function() {
+        document.getElementById('full-replace-modal').style.display = 'flex';
+    });
+
+    function closeFullReplaceModal() {
+        document.getElementById('full-replace-modal').style.display = 'none';
+        document.getElementById('full-data-file-input').value = '';
+        document.getElementById('full-dict-file-input').value = '';
+    }
+
+    document.getElementById('btn-do-full-replace').addEventListener('click', function() {
+        const dataFile = document.getElementById('full-data-file-input').files[0];
+        const dictFile = document.getElementById('full-dict-file-input').files[0];
+        const btn = this;
+
+        if (!dataFile || !dictFile) {
+            showBackupToast('Выберите оба файла: данные и справочники.', 'error');
+            return;
+        }
+
+        if (!confirm(
+            'ВНИМАНИЕ! ВЫ УВЕРЕНЫ?\n\n' +
+            'Все текущие данные (заказы, просчёты) и ВСЕ справочники ' +
+            '(включая пользователей) будут ФИЗИЧЕСКИ УДАЛЕНЫ.\n\n' +
+            'Система будет полностью соответствовать загруженным файлам.\n\n' +
+            'Это действие невозможно отменить!'
+        )) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('data_file', dataFile);
+        formData.append('dictionaries_file', dictFile);
+
+        btn.disabled = true;
+        btn.textContent = 'Замена...';
+
+        fetch('/orders/api/restore-full-replace/', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeFullReplaceModal();
+                showBackupToast('Полная замена прошла успешно. Перезагрузка...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showBackupToast('Ошибка: ' + (data.error || 'неизвестная'), 'error');
+                btn.disabled = false;
+                btn.textContent = 'Заменить всё';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showBackupToast('Ошибка сети при полной замене.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Заменить всё';
+        });
+    });
 </script>

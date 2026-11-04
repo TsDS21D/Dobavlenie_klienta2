@@ -228,6 +228,29 @@ urlpatterns = [
         name='api_restore_backup',
     ),
 
+    # GET /orders/api/download-dictionaries-backup/
+    # Скачать ZIP со справочниками (оборудование, склад, товары, работы,
+    # цены, скрепления, шаблоны, пользователи, группы).
+    path(
+        'api/download-dictionaries-backup/',
+        views.download_dictionaries_backup,
+        name='download_dictionaries_backup',
+    ),
+    # POST /orders/api/restore-dictionaries-backup/
+    # Восстановить справочники (только mode='merge').
+    path(
+        'api/restore-dictionaries-backup/',
+        views.api_restore_dictionaries_backup,
+        name='api_restore_dictionaries_backup',
+    ),
+    # POST /orders/api/restore-full-replace/
+    # Полная замена пары «данные+справочники». Принимает два файла.
+    path(
+        'api/restore-full-replace/',
+        views.api_restore_full_replace,
+        name='api_restore_full_replace',
+    ),
+
     # ===== ТОВАРЫ В ЗАКАЗЕ =====
 
     # GET /orders/api/tovary-list/

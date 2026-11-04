@@ -1981,6 +1981,10 @@ def api_orders_delivery_today(request):
 
 from django.http import FileResponse
 from .backup_utils import create_backup_zip
+from .dictionaries_backup_utils import (
+    create_dictionaries_backup_zip,
+    restore_dictionaries_from_zip,
+)
 
 @login_required
 @require_GET
@@ -2031,6 +2035,188 @@ def api_restore_backup(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================================
+# API: БЭКАП И ВОССТАНОВЛЕНИЕ СПРАВОЧНИКОВ
+# ============================================================================
+
+@login_required
+@require_GET
+def download_dictionaries_backup(request):
+    """
+    Генерирует ZIP-архив со всеми справочниками и отдаёт на скачивание.
+    """
+    try:
+        from datetime import datetime
+        zip_buffer = create_dictionaries_backup_zip()
+        date_str = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        filename = f'beauty_print_dictionaries_{date_str}.zip'
+        return FileResponse(
+            zip_buffer,
+            as_attachment=True,
+            filename=filename,
+            content_type='application/zip',
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse(
+            {'success': False, 'error': f'Ошибка создания бэкапа справочников: {e}'},
+            status=500,
+        )
+
+
+@login_required
+@require_POST
+def api_restore_dictionaries_backup(request):
+    """
+    Принимает ZIP-файл справочников. Режим — ТОЛЬКО merge.
+    Полная замена справочников отдельно невозможна (FK-зависимости данных):
+    для неё используйте api_restore_full_replace (пара «данные+справочники»).
+    """
+    if 'backup_file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': 'Файл не передан'}, status=400)
+
+    mode = request.POST.get('mode', 'merge')
+    if mode != 'merge':
+        return JsonResponse(
+            {'success': False, 'error': 'Режим «replace» для справочников отдельно запрещён. Используйте «Полную замену пары».'},
+            status=400,
+        )
+
+    zip_file = request.FILES['backup_file']
+    try:
+        restore_dictionaries_from_zip(zip_file, mode='merge')
+        return JsonResponse({'success': True})
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def api_restore_full_replace(request):
+    """
+    Полная замена пары «данные+справочники».
+
+    Принимает два файла (form-data):
+        data_file         — ZIP с данными (создан download_backup)
+        dictionaries_file — ZIP со справочниками (создан download_dictionaries_backup)
+
+    Порядок операций (в одной транзакции):
+        1. Защита от самоблокировки: request.user.id должен присутствовать
+           в списке пользователей из dictionaries_file. Иначе 400.
+        2. TRUNCATE orders_order + calculator_proschet CASCADE (данные).
+        3. TRUNCATE всех справочных таблиц CASCADE.
+        4. restore_dictionaries_from_zip(dict_file, mode='merge') — восстанавливает
+           справочники (включая пользователей) один-к-одному.
+        5. restore_from_zip(data_file, mode='merge') — восстанавливает данные.
+        6. MPTT-rebuild выполняется внутри restore_dictionaries_from_zip.
+
+    Почему mode='merge' на шагах 4–5, а не 'replace':
+        Таблицы УЖЕ очищены в шагах 2–3. update_or_create создаст все записи
+        заново с историческими id из файла. Дополнительный TRUNCATE не нужен.
+
+    Поддерживается только на PostgreSQL (SQLite — нет TRUNCATE ... CASCADE).
+    """
+    if 'data_file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': 'Не передан файл данных'}, status=400)
+    if 'dictionaries_file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': 'Не передан файл справочников'}, status=400)
+
+    data_file = request.FILES['data_file']
+    dict_file = request.FILES['dictionaries_file']
+
+    # --- 1. Защита от самоблокировки ---
+    import zipfile as _zipfile
+    try:
+        with _zipfile.ZipFile(dict_file) as z:
+            json_files = [n for n in z.namelist() if n.endswith('.json')]
+            if not json_files:
+                return JsonResponse(
+                    {'success': False, 'error': 'В архиве справочников нет JSON'},
+                    status=400,
+                )
+            dict_json = json.loads(z.read(json_files[0]).decode('utf-8'))
+    except Exception as e:
+        return JsonResponse(
+            {'success': False, 'error': f'Ошибка чтения архива справочников: {e}'},
+            status=400,
+        )
+
+    dict_users = dict_json.get('dictionaries', {}).get('users', [])
+    backup_user_ids = {u.get('id') for u in dict_users if u.get('id') is not None}
+    current_user_id = request.user.id
+
+    if current_user_id not in backup_user_ids:
+        return JsonResponse({
+            'success': False,
+            'error': (
+                f'В бэкапе справочников нет пользователя, под которым вы вошли '
+                f'(id={current_user_id}). Полная замена отменена — иначе вы '
+                f'не сможете войти в систему после восстановления. '
+                f'Загрузите другой бэкап или войдите под пользователем из бэкапа.'
+            )
+        }, status=400)
+
+    # Возвращаем указатель файла в начало (мы прочитали его для проверки).
+    dict_file.seek(0)
+
+    # --- 2–5. Очистка и восстановление в одной транзакции ---
+    from django.db import connection, transaction
+
+    if connection.vendor != 'postgresql':
+        return JsonResponse(
+            {'success': False, 'error': 'Полная замена пары поддерживается только на PostgreSQL'},
+            status=400,
+        )
+
+    try:
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                # 2. Данные
+                cursor.execute(
+                    "TRUNCATE TABLE orders_order, calculator_proschet CASCADE;"
+                )
+                # 3. Справочники
+                cursor.execute("""
+                    TRUNCATE TABLE
+                        auth_user, auth_group,
+                        sheet_formats_sheetformat,
+                        devices_printer, devices_laminator,
+                        sklad_category, sklad_material,
+                        tovary_category, tovary_tovar,
+                        spravochnik_dopolnitelnyh_rabot_work,
+                        spravochnik_dopolnitelnyh_rabot_workprice,
+                        spravochnik_dopolnitelnyh_rabot_workcirculationprice,
+                        print_price_printprice, print_price_laminatorprice,
+                        vichisliniya_listov_multipage_bindings,
+                        shablony_proschetov_templatecategory,
+                        shablony_proschetov_proschettemplate,
+                        shablony_proschetov_templateprintcomponent,
+                        shablony_proschetov_templateadditionalwork,
+                        shablony_proschetov_templatelaminate,
+                        shablony_proschetov_templatevichisliniya,
+                        shablony_proschetov_templatemultipage
+                    CASCADE;
+                """)
+
+            # 4. Справочники (mode='merge': таблицы уже пусты, update_or_create
+            #    создаст всё с историческими id).
+            restore_dictionaries_from_zip(dict_file, mode='merge')
+
+            # 5. Данные (mode='merge': таблицы уже пусты).
+            restore_from_zip(data_file, mode='merge')
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True})
 
 
 
