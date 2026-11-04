@@ -272,10 +272,15 @@ var WC = {
             comp.size.presets.forEach(function (p, index) {
                 var opt = document.createElement('option');
                 opt.value = 'preset_' + index;
-                // Форматируем размер: 90.00 × 50.00 → "90×50".
                 opt.textContent = self.formatMm(p.w) + '×' + self.formatMm(p.h);
                 opt.dataset.w = p.w;
                 opt.dataset.h = p.h;
+                
+                // Если это дефолтный пресет — выделяем его в селекте
+                if (comp.default_size_preset_id && p.id === comp.default_size_preset_id) {
+                    opt.selected = true;
+                }
+                
                 select.appendChild(opt);
             });
             // Опция «Свой размер».

@@ -155,6 +155,7 @@ def get_options(calculator):
         # Пресеты размеров.
         presets = [
             {
+                'id': p.id,  # <--- ДОБАВЛЕНО
                 'w': float(p.width_mm),
                 'h': float(p.height_mm),
                 'label': p.label or f"{p.width_mm}×{p.height_mm}",
