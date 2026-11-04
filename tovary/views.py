@@ -47,9 +47,8 @@ def index(request):
     tovary = Tovar.objects.filter(is_deleted=False)
 
     if selected_category is not None:
-        # Показываем товары из выбранной категории И всех её подкатегорий.
-        descendants = selected_category.get_descendants(include_self=True)
-        tovary = tovary.filter(category__in=descendants)
+        # Показываем товары ТОЛЬКО из выбранной категории (без подкатегорий).
+        tovary = tovary.filter(category=selected_category)
     # Если категория не выбрана — показываем ВСЕ товары (без фильтра).
 
     tovary = tovary.order_by('name', 'id')
