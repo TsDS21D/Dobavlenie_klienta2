@@ -317,8 +317,14 @@
             </button>
         </form>
     </div>
+
+    <!-- Кнопка разворота панели бэкапов -->
+    <div id="backup-toggle-btn" style="display: flex; justify-content: center; align-items: center; padding: 6px 0; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid rgba(0, 0, 0, 0.05);" title="Резервное копирование">
+        <span id="backup-toggle-arrow" style="font-size: 0.8rem; color: #0B8661; transition: transform 0.3s ease; user-select: none;">▼</span>
+    </div>
+
     <!-- ПАНЕЛЬ БЭКАПОВ: ДАННЫЕ -->
-    <div class="nav-panel nav-backup" style="margin-top: 10px; flex-direction: column; align-items: stretch; padding: 10px;">
+    <div class="nav-panel nav-backup backup-panel-content" style="display: none; flex-direction: column; align-items: stretch; padding: 10px;">
         <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Данные (заказы, просчёты)</div>
         <div style="display: flex; gap: 5px;">
             <a href="{% url 'orders:download_backup' %}" class="nav-btn" style="background: #eaf6ef; color: #0B8661; border: 1px solid #0B8661; font-size: 0.75rem; padding: 5px 8px; flex: 1; text-align: center; text-decoration: none;">
@@ -331,7 +337,7 @@
     </div>
 
     <!-- ПАНЕЛЬ БЭКАПОВ: СПРАВОЧНИКИ -->
-    <div class="nav-panel nav-backup-dict" style="flex-direction: column; align-items: stretch; padding: 10px;">
+    <div class="nav-panel nav-backup-dict backup-panel-content" style="display: none; flex-direction: column; align-items: stretch; padding: 10px;">
         <div style="font-size: 0.8rem; color: #888; margin-bottom: 8px; text-align: center;">Справочники</div>
         <div style="display: flex; gap: 5px;">
             <a href="{% url 'orders:download_dictionaries_backup' %}" class="nav-btn" style="background: #eaf6ef; color: #0B8661; border: 1px solid #0B8661; font-size: 0.75rem; padding: 5px 8px; flex: 1; text-align: center; text-decoration: none;">
@@ -344,7 +350,7 @@
     </div>
 
     <!-- ПАНЕЛЬ БЭКАПОВ: ПОЛНАЯ ЗАМЕНА ПАРЫ -->
-    <div class="nav-panel nav-backup-full" style="flex-direction: column; align-items: stretch; padding: 10px;">
+    <div class="nav-panel nav-backup-full backup-panel-content" style="display: none; flex-direction: column; align-items: stretch; padding: 10px;">
         <div style="font-size: 0.8rem; color: #a03a35; margin-bottom: 8px; text-align: center;">Полная замена (опасно)</div>
         <button type="button" id="btn-restore-full-replace" class="nav-btn" style="background: #fdecea; color: #a03a35; border: 1px solid #a03a35; font-size: 0.75rem; padding: 5px 8px;">
             Заменить всё
@@ -587,6 +593,27 @@
         return cookieValue;
     }
 
+    // ============================================================
+    // СВОРАЧИВАНИЕ / РАЗВОРАЧИВАНИЕ ПАНЕЛИ БЭКАПОВ
+    // ============================================================
+    const backupToggleBtn = document.getElementById('backup-toggle-btn');
+    if (backupToggleBtn) {
+        backupToggleBtn.addEventListener('click', function() {
+            const panels = document.querySelectorAll('.backup-panel-content');
+            const arrow = document.getElementById('backup-toggle-arrow');
+            
+            // Проверяем текущее состояние (скрыта ли первая панель)
+            const isHidden = panels[0].style.display === 'none';
+
+            // Переключаем видимость всех трех панелей
+            panels.forEach(p => {
+                p.style.display = isHidden ? 'flex' : 'none';
+            });
+
+            // Крутим стрелочку
+            arrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+    }
     // ============================================================
     // СПРАВОЧНИКИ: открытие / закрытие / восстановление (merge)
     // ============================================================

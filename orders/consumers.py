@@ -38,10 +38,12 @@ class OrdersConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Отписывается от группы при разрыве соединения."""
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        # Проверяем, что группа была назначена (т.е. connect() не упал на этапе авторизации)
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
 
     async def order_event(self, event):
         """
