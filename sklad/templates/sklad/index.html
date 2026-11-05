@@ -1,28 +1,25 @@
-<!--
-index.html для приложения sklad
-Главная страница приложения sklad.
-
-ИСПРАВЛЕНИЕ (06.04.2026):
-- Удалено поле price (готовая цена) – теперь цена вычисляется на сервере из себестоимости и наценки.
-- Добавлены обязательные поля cost (себестоимость) и markup_percent (наценка) для ВСЕХ типов материалов.
-- Поле unit (единица измерения) вынесено в общие поля (доступно для всех типов).
-- Блоки paper-fields и film-fields содержат ТОЛЬКО специфические для каждого типа поля.
-- Устранено дублирование логики: теперь статическая форма полностью соответствует динамически создаваемой.
-- Все названия полей сохранены для совместимости с другими приложениями проекта.
--->
-
-{# Наследуем базовый шаблон sklad/base.html, который подключает общие стили и скрипты #}
 {% extends "sklad/base.html" %}
+{% load static %}
+{% load mptt_tags %}
 
-{# Заголовок страницы (отображается во вкладке браузера) #}
 {% block title %}Склад материалов{% endblock %}
 
-{# Основной блок контента #}
+{% block extra_css %}
+{# Динамическая иконка (коробка). Изначально серая. #}
+<link id="sklad-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'></path><polyline points='3.27 6.96 12 12.01 20.73 6.96'></polyline><line x1='12' y1='22.08' x2='12' y2='12'></line></svg>">
+{# Подключаем общие стили страницы заказов (для модалок .list-orders-confirm-*) #}
+<link rel="stylesheet" href="{% static 'orders/css/sections/list_orders.css' %}">
+{# Подключаем стили tovary (используем его базовые классы .tovary-*) #}
+<link rel="stylesheet" href="{% static 'tovary/css/tovar.css' %}">
+{# block.super подтянет sklad.css из base.html — он должен идти ПОСЛЕДНИМ, чтобы переопределять #}
+{{ block.super }}
+{% endblock %}
+
 {% block content %}
-    <!-- ==================== ЗАГОЛОВОК СТРАНИЦЫ ==================== -->
-    {# Заголовок h1 с логотипом типографии #}
+<div class="tovary-page-wrap">
+
+    <!-- ==================== ЗАГОЛОВОК И ПЕРЕКЛЮЧАТЕЛЬ ТИПА ==================== -->
     <h1>
-        {# Логотип: загружается с внешнего URL, alt и title для доступности #}
         <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
              alt="Типография &quot;Буква А&quot;" 
              title="Типография &quot;Буква А&quot;"
@@ -30,417 +27,326 @@ index.html для приложения sklad
         Управление складом материалов
     </h1>
 
-    <!-- ==================== СКРЫТЫЕ СООБЩЕНИЯ DJANGO ==================== -->
-    {# Контейнер для flash-сообщений Django. JavaScript прочитает их и покажет в виде уведомлений #}
-    <div class="django-messages" style="display: none;">
-        {% if messages %}
-            {% for message in messages %}
-                {# Каждое сообщение имеет тип (success, error, warning, info) и текст #}
-                <div class="django-message" data-type="{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-
-    <!-- ==================== ПЕРЕКЛЮЧАТЕЛЬ ТИПА МАТЕРИАЛА ==================== -->
-    {# Бумага / Плёнка – переключатель, который влияет на загрузку данных через AJAX #}
-    {# Атрибут data-current-type хранит текущий тип из контекста (paper/film) #}
+    <!-- Переключатель типа (Бумага / Плёнка) -->
     <div class="type-switcher" id="type-switcher" data-current-type="{{ current_type }}">
-        <button type="button" class="type-switcher-btn" data-type="paper">📄 Бумага</button>
-        <button type="button" class="type-switcher-btn" data-type="film">🎞️ Плёнка</button>
+        <button type="button" class="type-switcher-btn {% if current_type == 'paper' %}active{% endif %}" data-type="paper">📄 Бумага</button>
+        <button type="button" class="type-switcher-btn {% if current_type == 'film' %}active{% endif %}" data-type="film">🎞️ Плёнка</button>
     </div>
 
-    <!-- ==================== ДВУХКОЛОНОЧНЫЙ LAYOUT ==================== -->
-    <div class="two-column-layout">
+    <!-- Сообщения Django -->
+    {% if messages %}
+    <div class="tovary-messages">
+        {% for m in messages %}
+            <div class="tovary-message {% if m.tags == 'error' %}tovary-message-error{% else %}tovary-message-success{% endif %}">
+                {{ m }}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="tovary-layout">
 
         <!-- ==================== ЛЕВАЯ КОЛОНКА: ДЕРЕВО КАТЕГОРИЙ ==================== -->
-        <div class="left-column">
-            {# Заголовок секции с кнопкой добавления категории #}
-            <div class="section-header">
-                <h2>
-                    <i class="fas fa-folder-tree"></i> Древовидная структура
-                </h2>
-                <button type="button" 
-                        class="btn-action btn-add-category" 
-                        id="add-category-btn">
-                    + Добавить категорию
-                </button>
+        <div class="tovary-sidebar">
+            <div class="tovary-sidebar-header">
+                <span class="tovary-sidebar-title">Древовидная структура</span>
+                <button type="button" class="tovary-btn-add-category" onclick="addCategory()">+ Категория</button>
             </div>
 
-            {# Контейнер для дерева категорий. Изначально показывает спиннер загрузки #}
-            <div class="tree-container" id="category-tree-container">
-                <div class="tree-loading">
-                    <div class="spinner"></div>
-                    <p>Загрузка дерева категорий...</p>
-                </div>
-            </div>
+            {% if categories %}
+                <ul class="category-tree">
+                    {% recursetree categories %}
+                        <li>
+                            <div class="category-node {% if selected_category_id == node.id|stringformat:'s' %}active{% endif %}" data-category-id="{{ node.id }}">
+                                <a href="?type={{ current_type }}&category_id={{ node.id }}">{{ node.name }}</a>
+                                <span class="category-actions">
+                                    <button type="button" onclick="renameCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Переименовать">✎</button>
+                                    <button type="button" class="category-btn-delete" onclick="deleteCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Удалить">×</button>
+                                </span>
+                            </div>
+                            {% if not node.is_leaf_node %}
+                                <ul class="children">
+                                    {{ children }}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endrecursetree %}
+                </ul>
+            {% else %}
+                <div class="tovary-sidebar-empty">Категорий пока нет. Нажмите «+ Категория».</div>
+            {% endif %}
         </div>
 
-        <!-- ==================== ПРАВАЯ КОЛОНКА: ТАБЛИЦА МАТЕРИАЛОВ ==================== -->
-        <div class="right-column">
-            {# Заголовок секции материалов с кнопками сброса фильтра и добавления #}
-            <div class="section-header">
-                <h2>
-                    <i class="fas fa-box-open"></i> Материалы
-                    {# Если выбрана категория – показываем её название и количество подкатегорий #}
+        <!-- ==================== ПРАВАЯ КОЛОНКА: СПИСОК МАТЕРИАЛОВ ==================== -->
+        <div class="tovary-content">
+            <h2 class="tovary-content-title">
+                {% if selected_category %}
+                    Материалы в «{{ selected_category.name }}»
+                {% else %}
+                    Все материалы
+                {% endif %}
+                <span class="tovary-filter-info">
                     {% if selected_category %}
-                    <span class="selected-category">
-                        {% if descendants_count > 0 %}
-                            в категории "<strong>{{ selected_category.name }}</strong>" 
-                            и {{ descendants_count }} подкатегори{{ descendants_count|pluralize:"ях,ях" }}
-                        {% else %}
-                            в категории "<strong>{{ selected_category.name }}</strong>"
-                        {% endif %}
-                    </span>
+                        <a href="?type={{ current_type }}" style="color: #0B8661; text-decoration: none;">× Сбросить фильтр</a>
                     {% endif %}
-                </h2>
-                <div class="header-buttons">
-                    {# Кнопка сброса фильтра (показывается только если выбрана категория) #}
-                    {% if selected_category %}
-                    <a href="/sklad/?type={{ current_type }}" 
-                       class="btn-action btn-reset-filter"
-                       title="Сбросить фильтр и показать все материалы">
-                        <i class="fas fa-times-circle"></i> Сбросить
-                    </a>
-                    {% endif %}
-                    {# Кнопка добавления материала (открывает/закрывает форму) #}
-                    <button type="button" 
-                            class="btn-action btn-add-material" 
-                            id="add-material-btn">
-                        + Добавить
-                    </button>
-                </div>
-            </div>
+                </span>
+            </h2>
 
-            <!-- ==================== СТАТИСТИКА ==================== -->
-            {# Три карточки с количеством категорий, материалов и активных материалов #}
-            <div class="stats-container">
-                <div class="stat-card">
-                    <div class="stat-value">{{ stats.categories_count }}</div>
-                    <div class="stat-label">Категорий</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ stats.materials_count }}</div>
-                    <div class="stat-label">Всего материалов</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ stats.active_materials_count }}</div>
-                    <div class="stat-label">Активных</div>
-                </div>
-            </div>
-
-            <!-- ==================== ФОРМА ДОБАВЛЕНИЯ МАТЕРИАЛА (СКРЫТА) ==================== -->
-            <!--
-                ИСПРАВЛЕННАЯ ФОРМА: 
-                - Все обязательные поля (name, category, type, cost, markup_percent, unit) присутствуют.
-                - Поле price УДАЛЕНО (цена вычисляется на сервере).
-                - Блоки paper-fields и film-fields содержат ТОЛЬКО специфические поля.
-                - Единица измерения (unit) – общая для всех типов.
-                - Себестоимость (cost) и наценка (markup_percent) – общие для всех типов.
-                - Поля density, paper_thickness (для бумаги) и thickness (для плёнки) – опциональны, но валидируются на сервере.
-            -->
-            <div class="form-section" id="material-form-section" style="display: none;">
-                <h3>Добавить новый материал</h3>
-                {# action указывает на URL создания материала (определён в urls.py) #}
-                <form method="post" action="{% url 'sklad:create_material' %}" id="material-form">
-                    {% csrf_token %}  {# Защита от CSRF-атак #}
-
-                    {# Название материала (обязательное) #}
-                    <div class="form-group">
-                        <label for="material-name">Название материала*</label>
-                        <input type="text" id="material-name" name="name" class="form-control" required>
+            <!-- ===== ФОРМА ДОБАВЛЕНИЯ (Компактная, в 2 строки) ===== -->
+            <form method="post" action="{% url 'sklad:index' %}?type={{ current_type }}{% if selected_category %}&category_id={{ selected_category.id }}{% endif %}" class="tovary-add-form">
+                {% csrf_token %}
+                <input type="hidden" name="type" value="{{ current_type }}">
+                
+                <!-- Строка 1: Основное -->
+                <div class="tovary-form-row">
+                    <div class="tovary-field tovary-field-wide">
+                        <label>Название *</label>
+                        <input class="tovary-input" type="text" name="name" required maxlength="100">
                     </div>
-
-                    {# Тип материала (бумага/плёнка) – влияет на отображение полей ниже #}
-                    <div class="form-group">
-                        <label for="material-type">Тип материала*</label>
-                        <select id="material-type" name="type" class="form-control" required>
-                            <option value="paper">Бумага</option>
-                            <option value="film">Плёнка</option>
-                        </select>
-                    </div>
-
-                    {# Категория – выпадающий список, заполняется через AJAX (loadCategoriesForForm) #}
-                    <div class="form-group">
-                        <label for="material-category">Категория*</label>
-                        <select id="material-category" name="category" class="form-control" required>
-                            <option value="">-- Выберите категорию --</option>
-                            {# Начальные категории из контекста (для первой загрузки, затем обновляются AJAX) #}
-                            {% for category in categories %}
-                                <option value="{{ category.id }}" 
-                                        {% if selected_category and selected_category.id == category.id %}selected{% endif %}>
-                                    {{ category.name }}
+                    <div class="tovary-field">
+                        <label>Категория *</label>
+                        <select class="tovary-input" name="category" required>
+                            <option value="">— Выберите —</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if selected_category_id == cat.id|stringformat:'s' %}selected{% endif %}>
+                                    {% for i in "123456789"|make_list %}{% if forloop.counter0 < cat.level %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}{{ cat.name }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <!-- ==================== ОБЩИЕ ПОЛЯ ДЛЯ ВСЕХ ТИПОВ ==================== -->
-                    {# Себестоимость (обязательное) #}
-                    <div class="form-group">
-                        <label for="material-cost">Себестоимость (руб.)*</label>
-                        <input type="number" id="material-cost" name="cost" class="form-control" step="0.01" min="0" required>
-                        <small class="form-text text-muted">Закупочная стоимость за единицу</small>
+                    <div class="tovary-field">
+                        <label>Себестоимость *</label>
+                        <input class="tovary-input" type="text" name="cost" required placeholder="0.00">
                     </div>
-
-                    {# Наценка в процентах (обязательная) #}
-                    <div class="form-group">
-                        <label for="material-markup">Наценка (%)*</label>
-                        <input type="number" id="material-markup" name="markup_percent" class="form-control" step="0.01" min="0" required>
-                        <small class="form-text text-muted">Процент наценки от себестоимости</small>
+                    <div class="tovary-field">
+                        <label>Наценка, % *</label>
+                        <input class="tovary-input" type="text" name="markup_percent" required placeholder="0">
                     </div>
-
-                    {# Единица измерения (обязательная) #}
-                    <div class="form-group">
-                        <label for="material-unit">Единица измерения*</label>
-                        <input type="text" id="material-unit" name="unit" class="form-control" value="лист" required>
-                        <small class="form-text text-muted">Например: лист, рулон, метр, кг</small>
+                    <div class="tovary-field" style="min-width: 60px;">
+                        <label>Ед. изм.</label>
+                        <input class="tovary-input" type="text" name="unit" value="лист" maxlength="20">
                     </div>
+                </div>
 
-                    <!-- ==================== ПОЛЯ ДЛЯ БУМАГИ ==================== -->
-                    {# Блок paper-fields виден по умолчанию (т.к. type="paper" по умолчанию) #}
-                    <div id="paper-fields">
-                        <div class="form-group">
-                            <label for="material-density">Плотность (г/кв.м)</label>
-                            <input type="number" id="material-density" name="density" class="form-control" step="1" min="1" placeholder="130">
-                            <small class="form-text text-muted">Необязательно, но рекомендуется для бумаги</small>
+                <!-- Строка 2: Дополнительно -->
+                <div class="tovary-form-row" style="margin-top: 0.5rem;">
+                    {% if current_type == 'paper' %}
+                        <div class="tovary-field">
+                            <label>Плотность (г/м²)</label>
+                            <input class="tovary-input" type="number" name="density" placeholder="130">
                         </div>
-                        <div class="form-group">
-                            <label for="material-paper-thickness">Толщина бумаги (мм)</label>
-                            <input type="number" id="material-paper-thickness" name="paper_thickness" class="form-control" step="0.001" min="0.001" placeholder="0.1">
-                            <small class="form-text text-muted">Толщина в миллиметрах (например, 0.1 для 100 мкм)</small>
-                        </div>
-                    </div>
-
-                    <!-- ==================== ПОЛЯ ДЛЯ ПЛЁНКИ (СКРЫТЫ) ==================== -->
-                    {# Блок film-fields изначально скрыт (style="display: none;") – показывается при выборе type="film" #}
-                    <div id="film-fields" style="display: none;">
-                        <div class="form-group">
-                            <label for="material-thickness">Толщина (мкм)*</label>
-                            <input type="number" id="material-thickness" name="thickness" class="form-control" step="1" min="1" placeholder="75">
-                            <small class="form-text text-muted">Для плёнки толщина обязательна</small>
-                        </div>
-                    </div>
-
-                    <!-- ==================== СКЛАДСКИЕ ПОЛЯ (ОБЩИЕ) ==================== -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="material-quantity">Количество на складе</label>
-                            <input type="number" id="material-quantity" name="quantity" class="form-control" step="1" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="material-min-quantity">Минимальный остаток</label>
-                            <input type="number" id="material-min-quantity" name="min_quantity" class="form-control" step="1" min="0" value="10">
-                        </div>
-                    </div>
-
-                    {# Примечание #}
-                    <div class="form-group">
-                        <label for="material-notes">Примечание</label>
-                        <textarea id="material-notes" name="notes" class="form-control" rows="3"></textarea>
-                    </div>
-
-                    {# Чекбокс активности #}
-                    <div class="form-group">
-                        <label><input type="checkbox" name="is_active" class="form-check-input" checked> Активен</label>
-                    </div>
-
-                    {# Кнопки управления формой #}
-                    <div class="button-group">
-                        <button type="submit" class="btn-submit">Сохранить материал</button>
-                        <button type="button" class="btn-clear" onclick="clearMaterialForm()">Очистить форму</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- ==================== КОНТЕЙНЕР ДЛЯ ТАБЛИЦЫ МАТЕРИАЛОВ ==================== -->
-            {# Этот контейнер будет обновляться через AJAX. Начальное содержимое – из контекста (если есть материалы) #}
-            <div class="materials-container" id="materials-container">
-                <div class="materials-section">
-                    {% if not materials %}
-                        {# Если материалов нет – показываем информационное сообщение #}
-                        <div class="empty-message">
-                            <i class="fas fa-box-open"></i>
-                            {% if selected_category %}
-                                В категории "{{ selected_category.name }}" и её подкатегориях нет материалов
-                            {% else %}
-                                Материалы не найдены. Выберите категорию слева или добавьте новый материал.
-                            {% endif %}
+                        <div class="tovary-field">
+                            <label>Толщина (мм)</label>
+                            <input class="tovary-input" type="text" name="paper_thickness" placeholder="0.1">
                         </div>
                     {% else %}
-                        {# Таблица материалов – полностью соответствует тому, что генерирует generate_materials_html #}
-                        <div class="materials-table">
-                            {# Заголовок таблицы #}
-                            <div class="table-header">
-                                <div class="col-name">Название материала</div>
-                                <div class="col-price">Цена</div>
-                                <div class="col-quantity">Количество</div>
-                                <div class="col-actions">Действия</div>
-                            </div>
-                            {# Тело таблицы – строки материалов #}
-                            <div class="table-body">
-                                {% for material in materials %}
-                                    {# Одна строка материала #}
-                                    <div class="table-row" data-material-id="{{ material.id }}">
-                                        {# Колонка "Название материала" (содержит название, категорию и параметры) #}
-                                        <div class="col-name">
-                                            {# Название материала (редактируемое) #}
-                                            <div class="material-name editable-field" 
-                                                 data-editable="true"
-                                                 data-field="name"
-                                                 data-material-id="{{ material.id }}"
-                                                 data-original-value="{{ material.name }}"
-                                                 ondblclick="startInlineEdit(this)">
-                                                {{ material.name }}
-                                            </div>
-                                            {# Категория (только для отображения) #}
-                                            <div class="material-category">
-                                                <i class="fas fa-folder"></i>
-                                                {{ material.category.name }}
-                                            </div>
-                                            {# Параметры материала (плотность, толщина и т.д.) – компактные тэги #}
-                                            <div class="material-extra">
-                                                {% if material.type == 'paper' %}
-                                                    {# Плотность бумаги (редактируемая) #}
-                                                    {% if material.density %}
-                                                        <span class="param editable-field" 
-                                                              data-editable="true"
-                                                              data-field="density"
-                                                              data-material-id="{{ material.id }}"
-                                                              data-original-value="{{ material.density }}"
-                                                              ondblclick="startInlineEdit(this)">
-                                                            <i class="fas fa-weight-hanging"></i> {{ material.density }} г/м²
-                                                        </span>
-                                                    {% else %}
-                                                        <span class="param editable-field" 
-                                                              data-editable="true"
-                                                              data-field="density"
-                                                              data-material-id="{{ material.id }}"
-                                                              data-original-value=""
-                                                              ondblclick="startInlineEdit(this)">
-                                                            <i class="fas fa-weight-hanging"></i> —
-                                                        </span>
-                                                    {% endif %}
-                                                    {# Толщина бумаги (редактируемая) #}
-                                                    <span class="param editable-field" 
-                                                          data-editable="true"
-                                                          data-field="paper_thickness"
-                                                          data-material-id="{{ material.id }}"
-                                                          data-original-value="{{ material.paper_thickness|default:'' }}"
-                                                          ondblclick="startInlineEdit(this)">
-                                                        <i class="fas fa-ruler"></i> 
-                                                        {% if material.paper_thickness %}{{ material.paper_thickness }} мм{% else %}—{% endif %}
-                                                    </span>
-                                                {% elif material.type == 'film' %}
-                                                    {# Толщина плёнки (редактируемая) #}
-                                                    <span class="param editable-field" 
-                                                          data-editable="true"
-                                                          data-field="thickness"
-                                                          data-material-id="{{ material.id }}"
-                                                          data-original-value="{{ material.thickness|default:'' }}"
-                                                          ondblclick="startInlineEdit(this)">
-                                                        <i class="fas fa-ruler"></i> {{ material.thickness|default:'—' }} мкм
-                                                    </span>
-                                                    {# Наценка (редактируемая) #}
-                                                    <span class="param editable-field" 
-                                                          data-editable="true"
-                                                          data-field="markup_percent"
-                                                          data-material-id="{{ material.id }}"
-                                                          data-original-value="{{ material.markup_percent|default:'' }}"
-                                                          ondblclick="startInlineEdit(this)">
-                                                        <i class="fas fa-percent"></i> {{ material.markup_percent|default:'—' }}%
-                                                    </span>
-                                                    {# Себестоимость (редактируемая) #}
-                                                    <span class="param editable-field" 
-                                                          data-editable="true"
-                                                          data-field="cost"
-                                                          data-material-id="{{ material.id }}"
-                                                          data-original-value="{{ material.cost|default:'' }}"
-                                                          ondblclick="startInlineEdit(this)">
-                                                        <i class="fas fa-ruble-sign"></i> {{ material.cost|default:'—' }} руб.
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        {# Колонка "Цена" (вычисляется на сервере) #}
-                                        <div class="col-price">
-                                            <span class="price-badge">
-                                                {{ material.get_price_display }}
-                                            </span>
-                                        </div>
-
-                                        {# Колонка "Количество" #}
-                                        <div class="col-quantity">
-                                            {# Количество всегда редактируется, цвет зависит от остатка #}
-                                            <span class="quantity-badge {% if material.quantity <= 0 %}quantity-zero{% elif material.quantity <= material.min_quantity %}quantity-low{% endif %} editable-field"
-                                                  data-editable="true"
-                                                  data-field="quantity"
-                                                  data-material-id="{{ material.id }}"
-                                                  data-original-value="{{ material.quantity }}"
-                                                  data-min-quantity="{{ material.min_quantity }}"
-                                                  ondblclick="startInlineEdit(this)">
-                                                {{ material.quantity }} {{ material.unit }}
-                                            </span>
-                                        </div>
-
-                                        {# Колонка "Действия" – кнопка удаления #}
-                                        <div class="col-actions">
-                                            <button type="button" 
-                                                    class="btn-action btn-delete"
-                                                    data-material-id="{{ material.id }}"
-                                                    data-material-name="{{ material.name }}">
-                                                Удалить
-                                            </button>
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        {# Подсказки для пользователя #}
-                        <div class="table-hint">
-                            <div class="hint-item"><span class="hint-icon">📁</span>Показаны материалы из выбранной категории и всех её подкатегорий</div>
-                            <div class="hint-item"><span class="hint-icon">👆</span>Нажмите на название категории, чтобы увидеть иерархию</div>
-                            <div class="hint-item"><span class="hint-icon">✏️</span>Двойной клик по любому полю (название, себестоимость, наценка, количество, плотность, толщина) для быстрого редактирования</div>
+                        <div class="tovary-field">
+                            <label>Толщина (мкм) *</label>
+                            <input class="tovary-input" type="number" name="thickness" required placeholder="75">
                         </div>
                     {% endif %}
+                    <div class="tovary-field">
+                        <label>Кол-во на складе</label>
+                        <input class="tovary-input" type="number" name="quantity" value="0" min="0">
+                    </div>
+                    <div class="tovary-field">
+                        <label>Мин. остаток</label>
+                        <input class="tovary-input" type="number" name="min_quantity" value="10" min="0">
+                    </div>
+                    <div class="tovary-field tovary-field-wide">
+                        <label>Примечание</label>
+                        <input class="tovary-input" type="text" name="notes" maxlength="200">
+                    </div>
+                    <div class="tovary-field" style="align-self: flex-end;">
+                        <button type="submit" class="tovary-btn-add">Добавить</button>
+                    </div>
                 </div>
+            </form>
+
+            <!-- ===== СПИСОК МАТЕРИАЛОВ ===== -->
+            {% if materials %}
+            
+            <div class="materials-list">
+                {% for m in materials %}
+                    <div class="material-row-card" data-material-id="{{ m.id }}" draggable="true">
+                        
+                        <!-- СТРОКА 1: НАЗВАНИЕ, ЦЕНА И УДАЛЕНИЕ (Заголовок аккордеона) -->
+                        <div class="material-row-header" onclick="toggleMaterialCard(this)">
+                            <span class="material-toggle-icon">▼</span>
+                            <input class="tovary-cell material-name-input" type="text" name="name" value="{{ m.name }}" data-field="name" data-original-value="{{ m.name }}" placeholder="Название материала" onclick="event.stopPropagation();">
+                            
+                            <div class="material-header-price">
+                                {{ m.get_price_display }}
+                            </div>
+
+                            <button type="button" class="tovary-btn-delete" onclick="event.stopPropagation(); deleteMaterial({{ m.id }}, '{{ m.name|escapejs }}')" title="Удалить материал">×</button>
+                        </div>
+
+                        <!-- ОБЕРТКА ДЛЯ СКРЫТЫХ ПОЛЕЙ -->
+                        <div class="material-card-body">
+                            <!-- СТРОКА 2: ОСНОВНЫЕ ПАРАМЕТРЫ -->
+                            <div class="material-row-main">
+                                <div class="material-field-group">
+                                    <label>Категория</label>
+                                    <div class="tovary-category-text" title="{{ m.category.name|default:'Без категории' }}">
+                                        {{ m.category.name|default:"—" }}
+                                    </div>
+                                </div>
+                                <div class="material-field-group">
+                                    <label>Себестоимость</label>
+                                    <input class="tovary-cell" type="text" name="cost" value="{{ m.cost|default:'' }}" data-field="cost" data-original-value="{{ m.cost|default:'' }}">
+                                </div>
+                                <div class="material-field-group">
+                                    <label>Наценка, %</label>
+                                    <input class="tovary-cell" type="text" name="markup_percent" value="{{ m.markup_percent|default:'' }}" data-field="markup_percent" data-original-value="{{ m.markup_percent|default:'' }}">
+                                </div>
+                                <div class="material-field-group">
+                                    <label>Количество</label>
+                                    <input class="tovary-cell" type="number" name="quantity" value="{{ m.quantity }}" data-field="quantity" data-original-value="{{ m.quantity }}">
+                                </div>
+                                <div class="material-field-group" style="max-width: 80px;">
+                                    <label>Ед. изм.</label>
+                                    <input class="tovary-cell" type="text" name="unit" value="{{ m.unit }}" data-field="unit" data-original-value="{{ m.unit }}">
+                                </div>
+                            </div>
+
+                            <!-- СТРОКА 3: ДОПОЛНИТЕЛЬНЫЕ ПАРАМЕТРЫ -->
+                            <div class="material-row-extra">
+                                {% if current_type == 'paper' %}
+                                    <div class="material-field-group">
+                                        <label>Плотность (г/м²)</label>
+                                        <input class="tovary-cell" type="number" name="density" value="{{ m.density|default:'' }}" data-field="density" data-original-value="{{ m.density|default:'' }}">
+                                    </div>
+                                    <div class="material-field-group">
+                                        <label>Толщина (мм)</label>
+                                        <input class="tovary-cell" type="text" name="paper_thickness" value="{{ m.paper_thickness|default:'' }}" data-field="paper_thickness" data-original-value="{{ m.paper_thickness|default:'' }}">
+                                    </div>
+                                {% else %}
+                                    <div class="material-field-group">
+                                        <label>Толщина (мкм)</label>
+                                        <input class="tovary-cell" type="number" name="thickness" value="{{ m.thickness|default:'' }}" data-field="thickness" data-original-value="{{ m.thickness|default:'' }}">
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="material-field-group">
+                                    <label>Мин. остаток</label>
+                                    <input class="tovary-cell" type="number" name="min_quantity" value="{{ m.min_quantity }}" data-field="min_quantity" data-original-value="{{ m.min_quantity }}">
+                                </div>
+                                
+                                <div class="material-field-group" style="flex: 1;">
+                                    <label>Примечание</label>
+                                    <input class="tovary-cell" type="text" name="notes" value="{{ m.notes|default:'' }}" data-field="notes" data-original-value="{{ m.notes|default:'' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                {% endfor %}
             </div>
+
+            {% else %}
+                <div class="tovary-empty">
+                    {% if selected_category %}
+                        В этой категории пока нет материалов. Добавьте первый через форму выше.
+                    {% else %}
+                        Материалов пока нет. Добавьте первый через форму выше.
+                    {% endif %}
+                </div>
+            {% endif %}
         </div>
+
     </div>
+</div>
 
-    <!-- ==================== ФОРМА ДОБАВЛЕНИЯ КАТЕГОРИИ (СКРЫТА) ==================== -->
-    {# Появляется по клику на кнопку "Добавить категорию" #}
-    <div class="form-section" id="category-form-section" style="display: none;">
-        <h3>Добавить новую категорию</h3>
-        <form method="post" action="{% url 'sklad:create_category' %}" id="category-form">
+<!-- ==================== МОДАЛКИ ==================== -->
+
+<!-- Модалка добавления категории -->
+<div id="add-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" style="color: #0B8661;">Новая категория</div>
+        
+        <form method="post" action="{% url 'sklad:category_create' %}" style="margin-top: 1rem; text-align: left;">
             {% csrf_token %}
-            {# Скрытое поле для типа категории – устанавливается в соответствии с текущим типом материала #}
-            <input type="hidden" name="type" id="category-type" value="{{ current_type }}">
-
-            <div class="form-group">
-                <label for="category-name">Название категории*</label>
-                <input type="text" id="category-name" name="name" class="form-control" placeholder="Например: Бумага, Меловка, Плёнка 75 мкм" required>
+            <input type="hidden" name="type" value="{{ current_type }}">
+            
+            <div class="tovary-field" style="margin-bottom: 0.8rem;">
+                <label>Название *</label>
+                <input class="tovary-input" type="text" name="name" id="add-cat-name" required maxlength="100" style="width: 100%;">
             </div>
-
-            <div class="form-group">
-                <label for="category-parent">Родительская категория</label>
-                <select id="category-parent" name="parent" class="form-control">
-                    <option value="">(Корневая категория)</option>
-                    {# Список категорий из контекста (для начальной загрузки) #}
-                    {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
+            
+            <div class="tovary-field" style="margin-bottom: 1.2rem;">
+                <label>Родительская категория</label>
+                <select class="tovary-input" name="parent_id" style="width: 100%;">
+                    <option value="">— Корневая —</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}">
+                            {% for i in "123456789"|make_list %}{% if forloop.counter0 < cat.level %}&nbsp;&nbsp;&nbsp;{% endif %}{% endfor %}{{ cat.name }}
+                        </option>
                     {% endfor %}
                 </select>
-                <div class="help-text">Оставьте пустым для создания корневой категории</div>
             </div>
-
-            <div class="button-group">
-                <button type="submit" class="btn-submit">Создать категорию</button>
-                <button type="button" class="btn-cancel" onclick="hideCategoryForm()">Отмена</button>
+            
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeAddCategoryModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" style="background: #0B8661; color: #fff;">Добавить</button>
             </div>
         </form>
     </div>
+</div>
+
+<!-- Модалка переименования категории -->
+<div id="rename-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" style="color: #0B8661;">Переименовать категорию</div>
+        
+        <form id="rename-category-form" method="post" action="" style="margin-top: 1rem; text-align: left;">
+            {% csrf_token %}
+            <div class="tovary-field" style="margin-bottom: 1.2rem;">
+                <label>Новое название *</label>
+                <input class="tovary-input" type="text" name="name" id="rename-cat-name" required maxlength="100" style="width: 100%;">
+            </div>
+            
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeRenameCategoryModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" style="background: #0B8661; color: #fff;">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модалка удаления категории -->
+<div id="delete-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить категорию?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить категорию <b id="delete-cat-name"></b>?<br>
+            Если в ней есть материалы или подкатегории — удаление будет запрещено.
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteCategoryModal()">Отмена</button>
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" onclick="confirmDeleteCategory()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка удаления материала -->
+<div id="delete-material-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить материал?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить материал <b id="delete-material-name"></b>?<br>
+            Его можно будет восстановить только через базу данных.
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteMaterialModal()">Отмена</button>
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" onclick="confirmDeleteMaterial()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{# sklad.js уже подключён в base.html через block.super — здесь дублировать не нужно #}
+{{ block.super }}
 {% endblock %}

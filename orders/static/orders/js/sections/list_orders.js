@@ -47,6 +47,55 @@ JavaScript секции «Список заказов» страницы /orders
     // Кэш клиентов (загружается один раз, при первом редактировании клиента).
     let clientsCache = null;
 
+    // ===== ФЛАГИ «УЖЕ АВТОСОХРАНЯЛИ» =====
+    // Ключи вида "orderId:fieldName" (например, "42:legal_entity").
+    //
+    // Зачем это нужно:
+    //   populateSelect() при пустом data-current-id автоматически выбирает
+    //   «основного» юрлица/сотрудника клиента и «тихо» сохраняет его через
+    //   API /orders/api/order/<id>/update-field/. Сервер на любое изменение
+    //   поля отправляет WebSocket-событие order_event('updated').
+    //   Клиент на это событие вызывает refreshTable() → перерисовывает tbody →
+    //   повторно вызывает initClientSelects() → повторно populateSelect().
+    //   Если к моменту повторного рендера предыдущее автосохранение ещё не
+    //   завершилось (запрос асинхронный), data-current-id снова пустой —
+    //   populateSelect() опять шлёт автосохранение. Получается цикл:
+    //   refreshTable → populateSelect → автосохранение → WS →
+    //   refreshTable → populateSelect → ...
+    //
+    //   Этот Set разрывает цикл: для каждой пары (заказ, поле) автосохранение
+    //   выполняется ровно один раз за сессию страницы. При смене клиента
+    //   заказа флаги для этого заказа сбрасываются (см. loadClientSelectsForCard) —
+    //   у нового клиента свои «основные» юрлицо и сотрудник, автосохранение
+    //   должно отработать заново.
+    let autoSavedClientFields = new Set();
+
+    // ===== ФЛАГ «ОТЛОЖЕННОЕ ОБНОВЛЕНИЕ» =====
+    // Используется, когда приходит WebSocket-событие о чужом действии,
+    // а пользователь в этот момент что-то вводит в постоянное поле карточки
+    // заказа (Счёт №, сумма, адрес доставки, тип плательщика и т.п.).
+    //
+    // Почему нельзя обновить сразу:
+    //   refreshTable() перезаписывает innerHTML всего tbody. Постоянные
+    //   <input>/<select> не имеют класса .editing-cell (он появляется
+    //   только при dblclick-редактировании клиента/даты/комментария),
+    //   поэтому стандартная защита `if (document.querySelector('.editing-cell'))`
+    //   их не ловит. Если перерисовать tbody прямо во время ввода —
+    //   введённый текст потеряется (пользователь вводит в старый DOM-элемент,
+    //   который через мгновение уже detached).
+    //
+    // Как работает:
+    //   1. onmessage видит, что фокус в поле карточки → ставит флаг в true,
+    //      НЕ перерисовывает.
+    //   2. Навешен глобальный обработчик focusout (см. DOMContentLoaded).
+    //      Когда фокус уходит с поля (пользователь закончил ввод или перешёл
+    //      на другое поле), обработчик проверяет: новый activeElement —
+    //      уже не поле карточки? Если да — выполняет refreshTable() и
+    //      refreshDeliveryToday(), сбрасывает флаг.
+    //   3. Несколько событий за время ввода — нормально, флаг один, обновление
+    //      выполнится один раз.
+    let pendingRefreshOnBlur = false;
+
     // ===== ПАГИНАЦИЯ ВЫДАННЫХ ЗАКАЗОВ =====
     // Сколько выданных показывать сейчас. По умолчанию 10.
     // При клике на «Далее» — +10. Хранится в JS, при перезагрузке — сброс.
@@ -159,6 +208,36 @@ JavaScript секции «Список заказов» страницы /orders
         // в initToastsWebSocket).
         deliveryTodayContainer = document.getElementById('orders-delivery-today');
         refreshDeliveryToday();
+
+        // ===== ОТЛОЖЕННОЕ ОБНОВЛЕНИЕ ПОСЛЕ ВВОДА =====
+        // Если onmessage отложил refreshTable() из-за того, что пользователь
+        // был в фокусе на поле карточки (см. pendingRefreshOnBlur и
+        // isUserTypingInOrderCard), — выполняем отложенное обновление здесь,
+        // когда фокус ушёл с полей.
+        //
+        // setTimeout(..., 0) нужен, чтобы дождаться, пока браузер установит
+        // новый document.activeElement. При переходе из поля в поле
+        // focusout срабатывает ДО того, как новый элемент получит фокус,
+        // и без задержки isUserTypingInOrderCard() вернул бы false по старому
+        // activeElement (body) — и мы бы перерисовали страницу, хотя
+        // пользователь просто перешёл на другое поле той же карточки.
+        document.addEventListener('focusout', function () {
+            if (!pendingRefreshOnBlur) return;
+
+            setTimeout(function () {
+                if (!pendingRefreshOnBlur) return;
+
+                // Если пользователь перешёл на другое поле карточки —
+                // оставляем флаг и ждём следующего focusout.
+                if (isUserTypingInOrderCard()) return;
+
+                // Фокус ушёл с полей карточки — выполняем отложенное
+                // обновление и сбрасываем флаг.
+                pendingRefreshOnBlur = false;
+                refreshTable();
+                refreshDeliveryToday();
+            }, 0);
+        });
 
         // --- Умное редактирование и клонирование изделий ---
         // Инициализируем:
@@ -1110,6 +1189,40 @@ JavaScript секции «Список заказов» страницы /orders
         favicon.href = `data:image/svg+xml,${svg}`;
     }
 
+    /**
+     * Проверяет, находится ли фокус на постоянном поле ввода
+     * внутри карточки заказа (.list-orders-card).
+     *
+     * Зачем: постоянные <input>/<select> (Счёт №, оплата, доставка и т.п.)
+     * не имеют класса .editing-cell — стандартная защита `if (document.querySelector('.editing-cell'))`
+     * их не видит. Если перерисовать tbody, пока пользователь вводит текст
+     * в такое поле, введённое пропадёт.
+     *
+     * Используется:
+     *   • onmessage — для откладывания refreshTable() на focusout;
+     *   • обработчик focusout — для проверки, что фокус действительно
+     *     ушёл с полей карточки (а не перешёл на другое поле той же карточки).
+     *
+     * Возвращает true, если фокус на INPUT/SELECT/TEXTAREA внутри карточки.
+     */
+    function isUserTypingInOrderCard() {
+        const active = document.activeElement;
+        if (!active) return false;
+
+        // Проверяем тег: только поля ввода нас интересуют.
+        // Кнопки (BUTTON), ссылки (A) и прочие — не считаем «вводом».
+        const tagName = (active.tagName || '').toUpperCase();
+        if (tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA') {
+            return false;
+        }
+
+        // Поле должно быть внутри карточки заказа. Поля вне карточки
+        // (например, поисковая строка над списком) не должны блокировать
+        // перерисовку — они не потеряют данные, потому что не относятся
+        // к перерисовываемому tbody.
+        return !!active.closest('.list-orders-card');
+    }
+
     function initToastsWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         const url = protocol + window.location.host + '/ws/orders/';
@@ -1136,24 +1249,69 @@ JavaScript секции «Список заказов» страницы /orders
             }
             if (data.type !== 'order_event') return;
 
+            // ===== ПРОВЕРКА «СВОЁ ДЕЙСТВИЕ В ЭТОЙ ЖЕ ВКЛАДКЕ» =====
+            // actor_tab_id приходит из сервера (см. views._send_order_event).
+            // Если он совпадает с нашим — значит действие инициировано
+            // в этой же вкладке (не в другой вкладке того же браузера,
+            // а именно здесь). Данные уже обновлены локально:
+            //   • savePaymentField() — обновил кнопку/поле;
+            //   • handleStatusChange()/handleCreateSubmit() и т.п. —
+            //     уже вызвали refreshTable() напрямую.
+            // Поэтому здесь дополнительная перерисовка не нужна.
+            // Без этой проверки страница «подёргивается» после каждого
+            // своего же сохранения (например, «Счёт №» или оплаты).
+            const myTabId = window.getTabId ? window.getTabId() : '';
+            const isMyTab = (data.actor_tab_id && myTabId && myTabId === data.actor_tab_id);
+
+            if (isMyTab) {
+                // Своё действие в этой вкладке — ничего не делаем.
+                // Тост показывать не нужно (мы сами только что всё сделали),
+                // перерисовывать не нужно (локально уже обновлено).
+                return;
+            }
+
             const container = document.getElementById('proschety-toasts');
             const mySessionKey = container ? (container.dataset.sessionKey || '') : '';
             
-            // Определяем, наше ли это действие (та же сессия)
-            const isMyAction = (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key);
+            // Определяем, наше ли это действие (та же сессия, но другая вкладка)
+            const isMySession = (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key);
 
-            // Если пользователь сейчас что-то редактирует (инлайн), не мешаем ему обновлением
+            // Если пользователь сейчас что-то редактирует (инлайн), не мешаем ему обновлением.
+            // Этот случай — для dblclick-редактирования (клиент / дата / комментарий):
+            // там появляется .editing-cell и свой <input>/<textarea>.
             if (document.querySelector('.editing-cell')) {
                 return;
             }
 
-            // Обновляем данные в ЛЮБОМ случае (даже если это наша сессия, 
-            // так как изменения могли прийти из другой вкладки того же браузера)
+            // ===== ЗАЩИТА ОТ ПОТЕРИ ВВОДА В ПОСТОЯННЫХ ПОЛЯХ =====
+            // Постоянные <input>/<select> карточки (Счёт №, тип плательщика,
+            // способ оплаты, документы, адрес/дата/телефон доставки) не имеют
+            // класса .editing-cell — предыдущая проверка их не ловит.
+            //
+            // Если пользователь сейчас в фокусе на таком поле — перерисовку
+            // ОТКЛАДЫВАЕМ до focusout (см. обработчик в DOMContentLoaded).
+            // Иначе innerHTML tbody заменится и введённый текст пропадёт.
+            if (isUserTypingInOrderCard()) {
+                pendingRefreshOnBlur = true;
+
+                // Тост показываем сразу — он не зависит от DOM-полей карточки.
+                // Иначе пользователь не увидит уведомление о чужом действии
+                // до тех пор, пока не закончит ввод.
+                if (!isMySession) {
+                    showToast(data);
+                }
+                return;
+            }
+
+            // Обновляем данные — действие пришло из другой вкладки
+            // того же пользователя или от другого пользователя.
             refreshTable();
             refreshDeliveryToday();
 
-            // А вот тост показываем только если действие совершил кто-то ДРУГОЙ
-            if (!isMyAction) {
+            // Тост показываем только если действие совершил ДРУГОЙ пользователь.
+            // Если это своя же другая вкладка — тост избыточен (пользователь
+            // сам инициировал действие и знает о нём).
+            if (!isMySession) {
                 showToast(data);
             }
         };
@@ -1921,12 +2079,45 @@ function handleStatusChange(event) {
         
         selectEl.innerHTML = html;
 
-        // Если в заказе ничего не выбрано, но есть основной — выбираем его и сохраняем
+        // Если в заказе ничего не выбрано, но есть основной — выбираем его
+        // в выпадающем списке и (однократно!) сохраняем на сервер.
+        //
+        // Подробности — в комментарии к объявлению autoSavedClientFields
+        // (раздел 1 «СОСТОЯНИЕ И DOM»). Кратко: без флага-«предохранителя»
+        // автосохранение вызывает WebSocket order_event → refreshTable →
+        // повторный populateSelect → повторное автосохранение, и карточка
+        // бесконечно «подёргивается».
         if (!currentId && primaryId) {
+
+            // Визуально выбираем «основного» в любом случае — даже если
+            // автосохранение уже выполнялось ранее. Это безопасно: DOM-селект
+            // просто покажет основного, без сетевого запроса.
             selectEl.value = primaryId;
             selectEl.dataset.currentId = primaryId;
-            
-            // Тихо сохраняем на сервер
+
+            // Ключ для проверки «уже автосохраняли для этой пары
+            // (заказ, поле) в текущей сессии страницы».
+            const autoSaveKey = orderId + ':' + fieldName;
+
+            if (autoSavedClientFields.has(autoSaveKey)) {
+                // Автосохранение для этого заказа и этого поля уже было
+                // запущено ранее в этой сессии страницы. Повторный POST
+                // не отправляем — иначе сервер снова пришлёт WebSocket
+                // order_event, снова сработает refreshTable(), снова
+                // populateSelect() — получится цикл перерисовок.
+                //
+                // Важно: DOM-значение selectEl.value уже выставлено выше
+                // (primaryId), поэтому пользователь видит корректный выбор.
+                return;
+            }
+
+            // Помечаем «автосохранение запущено» ДО отправки fetch().
+            // Это критично: если пометить после fetch(), между отправкой
+            // запроса и установкой флага успеет прийти WS-событие от
+            // параллельного автосохранения — и мы снова попадём в цикл.
+            autoSavedClientFields.add(autoSaveKey);
+
+            // Тихо сохраняем на сервер.
             const fd = new FormData();
             fd.append('field_name', fieldName);
             fd.append('field_value', primaryId);
@@ -1936,7 +2127,10 @@ function handleStatusChange(event) {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }
             });
 
-            // Если это сотрудник, подтягиваем его телефон в поле доставки
+            // Если это сотрудник, подтягиваем его телефон в поле доставки.
+            // savePaymentField() шлёт отдельное POST-событие, но оно тоже
+            // одноразовое — при повторном populateSelect() мы уже не попадём
+            // в эту ветку (сработает return выше по флагу).
             if (fieldName === 'contact_person') {
                 const selectedOption = selectEl.options[selectEl.selectedIndex];
                 const phone = selectedOption.dataset.phone || '';
@@ -1995,6 +2189,21 @@ function handleStatusChange(event) {
             return;
         }
 
+        // ===== СБРОС ФЛАГОВ «УЖЕ АВТОСОХРАНЯЛИ» =====
+        // При смене клиента у него свои «основные» юрлицо и сотрудник,
+        // поэтому автосохранение должно отработать заново для нового клиента.
+        // Без сброса populateSelect() увидел бы старые флаги для этого заказа
+        // и не сохранил бы новых «основных» — селекты остались бы визуально
+        // выбраны, но в БД ссылки не обновились бы.
+        //
+        // Сбрасываем только флаги ЭТОГО заказа — флаги остальных заказов
+        // не трогаем, чтобы не спровоцировать повторные автосохранения там.
+        const cardOrderId = card.dataset.orderId;
+        if (cardOrderId) {
+            autoSavedClientFields.delete(cardOrderId + ':legal_entity');
+            autoSavedClientFields.delete(cardOrderId + ':contact_person');
+        }
+
         // Обновляем data-атрибуты в селектах
         if (leSelect) leSelect.dataset.clientId = clientId;
         if (cpSelect) cpSelect.dataset.clientId = clientId;
@@ -2006,11 +2215,17 @@ function handleStatusChange(event) {
                 if (!data.success) return;
                 
                 if (leSelect) {
-                    leSelect.dataset.currentId = ''; // Сбрасываем старый выбор, чтобы сработал автовыбор "основного"
+                    // Сбрасываем текущий выбор, чтобы сработал автовыбор
+                    // «основного» юрлица НОВОГО клиента.
+                    // populateSelect() увидит пустой currentId, найдёт нового
+                    // «основного» (is_primary=true), выставит его и запустит
+                    // одноразовое автосохранение (флаг сброшен выше).
+                    leSelect.dataset.currentId = '';
                     populateSelect(leSelect, data.legal_entities, '— Юрлицо —');
                 }
                 if (cpSelect) {
-                    cpSelect.dataset.currentId = ''; // Сбрасываем старый выбор
+                    // То же для сотрудника.
+                    cpSelect.dataset.currentId = '';
                     populateSelect(cpSelect, data.contact_persons, '— Сотрудник —');
                 }
             })

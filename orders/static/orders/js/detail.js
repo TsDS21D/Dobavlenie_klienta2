@@ -10,6 +10,28 @@
     var API_PRODUCT_DETAILS_URL_TPL = '/orders/api/product/__PRODUCT_ID__/details/';
     var API_PRODUCT_TO_PROSCHET = '/orders/api/proschet-from-product/';
 
+    // ===== ФЛАГ «ОТЛОЖЕННАЯ ПЕРЕЗАГРУЗКА» =====
+    // Используется, когда приходит WebSocket-событие о чужом действии
+    // (другая вкладка того же пользователя или другой пользователь)
+    // по текущему заказу, а пользователь в этот момент вводит текст
+    // в постоянное поле карточки (Счёт №, адрес доставки, сумма и т.п.).
+    //
+    // Почему нельзя перезагружать сразу:
+    //   detail.js на чужое событие по текущему заказу делает
+    //   setTimeout(() => window.location.reload(), 2500). Если пользователь
+    //   в этот момент вводит текст в постоянное поле — страница перезагрузится,
+    //   введённое потеряется.
+    //
+    // Как работает:
+    //   1. onmessage видит, что фокус в поле карточки → ставит флаг в true,
+    //      НЕ запускает setTimeout(reload).
+    //   2. Глобальный обработчик focusout (см. DOMContentLoaded) ждёт, пока
+    //      фокус уйдёт с полей карточки, и только тогда запускает reload
+    //      через 2.5 секунды (чтобы пользователь успел прочитать тост).
+    //   3. Если за время ввода пришло несколько событий — флаг один,
+    //      reload выполнится один раз.
+    let pendingReloadOnBlur = false;
+
     function getCsrfToken() {
         var meta = document.querySelector('meta[name="csrf-token"]');
         if (meta) return meta.getAttribute('content') || '';
@@ -575,6 +597,35 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Восстанавливаем тосты, которые были до перезагрузки страницы
         restoreToasts();
+
+        // ===== ОТЛОЖЕННАЯ ПЕРЕЗАГРУЗКА ПОСЛЕ ВВОДА =====
+        // Если onmessage отложил reload из-за того, что пользователь был
+        // в фокусе на поле карточки (см. pendingReloadOnBlur и
+        // isUserTypingInOrderCard), — запускаем reload здесь, когда фокус ушёл.
+        //
+        // setTimeout(..., 0) — как в list_orders.js: даём браузеру
+        // проставить новый document.activeElement, чтобы при переходе
+        // из поля в поле не запустить reload раньше времени.
+        //
+        // Задержка 2.5 сек — та же, что в обычном пути onmessage:
+        // даёт пользователю время прочитать тост «Кто-то изменил заказ…»
+        // перед перезагрузкой.
+        document.addEventListener('focusout', function () {
+            if (!pendingReloadOnBlur) return;
+
+            setTimeout(function () {
+                if (!pendingReloadOnBlur) return;
+
+                // Пользователь перешёл на другое поле карточки —
+                // ждём следующего focusout.
+                if (isUserTypingInOrderCard()) return;
+
+                // Фокус ушёл с полей карточки — запускаем отложенный reload
+                // (с той же задержкой 2.5 сек на прочтение тоста).
+                pendingReloadOnBlur = false;
+                setTimeout(() => window.location.reload(), 2500);
+            }, 0);
+        });
         
         const leSelects = document.querySelectorAll('.list-orders-le-select');
         const clientIds = new Set();
@@ -727,6 +778,32 @@
         favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${color}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><line x1='21' y1='21' x2='16.65' y2='16.65'></line></svg>`;
     }
 
+    /**
+     * Проверяет, находится ли фокус на постоянном поле ввода
+     * внутри карточки заказа (.list-orders-card).
+     *
+     * См. аналогичную функцию в list_orders.js — там подробный комментарий
+     * про то, зачем это нужно (постоянные <input>/<select> не имеют класса
+     * .editing-cell, поэтому стандартная защита `if (document.querySelector('.editing-cell'))`
+     * их не видит).
+     *
+     * Используется:
+     *   • onmessage — для откладывания reload на focusout;
+     *   • обработчик focusout — для проверки, что фокус действительно
+     *     ушёл с полей карточки.
+     */
+    function isUserTypingInOrderCard() {
+        const active = document.activeElement;
+        if (!active) return false;
+
+        const tagName = (active.tagName || '').toUpperCase();
+        if (tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA') {
+            return false;
+        }
+
+        return !!active.closest('.list-orders-card');
+    }
+
     // Функция подключения к WebSocket
     function initWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -751,14 +828,31 @@
             try { data = JSON.parse(event.data); } catch (e) { return; }
             if (data.type !== 'order_event') return;
 
+            // ===== ПРОВЕРКА «СВОЁ ДЕЙСТВИЕ В ЭТОЙ ЖЕ ВКЛАДКЕ» =====
+            // См. комментарий в list_orders.js::initToastsWebSocket.onmessage.
+            // Если действие инициировано в этой же вкладке — не перезагружаем
+            // страницу. Иначе любое сохранение (Счёт №, оплата, доставка,
+            // инлайн-комментарий и т.п.) вызывало бы принудительный reload
+            // через 2.5 секунды — это и было «подёргивание».
+            const myTabId = window.getTabId ? window.getTabId() : '';
+            const isMyTab = (data.actor_tab_id && myTabId && myTabId === data.actor_tab_id);
+
+            if (isMyTab) {
+                // Своё действие в этой вкладке — ничего не делаем.
+                // Локально всё уже обновлено через savePaymentField/
+                // saveField/и т.п.
+                return;
+            }
+
             const container = document.getElementById('proschety-toasts');
             const mySessionKey = container ? (container.dataset.sessionKey || '') : '';
             
-            // Проверяем, наше ли это действие
-            const isMyAction = (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key);
+            // Проверяем, наше ли это действие (та же сессия, но другая вкладка)
+            const isMySession = (data.actor_session_key && mySessionKey && mySessionKey === data.actor_session_key);
 
-            // Если действие ЧУЖОЕ — показываем тост и сохраняем его в кэш браузера
-            if (!isMyAction) {
+            // Если действие ЧУЖОЕ (другой пользователь или своя другая вкладка) —
+            // показываем тост и сохраняем его в кэш браузера.
+            if (!isMySession) {
                 showToast(data);
                 layoutToasts();
                 
@@ -768,11 +862,32 @@
                 sessionStorage.setItem('pending_order_toasts', JSON.stringify(pending));
             }
 
-            // Если кто-то (неважно, мы или другой) изменил ТЕКУЩИЙ заказ — обновляем данные
+            // Если кто-то (неважно, мы или другой) изменил ТЕКУЩИЙ заказ — обновляем данные.
+            // Теперь сюда доходят только события из ЧУЖИХ вкладок или от других
+            // пользователей (своё действие в этой вкладке мы отсекли выше).
+            // Своё действие в ДРУГОЙ вкладке того же пользователя — тоже
+            // попадает сюда: перезагружаем, чтобы обновить данные. Тост при этом
+            // не показываем (isMySession === true).
             const currentOrderIdElement = document.querySelector('.list-orders-card[data-order-id]');
             if (currentOrderIdElement) {
                 const currentOrderId = currentOrderIdElement.dataset.orderId;
                 if (String(data.order_id) === String(currentOrderId)) {
+
+                    // ===== ЗАЩИТА ОТ ПОТЕРИ ВВОДА В ПОСТОЯННЫХ ПОЛЯХ =====
+                    // Если пользователь сейчас в фокусе на постоянном поле
+                    // карточки (Счёт №, адрес доставки, сумма и т.п.) —
+                    // перезагрузку ОТКЛАДЫВАЕМ до focusout.
+                    // Иначе пользователь вводит текст, через 2.5 сек страница
+                    // перезагружается, введённое пропадает.
+                    //
+                    // Сам reload выполнится в обработчике focusout
+                    // (см. DOMContentLoaded ниже) — там проверяется,
+                    // что фокус действительно ушёл с полей карточки.
+                    if (isUserTypingInOrderCard()) {
+                        pendingReloadOnBlur = true;
+                        return;
+                    }
+
                     // Увеличиваем задержку до 2.5 сек, чтобы пользователь успел прочитать тост
                     setTimeout(() => window.location.reload(), 2500);
                 }

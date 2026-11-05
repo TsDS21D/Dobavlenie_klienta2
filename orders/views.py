@@ -1242,17 +1242,35 @@ def _send_order_event(event_type, order, request):
     """
     Отправляет событие в WebSocket-группу 'orders_list' (см. orders/consumers.py).
     Это заставит все открытые вкладки /orders/ перерисовать таблицу или показать тост.
-    
+
     event_type: 'created' | 'updated' | 'deleted'
+
+    ПРО actor_tab_id:
+        Django session_key общий для всех вкладок одного браузера. Чтобы
+        отличать «своё действие в этой вкладке» от «своё действие в другой
+        вкладке того же пользователя», клиент шлёт заголовок X-Tab-Id
+        (уникальный на вкладку, см. orders/static/orders/js/common/tab_id.js).
+        Мы пробрасываем его в WS-событие как actor_tab_id — клиент сравнит
+        со своим tab_id и решит, нужно ли перерисовывать страницу.
+        Если заголовок не пришёл (например, запрос не из браузера, или
+        старый кэшированный JS) — передаём пустую строку: клиент просто
+        не сможет распознать «своё» действие и поведёт себя как раньше.
     """
     channel_layer = get_channel_layer()
     if channel_layer is None:
         return
-        
+
     # Определяем имя пользователя для красивого уведомления
     actor_username = ''
     if request.user and request.user.is_authenticated:
         actor_username = request.user.get_full_name() or request.user.username
+
+    # Уникальный идентификатор вкладки, инициировавшей действие.
+    # Отсутствует в заголовках — значит запрос пришёл не из нашего JS-клиента
+    # (например, из админки или из старой закэшированной версии страницы).
+    # В этом случае передаём пустую строку — клиент просто не сможет
+    # распознать «своё» действие.
+    actor_tab_id = request.headers.get('X-Tab-Id', '')
 
     # Отправляем в группу
     async_to_sync(channel_layer.group_send)(
@@ -1264,6 +1282,7 @@ def _send_order_event(event_type, order, request):
             'order_number': order.number,
             'actor_username': actor_username,
             'actor_session_key': request.session.session_key or '',
+            'actor_tab_id': actor_tab_id,
         }
     )
 

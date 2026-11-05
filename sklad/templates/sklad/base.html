@@ -4,18 +4,11 @@ base.html для приложения sklad
 Добавлены исправления для предотвращения вылезания контента
 -->
 
-{% extends "sheet_formats/base.html" %}
+{% extends "orders/base.html" %}
 
-<!-- Блок для дополнительных CSS стилей конкретно для sklad -->
 {% block extra_css %}
-<!-- ===== ОБЯЗАТЕЛЬНО: устанавливаем кодировку UTF-8 ===== -->
-<meta charset="UTF-8">
-
-<!-- Подключаем CSS стили для sklad -->
 {% load static %}
 <link rel="stylesheet" href="{% static 'sklad/css/sklad.css' %}">
-<!-- Дополнительные мета-теги для лучшей адаптивности -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     /* Дополнительные inline-стили для гарантии */
     html, body {
@@ -35,11 +28,7 @@ base.html для приложения sklad
 </style>
 {% endblock %}
 
-<!-- Блок для дополнительного JavaScript для sklad -->
 {% block extra_js %}
-<!-- Подключаем JavaScript для sklad -->
 {% load static %}
 <script src="{% static 'sklad/js/sklad.js' %}"></script>
-<!-- ПОДКЛЮЧАЕМ AJAX-ЛОГИКУ ПОСЛЕ ОСНОВНОГО СКРИПТА -->
-<script src="{% static 'sklad/js/sklad_ajax.js' %}"></script>
 {% endblock %}

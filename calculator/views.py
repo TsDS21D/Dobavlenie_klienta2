@@ -683,14 +683,18 @@ def get_printers(request):
 def get_papers(request):
     """
     Возвращает список материалов (только бумага, type='paper').
-    Использует метод get_price() модели Material.
+    Включает информацию о категории (MPTT level) для построения дерева.
     """
     try:
         from sklad.models import Material
     except ImportError:
         return JsonResponse({'success': True, 'papers': [], 'count': 0, 'message': 'Приложение sklad не установлено'})
 
-    papers = Material.objects.filter(type='paper').order_by('name')
+    # Сортируем по дереву категорий, затем по позиции и имени внутри категории
+    papers = Material.objects.filter(type='paper').select_related('category').order_by(
+        'category__tree_id', 'category__lft', 'position', 'name'
+    )
+    
     papers_data = []
     for paper in papers:
         price = paper.get_price() if hasattr(paper, 'get_price') else Decimal('0.00')
@@ -699,6 +703,9 @@ def get_papers(request):
             'name': paper.name,
             'price': str(price.quantize(Decimal('0.01'))),
             'unit': paper.unit,
+            'category_id': paper.category.id if paper.category else None,
+            'category_name': paper.category.name if paper.category else 'Без категории',
+            'category_level': paper.category.level if paper.category else 0,
         }
         if hasattr(paper, 'quantity'):
             paper_data['stock_quantity'] = paper.quantity

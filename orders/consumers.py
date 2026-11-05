@@ -49,6 +49,12 @@ class OrdersConsumer(AsyncWebsocketConsumer):
         """
         Метод вызывается через channel_layer.group_send с type='order_event'.
         Пересылает данные клиенту.
+
+        actor_tab_id — уникальный идентификатор вкладки, инициировавшей
+        действие (см. views._send_order_event и tab_id.js). Клиент сравнит
+        его со своим tab_id и решит, нужно ли перерисовывать страницу:
+        свои действия в этой же вкладке уже локально обновлены, повторный
+        refreshTable() им не нужен.
         """
         await self.send(text_data=json.dumps({
             'type': 'order_event',
@@ -57,4 +63,5 @@ class OrdersConsumer(AsyncWebsocketConsumer):
             'order_number': event.get('order_number', ''),
             'actor_session_key': event.get('actor_session_key', ''),
             'actor_username': event.get('actor_username', ''),
+            'actor_tab_id': event.get('actor_tab_id', ''),
         }))

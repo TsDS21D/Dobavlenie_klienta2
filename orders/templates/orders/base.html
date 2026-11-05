@@ -38,6 +38,17 @@ orders/templates/orders/base.html
         {% block content %}{% endblock %}
     </div>
 
+    <!--
+    Общий скрипт приложения orders: уникальный tab_id вкладки + прокидка
+    его в заголовке X-Tab-Id во все fetch-запросы.
+
+    ВАЖНО: подключается ДО блока extra_js — чтобы tab_id.js гарантированно
+    загрузился раньше list_orders.js и detail.js. Иначе monkey-patch fetch
+    не успеет установиться, и первые запросы (например, автосохранение
+    юрлица при DOMContentLoaded) уйдут без заголовка X-Tab-Id.
+    -->
+    <script src="{% static 'orders/js/common/tab_id.js' %}"></script>
+
     <!-- Дополнительные JS дочерних шаблонов. -->
     {% block extra_js %}{% endblock %}
 </body>

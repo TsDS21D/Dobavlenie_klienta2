@@ -241,9 +241,15 @@ class Material(models.Model):
         default=True,
     )
 
+    position = models.PositiveIntegerField(
+        verbose_name='Позиция',
+        default=0,
+        help_text='Порядок отображения в списке'
+    )
+
     created_at = models.DateTimeField(
-        auto_now_add=True,
         verbose_name='Дата создания',
+        auto_now_add=True,
         editable=False,
     )
 
@@ -254,7 +260,7 @@ class Material(models.Model):
     )
 
     class Meta:
-        ordering = ['name']
+        ordering = ['position', 'id']
         verbose_name = 'Материал'
         verbose_name_plural = 'Материалы'
         indexes = [

@@ -113,14 +113,11 @@ proschety/templates/proschety/sections/proschet.html
                 </select>
             </div>
 
-            <!-- Поле выбора бумаги -->
+            <!-- Поле выбора бумаги (кастомный дропдаун) -->
             <div class="proschet-inline-field">
                 <label for="proschet-print-component-paper"
                        class="proschet-inline-field-label">Бумага:</label>
-                <select id="proschet-print-component-paper"
-                        class="proschet-field-select">
-                    <option value="">— Выберите бумагу —</option>
-                </select>
+                <div id="proschet-print-component-paper" class="custom-paper-select" style="min-width: 200px;"></div>
             </div>
 
             <!-- Переключатель режима: подпись и переключатель — в одну строку.

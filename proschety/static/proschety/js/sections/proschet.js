@@ -1010,6 +1010,192 @@ JavaScript секции «Просчёт» новой страницы /proschet
      *   GET /calculator/get-papers/
      * Возвращает: {success: true, papers: [{id, name, price, unit}]}
      */
+    // ===== ФУНКЦИЯ ДЛЯ СОЗДАНИЯ КАСТОМНОГО ДРОПДАУНА БУМАГИ (С ДЕРЕВОМ) =====
+    function createCustomPaperSelect(container, selectedId, isLocked) {
+        container.innerHTML = '';
+        container.classList.add('custom-paper-select');
+        if (isLocked) {
+            container.classList.add('is-locked');
+        } else {
+            container.classList.remove('is-locked');
+        }
+
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-paper-trigger';
+
+        const triggerText = document.createElement('span');
+        triggerText.textContent = '— Выберите бумагу —';
+
+        const arrow = document.createElement('span');
+        arrow.className = 'custom-paper-arrow';
+        arrow.textContent = '▼';
+
+        trigger.appendChild(triggerText);
+        trigger.appendChild(arrow);
+        container.appendChild(trigger);
+
+        const menu = document.createElement('div');
+        menu.className = 'custom-paper-menu';
+        container.appendChild(menu);
+
+        // ===== 1. ПОСТРОЕНИЕ ДЕРЕВА КАТЕГОРИЙ =====
+        // Данные приходят плоским списком, отсортированным по дереву.
+        // Восстанавливаем иерархию, используя category_level.
+        const root = { level: -1, children: [], papers: [] };
+        const stack = [root];
+        let currentCatId = null;
+        let currentNode = null;
+
+        (window.PROSHETY_PAPERS || []).forEach(p => {
+            if (p.category_id !== currentCatId) {
+                // Поднимаемся по стеку, пока не найдем правильного родителя
+                while (stack.length > 0 && stack[stack.length - 1].level >= (p.category_level || 0)) {
+                    stack.pop();
+                }
+                const newNode = {
+                    id: p.category_id,
+                    name: p.category_name || 'Без категории',
+                    level: p.category_level || 0,
+                    children: [],
+                    papers: []
+                };
+                stack[stack.length - 1].children.push(newNode);
+                stack.push(newNode);
+                currentNode = newNode;
+                currentCatId = p.category_id;
+            }
+            currentNode.papers.push(p);
+        });
+
+        // Вспомогательная функция: есть ли выбранная бумага в этом узле (или его потомках)
+        function containsSelected(node, selId) {
+            if (!selId) return false;
+            if (node.papers.some(p => String(p.id) === String(selId))) return true;
+            return node.children.some(c => containsSelected(c, selId));
+        }
+
+        // ===== 2. РЕКУРСИВНАЯ ОТРИСОВКА ДЕРЕВА =====
+        function renderNode(node, parentContainer) {
+            if (node.level >= 0) {
+                const catDiv = document.createElement('div');
+                catDiv.className = 'custom-paper-group';
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'custom-paper-group-title';
+                titleDiv.style.paddingLeft = (0.5 + node.level * 1.0) + 'rem';
+
+                const icon = document.createElement('span');
+                icon.className = 'toggle-icon';
+                icon.textContent = '▶'; // Свернуто по умолчанию
+                
+                const titleText = document.createElement('span');
+                titleText.textContent = node.name;
+
+                titleDiv.appendChild(icon);
+                titleDiv.appendChild(titleText);
+                
+                const itemsDiv = document.createElement('div');
+                itemsDiv.className = 'custom-paper-group-items';
+                
+                // Если в этой ветке есть выбранная бумага — сразу разворачиваем
+                const hasSelected = containsSelected(node, selectedId);
+                if (hasSelected) {
+                    itemsDiv.style.display = 'block';
+                    icon.textContent = '▼';
+                    titleDiv.classList.add('expanded');
+                } else {
+                    itemsDiv.style.display = 'none';
+                }
+
+                catDiv.appendChild(titleDiv);
+                catDiv.appendChild(itemsDiv);
+                parentContainer.appendChild(catDiv);
+
+                // Обработчик клика по заголовку (свернуть/развернуть)
+                titleDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isExpanded = titleDiv.classList.contains('expanded');
+                    if (isExpanded) {
+                        itemsDiv.style.display = 'none';
+                        icon.textContent = '▶';
+                        titleDiv.classList.remove('expanded');
+                    } else {
+                        itemsDiv.style.display = 'block';
+                        icon.textContent = '▼';
+                        titleDiv.classList.add('expanded');
+                    }
+                });
+
+                // Отрисовка бумаг в этой категории
+                node.papers.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = 'custom-paper-item';
+                    item.textContent = p.name + ' (' + p.price + ' ₽/' + p.unit + ')';
+                    item.dataset.id = p.id;
+                    item.dataset.name = p.name;
+                    item.style.paddingLeft = (1.5 + node.level * 1.0) + 'rem';
+
+                    if (String(p.id) === String(selectedId)) {
+                        item.classList.add('selected');
+                        triggerText.textContent = p.name;
+                    }
+
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (container.classList.contains('is-locked')) return;
+
+                        triggerText.textContent = p.name;
+                        container.dataset.value = p.id;
+
+                        menu.querySelectorAll('.custom-paper-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+
+                        menu.classList.remove('is-open');
+                        container.classList.add('is-locked');
+
+                        if (typeof container.onPaperChange === 'function') {
+                            container.onPaperChange(p.id, p.name);
+                        }
+                    });
+                    itemsDiv.appendChild(item);
+                });
+
+                // Рекурсивно отрисовываем подкатегории
+                node.children.forEach(child => renderNode(child, itemsDiv));
+            }
+        }
+
+        // Запускаем отрисовку с корневых категорий
+        root.children.forEach(child => renderNode(child, menu));
+
+        // ===== 3. ОБРАБОТЧИКИ СОБЫТИЙ ДРОПДАУНА =====
+        
+        // Открытие/закрытие по клику на триггер
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (container.classList.contains('is-locked')) return;
+            menu.classList.toggle('is-open');
+        });
+
+        // Разблокировка по двойному клику (как было с select)
+        container.addEventListener('dblclick', (e) => {
+            if (!container.classList.contains('is-locked')) return;
+            e.stopPropagation();
+            container.classList.remove('is-locked');
+            menu.classList.add('is-open');
+        });
+
+        // Закрытие при клике мимо
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                menu.classList.remove('is-open');
+                if (container.dataset.inCard === 'true') {
+                    container.classList.add('is-locked');
+                }
+            }
+        });
+    }
+
     function loadPapers() {
         if (!paperSelect) return;
         if (papersLoaded) return;
@@ -1025,17 +1211,15 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 return;
             }
 
-            paperSelect.innerHTML = '<option value="">— Выберите бумагу —</option>';
-
-            data.papers.forEach(function (p) {
-                const opt = document.createElement('option');
-                opt.value = String(p.id);
-                opt.textContent = p.name;
-                paperSelect.appendChild(opt);
-            });
-
             // Сохраняем список в глобальную переменную.
             window.PROSHETY_PAPERS = data.papers;
+
+            // Инициализируем кастомный дропдаун в форме добавления
+            if (paperSelect) {
+                paperSelect.innerHTML = '';
+                paperSelect.dataset.inCard = 'false';
+                createCustomPaperSelect(paperSelect, '', false);
+            }
 
             papersLoaded = true;
             console.log('✅ Загружено бумаг:', data.papers.length);
@@ -1160,7 +1344,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
         // Читаем значения из полей.
         const printerId = printerSelect ? printerSelect.value : '';
-        const paperId   = paperSelect   ? paperSelect.value   : '';
+        const paperId   = paperSelect   ? (paperSelect.dataset.value || '') : '';
         const mode      = modeSwitch ? (modeSwitch.dataset.mode || '') : '';
 
         if (!printerId) {
@@ -1228,7 +1412,13 @@ JavaScript секции «Просчёт» новой страницы /proschet
 
             // Сбрасываем выбор полей, чтобы случайный клик не создал дубль.
             if (printerSelect) printerSelect.value = '';
-            if (paperSelect)   paperSelect.value   = '';
+            if (paperSelect) {
+                paperSelect.dataset.value = '';
+                // Сбрасываем визуальное состояние кастомного дропдауна
+                const triggerSpan = paperSelect.querySelector('.custom-paper-trigger span:first-child');
+                if (triggerSpan) triggerSpan.textContent = '— Выберите бумагу —';
+                paperSelect.querySelectorAll('.custom-paper-item').forEach(i => i.classList.remove('selected'));
+            }
 
             // Сбрасываем выбор режима — обе половины переключателя
             // снова серые. Пока пользователь явно не выберет
@@ -1578,18 +1768,58 @@ let calcPromise;
         printerField.appendChild(printerSelectEl);
         card.appendChild(printerField);
 
-        // --- Поле «Бумага»: селект с бумагами ---
-        // До двойного клика селект «заморожен» классом is-locked.
+        // --- Поле «Бумага»: кастомный дропдаун ---
         const paperField = createInlineField('Бумага');
         paperField.dataset.field = 'paper';
         paperField.title = 'Двойной клик для редактирования';
-        const paperSelectEl = document.createElement('select');
-        paperSelectEl.className = 'proschet-field-select is-locked';
+        
+        const paperSelectEl = document.createElement('div');
+        paperSelectEl.className = 'custom-paper-select';
         paperSelectEl.dataset.field = 'paper';
-        fillPaperOptions(paperSelectEl, comp.paper_name);
-        paperField.appendChild(paperSelectEl);
+        paperSelectEl.dataset.inCard = 'true';
 
-        // Добавляем бумагу в карточку сразу после принтера (по порядку).
+        // Находим ID текущей бумаги по имени
+        let currentPaperId = '';
+        const matchedPaper = (window.PROSHETY_PAPERS || []).find(p => p.name === comp.paper_name);
+        if (matchedPaper) currentPaperId = matchedPaper.id;
+
+        createCustomPaperSelect(paperSelectEl, currentPaperId, true);
+
+        // Обработчик изменения бумаги (отправка на сервер)
+        paperSelectEl.onPaperChange = function(paperId, paperName) {
+            const fd = new FormData();
+            fd.append('component_id', comp.id);
+            fd.append('field_name', 'paper');
+            fd.append('field_value', paperId);
+
+            fetch('/calculator/update-print-component/', {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Сохранено', 'success');
+                    if (activeProschet && activeProschet.id) {
+                        loadComponents(activeProschet.id);
+                        notifyChange(activeProschet.id, 'print_component_changed');
+                    }
+                } else {
+                    showNotification(data.message || 'Ошибка сохранения', 'error');
+                    if (activeProschet && activeProschet.id) loadComponents(activeProschet.id);
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка сети:', err);
+                showNotification('Ошибка сети при сохранении', 'error');
+            });
+        };
+
+        paperField.appendChild(paperSelectEl);
         card.appendChild(paperField);
 
 
@@ -2995,6 +3225,9 @@ let calcPromise;
      * поэтому двойной клик всегда приходит на обёртку — это и нужно.
      */
     function handleComponentFieldDblClick(event) {
+        // Если клик был по кастомному дропдауну, он обрабатывается сам
+        if (event.target.closest('.custom-paper-select')) return;
+
         const fieldWrap = event.target.closest('.proschet-inline-field[data-field]');
         if (!fieldWrap) return;
 

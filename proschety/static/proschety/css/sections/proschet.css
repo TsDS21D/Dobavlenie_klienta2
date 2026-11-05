@@ -1500,3 +1500,129 @@ proschety/static/proschety/css/sections/proschet.css
     padding-top: 0.4rem;
     margin-top: 0.3rem;
 }
+
+/* ==================== КАСТОМНЫЙ ДРОПДАУН БУМАГИ ==================== */
+
+.custom-paper-select {
+    position: relative;
+    display: inline-block;
+    min-width: 150px;
+    max-width: 250px;
+    user-select: none;
+}
+
+.custom-paper-trigger {
+    padding: 0.25rem 0.5rem;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: #333333;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    min-height: 29px; /* чтобы высота совпадала с обычным селектом */
+}
+
+.custom-paper-select.is-locked .custom-paper-trigger {
+    pointer-events: none;
+    background: #fafafa;
+    border: 1px dashed #e0e0e0;
+    color: #333333;
+    cursor: default;
+    justify-content: center;
+}
+
+.custom-paper-select:not(.is-locked) .custom-paper-trigger:focus,
+.custom-paper-select:not(.is-locked) .custom-paper-trigger:hover {
+    outline: none;
+    border-color: #0B8661;
+    box-shadow: 0 0 0 3px rgba(11, 134, 97, 0.12);
+    background: #fff;
+}
+
+.custom-paper-arrow {
+    font-size: 0.7rem;
+    color: #999;
+}
+
+.custom-paper-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #0B8661;
+    border-radius: 7px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.custom-paper-menu.is-open {
+    display: block;
+}
+
+.custom-paper-group-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #888;
+    padding: 0.3rem 0.5rem;
+    background: #fafafa;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-top: 0.2rem;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.custom-paper-group-title:hover {
+    background: #f0f0f0;
+    color: #0B8661;
+}
+
+/* Иконка-стрелочка для сворачивания/разворачивания */
+.toggle-icon {
+    display: inline-block;
+    width: 14px;
+    font-size: 0.6rem;
+    color: #999;
+    transition: transform 0.2s ease;
+    margin-right: 0.2rem;
+    text-align: center;
+}
+
+.custom-paper-group-title:hover .toggle-icon {
+    color: #0B8661;
+}
+
+.custom-paper-item {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.custom-paper-item:hover {
+    background: #eaf6ef;
+    color: #0B8661;
+}
+
+.custom-paper-item.selected {
+    background: #0B8661;
+    color: #fff;
+    font-weight: 600;
+}
