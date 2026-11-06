@@ -66,6 +66,9 @@ JavaScript секции «Просчёт» новой страницы /proschet
     // Ключ — ID печатного компонента, значение — true/false.
     let proschetLaminationOpenMap = {};
 
+    // Контроллер для отмены незавершенных GET-запросов при быстрой смене просчёта
+    let componentsAbortController = null;
+
     // ========================================================================
     // 2. ИНИЦИАЛИЗАЦИЯ.
     // ========================================================================
@@ -1503,17 +1506,22 @@ JavaScript секции «Просчёт» новой страницы /proschet
      *   GET /calculator/get-print-components/<proschet_id>/
      */
     function loadComponents(proschetId) {
-        // Функция возвращает промис, который резолвится массивом
-        // загруженных компонентов (или [] при ошибке).
-        // Это нужно, чтобы вызывающий код мог дождаться загрузки и,
-        // например, принять решение об открытии/закрытии блока
-        // добавления печатного компонента.
         if (!componentsSection) return Promise.resolve([]);
         if (!proschetId) return Promise.resolve([]);
 
+        // ===== ОТМЕНА ПРЕДЫДУЩИХ ЗАПРОСОВ =====
+        // Если пользователь быстро кликает по разным просчётам, мы обрываем
+        // запросы для старого просчёта, чтобы они не перезаписали DOM позже.
+        if (componentsAbortController) {
+            componentsAbortController.abort();
+        }
+        componentsAbortController = new AbortController();
+        const signal = componentsAbortController.signal;
+
         return fetch('/calculator/get-print-components/' + proschetId + '/', {
             method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: signal // <--- Передаем сигнал
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -1523,96 +1531,84 @@ JavaScript секции «Просчёт» новой страницы /proschet
             }
             const components = data.components || [];
 
-            // Для каждого компонента подгружаем вычисления листов
-            // (ширина, высота, вылеты и т.д.) и складываем в comp._vich.
-            // Эта информация понадобится карточке для полей
-            // «Формат / Ширина / Высота / Вылеты».
             return Promise.all(components.map(function (comp) {
-                // Параллельно подтягиваем два блока данных для компонента:
-                //   1) вычисления листов (ширина/высота/вылеты, раскладка);
-                //   2) ламинацию (включена/выключена и её параметры).
-                // Оба ответа складываем в сам объект компонента —
-                // так карточке всё под рукой.
+                let calcPromise;
 
-// --- 1) Данные расчёта: одностраничный ИЛИ многостраничный ---
-// Для многостраничного компонента (is_multipage === true) данные
-// живут в отдельной модели VichisliniyaMultipageModel и берутся
-// из своего эндпоинта приложения vichisliniya_listov.
-// Для одностраничного — прежний эндпоинт и прежняя распаковка в comp._vich.
-// Результат всегда кладём в СВОЙ ключ:
-//   • comp._vich      — для одностраничного,
-//   • comp._multipage — для многостраничного.
-// Так карточка компонента сможет однозначно понять, что у неё есть.
-let calcPromise;
-
-        if (comp.is_multipage) {
-            // ===== Многостраничный режим =====
-            calcPromise = fetch('/vichisliniya_listov/multipage/get/' + comp.id + '/', {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (mp) {
-                if (mp && mp.success) {
-                    comp._multipage = mp;
-                    // Дополнительно запрашиваем размеры листа (ширина/высота/поля)
-                    // через одностраничный эндпоинт, так как multipage/get их не отдаёт.
-                    return fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+                if (comp.is_multipage) {
+                    // ===== Многостраничный режим =====
+                    calcPromise = fetch('/vichisliniya_listov/multipage/get/' + comp.id + '/', {
                         method: 'GET',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: signal // <--- Передаем сигнал
                     })
-                    .then(function (r2) { return r2.json(); })
-                    .then(function (vich) {
-                        if (vich && vich.success) {
-                            comp._multipage.sheet_width = vich.sheet_width;
-                            comp._multipage.sheet_height = vich.sheet_height;
-                            comp._multipage.margin = vich.margin;
+                    .then(function (r) { return r.json(); })
+                    .then(function (mp) {
+                        if (mp && mp.success) {
+                            comp._multipage = mp;
+                            return fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+                                method: 'GET',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                                signal: signal // <--- Передаем сигнал
+                            })
+                            .then(function (r2) { return r2.json(); })
+                            .then(function (vich) {
+                                if (vich && vich.success) {
+                                    comp._multipage.sheet_width = vich.sheet_width;
+                                    comp._multipage.sheet_height = vich.sheet_height;
+                                    comp._multipage.margin = vich.margin;
+                                }
+                                return comp;
+                            });
                         }
                         return comp;
+                    })
+                    .catch(function (err) {
+                        if (err.name === 'AbortError') return comp;
+                        console.warn('Не удалось загрузить multipage для компонента', comp.id, err);
+                        return comp;
+                    });
+                } else {
+                    // ===== Одностраничный режим =====
+                    calcPromise = fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
+                        method: 'GET',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: signal // <--- Передаем сигнал
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (vich) {
+                        if (vich && vich.success) {
+                            comp._vich = {
+                                item_width:               vich.item_width,
+                                item_height:              vich.item_height,
+                                vyleta:                   vich.vyleta,
+                                color:                    vich.color,
+                                polosa_count:             vich.polosa_count,
+                                fit_horizontal:           vich.fit_horizontal,
+                                fit_vertical:             vich.fit_vertical,
+                                fit_total:                vich.fit_total,
+                                fit_landscape_total:      vich.fit_landscape_total,
+                                fit_portrait_total:       vich.fit_portrait_total,
+                                fit_selected_orientation: vich.fit_selected_orientation,
+                                list_count:               vich.list_count,
+                                cuts_count:               vich.cuts_count,
+                                sheet_width:              vich.sheet_width,
+                                sheet_height:             vich.sheet_height,
+                                margin:                   vich.margin,
+                            };
+                        }
+                        return comp;
+                    })
+                    .catch(function (err) { 
+                        if (err.name === 'AbortError') return comp;
+                        return comp; 
                     });
                 }
-                return comp;
-            })
-            .catch(function (err) {
-                console.warn('Не удалось загрузить multipage для компонента', comp.id, err);
-                return comp;
-            });
-} else {
-    // ===== Одностраничный режим — как было =====
-    calcPromise = fetch('/vichisliniya_listov/get-data/' + comp.id + '/', {
-        method: 'GET',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (vich) {
-        if (vich && vich.success) {
-            comp._vich = {
-                item_width:               vich.item_width,
-                item_height:              vich.item_height,
-                vyleta:                   vich.vyleta,
-                color:                    vich.color,
-                polosa_count:             vich.polosa_count,
-                fit_horizontal:           vich.fit_horizontal,
-                fit_vertical:             vich.fit_vertical,
-                fit_total:                vich.fit_total,
-                fit_landscape_total:      vich.fit_landscape_total,
-                fit_portrait_total:       vich.fit_portrait_total,
-                fit_selected_orientation: vich.fit_selected_orientation,
-                list_count:               vich.list_count,
-                cuts_count:               vich.cuts_count,
-                sheet_width:              vich.sheet_width,
-                sheet_height:             vich.sheet_height,
-                margin:                   vich.margin,
-            };
-        }
-        return comp;
-    })
-    .catch(function () { return comp; });
-}
+
                 // --- 2) Ламинация ---
                 const lamPromise = fetch('/calculator/get-lamination/' + comp.id + '/', {
                     method: 'GET',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: signal // <--- Передаем сигнал
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (lam) {
@@ -1621,12 +1617,16 @@ let calcPromise;
                     }
                     return comp;
                 })
-                .catch(function () { return comp; });
+                .catch(function (err) { 
+                    if (err.name === 'AbortError') return comp;
+                    return comp; 
+                });
 
                 // --- 3) Дополнительные работы ---
                 const worksPromise = fetch('/calculator/get-additional-works/' + comp.id + '/', {
                     method: 'GET',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: signal // <--- Передаем сигнал
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (worksData) {
@@ -1637,24 +1637,37 @@ let calcPromise;
                     }
                     return comp;
                 })
-                .catch(function () { comp._works = []; return comp; });
+                .catch(function (err) { 
+                    if (err.name === 'AbortError') return comp;
+                    comp._works = []; 
+                    return comp; 
+                });
 
-                // Ждём все три запроса, потом отдаём компонент.
                 return Promise.all([calcPromise, lamPromise, worksPromise]).then(function () {
                     return comp;
                 });
             }));
         })
         .then(function (components) {
+            // Если запрос был отменён, пока мы собирали вложенные данные,
+            // не рендерим неполный список, чтобы не было "моргания".
+            if (signal.aborted) {
+                console.log('Загрузка компонентов отменена до рендера.');
+                return [];
+            }
             renderComponents(components);
             return components;
         })
         .catch(function (err) {
+            // Если запрос был прерван намеренно, не логируем это как ошибку
+            if (err.name === 'AbortError') {
+                console.log('Загрузка компонентов отменена пользователем.');
+                return [];
+            }
             console.error('Ошибка загрузки компонентов:', err);
             return [];
         });
     }
-
     /**
      * Рендерит таблицу компонентов.
      * Если массив пустой — показываем сообщение, саму таблицу скрываем.

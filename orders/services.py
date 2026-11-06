@@ -111,18 +111,29 @@ def _get_active_base_total(proschet):
     # Берем только неудаленные печатные компоненты
     for comp in proschet.print_components.filter(is_deleted=False):
         
-        # 1. Стоимость печати компонента (total_circulation_price уже включает 
-        # в себя и стоимость печати, и стоимость бумаги)
+        # ПРИНУДИТЕЛЬНО ПЕРЕСЧИТЫВАЕМ В ПАМЯТИ, так как GET-запросы больше не сохраняют в БД
+        comp.recalculate_price()
+
+        # 1. Стоимость печати компонента
         base_total += (comp.total_circulation_price or Decimal('0.00'))
+
+        # Получаем данные для пересчета работ
+        sheet_count = comp.get_sheet_count()
+        try:
+            cuts_count = comp.vichisliniya_listov_data.vichisliniya_listov_cuts_count
+        except Exception:
+            cuts_count = 0
         
-        # 2. Дополнительные работы (только неудаленные)
+        # 2. Дополнительные работы (пересчитываем в памяти)
         for work in comp.additional_works.filter(is_deleted=False):
+            work.recalculate_price(sheet_count, cuts_count, proschet.circulation)
             base_total += (work.total_price or Decimal('0.00'))
             
-        # 3. Ламинация (если объект существует и включен)
+        # 3. Ламинация (пересчитываем в памяти)
         try:
             lam = comp.lamination
             if lam and lam.is_enabled:
+                lam.recalculate_price(sheet_count)
                 base_total += (lam.total_price or Decimal('0.00'))
         except Exception:
             pass
@@ -206,6 +217,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
         proschet.print_components.filter(is_deleted=False).order_by('created_at'),
         start=1
     ):
+        # ПРИНУДИТЕЛЬНО ПЕРЕСЧИТЫВАЕМ В ПАМЯТИ, чтобы взять актуальные цены
+        comp.recalculate_price()
+
         # ===== 3a. Копируем сам печатный компонент =====
         # ВАЖНО: sheet_count, runs_count, material_price в оригинале — это
         # СВОЙСТВА (пересчитываются каждый раз). Здесь мы их «схватываем»
@@ -320,6 +334,9 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
             lam_src = None
 
         if lam_src is not None:
+            # ПЕРЕСЧИТЫВАЕМ ЛАМИНАЦИЮ В ПАМЯТИ
+            lam_src.recalculate_price(frozen_sheet_count)
+
             # Снимок толщины плёнки — для расчёта массы/объёма.
             frozen_film_thickness = None
             if lam_src.film and lam_src.film.thickness is not None:
@@ -340,7 +357,13 @@ def create_order_from_proschet(proschet, comment='', created_by=None):
             )
 
         # ===== 3e. Копируем все не удалённые дополнительные работы =====
+        # Вычисляем cuts_count для правильного пересчета работ
+        cuts_count = vich_src.vichisliniya_listov_cuts_count if vich_src is not None else 0
+        
         for work_src in comp.additional_works.filter(is_deleted=False):
+            # ПЕРЕСЧИТЫВАЕМ РАБОТУ В ПАМЯТИ
+            work_src.recalculate_price(frozen_sheet_count, cuts_count, proschet.circulation)
+
             ProductAdditionalWork.objects.create(
                 product_component=product_component,
                 work=work_src.work,
@@ -455,6 +478,9 @@ def add_product_to_order(proschet, order):
         proschet.print_components.filter(is_deleted=False).order_by('created_at'),
         start=1
     ):
+        # ПРИНУДИТЕЛЬНО ПЕРЕСЧИТЫВАЕМ В ПАМЯТИ, чтобы взять актуальные цены
+        comp.recalculate_price()
+
         # ===== 2a. Копируем сам печатный компонент =====
         # То же самое, что в create_order_from_proschet — берём «снимок»
         # вычисляемых значений на текущий момент.
@@ -549,6 +575,9 @@ def add_product_to_order(proschet, order):
             lam_src = None
 
         if lam_src is not None:
+            # ПЕРЕСЧИТЫВАЕМ ЛАМИНАЦИЮ В ПАМЯТИ
+            lam_src.recalculate_price(frozen_sheet_count)
+
             # Снимок толщины плёнки — для расчёта массы/объёма.
             frozen_film_thickness = None
             if lam_src.film and lam_src.film.thickness is not None:
@@ -569,7 +598,12 @@ def add_product_to_order(proschet, order):
             )
 
         # ===== 2e. Дополнительные работы =====
+        cuts_count = vich_src.vichisliniya_listov_cuts_count if vich_src is not None else 0
+
         for work_src in comp.additional_works.filter(is_deleted=False):
+            # ПЕРЕСЧИТЫВАЕМ РАБОТУ В ПАМЯТИ
+            work_src.recalculate_price(frozen_sheet_count, cuts_count, proschet.circulation)
+
             ProductAdditionalWork.objects.create(
                 product_component=product_component,
                 work=work_src.work,

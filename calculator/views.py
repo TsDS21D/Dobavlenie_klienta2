@@ -556,12 +556,10 @@ def get_print_components(request, proschet_id):
         for component in components:
             multipage_obj = multipage_dict.get(component.id)
             if multipage_obj and multipage_obj.is_active:
-                # ===== КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ =====
                 # Пересчитываем количество листов с актуальным тиражом просчёта
+                # В БД НЕ СОХРАНЯЕМ — только в памяти для отображения
                 multipage_obj.copies = current_circulation
                 multipage_obj.calculate_sheet_count()
-                # Сохраняем обновлённое значение (не обязательно, но для синхронизации)
-                multipage_obj.save(update_fields=['sheet_count', 'copies'])
                 sheet_count = multipage_obj.sheet_count
             else:
                 # Одностраничный режим
@@ -621,10 +619,10 @@ def get_print_components(request, proschet_id):
             }
             components_data.append(component_data)
 
-            # Синхронизируем цены в модели компонента
+            # Обновляем цены в модели компонента ТОЛЬКО В ПАМЯТИ для отображения.
+            # НЕ ВЫЗЫВАЕМ .save(), чтобы не нагружать базу при GET-запросах.
             component.price_per_sheet = price_per_sheet
             component.total_circulation_price = total_circulation_price
-            component.save(update_fields=['price_per_sheet', 'total_circulation_price'])
 
         return JsonResponse({
             'success': True,
@@ -1260,7 +1258,7 @@ def get_additional_works(request, component_id):
 
     for work in works:
         work.recalculate_price(sheet_count_decimal, cuts_count, circulation)
-        work.save(update_fields=['total_price'])
+        # work.save() <--- УДАЛЕНО, чтобы не писать в БД при GET-запросе
 
     works_data = [work.to_dict() for work in works]
 
@@ -1444,8 +1442,12 @@ def get_lamination_data(request, component_id):
     # Получаем печатный компонент или возвращаем 404, если не найден
     component = get_object_or_404(PrintComponent, id=component_id, is_deleted=False)
 
-    # Получаем или создаём запись ламинации для этого компонента
-    lamination, created = Laminate.objects.get_or_create(print_component=component)
+    # Получаем запись ламинации. Если её нет — создаём объект в памяти,
+    # НО НЕ СОХРАНЯЕМ его в БД.
+    try:
+        lamination = component.lamination
+    except Laminate.DoesNotExist:
+        lamination = Laminate(print_component=component)
 
     # ===== ОПРЕДЕЛЯЕМ КОЛИЧЕСТВО ЛИСТОВ С УЧЁТОМ РЕЖИМА =====
     sheet_count = Decimal('0.00')
@@ -1470,9 +1472,9 @@ def get_lamination_data(request, component_id):
             # Если и одностраничной записи нет, оставляем 0
             sheet_count = Decimal('0.00')
 
-    # Пересчитываем стоимость ламинации на основе полученного количества листов
+    # Пересчитываем стоимость ламинации в памяти
     lamination.recalculate_price(sheet_count)
-    lamination.save()
+    # lamination.save() <--- УДАЛЕНО
 
     # Возвращаем данные ламинации в формате JSON
     return JsonResponse({
@@ -1614,6 +1616,7 @@ def get_proschet_price_data(request, proschet_id):
             'vichisliniya_listov_item_width',
             'vichisliniya_listov_item_height',
             'vichisliniya_listov_fit_total',
+            'vichisliniya_listov_cuts_count', # <--- ДОБАВЛЕНО
         )
         vich_dict = {
             item['vichisliniya_listov_print_component_id']: {
@@ -1621,6 +1624,7 @@ def get_proschet_price_data(request, proschet_id):
                 'item_width': item['vichisliniya_listov_item_width'],
                 'item_height': item['vichisliniya_listov_item_height'],
                 'fit_total': item['vichisliniya_listov_fit_total'],
+                'cuts_count': item['vichisliniya_listov_cuts_count'], # <--- ДОБАВЛЕНО
             }
             for item in vich_data_qs
         }
@@ -1641,10 +1645,9 @@ def get_proschet_price_data(request, proschet_id):
             multipage_obj = multipage_dict.get(comp.id)
             if multipage_obj and multipage_obj.is_active:
                 # Актуализируем тираж и пересчитываем sheet_count
-                # по актуальным параметрам брошюры.
+                # В БД НЕ СОХРАНЯЕМ.
                 multipage_obj.copies = proschet.circulation
                 multipage_obj.calculate_sheet_count()
-                multipage_obj.save(update_fields=['sheet_count', 'copies'])
                 sheet_count = multipage_obj.sheet_count
             else:
                 # Иначе — как раньше, берём из одностраничной модели.
@@ -1674,9 +1677,9 @@ def get_proschet_price_data(request, proschet_id):
             runs_count = int(sheet_count_float) * (2 if comp.printing_mode == 'duplex' else 1)
             paper_price = comp.material_price_per_unit
 
+            # Обновляем только в памяти
             comp.price_per_sheet = price_per_sheet
             comp.refresh_total_price()
-            comp.save(update_fields=['price_per_sheet', 'total_circulation_price'])
 
             paper_density = None
             if comp.paper and comp.paper.density:
@@ -1725,9 +1728,15 @@ def get_proschet_price_data(request, proschet_id):
                 'item_height': item_height,
             })
 
-            lam, created = Laminate.objects.get_or_create(print_component=comp)
+            # Для ламинации используем try/except вместо get_or_create, 
+            # чтобы не создавать записи в БД при простом чтении.
+            try:
+                lam = comp.lamination
+            except Laminate.DoesNotExist:
+                lam = Laminate(print_component=comp)
+            
             lam.recalculate_price(sheet_count)
-            lam.save()
+            # lam.save()  <--- УДАЛЕНО
 
             film_thickness = None
             if lam.film and lam.film.thickness:
@@ -1761,7 +1770,19 @@ def get_proschet_price_data(request, proschet_id):
         total_works_sum = Decimal('0.00')
         for comp in components:
             works_qs = comp.additional_works.filter(is_deleted=False)
+            
+            # Получаем актуальные данные листов и резов для пересчета работ
+            if comp.id in multipage_dict and multipage_dict[comp.id].is_active:
+                c_sheet_count = multipage_dict[comp.id].sheet_count
+                c_cuts_count = 0 # У брошюр нет резки листовок
+            else:
+                c_sheet_count = vich_dict.get(comp.id, {}).get('list_count', Decimal('0.00'))
+                c_cuts_count = vich_dict.get(comp.id, {}).get('cuts_count', 0)
+            
             for work in works_qs:
+                # ПРИНУДИТЕЛЬНО ПЕРЕСЧИТЫВАЕМ РАБОТУ В ПАМЯТИ
+                work.recalculate_price(c_sheet_count, c_cuts_count, proschet.circulation)
+                
                 work_dict = work.to_dict()
                 work_dict['component_id'] = comp.id
                 all_works.append(work_dict)
