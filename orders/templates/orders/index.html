@@ -64,6 +64,88 @@ orders/templates/orders/index.html
          class="proschety-toasts"
          data-session-key="{{ session_key }}"></div>
 
+
+    <!-- ==================== МОДАЛКА СОЗДАНИЯ КЛИЕНТА ==================== -->
+    <div class="list-orders-confirm-overlay" id="create-client-modal-overlay" style="display: none;">
+        <div class="list-orders-confirm create-client-modal" style="max-width: 600px; text-align: left; max-height: 90vh; overflow-y: auto;">
+            <div class="list-orders-confirm-title" style="margin-bottom: 1rem;">Создать нового клиента</div>
+            
+            <form id="create-client-form" autocomplete="off">
+                <!-- БЛОК 1: КЛИЕНТ -->
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #0B8661;">Данные клиента</h4>
+                <div class="list-orders-form-inline" style="margin-bottom: 1rem;">
+                    <div class="list-orders-form-row" style="flex: 1 1 100%;">
+                        <label>Название / ФИО <span style="color:red">*</span></label>
+                        <input type="text" id="new-client-name" class="list-orders-form-input" required placeholder="ООО «Ромашка» или Иванов И.И.">
+                    </div>
+                    <div class="list-orders-form-row">
+                        <label>Скидка (%)</label>
+                        <input type="number" id="new-client-discount" class="list-orders-form-input" min="0" max="100" value="0">
+                    </div>
+                    <div class="list-orders-form-row">
+                        <label>Адрес доставки</label>
+                        <input type="text" id="new-client-address" class="list-orders-form-input" placeholder="Город, улица, дом...">
+                    </div>
+                </div>
+                <div class="list-orders-form-row" style="margin-bottom: 1.5rem;">
+                    <label>Комментарий</label>
+                    <input type="text" id="new-client-comment" class="list-orders-form-input" placeholder="Дополнительная информация">
+                </div>
+
+                <!-- БЛОК 2: ЮРЛИЦО -->
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #0B8661;">Юридическое лицо (необязательно)</h4>
+                <div class="list-orders-form-inline" style="margin-bottom: 1rem;">
+                    <div class="list-orders-form-row" style="flex: 1 1 100%;">
+                        <label>Название юрлица</label>
+                        <input type="text" id="new-le-name" class="list-orders-form-input" placeholder="ООО «Ромашка»">
+                    </div>
+                    <div class="list-orders-form-row">
+                        <label>Статус ЭДО</label>
+                        <select id="new-le-edo-status" class="list-orders-form-input">
+                            <option value="unchecked">ЭДО не проверял</option>
+                            <option value="none">Без ЭДО</option>
+                            <option value="requested">Отправлен запрос</option>
+                            <option value="connected">Работает через ЭДО</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="list-orders-form-row" style="margin-bottom: 1.5rem;">
+                    <label>Реквизиты</label>
+                    <textarea id="new-le-requisites" class="list-orders-form-input" rows="2" placeholder="ИНН, КПП, р/с, БИК, адрес..."></textarea>
+                </div>
+
+                <!-- БЛОК 3: СОТРУДНИК -->
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #0B8661;">Контактное лицо (необязательно)</h4>
+                <div class="list-orders-form-inline" style="margin-bottom: 1rem;">
+                    <div class="list-orders-form-row">
+                        <label>ФИО</label>
+                        <input type="text" id="new-cp-full-name" class="list-orders-form-input" placeholder="Иванов Иван">
+                    </div>
+                    <div class="list-orders-form-row">
+                        <label>Должность</label>
+                        <input type="text" id="new-cp-position" class="list-orders-form-input" placeholder="Менеджер">
+                    </div>
+                </div>
+                <div class="list-orders-form-inline" style="margin-bottom: 1.5rem;">
+                    <div class="list-orders-form-row">
+                        <label>Телефон</label>
+                        <input type="text" id="new-cp-phone" class="list-orders-form-input" placeholder="+7...">
+                    </div>
+                    <div class="list-orders-form-row">
+                        <label>E-mail</label>
+                        <input type="email" id="new-cp-email" class="list-orders-form-input" placeholder="mail@example.com">
+                    </div>
+                </div>
+
+                <!-- КНОПКИ -->
+                <div class="list-orders-confirm-actions">
+                    <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" id="create-client-cancel">Отмена</button>
+                    <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" id="create-client-submit">Создать и выбрать</button>
+                </div>
+            </form>
+        </div>
+    </div>         
+
 {% endblock %}
 
 {% block extra_js %}

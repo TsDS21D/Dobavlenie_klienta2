@@ -36,14 +36,17 @@ def serialize_data():
     for c in Client.objects.all():
         data['clients'].append({
             'id': c.id,
-            'client_number': c.client_number,                       # ← новое: чтобы не терять номер клиента
+            'client_number': c.client_number,
+            'counter_client_id': c.counter_client_id,               # <--- ДОБАВИТЬ
             'name': c.name,
             'discount': str(c.discount) if c.discount else '0',
             'address': c.address,
+            'bank_details': c.bank_details,                         # <--- ДОБАВИТЬ
+            'comment': c.comment,                                   # <--- ДОБАВИТЬ
             'has_edo': c.has_edo,
             'is_deleted': c.is_deleted,
-            'created_at': c.created_at.isoformat() if c.created_at else None,  # ← новое: историческая дата
-            'updated_at': c.updated_at.isoformat() if c.updated_at else None,  # ← новое: историческая дата
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+            'updated_at': c.updated_at.isoformat() if c.updated_at else None,
         })
     for le in LegalEntity.objects.all():
         data['legal_entities'].append({
@@ -524,9 +527,16 @@ def restore_from_zip(zip_file, mode='merge'):
                 'name': c['name'],
                 'discount': Decimal(c['discount']) if c.get('discount') else Decimal('0'),
                 'address': c.get('address', ''),
+                'bank_details': c.get('bank_details'),              # <--- ДОБАВЛЕНО
+                'comment': c.get('comment'),                        # <--- ДОБАВЛЕНО
                 'has_edo': c.get('has_edo', False),
                 'is_deleted': c.get('is_deleted', False),
             }
+            
+            # Если в старом бэкапе нет counter_client_id, просто не трогаем это поле
+            if c.get('counter_client_id') is not None:              # <--- ДОБАВЛЕНО
+                client_defaults['counter_client_id'] = c['counter_client_id']
+                
             if client_number is not None:
                 client_defaults['client_number'] = client_number
 

@@ -146,12 +146,12 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('change', handleDeliveryFieldChange);
         // Автоформатирование телефона при вводе и вставке
         document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('list-orders-delivery-phone')) {
+            if (e.target.classList.contains('list-orders-delivery-phone') || e.target.id === 'new-cp-phone') {
                 e.target.value = formatPhoneNumber(e.target.value);
             }
         });
         document.addEventListener('paste', function(e) {
-            if (e.target.classList.contains('list-orders-delivery-phone')) {
+            if (e.target.classList.contains('list-orders-delivery-phone') || e.target.id === 'new-cp-phone') {
                 e.preventDefault();
                 const pastedText = (e.clipboardData || window.clipboardData).getData('text');
                 e.target.value = formatPhoneNumber(pastedText);
@@ -192,6 +192,37 @@ JavaScript секции «Список заказов» страницы /orders
             if (confirmOverlay.style.display !== 'flex') return;
             closeConfirmModal();
         });
+
+        // --- Модалка создания клиента ---
+        const ccOverlay = document.getElementById('create-client-modal-overlay');
+        const ccCancel = document.getElementById('create-client-cancel');
+        const ccForm = document.getElementById('create-client-form');
+        
+        if (ccOverlay) {
+            let isMouseDownOnOverlay = false;
+
+            // Фиксируем момент нажатия кнопки мыши
+            ccOverlay.addEventListener('mousedown', function(e) {
+                // true, только если нажали именно на серый фон
+                isMouseDownOnOverlay = (e.target === ccOverlay);
+            });
+
+            // Фиксируем момент отпускания кнопки мыши
+            ccOverlay.addEventListener('mouseup', function(e) {
+                // Закрываем, только если И нажали, И отпустили на фоне
+                if (isMouseDownOnOverlay && e.target === ccOverlay) {
+                    closeCreateClientModal();
+                }
+                // Сбрасываем флаг
+                isMouseDownOnOverlay = false;
+            });
+        }
+        if (ccCancel) {
+            ccCancel.addEventListener('click', closeCreateClientModal);
+        }
+        if (ccForm) {
+            ccForm.addEventListener('submit', handleCreateClientSubmit);
+        }
 
         // Пересчёт тостов при изменении размера окна.
         window.addEventListener('resize', layoutToasts);
@@ -608,6 +639,15 @@ JavaScript секции «Список заказов» страницы /orders
         optEmpty.textContent = '— Не выбран —';
         select.appendChild(optEmpty);
 
+        // Пункт для создания нового клиента
+        const optCreate = document.createElement('option');
+        optCreate.value = '__create__';
+        optCreate.textContent = '+ Создать нового клиента';
+        optCreate.style.fontWeight = 'bold';
+        optCreate.style.color = '#0B8661';
+        select.appendChild(optCreate);
+
+
         clientsCache.forEach(function (c) {
             const opt = document.createElement('option');
             opt.value = String(c.id);
@@ -622,6 +662,14 @@ JavaScript секции «Список заказов» страницы /orders
         let finished = false;
         select.addEventListener('change', function () {
             if (finished) return;
+            
+            if (select.value === '__create__') {
+                finished = true; // <--- БЛОКИРУЕМ BLUR
+                cancelEdit(cell, originalText);
+                openCreateClientModal(orderId);
+                return;
+            }
+            
             finished = true;
             saveField(cell, orderId, 'client', select.value, originalText);
         });
@@ -2080,69 +2128,54 @@ function handleStatusChange(event) {
         selectEl.innerHTML = html;
 
         // Если в заказе ничего не выбрано, но есть основной — выбираем его
-        // в выпадающем списке и (однократно!) сохраняем на сервер.
-        //
-        // Подробности — в комментарии к объявлению autoSavedClientFields
-        // (раздел 1 «СОСТОЯНИЕ И DOM»). Кратко: без флага-«предохранителя»
-        // автосохранение вызывает WebSocket order_event → refreshTable →
-        // повторный populateSelect → повторное автосохранение, и карточка
-        // бесконечно «подёргивается».
         if (!currentId && primaryId) {
-
-            // Визуально выбираем «основного» в любом случае — даже если
-            // автосохранение уже выполнялось ранее. Это безопасно: DOM-селект
-            // просто покажет основного, без сетевого запроса.
             selectEl.value = primaryId;
             selectEl.dataset.currentId = primaryId;
-
-            // Ключ для проверки «уже автосохраняли для этой пары
-            // (заказ, поле) в текущей сессии страницы».
+            
             const autoSaveKey = orderId + ':' + fieldName;
 
-            if (autoSavedClientFields.has(autoSaveKey)) {
-                // Автосохранение для этого заказа и этого поля уже было
-                // запущено ранее в этой сессии страницы. Повторный POST
-                // не отправляем — иначе сервер снова пришлёт WebSocket
-                // order_event, снова сработает refreshTable(), снова
-                // populateSelect() — получится цикл перерисовок.
-                //
-                // Важно: DOM-значение selectEl.value уже выставлено выше
-                // (primaryId), поэтому пользователь видит корректный выбор.
-                return;
-            }
+            if (!autoSavedClientFields.has(autoSaveKey)) {
+                autoSavedClientFields.add(autoSaveKey);
 
-            // Помечаем «автосохранение запущено» ДО отправки fetch().
-            // Это критично: если пометить после fetch(), между отправкой
-            // запроса и установкой флага успеет прийти WS-событие от
-            // параллельного автосохранения — и мы снова попадём в цикл.
-            autoSavedClientFields.add(autoSaveKey);
+                const fd = new FormData();
+                fd.append('field_name', fieldName);
+                fd.append('field_value', primaryId);
+                fetch('/orders/api/order/' + orderId + '/update-field/', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }
+                });
 
-            // Тихо сохраняем на сервер.
-            const fd = new FormData();
-            fd.append('field_name', fieldName);
-            fd.append('field_value', primaryId);
-            fetch('/orders/api/order/' + orderId + '/update-field/', {
-                method: 'POST',
-                body: fd,
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }
-            });
-
-            // Если это сотрудник, подтягиваем его телефон в поле доставки.
-            // savePaymentField() шлёт отдельное POST-событие, но оно тоже
-            // одноразовое — при повторном populateSelect() мы уже не попадём
-            // в эту ветку (сработает return выше по флагу).
-            if (fieldName === 'contact_person') {
-                const selectedOption = selectEl.options[selectEl.selectedIndex];
-                const phone = selectedOption.dataset.phone || '';
-                const card = selectEl.closest('.list-orders-card');
-                
-                if (card && phone) {
-                    const phoneInput = card.querySelector('.list-orders-delivery-phone');
-                    if (phoneInput) {
-                        phoneInput.value = phone;
-                        savePaymentField(orderId, 'delivery_phone', phone);
+                // Если это сотрудник, подтягиваем его телефон в поле доставки.
+                if (fieldName === 'contact_person') {
+                    const selectedOption = selectEl.options[selectEl.selectedIndex];
+                    const phone = selectedOption.dataset.phone || '';
+                    const card = selectEl.closest('.list-orders-card');
+                    
+                    if (card && phone) {
+                        const phoneInput = card.querySelector('.list-orders-delivery-phone');
+                        if (phoneInput) {
+                            phoneInput.value = phone;
+                            savePaymentField(orderId, 'delivery_phone', phone);
+                        }
                     }
                 }
+            }
+        }
+
+        // ===== ВСЕГДА ОБНОВЛЯЕМ ПЛАШКУ ЭДО ПОСЛЕ ЗАПОЛНЕНИЯ СПИСКА =====
+        if (fieldName === 'legal_entity') {
+            const card = selectEl.closest('.list-orders-card');
+            if (card) {
+                const selectedVal = selectEl.value;
+                let isConnected = false;
+                if (selectedVal) {
+                    const selectedItem = items.find(i => String(i.id) === String(selectedVal));
+                    if (selectedItem) {
+                        isConnected = (selectedItem.edo_status === 'connected');
+                    }
+                }
+                updateEdoBadge(card, isConnected);
             }
         }
     }
@@ -2170,7 +2203,39 @@ function handleStatusChange(event) {
                 }
             }
             
-            savePaymentField(orderId, fieldName, fieldValue); // Сохраняем самого сотрудника
+            savePaymentField(orderId, fieldName, fieldValue).then(data => {
+                if (data && data.success && fieldName === 'legal_entity') {
+                    const card = target.closest('.list-orders-card');
+                    if (card) {
+                        const isConnected = data.order && data.order.legal_entity_edo_status === 'connected';
+                        updateEdoBadge(card, isConnected);
+                    }
+                }
+            }); // Сохраняем самого сотрудника
+        }
+    }
+
+    /**
+     * Обновляет плашку «ЭДО» в карточке заказа.
+     * Показывает или скрывает её в зависимости от статуса юрлица.
+     */
+    function updateEdoBadge(card, show) {
+        const clientCell = card.querySelector('.list-orders-card-client');
+        if (!clientCell) return;
+
+        let badge = clientCell.querySelector('.list-orders-edo-badge');
+
+        if (show) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'list-orders-edo-badge';
+                badge.textContent = 'ЭДО';
+                clientCell.appendChild(badge);
+            }
+        } else {
+            if (badge) {
+                badge.remove();
+            }
         }
     }
 
@@ -3971,4 +4036,139 @@ function handleStatusChange(event) {
         }
     }
 
+
+    // ========================================================================
+    // 19. МОДАЛКА СОЗДАНИЯ НОВОГО КЛИЕНТА
+    // ========================================================================
+
+    let modalTargetOrderId = null;
+    let createClientModalOverlay = null;
+
+    function openCreateClientModal(orderId) {
+        modalTargetOrderId = orderId;
+        createClientModalOverlay = document.getElementById('create-client-modal-overlay');
+        if (!createClientModalOverlay) return;
+        
+        // Очищаем форму от предыдущих вводов
+        const form = document.getElementById('create-client-form');
+        if (form) form.reset();
+        
+        const discountInput = document.getElementById('new-client-discount');
+        if (discountInput) discountInput.value = '0';
+
+        createClientModalOverlay.style.display = 'flex';
+        const nameInput = document.getElementById('new-client-name');
+        if (nameInput) nameInput.focus();
+    }
+
+    function closeCreateClientModal() {
+        if (createClientModalOverlay) {
+            createClientModalOverlay.style.display = 'none';
+        }
+        modalTargetOrderId = null;
+    }
+
+    async function handleCreateClientSubmit(e) {
+        e.preventDefault();
+        if (!modalTargetOrderId) return;
+
+        const btn = document.getElementById('create-client-submit');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Создание...';
+
+        try {
+            const clientName = document.getElementById('new-client-name').value.trim();
+            if (!clientName) throw new Error('Введите название клиента');
+
+            const headers = {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            };
+
+            // 1. Создаем клиента
+            const clientData = new FormData();
+            clientData.append('name', clientName);
+            clientData.append('discount', document.getElementById('new-client-discount').value || '0');
+            clientData.append('address', document.getElementById('new-client-address').value.trim());
+            clientData.append('comment', document.getElementById('new-client-comment').value.trim());
+
+            const cRes = await fetch('/baza_klientov/api/create_client/', {
+                method: 'POST',
+                body: clientData,
+                headers: headers
+            });
+            const cJson = await cRes.json();
+            if (!cJson.success) throw new Error('Ошибка создания клиента');
+            
+            const clientId = cJson.client.id;
+
+            // 2. Создаем юрлицо (если заполнено)
+            const leName = document.getElementById('new-le-name').value.trim();
+            if (leName) {
+                const leData = new FormData();
+                leData.append('client_id', clientId);
+                leData.append('name', leName);
+                leData.append('edo_status', document.getElementById('new-le-edo-status').value);
+                leData.append('requisites', document.getElementById('new-le-requisites').value.trim());
+                
+                const leRes = await fetch('/baza_klientov/api/create_legal_entity/', {
+                    method: 'POST',
+                    body: leData,
+                    headers: headers
+                });
+                const leJson = await leRes.json();
+                if (!leJson.success) console.warn('Ошибка создания юрлица', leJson.errors);
+            }
+
+            // 3. Создаем сотрудника (если заполнено)
+            const cpName = document.getElementById('new-cp-full-name').value.trim();
+            if (cpName) {
+                const cpData = new FormData();
+                cpData.append('client_id', clientId);
+                cpData.append('full_name', cpName);
+                cpData.append('position', document.getElementById('new-cp-position').value.trim());
+                cpData.append('phone', document.getElementById('new-cp-phone').value.trim());
+                cpData.append('email', document.getElementById('new-cp-email').value.trim());
+                
+                const cpRes = await fetch('/baza_klientov/api/create_contact/', {
+                    method: 'POST',
+                    body: cpData,
+                    headers: headers
+                });
+                const cpJson = await cpRes.json();
+                if (!cpJson.success) console.warn('Ошибка создания сотрудника', cpJson.errors);
+            }
+
+            // 4. Привязываем клиента к заказу
+            const orderData = new FormData();
+            orderData.append('field_name', 'client');
+            orderData.append('field_value', clientId);
+            
+            const oRes = await fetch('/orders/api/order/' + modalTargetOrderId + '/update-field/', {
+                method: 'POST',
+                body: orderData,
+                headers: headers
+            });
+            const oJson = await oRes.json();
+            if (!oJson.success) throw new Error('Ошибка привязки клиента к заказу');
+
+            // Успех
+            showNotification('Клиент создан и добавлен в заказ', 'success');
+            closeCreateClientModal();
+            
+            // Сбрасываем кэш клиентов, чтобы новый клиент появился в выпадающих списках
+            clientsCache = null; 
+            
+            // Обновляем список заказов (карточка, плашки и т.д.)
+            refreshTable();
+
+        } catch (err) {
+            console.error(err);
+            showNotification(err.message || 'Ошибка сети при создании клиента', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }    
 })();

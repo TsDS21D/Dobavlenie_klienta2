@@ -261,7 +261,15 @@
         }
         
         if (target.classList.contains('list-orders-le-select') || target.classList.contains('list-orders-cp-select')) {
-            savePaymentField(target.dataset.orderId, target.dataset.field, target.value);
+            savePaymentField(target.dataset.orderId, target.dataset.field, target.value).then(data => {
+                if (data && data.success && target.dataset.field === 'legal_entity') {
+                    const card = target.closest('.list-orders-card');
+                    if (card) {
+                        const isConnected = data.order && data.order.legal_entity_edo_status === 'connected';
+                        updateEdoBadge(card, isConnected);
+                    }
+                }
+            });
         }
         
         if (target.classList.contains('list-orders-select-tovar')) {
@@ -274,6 +282,30 @@
         const fd = new FormData(); fd.append('field_name', fieldName); fd.append('field_value', fieldValue);
         return fetch('/orders/api/order/' + orderId + '/update-field/', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() } })
         .then(r => r.json()).then(data => { if (!data.success) showNotification(data.error || 'Ошибка', 'error'); return data; }).catch(() => showNotification('Ошибка сети', 'error'));
+    }
+
+    /**
+     * Обновляет плашку «ЭДО» в карточке заказа.
+     * Показывает или скрывает её в зависимости от статуса юрлица.
+     */
+    function updateEdoBadge(card, show) {
+        const clientCell = card.querySelector('.list-orders-card-client');
+        if (!clientCell) return;
+
+        let badge = clientCell.querySelector('.list-orders-edo-badge');
+
+        if (show) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'list-orders-edo-badge';
+                badge.textContent = 'ЭДО';
+                clientCell.appendChild(badge);
+            }
+        } else {
+            if (badge) {
+                badge.remove();
+            }
+        }
     }
 
     // ========================================================================

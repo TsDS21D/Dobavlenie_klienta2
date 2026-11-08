@@ -189,6 +189,7 @@ def serialize_dictionaries():
             'characteristics': m.characteristics,
             'notes': m.notes,
             'is_active': m.is_active,
+            'position': m.position,
             'created_at': m.created_at.isoformat() if m.created_at else None,
             'updated_at': m.updated_at.isoformat() if m.updated_at else None,
         })
@@ -327,6 +328,7 @@ def serialize_dictionaries():
             'circulation': tpl.circulation,
             'source_proschet_id': tpl.source_proschet_id,
             'created_by_id': tpl.created_by_id,
+            'position': tpl.position,
             'created_at': tpl.created_at.isoformat() if tpl.created_at else None,
             'updated_at': tpl.updated_at.isoformat() if tpl.updated_at else None,
         })
@@ -741,6 +743,7 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                     'characteristics': m.get('characteristics') or {},
                     'notes': m.get('notes'),
                     'is_active': m.get('is_active', True),
+                    'position': m.get('position', 0), 
                 },
             )[0]
             time_updates = {}
@@ -952,6 +955,7 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                     'circulation': tpl.get('circulation', 100),
                     'source_proschet_id': None,
                     'created_by_id': get_safe_id(User, tpl.get('created_by_id')),
+                    'position': tpl.get('position', 0),
                 },
             )[0]
             time_updates = {}
@@ -1162,10 +1166,9 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                     'min_pages': comp.get('min_pages', 4),
                     'max_pages': comp.get('max_pages', 64),
                     'default_lamination_side': comp.get('default_lamination_side', 'single'),
-                    'default_lamination_side': comp.get('default_lamination_side', 'single'),
                     'default_print_combo': comp.get('default_print_combo', 'color_single'),      # <-- добавили
-                    'default_paper_id': get_safe_id(WebCalculatorComponentPaper, comp.get('default_paper_id')), # <-- добавили
-                    'default_size_preset_id': get_safe_id(WebCalculatorSizePreset, comp.get('default_size_preset_id')), # <-- добавили
+                    'default_paper_id': None,  # <--- ВРЕМЕННО СТАВИМ None
+                    'default_size_preset_id': None,  # <--- ВРЕМЕННО СТАВИМ None
                 }
             )
 
@@ -1216,12 +1219,22 @@ def restore_dictionaries_from_zip(zip_file, mode='merge'):
                 }
             )
 
-        # --- 25. REBUILD MPTT-ДЕРЕВЬЕВ ---
+        # --- 28. REBUILD MPTT-ДЕРЕВЬЕВ ---
         # Надёжный способ гарантировать целостность: MPTT сам пересчитает
         # lft/rght/tree_id/level по parent_id. Сохранённые в JSON MPTT-поля
         # намеренно игнорируются (см. serialize_dictionaries).
         SkladCategory.objects.rebuild()
         TovarCategory.objects.rebuild()
         TemplateCategory.objects.rebuild()
+        # --- ФИНАЛЬНЫЙ ПРОХОД: Обновление дефолтных связей Веб-калькуляторов ---
+        for comp in d.get('web_calc_components', []):
+            defaults = {}
+            if comp.get('default_paper_id'):
+                defaults['default_paper_id'] = get_safe_id(WebCalculatorComponentPaper, comp['default_paper_id'])
+            if comp.get('default_size_preset_id'):
+                defaults['default_size_preset_id'] = get_safe_id(WebCalculatorSizePreset, comp['default_size_preset_id'])
+            
+            if defaults:
+                WebCalculatorComponent.objects.filter(id=comp['id']).update(**defaults)
 
     return True

@@ -2961,3 +2961,15 @@ select.list-orders-payment-select {
         max-width: 100%;
     }
 }
+
+/* ==================== МОДАЛКА СОЗДАНИЯ КЛИЕНТА ==================== */
+
+.create-client-modal {
+    background: rgba(240, 249, 245, 0.95) !important; /* Светло-зелёный фон */
+    border: 1px solid rgba(11, 134, 97, 0.4) !important;
+    box-shadow: 0 12px 36px rgba(11, 134, 97, 0.2) !important;
+}
+
+.create-client-modal .list-orders-confirm-title {
+    color: #0B8661 !important; /* Фирменный зелёный для заголовка */
+}

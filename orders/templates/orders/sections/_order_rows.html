@@ -29,7 +29,7 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
                     {% if order.client %}
                         <span class="client-name-text">{{ order.client.name }}</span>
-                        {% if order.client.has_edo %}
+                        {% if order.legal_entity and order.legal_entity.edo_status == 'connected' %}
                             <span class="list-orders-edo-badge">ЭДО</span>
                         {% endif %}
                     {% else %}
@@ -392,7 +392,7 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
                     {% if order.client %}
                         <span class="client-name-text">{{ order.client.name }}</span>
-                        {% if order.client.has_edo %}
+                        {% if order.legal_entity and order.legal_entity.edo_status == 'connected' %}
                             <span class="list-orders-edo-badge">ЭДО</span>
                         {% endif %}
                     {% else %}
@@ -755,7 +755,7 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
                     {% if order.client %}
                         <span class="client-name-text">{{ order.client.name }}</span>
-                        {% if order.client.has_edo %}
+                        {% if order.legal_entity and order.legal_entity.edo_status == 'connected' %}
                             <span class="list-orders-edo-badge">ЭДО</span>
                         {% endif %}
                     {% else %}
@@ -1119,7 +1119,7 @@ orders/templates/orders/sections/_order_rows.html
                      data-original-value="{% if order.client %}{{ order.client.name }}{% else %}—{% endif %}">
                     {% if order.client %}
                         <span class="client-name-text">{{ order.client.name }}</span>
-                        {% if order.client.has_edo %}
+                        {% if order.legal_entity and order.legal_entity.edo_status == 'connected' %}
                             <span class="list-orders-edo-badge">ЭДО</span>
                         {% endif %}
                     {% else %}

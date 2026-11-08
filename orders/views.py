@@ -1186,6 +1186,7 @@ def api_update_order(request, order_id):
             'delivery_status': order.delivery_status,
             'delivery_status': order.delivery_status,
             'legal_entity_id': order.legal_entity.id if order.legal_entity else None,
+            'legal_entity_edo_status': order.legal_entity.edo_status if order.legal_entity else None,
             'contact_person_id': order.contact_person.id if order.contact_person else None,
             'delivery_address': order.delivery_address,
         },
@@ -1424,7 +1425,8 @@ def api_client_details(request, client_id):
         le_data = [{
             'id': le.id, 
             'name': le.name, 
-            'is_primary': le.is_primary
+            'is_primary': le.is_primary,
+            'edo_status': le.edo_status
         } for le in legal_entities]
         
         # Получаем неудаленных сотрудников
