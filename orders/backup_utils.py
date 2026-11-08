@@ -775,6 +775,19 @@ def restore_from_zip(zip_file, mode='merge'):
 
         # 5. ВОССТАНОВЛЕНИЕ ЗАКАЗОВ (и вложенной структуры Product)
         for o in data.get('orders', []):
+            # Определяем дату выдачи.
+            # Если в бэкапе есть completed_at, берем его.
+            # Если заказ выдан, но completed_at пуст (старые заказы),
+            # берем updated_at или ready_datetime, чтобы save() не проставил текущее время.
+            completed_at_val = None
+            if o.get('completed_at'):
+                completed_at_val = parse_datetime(o['completed_at'])
+            elif o.get('status') == 'completed':
+                if o.get('updated_at'):
+                    completed_at_val = parse_datetime(o['updated_at'])
+                elif o.get('ready_datetime'):
+                    completed_at_val = parse_datetime(o['ready_datetime'])
+
             order = Order.objects.update_or_create(
                 id=o['id'],
                 defaults={
@@ -796,6 +809,7 @@ def restore_from_zip(zip_file, mode='merge'):
                     'is_courier_ordered': o.get('is_courier_ordered', False),
                     'ready_datetime': parse_datetime(o['ready_datetime']) if o.get('ready_datetime') else None,
                     'comment': o.get('comment', ''),
+                    'completed_at': completed_at_val,
                     'created_by_id': get_safe_id(User, o.get('created_by_id')),    # ← новое
                     'is_deleted': o.get('is_deleted', False)
                 }
@@ -809,8 +823,9 @@ def restore_from_zip(zip_file, mode='merge'):
                 time_updates['created_at'] = parse_datetime(o['created_at'])
             if o.get('updated_at'):
                 time_updates['updated_at'] = parse_datetime(o['updated_at'])
-            if o.get('completed_at'):
-                time_updates['completed_at'] = parse_datetime(o['completed_at'])
+            # ВАЖНО: используем completed_at_val (который мы вычислили выше)
+            if completed_at_val:
+                time_updates['completed_at'] = completed_at_val                
             if time_updates:
                 Order.objects.filter(id=order.id).update(**time_updates)
             

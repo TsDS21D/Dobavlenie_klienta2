@@ -2222,7 +2222,8 @@ def api_restore_full_replace(request):
                         shablony_proschetov_templateadditionalwork,
                         shablony_proschetov_templatelaminate,
                         shablony_proschetov_templatevichisliniya,
-                        shablony_proschetov_templatemultipage
+                        shablony_proschetov_templatemultipage,
+                        web_calculators_webcalculator
                     CASCADE;
                 """)
 
