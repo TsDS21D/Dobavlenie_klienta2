@@ -190,6 +190,15 @@ class ProschetTemplate(models.Model):
         help_text='Пользователь, создавший шаблон'
     )
 
+    # Порядок отображения шаблона в списке (drag-and-drop внутри категории).
+    # По умолчанию 0 — существующие шаблоны после миграции получат 0
+    # и упорядочатся по id; затем их можно перетащить в нужном порядке.
+    position = models.PositiveIntegerField(
+        verbose_name='Позиция',
+        default=0,
+        help_text='Порядок отображения в списке'
+    )
+
     created_at = models.DateTimeField(
         verbose_name='Дата создания',
         auto_now_add=True
@@ -203,8 +212,9 @@ class ProschetTemplate(models.Model):
     class Meta:
         verbose_name = 'Шаблон просчёта'
         verbose_name_plural = 'Шаблоны просчётов'
-        # Сортировка — по категории, затем по имени.
-        ordering = ['category', 'name']
+        # Сортировка — по позиции, затем по id (как у Material в sklad).
+        # position управляется drag-and-drop на странице /shablony/.
+        ordering = ['position', 'id']
 
     def __str__(self):
         return f"{self.name} ({self.category.name})"

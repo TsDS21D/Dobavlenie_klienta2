@@ -1,16 +1,6 @@
 <!--
 shablony_proschetov/templates/shablony_proschetov/index.html
 Главная страница справочника шаблонов просчётов.
-
-Структура:
-1. Заголовок с названием и кнопкой "Создать категорию" (только для админа).
-2. Панель поиска по названию и комментарию.
-3. Двухколоночный макет:
-   - Левая колонка: дерево категорий и шаблонов (MPTT recursetree).
-   - Правая колонка: превью выбранного шаблона + кнопка "Создать просчёт из шаблона".
-
-На этом шаге дерево статичное (без drag-n-drop и сворачивания) —
-это будет добавлено на следующем шаге вместе с JS.
 -->
 
 {% extends "shablony_proschetov/base.html" %}
@@ -19,68 +9,62 @@ shablony_proschetov/templates/shablony_proschetov/index.html
 
 {% block shablony_title %}Справочник шаблонов просчётов{% endblock %}
 
+{% block extra_css %}
+{# Динамическая иконка (сетка/список). Изначально серая. #}
+<link id="shablony-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7'></rect><rect x='14' y='3' width='7' height='7'></rect><rect x='14' y='14' width='7' height='7'></rect><rect x='3' y='14' width='7' height='7'></rect></svg>">
+{{ block.super }}
+{% endblock %}
+
 {% block shablony_content %}
+<div class="tovary-page-wrap">
 
     <!-- ==================== ЗАГОЛОВОК ==================== -->
     <h1>
-        <!-- Логотип типографии, как в других разделах проекта -->
-        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png"
-             alt="Типография &quot;Буква А&quot;"
+        <img src="https://www.bukva-a.ru/uploads/logo/logo300.png" 
+             alt="Типография &quot;Буква А&quot;" 
              title="Типография &quot;Буква А&quot;"
              width="150">
         Справочник шаблонов просчётов
     </h1>
 
-    <!-- Панель инструментов под заголовком -->
-    <div class="tpl-toolbar">
-        <!-- Поле поиска по названию и комментарию -->
-        <input type="text"
-               id="tpl-search-input"
-               class="tpl-search-input"
-               placeholder="Поиск по названию, комментарию или категории...">
-
-        <!-- Кнопки (видны только администратору) -->
-        {% if is_admin %}
-            <button type="button" id="tpl-btn-add-root-category" class="tpl-btn tpl-btn-add">
-                + Категория
-            </button>
-        {% endif %}
+    <!-- ==================== ПАНЕЛЬ ПОИСКА ==================== -->
+    <div class="tpl-toolbar" style="margin-bottom: 1rem;">
+        <input type="text" id="tpl-search-input" class="tovary-input" 
+               placeholder="Поиск по названию, комментарию или категории..." 
+               style="flex: 1; min-width: 240px; max-width: 400px; padding: 0.6rem 1rem;">
     </div>
-    <!-- ==================== ПАНЕЛЬ СОХРАНЕНИЯ ПРОСЧЁТА КАК ШАБЛОНА ==================== -->
-    <!-- Показывается только админу и только если пришли с ?proschet_id=<id>. -->
+
+    <!-- Скрытый контейнер для сообщений Django (JS перехватит и покажет как тосты) -->
+    <div id="django-messages" style="display: none;">
+        {% for m in messages %}
+            <div data-tag="{{ m.tags }}" data-text="{{ m }}"></div>
+        {% endfor %}
+    </div>
+
+    <!-- ==================== ПАНЕЛЬ СОХРАНЕНИЯ ПРОСЧЁТА ==================== -->
     {% if source_proschet and is_admin %}
-    <div class="tpl-save-panel" id="tpl-save-panel"
-         data-proschet-id="{{ source_proschet.id }}">
+    <div class="tpl-save-panel" id="tpl-save-panel" data-proschet-id="{{ source_proschet.id }}">
         <h3 class="tpl-save-title">
-            Сохранение просчёта
-            «{{ source_proschet.number }} — {{ source_proschet.title }}»
-            как шаблона
+            Сохранение просчёта «{{ source_proschet.number }} — {{ source_proschet.title }}» как шаблона
         </h3>
         <p class="tpl-save-hint">
             Выберите категорию, введите название и нажмите «Сохранить шаблон».
-            Если в выбранной категории уже есть шаблон с таким названием — он будет
-            заменён новым.
+            Если в выбранной категории уже есть шаблон с таким названием — он будет заменён.
         </p>
 
-        <!-- Название шаблона -->
         <div class="tpl-save-row">
             <label for="tpl-save-name">Название шаблона:</label>
-            <input type="text" id="tpl-save-name"
-                   value="{{ source_proschet.title }}"
-                   maxlength="200" autocomplete="off">
+            <input type="text" id="tpl-save-name" value="{{ source_proschet.title }}" maxlength="200" class="tovary-input">
         </div>
 
-        <!-- Комментарий -->
         <div class="tpl-save-row">
             <label for="tpl-save-comment">Комментарий (необязательно):</label>
-            <textarea id="tpl-save-comment" rows="2"
-                      placeholder="Например: используется для VIP-клиентов"></textarea>
+            <textarea id="tpl-save-comment" rows="2" class="tovary-input" placeholder="Например: используется для VIP-клиентов"></textarea>
         </div>
 
-        <!-- Категория -->
         <div class="tpl-save-row">
             <label for="tpl-save-category">Категория:</label>
-            <select id="tpl-save-category">
+            <select id="tpl-save-category" class="tovary-input">
                 <option value="">— выберите категорию —</option>
                 {% for cat in categories_flat %}
                     <option value="{{ cat.id }}">{{ cat.path }}</option>
@@ -88,73 +72,41 @@ shablony_proschetov/templates/shablony_proschetov/index.html
             </select>
         </div>
 
-        <!-- Кнопки -->
         <div class="tpl-save-actions">
-            <button type="button" id="tpl-save-cancel"
-                    class="tpl-btn tpl-btn-cancel">Отмена</button>
-            <button type="button" id="tpl-save-confirm"
-                    class="tpl-btn tpl-btn-primary">Сохранить шаблон</button>
+            <button type="button" id="tpl-save-cancel" class="tpl-btn tpl-btn-cancel">Отмена</button>
+            <button type="button" id="tpl-save-confirm" class="tpl-btn tpl-btn-primary">Сохранить шаблон</button>
         </div>
     </div>
     {% endif %}
 
-
-
     <!-- ==================== ДВУХКОЛОНОЧНЫЙ МАКЕТ ==================== -->
-    <div class="tpl-layout">
+    <div class="tovary-layout">
 
-        <!-- ЛЕВАЯ КОЛОНКА: дерево -->
-        <aside class="tpl-tree-pane" id="tpl-tree-pane">
+        <!-- ===== ЛЕВАЯ КОЛОНКА: ДЕРЕВО КАТЕГОРИЙ ===== -->
+        <div class="tovary-sidebar">
+            <div class="tovary-sidebar-header">
+                <span class="tovary-sidebar-title">Древовидная структура</span>
+                {% if is_admin %}
+                    <button type="button" class="tovary-btn-add-category" onclick="addCategory(null)">+ Категория</button>
+                {% endif %}
+            </div>
+
             {% if categories %}
-                <ul class="tpl-tree">
+                <ul class="category-tree">
                     {% recursetree categories %}
-                        <li class="tpl-tree-node"
-                            data-category-id="{{ node.id }}"
-                            data-node-level="{{ node.level }}">
-
-                            <!-- Строка категории -->
-                            <div class="tpl-category-row">
-                                <i class="fas fa-folder tpl-folder-icon"></i>
-                                <span class="tpl-category-name">{{ node.name }}</span>
-
+                        <li>
+                            <div class="category-node {% if selected_category_id == node.id|stringformat:'s' %}active{% endif %}" data-category-id="{{ node.id }}">
+                                <a href="?category_id={{ node.id }}">{{ node.name }}</a>
                                 {% if is_admin %}
-                                    <!-- Мини-кнопки управления категорией (будут работать после JS-шага) -->
-                                    <span class="tpl-node-actions">
-                                        <button type="button"
-                                                class="tpl-mini-btn tpl-btn-add-sub"
-                                                data-category-id="{{ node.id }}"
-                                                title="Добавить подкатегорию">+</button>
-                                        <button type="button"
-                                                class="tpl-mini-btn tpl-btn-rename"
-                                                data-category-id="{{ node.id }}"
-                                                data-category-name="{{ node.name }}"
-                                                title="Переименовать">✎</button>
-                                        <button type="button"
-                                                class="tpl-mini-btn tpl-btn-delete"
-                                                data-category-id="{{ node.id }}"
-                                                data-category-name="{{ node.name }}"
-                                                title="Удалить">✕</button>
-                                    </span>
+                                <span class="category-actions">
+                                    <button type="button" onclick="addCategory({{ node.id }})" title="Добавить подкатегорию">+</button>
+                                    <button type="button" onclick="renameCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Переименовать">✎</button>
+                                    <button type="button" class="category-btn-delete" onclick="deleteCategory({{ node.id }}, '{{ node.name|escapejs }}')" title="Удалить">×</button>
+                                </span>
                                 {% endif %}
                             </div>
-
-                            <!-- Шаблоны этой категории -->
-                            {% if node.templates.all %}
-                                <ul class="tpl-templates-list">
-                                    {% for tpl in node.templates.all %}
-                                        <li class="tpl-template-item"
-                                            data-template-id="{{ tpl.id }}"
-                                            data-category-id="{{ node.id }}">
-                                            <i class="fas fa-file-alt tpl-template-icon"></i>
-                                            <span class="tpl-template-name">{{ tpl.name }}</span>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            {% endif %}
-
-                            <!-- Рекурсивно: дочерние категории -->
                             {% if not node.is_leaf_node %}
-                                <ul class="tpl-tree-children">
+                                <ul class="children">
                                     {{ children }}
                                 </ul>
                             {% endif %}
@@ -162,123 +114,198 @@ shablony_proschetov/templates/shablony_proschetov/index.html
                     {% endrecursetree %}
                 </ul>
             {% else %}
-                <div class="tpl-empty">
-                    <p>Категорий пока нет.</p>
-                    {% if is_admin %}
-                        <p>Нажмите «+ Категория», чтобы создать первую.</p>
+                <div class="tovary-sidebar-empty">Категорий пока нет. Нажмите «+ Категория».</div>
+            {% endif %}
+        </div>
+
+        <!-- ===== ПРАВАЯ КОЛОНКА: СПИСОК ШАБЛОНОВ ===== -->
+        <div class="tovary-content">
+            <h2 class="tovary-content-title">
+                {% if selected_category %}
+                    Шаблоны в «{{ selected_category.name }}»
+                {% else %}
+                    Все шаблоны
+                {% endif %}
+                <span class="tovary-filter-info">
+                    {% if selected_category %}
+                        <a href="?" style="color: #0B8661; text-decoration: none;">× Сбросить фильтр</a>
+                    {% endif %}
+                </span>
+            </h2>
+
+            {% if templates %}
+            <div class="materials-list" id="tpl-templates-list">
+                {% for tpl in templates %}
+                    <div class="material-row-card" data-template-id="{{ tpl.id }}" draggable="true">
+                        
+                        <!-- СТРОКА 1: ЗАГОЛОВОК АККОРДЕОНА -->
+                        <div class="material-row-header" onclick="toggleTemplateCard(this)">
+                            <span class="material-toggle-icon">▼</span>
+                            
+                            <!-- Инлайн-поле: Название -->
+                            <input class="tovary-cell material-name-input" type="text" 
+                                   name="name" value="{{ tpl.name }}" data-field="name" 
+                                   data-original-value="{{ tpl.name }}" placeholder="Название шаблона" 
+                                   onclick="event.stopPropagation();" {% if not is_admin %}readonly{% endif %}>
+                            
+                            <!-- Инлайн-поле: Тираж -->
+                            <div class="material-field-group" style="flex: 0 0 100px; margin-left: auto;" onclick="event.stopPropagation();">
+                                <input class="tovary-cell" type="number" name="circulation" 
+                                       value="{{ tpl.circulation }}" data-field="circulation" 
+                                       data-original-value="{{ tpl.circulation }}" 
+                                       style="text-align: right; padding: 0.2rem 0.4rem; font-size: 0.85rem;" 
+                                       {% if not is_admin %}readonly{% endif %}>
+                            </div>
+                            <span style="font-size: 0.8rem; color: #666; margin-right: 0.5rem;">шт.</span>
+
+                            {% if is_admin %}
+                            <button type="button" class="tovary-btn-delete" onclick="event.stopPropagation(); deleteTemplate({{ tpl.id }}, '{{ tpl.name|escapejs }}')" title="Удалить шаблон">×</button>
+                            {% endif %}
+                        </div>
+
+                        <!-- ТЕЛО АККОРДЕОНА (скрыто по умолчанию) -->
+                        <div class="material-card-body">
+                            
+                            <!-- СТРОКА 2: ОСНОВНЫЕ ПАРАМЕТРЫ -->
+                            <div class="material-row-main">
+                                <div class="material-field-group" style="flex: 2;">
+                                    <label>Комментарий</label>
+                                    <input class="tovary-cell" type="text" name="comment" 
+                                           value="{{ tpl.comment|default:'' }}" data-field="comment" 
+                                           data-original-value="{{ tpl.comment|default:'' }}" 
+                                           placeholder="Нет комментария" {% if not is_admin %}readonly{% endif %}>
+                                </div>
+                                <div class="material-field-group" style="flex: 1;">
+                                    <label>Категория</label>
+                                    <select class="tovary-cell" data-field="category_id" {% if not is_admin %}disabled{% endif %}>
+                                        {% for cat in categories_flat %}
+                                            <option value="{{ cat.id }}" {% if tpl.category_id == cat.id %}selected{% endif %}>
+                                                {{ cat.path }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- СТРОКА 3: ПРЕВЬЮ КОМПОНЕНТОВ (read-only) -->
+                            <div class="template-preview-body" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #ececec; display: none;">
+                                <div class="tpl-preview-loading" style="color: #999; font-size: 0.85rem; font-style: italic;">Загрузка данных шаблона...</div>
+                            </div>
+
+                            <!-- СТРОКА 4: КНОПКИ ДЕЙСТВИЙ -->
+                            <div class="tpl-preview-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                                <button type="button" class="tpl-btn tpl-btn-primary" 
+                                        onclick="createProschetFromTemplate({{ tpl.id }}, '{{ tpl.name|escapejs }}')"
+                                        style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                                    Создать просчёт из шаблона
+                                </button>
+                                {% if is_admin %}
+                                <button type="button" class="tpl-btn tpl-btn-danger" 
+                                        onclick="deleteTemplate({{ tpl.id }}, '{{ tpl.name|escapejs }}')"
+                                        style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                                    Удалить шаблон
+                                </button>
+                                {% endif %}
+                            </div>
+
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% else %}
+                <div class="tovary-empty">
+                    {% if selected_category %}
+                        В этой категории пока нет шаблонов.
                     {% else %}
-                        <p>Обратитесь к администратору, чтобы добавить шаблоны.</p>
+                        Шаблонов пока нет. Сохраните первый просчёт как шаблон.
                     {% endif %}
                 </div>
             {% endif %}
-        </aside>
-
-        <!-- ==================== ВСПЛЫВАЮЩАЯ ПАНЕЛЬ СОДЕРЖИМОГО КАТЕГОРИИ ==================== -->
-        <!-- Открывается по клику на категорию. Позиционируется абсолютно
-             относительно .tpl-layout (position: relative на нём). Показывает
-             шаблоны и подкатегории выбранной категории. -->
-        <div id="tpl-category-popup" class="tpl-category-popup" style="display: none;">
-            <!-- Шапка панели: «Назад», хлебные крошки, «Закрыть». -->
-            <div class="tpl-popup-header">
-                <button type="button" id="tpl-popup-back" class="tpl-popup-back" title="Назад">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <div class="tpl-popup-breadcrumbs" id="tpl-popup-breadcrumbs"></div>
-                <button type="button" id="tpl-popup-close" class="tpl-popup-close" title="Закрыть">×</button>
-            </div>
-            <!-- Тело панели — наполняется JS. -->
-            <div class="tpl-popup-body" id="tpl-popup-body"></div>
-        </div>
-
-        <!-- ПРАВАЯ КОЛОНКА: превью выбранного шаблона -->
-        <section class="tpl-preview-pane" id="tpl-preview-pane">
-
-            <!-- Сообщение, когда шаблон не выбран -->
-            <div id="tpl-preview-empty" class="tpl-preview-empty">
-                <h3>Шаблон не выбран</h3>
-                <p>Выберите шаблон в дереве слева, чтобы увидеть его состав.</p>
-            </div>
-
-            <!-- Контейнер превью (будет наполняться JS) -->
-            <div id="tpl-preview-content" class="tpl-preview-content" style="display:none;">
-
-                <!-- Заголовок с названием и категорией -->
-                <div class="tpl-preview-header">
-                    <h2 id="tpl-preview-title">—</h2>
-                    <div class="tpl-preview-meta">
-                        <span>Категория: <b id="tpl-preview-category">—</b></span>
-                        <span>Типовой тираж: <b id="tpl-preview-circulation">—</b></span>
-                    </div>
-                    <p id="tpl-preview-comment" class="tpl-preview-comment"></p>
-                </div>
-
-                <!-- Кнопки -->
-                <div class="tpl-preview-actions">
-                    <button type="button"
-                            id="tpl-btn-create-proschet"
-                            class="tpl-btn tpl-btn-primary">
-                        Создать просчёт из шаблона
-                    </button>
-
-                    {% if is_admin %}
-                        <button type="button"
-                                id="tpl-btn-rename-template"
-                                class="tpl-btn tpl-btn-secondary">
-                            Переименовать / изменить комментарий
-                        </button>
-                        <button type="button"
-                                id="tpl-btn-delete-template"
-                                class="tpl-btn tpl-btn-danger">
-                            Удалить шаблон
-                        </button>
-                    {% endif %}
-                </div>
-
-                <!-- Превью компонентов и работ -->
-                <div id="tpl-preview-components" class="tpl-preview-components">
-                    <!-- будет заполнено JS -->
-                </div>
-
-            </div>
-        </section>
-
-    </div>
-
-    <!-- ==================== МОДАЛЬНОЕ ОКНО ДЛЯ ВВОДА НАЗВАНИЯ ==================== -->
-    <!-- Одна модалка для трёх сценариев: создать категорию, создать подкатегорию,
-         переименовать. JS подставит нужные заголовок и обработчик. -->
-    <div id="tpl-modal-overlay" class="tpl-modal-overlay" style="display:none;">
-        <div class="tpl-modal">
-            <div class="tpl-modal-header">
-                <h3 id="tpl-modal-title">Введите название</h3>
-                <button type="button" id="tpl-modal-close" class="tpl-modal-close">×</button>
-            </div>
-              <div class="tpl-modal-body">
-                <label for="tpl-modal-input">Название:</label>
-                <input type="text" id="tpl-modal-input" class="tpl-modal-input" maxlength="200" autocomplete="off">
-
-                <!-- Поле комментария показывается только при редактировании шаблона. -->
-                <div id="tpl-modal-comment-wrapper" style="display:none; margin-top: 0.9rem;">
-                    <label for="tpl-modal-comment">Комментарий (необязательно):</label>
-                    <textarea id="tpl-modal-comment" class="tpl-modal-input" rows="2"
-                              placeholder="Например: используется для VIP-клиентов"></textarea>
-                </div>
-
-                <div id="tpl-modal-error" class="tpl-modal-error" style="display:none;"></div>
-            </div>
-            <div class="tpl-modal-footer">
-                <button type="button" id="tpl-modal-cancel" class="tpl-btn tpl-btn-cancel">Отмена</button>
-                <button type="button" id="tpl-modal-confirm" class="tpl-btn tpl-btn-primary">Сохранить</button>
-            </div>
         </div>
     </div>
+</div>
 
-{% endblock %}
+<!-- ==================== МОДАЛКИ ==================== -->
 
-{% block extra_js %}
-    <!-- CSRF-токен для AJAX-запросов (создание/переименование/удаление категорий). -->
-    <meta name="csrf-token" content="{{ csrf_token }}">
+<!-- Модалка добавления/переименования категории -->
+<div id="category-modal-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm" style="max-width: 400px; background: #fff; border-color: #0B8661;">
+        <div class="list-orders-confirm-title" id="category-modal-title" style="color: #0B8661;">Новая категория</div>
+        
+        <form id="category-modal-form" method="post" action="" style="margin-top: 1rem; text-align: left;">
+            {% csrf_token %}
+            <input type="hidden" name="return_category_id" value="{{ selected_category_id|default:'' }}">
+            <input type="hidden" name="parent_id" id="category-modal-parent-id" value="">
+            
+            <div class="tovary-field" style="margin-bottom: 1.2rem;">
+                <label>Название *</label>
+                <input class="tovary-input" type="text" name="name" id="category-modal-input" required maxlength="200" style="width: 100%;">
+            </div>
+            
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeCategoryModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn--ok" style="background: #0B8661; color: #fff;">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    <!-- Подключаем JS приложения -->
-    <script src="{% static 'shablony_proschetov/js/index.js' %}"></script>
+<!-- Модалка удаления категории -->
+<div id="delete-category-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить категорию?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить категорию <b id="delete-cat-name"></b>?<br>
+            Если в ней есть шаблоны или подкатегории — удаление будет запрещено.
+        </div>
+        <form id="delete-category-form" method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="return_category_id" value="{{ selected_category_id|default:'' }}">
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteCategoryModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn-yes">Удалить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модалка удаления шаблона -->
+<div id="delete-template-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Удалить шаблон?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите удалить шаблон <b id="delete-template-name"></b>?<br>
+            Существующие просчёты, созданные из него, останутся без изменений.
+        </div>
+        <form id="delete-template-form" method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="return_category_id" value="{{ selected_category_id|default:'' }}">
+            <div class="list-orders-confirm-actions">
+                <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeDeleteTemplateModal()">Отмена</button>
+                <button type="submit" class="list-orders-confirm-btn list-orders-confirm-btn-yes">Удалить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модалка подтверждения создания просчёта -->
+<div id="create-proschet-overlay" class="list-orders-confirm-overlay" style="display: none; z-index: 2000;">
+    <div class="list-orders-confirm">
+        <div class="list-orders-confirm-title">Создать просчёт?</div>
+        <div class="list-orders-confirm-text">
+            Вы действительно хотите создать новый просчёт из шаблона <b id="create-proschet-name"></b>?
+        </div>
+        <div class="list-orders-confirm-actions">
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-no" onclick="closeCreateProschetModal()">Отмена</button>
+            <button type="button" class="list-orders-confirm-btn list-orders-confirm-btn-yes" onclick="confirmCreateProschet()">Создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- Контейнер для верхних уведомлений (Django messages, ошибки) -->
+<div id="proschety-top-notifications" class="proschety-top-notifications"></div>
+
+<!-- Контейнер для нижних тостов (WebSocket-события) -->
+<div id="proschety-toasts" class="proschety-toasts" data-session-key="{{ request.session.session_key }}"></div>
+
 {% endblock %}

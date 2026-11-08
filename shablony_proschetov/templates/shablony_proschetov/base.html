@@ -2,46 +2,40 @@
 shablony_proschetov/templates/shablony_proschetov/base.html
 Базовый шаблон для страниц приложения "Справочник шаблонов просчётов".
 
-Наследует стилистику приложения directories (единый дизайн проекта):
-- подключает общие стили из sheet_formats/css/index.css;
-- подключает собственные стили приложения;
-- включает панели навигации из counter/app_panels.html;
-- оборачивает содержимое в общий контейнер .container.
+Наследует orders/base.html (как sklad/base.html):
+- общая панель навигации из counter/app_panels.html;
+- общий контейнер .container и фоновая текстура;
+- общие стили orders/css/base.css.
+
+Подключает:
+- tovary/css/tovar.css (базовые классы для списков, как в sklad);
+- orders/css/sections/list_orders.css (модалки подтверждения);
+- shablony_proschetov/css/index.css (стили этой страницы).
 -->
 
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "orders/base.html" %}
+{% load static %}
 
-    <!-- Динамический заголовок страницы -->
-    <title>{% block shablony_title %}Шаблоны просчётов{% endblock %} - Система управления</title>
+{# Заголовок вкладки браузера. #}
+{% block title %}{% block shablony_title %}Шаблоны просчётов{% endblock %} - Система управления{% endblock %}
 
-    <!-- Загружаем тег static для ссылок на статические файлы -->
-    {% load static %}
-    <link rel="icon" href="{% static 'counter/img/favicon.ico' %}" type="image/x-icon">
-
-    <!-- Подключаем общие стили проекта (те же, что в directories) -->
-    <link rel="stylesheet" href="{% static 'sheet_formats/css/index.css' %}">
-
-    <!-- Подключаем стили приложения "Шаблоны просчётов" -->
+{% block extra_css %}
+    {# Базовые классы tovary (дерево, списки, поля). #}
+    <link rel="stylesheet" href="{% static 'tovary/css/tovar.css' %}">
+    {# Стили модалок (list-orders-confirm-*), как в sklad. #}
+    <link rel="stylesheet" href="{% static 'orders/css/sections/list_orders.css' %}">
+    {# Стили страницы шаблонов. #}
     <link rel="stylesheet" href="{% static 'shablony_proschetov/css/index.css' %}">
+{% endblock %}
 
-    <!-- Блок для дополнительных CSS, если понадобится -->
-    {% block extra_css %}{% endblock %}
-</head>
-<body>
-    <!-- Панели навигации по приложениям.
-         active_app из контекста подсветит наш раздел в общем меню. -->
-    {% include "counter/app_panels.html" with active_app=active_app|default:"shablony_proschetov" %}
+{% block content %}
+    {# Сохраняем имя shablony_content для совместимости с текущим index.html. #}
+    {# На следующем шаге перепишем index.html, но контракт не поменяется. #}
+    {% block shablony_content %}{% endblock %}
+{% endblock %}
 
-    <!-- Основной контейнер страницы -->
-    <div class="container">
-        {% block shablony_content %}{% endblock %}
-    </div>
-
-    <!-- Блок для дополнительного JS -->
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
+{% block extra_js %}
+    {# CSRF-токен для AJAX-запросов (создание/переименование/удаление категорий, инлайн-редактирование). #}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script src="{% static 'shablony_proschetov/js/index.js' %}"></script>
+{% endblock %}

@@ -21,7 +21,8 @@ from channels.auth import AuthMiddlewareStack
 from channels.sessions import SessionMiddlewareStack
 import counter.routing
 import proschety.routing 
-import orders.routing  # НОВОЕ: WebSocket-маршруты для приложения "Заказы"
+import orders.routing  # WebSocket-маршруты для приложения "Заказы"
+import shablony_proschetov.routing  # WebSocket-маршруты для справочника шаблонов
 
 # Получаем стандартное Django ASGI приложение
 django_asgi_app = get_asgi_application()
@@ -38,7 +39,8 @@ application = ProtocolTypeRouter({
             URLRouter(
                 counter.routing.websocket_urlpatterns +
                 proschety.routing.websocket_urlpatterns +
-                orders.routing.websocket_urlpatterns  # НОВОЕ: добавляем маршруты заказов
+                orders.routing.websocket_urlpatterns +      # маршруты заказов
+                shablony_proschetov.routing.websocket_urlpatterns  # маршруты шаблонов
             )
         )
     ),
