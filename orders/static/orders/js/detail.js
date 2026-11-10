@@ -187,6 +187,8 @@
         savePaymentField(orderId, 'is_paid', newIsPaid);
     });
 
+    document.addEventListener('dblclick', handleStrictTimeToggle); // <--- ДОБАВЛЕНО
+
     document.addEventListener('dblclick', function(event) {
         const btn = event.target.closest('.list-orders-delivery-btn');
         if (!btn) return;
@@ -1096,6 +1098,8 @@
         const save = () => {
             if (finished) return;
 
+            const newValue = input.value.trim();
+
             // НОВОЕ: Проверка на целое число
             if (newValue !== '' && !/^-?\d+$/.test(newValue)) {
                 showNotification('Значение должно быть целым числом', 'error');
@@ -1105,7 +1109,6 @@
 
             finished = true;
 
-            const newValue = input.value.trim();
             // Если значение не изменилось — просто выходим
             if (newValue === String(originalValue)) {
                 cell.classList.remove('editing-cell');
@@ -1162,5 +1165,88 @@
         });
         input.addEventListener('blur', () => setTimeout(save, 100));
     });
+
+    // ========================================================================
+    // СТРОГО КО ВРЕМЕНИ (ПЕРЕКЛЮЧЕНИЕ ПО ДВОЙНОМУ КЛИКУ)
+    // ========================================================================
+
+    /**
+     * Обработчик двойного клика по бейджу часов.
+     * Переключает флаг "строго ко времени" для заказа в статусе "В работе".
+     */
+    function handleStrictTimeToggle(event) {
+        const badge = event.target.closest('.list-orders-hours-badge');
+        if (!badge) return;
+
+        // Предотвращаем раскрытие/сворачивание карточки
+        event.stopPropagation();
+
+        const card = badge.closest('.list-orders-card');
+        if (!card) return;
+
+        const orderId = card.dataset.orderId;
+        if (!orderId) return;
+
+        // Проверяем статус: флаг доступен только для "В работе"
+        if (card.dataset.status !== 'in_progress') {
+            showNotification('Параметр «Строго ко времени» доступен только для заказов в работе', 'warning');
+            return;
+        }
+
+        // Определяем текущее состояние
+        const isStrictNow = card.classList.contains('list-orders-card--strict-time');
+        const newIsStrict = !isStrictNow;
+
+        // Оптимистично меняем UI
+        if (newIsStrict) {
+            card.classList.add('list-orders-card--strict-time');
+            card.dataset.strictTime = 'true';
+        } else {
+            card.classList.remove('list-orders-card--strict-time');
+            card.dataset.strictTime = 'false';
+        }
+
+        // Отправляем на сервер
+        const fd = new FormData();
+        fd.append('field_name', 'is_strict_time');
+        fd.append('field_value', newIsStrict ? 'true' : 'false');
+
+        fetch('/orders/api/order/' + orderId + '/update-field/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(newIsStrict ? 'Включено «Строго ко времени»' : 'Отключено «Строго ко времени»', 'success');
+            } else {
+                // Откат при ошибке
+                if (newIsStrict) {
+                    card.classList.remove('list-orders-card--strict-time');
+                    card.dataset.strictTime = 'false';
+                } else {
+                    card.classList.add('list-orders-card--strict-time');
+                    card.dataset.strictTime = 'true';
+                }
+                showNotification(data.error || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            // Откат при ошибке сети
+            if (newIsStrict) {
+                card.classList.remove('list-orders-card--strict-time');
+                card.dataset.strictTime = 'false';
+            } else {
+                card.classList.add('list-orders-card--strict-time');
+                card.dataset.strictTime = 'true';
+            }
+            showNotification('Ошибка сети при сохранении', 'error');
+        });
+    }
 
 })();

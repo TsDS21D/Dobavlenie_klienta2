@@ -1027,6 +1027,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
         trigger.className = 'custom-paper-trigger';
 
         const triggerText = document.createElement('span');
+        triggerText.className = 'custom-paper-trigger-text';
         triggerText.textContent = '— Выберите бумагу —';
 
         const arrow = document.createElement('span');
@@ -1100,9 +1101,11 @@ JavaScript секции «Просчёт» новой страницы /proschet
                 const itemsDiv = document.createElement('div');
                 itemsDiv.className = 'custom-paper-group-items';
                 
-                // Если в этой ветке есть выбранная бумага — сразу разворачиваем
+                // Если в этой ветке есть выбранная бумага — сразу разворачиваем.
+                // Если ничего не выбрано (selectedId пуст) — тоже разворачиваем,
+                // чтобы в форме добавления сразу были видны бумаги.
                 const hasSelected = containsSelected(node, selectedId);
-                if (hasSelected) {
+                if (hasSelected || !selectedId) {
                     itemsDiv.style.display = 'block';
                     icon.textContent = '▼';
                     titleDiv.classList.add('expanded');
@@ -1154,7 +1157,12 @@ JavaScript секции «Просчёт» новой страницы /proschet
                         item.classList.add('selected');
 
                         menu.classList.remove('is-open');
-                        container.classList.add('is-locked');
+                        
+                        // Блокируем только если это карточка (inCard === 'true').
+                        // В форме создания (inCard === 'false') оставляем доступным.
+                        if (container.dataset.inCard === 'true') {
+                            container.classList.add('is-locked');
+                        }
 
                         if (typeof container.onPaperChange === 'function') {
                             container.onPaperChange(p.id, p.name);
@@ -1417,6 +1425,7 @@ JavaScript секции «Просчёт» новой страницы /proschet
             if (printerSelect) printerSelect.value = '';
             if (paperSelect) {
                 paperSelect.dataset.value = '';
+                paperSelect.classList.remove('is-locked'); // <--- ДОБАВИТЬ
                 // Сбрасываем визуальное состояние кастомного дропдауна
                 const triggerSpan = paperSelect.querySelector('.custom-paper-trigger span:first-child');
                 if (triggerSpan) triggerSpan.textContent = '— Выберите бумагу —';

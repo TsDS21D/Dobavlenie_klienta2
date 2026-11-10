@@ -178,6 +178,7 @@ def serialize_data():
             'delivery_date': o.delivery_date.isoformat() if o.delivery_date else None,
             'delivery_address': o.delivery_address, 'delivery_phone': o.delivery_phone,
             'delivery_status': o.delivery_status, 'is_courier_ordered': o.is_courier_ordered,
+            'is_strict_time': o.is_strict_time,
             'completed_at': o.completed_at.isoformat() if o.completed_at else None,
             'ready_datetime': o.ready_datetime.isoformat() if o.ready_datetime else None,
             'comment': o.comment,
@@ -807,6 +808,7 @@ def restore_from_zip(zip_file, mode='merge'):
                     'delivery_phone': o.get('delivery_phone', ''),
                     'delivery_status': o.get('delivery_status', 'pending'),
                     'is_courier_ordered': o.get('is_courier_ordered', False),
+                    'is_strict_time': o.get('is_strict_time', False), # <--- ДОБАВЛЕНО
                     'ready_datetime': parse_datetime(o['ready_datetime']) if o.get('ready_datetime') else None,
                     'comment': o.get('comment', ''),
                     'completed_at': completed_at_val,

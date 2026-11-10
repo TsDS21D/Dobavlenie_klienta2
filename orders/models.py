@@ -280,6 +280,15 @@ class Order(models.Model):
         default=False,
         help_text='Отмечается, если курьер на эту доставку уже заказан'
     )
+
+    # Флаг: заказ строго ко времени (критически важный по дедлайну).
+    # Включается/выключается вручную менеджером в интерфейсе (двойной клик по бейджу часов).
+    # Визуально выделяется зеленой рамкой на карточке заказа (только для статуса "В работе").
+    is_strict_time = models.BooleanField(
+        verbose_name='Строго ко времени',
+        default=False,
+        help_text='Помечает заказ как критически важный по времени'
+    )
     # Дата и время фактической выдачи заказа (когда перевели в статус 'completed')
     completed_at = models.DateTimeField(
         verbose_name='Дата выдачи',
@@ -639,6 +648,17 @@ class Product(models.Model):
     def formatted_total_price(self):
         """Форматированная цена с ₽."""
         return f"{self.total_price:.2f} ₽"
+
+    @property
+    def unit_price(self):
+        """
+        Цена за 1 штуку.
+        Вычисляется как итоговая стоимость изделия, делённая на тираж.
+        Округляется до 2 знаков после запятой.
+        """
+        if self.circulation and self.circulation > 0:
+            return (self.total_price / self.circulation).quantize(Decimal('0.01'))
+        return Decimal('0.00')
 
 
 # ============================================================================

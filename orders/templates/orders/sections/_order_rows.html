@@ -15,9 +15,10 @@ orders/templates/orders/sections/_order_rows.html
     <h3 class="list-orders-group-title">В работе</h3>
     <div class="list-orders-cards" id="list-orders-group-in-progress">
         {% for order in orders_in_progress %}
-            <div class="list-orders-card list-orders-card--in_progress"
+            <div class="list-orders-card list-orders-card--in_progress {% if order.is_strict_time and order.status == 'in_progress' %}list-orders-card--strict-time{% endif %}"
                  data-order-id="{{ order.id }}"
                  data-status="{{ order.status }}"
+                 data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
@@ -97,7 +98,9 @@ orders/templates/orders/sections/_order_rows.html
                     {% else %}
                         <!-- Для активных заказов считаем оставшиеся рабочие часы -->
                         {% with hours=order.get_working_hours_remaining %}
-                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}" 
+                                  title="Двойной клик для изменения параметра «Строго ко времени»" 
+                                  style="cursor: pointer;">
                                 ⏱️ {{ hours }}ч
                             </span>
                         {% endwith %}
@@ -183,6 +186,7 @@ orders/templates/orders/sections/_order_rows.html
                                         <div class="list-orders-product-header-row">
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
+                                            <span style="color: #888; margin-right: 0.5rem; font-size: 0.85rem;">{{ product.unit_price|floatformat:2 }} ₽</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                             {% if product.frozen_discount is not None %}
                                                 {% if order.client and product.frozen_discount == order.client.discount %}
@@ -222,6 +226,7 @@ orders/templates/orders/sections/_order_rows.html
                                             {{ tovar.name }}
                                             {% if tovar.article %}<span class="list-orders-tovar-article">(арт. {{ tovar.article }})</span>{% endif %}
                                         </span>
+                                        <span style="color: #888; margin-right: 0.5rem; font-size: 0.85rem;">{{ tovar.final_price_per_unit|floatformat:2 }} ₽</span>
                                         <span class="list-orders-tovar-qty editable-tovar-cell" data-field="quantity" data-original-value="{{ tovar.quantity }}">{{ tovar.quantity }} шт.</span>
                                         <span class="list-orders-tovar-price editable-tovar-cell" data-field="price" data-original-value="{{ tovar.price }}">{{ tovar.price }} ₽</span>
                                         <span class="list-orders-tovar-discount editable-tovar-cell {% if tovar.discount_source == 'client' %}list-orders-product-discount--client{% else %}list-orders-product-discount--manual{% endif %}" data-field="discount" data-original-value="{{ tovar.discount }}" title="Двойной клик для изменения скидки">
@@ -378,9 +383,10 @@ orders/templates/orders/sections/_order_rows.html
     <h3 class="list-orders-group-title">Приняты</h3>
     <div class="list-orders-cards" id="list-orders-group-accepted">
         {% for order in orders_accepted %}
-            <div class="list-orders-card list-orders-card--accepted"
+            <div class="list-orders-card list-orders-card--accepted {% if order.is_strict_time and order.status == 'in_progress' %}list-orders-card--strict-time{% endif %}"
                  data-order-id="{{ order.id }}"
                  data-status="{{ order.status }}"
+                 data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
@@ -460,7 +466,9 @@ orders/templates/orders/sections/_order_rows.html
                     {% else %}
                         <!-- Для активных заказов считаем оставшиеся рабочие часы -->
                         {% with hours=order.get_working_hours_remaining %}
-                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}" 
+                                  title="Двойной клик для изменения параметра «Строго ко времени»" 
+                                  style="cursor: pointer;">
                                 ⏱️ {{ hours }}ч
                             </span>
                         {% endwith %}
@@ -545,6 +553,7 @@ orders/templates/orders/sections/_order_rows.html
                                         <div class="list-orders-product-header-row">
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
+                                            <span style="color: #888; margin-right: 0.5rem; font-size: 0.85rem;">{{ product.unit_price|floatformat:2 }} ₽</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                             {% if product.frozen_discount is not None %}
                                                 {% if order.client and product.frozen_discount == order.client.discount %}
@@ -741,9 +750,10 @@ orders/templates/orders/sections/_order_rows.html
     <h3 class="list-orders-group-title">Готовы</h3>
     <div class="list-orders-cards" id="list-orders-group-ready">
         {% for order in orders_ready %}
-            <div class="list-orders-card list-orders-card--ready"
+            <div class="list-orders-card list-orders-card--ready {% if order.is_strict_time and order.status == 'in_progress' %}list-orders-card--strict-time{% endif %}"
                  data-order-id="{{ order.id }}"
                  data-status="{{ order.status }}"
+                 data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
@@ -823,7 +833,9 @@ orders/templates/orders/sections/_order_rows.html
                     {% else %}
                         <!-- Для активных заказов считаем оставшиеся рабочие часы -->
                         {% with hours=order.get_working_hours_remaining %}
-                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}" 
+                                  title="Двойной клик для изменения параметра «Строго ко времени»" 
+                                  style="cursor: pointer;">
                                 ⏱️ {{ hours }}ч
                             </span>
                         {% endwith %}
@@ -908,6 +920,7 @@ orders/templates/orders/sections/_order_rows.html
                                         <div class="list-orders-product-header-row">
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
+                                            <span style="color: #888; margin-right: 0.5rem; font-size: 0.85rem;">{{ product.unit_price|floatformat:2 }} ₽</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                             {% if product.frozen_discount is not None %}
                                                 {% if order.client and product.frozen_discount == order.client.discount %}
@@ -1105,9 +1118,10 @@ orders/templates/orders/sections/_order_rows.html
     <h3 class="list-orders-group-title">Выданы</h3>
     <div class="list-orders-cards" id="list-orders-group-completed">
         {% for order in orders_completed %}
-            <div class="list-orders-card list-orders-card--completed"
+            <div class="list-orders-card list-orders-card--completed {% if order.is_strict_time and order.status == 'in_progress' %}list-orders-card--strict-time{% endif %}"
                  data-order-id="{{ order.id }}"
                  data-status="{{ order.status }}"
+                 data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
@@ -1190,7 +1204,9 @@ orders/templates/orders/sections/_order_rows.html
                     {% else %}
                         <!-- Для активных заказов считаем оставшиеся рабочие часы -->
                         {% with hours=order.get_working_hours_remaining %}
-                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}">
+                            <span class="list-orders-hours-badge {% if hours <= 1 %}critical{% elif hours <= 3 %}warning{% else %}normal{% endif %}" 
+                                  title="Двойной клик для изменения параметра «Строго ко времени»" 
+                                  style="cursor: pointer;">
                                 ⏱️ {{ hours }}ч
                             </span>
                         {% endwith %}
@@ -1275,6 +1291,7 @@ orders/templates/orders/sections/_order_rows.html
                                         <div class="list-orders-product-header-row">
                                             <span class="list-orders-product-number">{{ forloop.counter }}.</span>
                                             <span class="list-orders-product-title">{{ product.title }}</span>
+                                            <span style="color: #888; margin-right: 0.5rem; font-size: 0.85rem;">{{ product.unit_price|floatformat:2 }} ₽</span>
                                             <span class="list-orders-product-circulation">{{ product.circulation }} шт.</span>
                                             {% if product.frozen_discount is not None %}
                                                 {% if order.client and product.frozen_discount == order.client.discount %}

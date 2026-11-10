@@ -1103,6 +1103,10 @@ def api_update_order(request, order_id):
         order.delivery_status = field_value
     elif field_name == 'is_courier_ordered':
         order.is_courier_ordered = field_value == 'true' or field_value == '1'
+    
+    elif field_name == 'is_strict_time':
+        # Флаг "строго ко времени". Включается/выключается двойным кликом по бейджу часов.
+        order.is_strict_time = field_value == 'true' or field_value == '1'
 
     else:
         return JsonResponse(
@@ -1189,6 +1193,7 @@ def api_update_order(request, order_id):
             'legal_entity_edo_status': order.legal_entity.edo_status if order.legal_entity else None,
             'contact_person_id': order.contact_person.id if order.contact_person else None,
             'delivery_address': order.delivery_address,
+            'is_strict_time': order.is_strict_time,
         },
     })
 

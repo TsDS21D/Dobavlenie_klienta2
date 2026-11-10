@@ -143,6 +143,7 @@ JavaScript секции «Список заказов» страницы /orders
         document.addEventListener('dblclick', handlePaymentToggleDblClick);
         document.addEventListener('change', handlePaymentFieldChange);
         document.addEventListener('dblclick', handleDeliveryToggleDblClick);
+        document.addEventListener('dblclick', handleStrictTimeToggle); // <--- ДОБАВЛЕНО
         document.addEventListener('change', handleDeliveryFieldChange);
         // Автоформатирование телефона при вводе и вставке
         document.addEventListener('input', function(e) {
@@ -1171,6 +1172,9 @@ JavaScript секции «Список заказов» страницы /orders
         if (event.target.closest('.list-orders-delivery-btn')) return;
         if (event.target.closest('.list-orders-delivery-status-btn')) return;
         if (event.target.closest('.list-orders-delivery-input')) return;
+        // Игнорируем клики по бейджу часов — на нём работает dblclick
+        // (переключение «Строго ко времени»), а не разворачивание карточки.
+        if (event.target.closest('.list-orders-hours-badge')) return;
 
         // Ищем карточку
         const card = event.target.closest('.list-orders-card');
@@ -3923,7 +3927,6 @@ function handleStatusChange(event) {
         // Сохранение.
         const save = () => {
             if (finished) return;
-            finished = true;
 
             const newValue = input.value.trim();
 
@@ -3933,6 +3936,8 @@ function handleStatusChange(event) {
                 input.focus();
                 return;
             }
+
+            finished = true;
 
             if (newValue === String(originalValue)) {
                 cell.classList.remove('editing-cell');
@@ -4170,5 +4175,88 @@ function handleStatusChange(event) {
             btn.disabled = false;
             btn.textContent = originalText;
         }
+    }    
+
+    // ========================================================================
+    // 20. СТРОГО КО ВРЕМЕНИ (ПЕРЕКЛЮЧЕНИЕ ПО ДВОЙНОМУ КЛИКУ)
+    // ========================================================================
+
+    /**
+     * Обработчик двойного клика по бейджу часов.
+     * Переключает флаг "строго ко времени" для заказа в статусе "В работе".
+     */
+    function handleStrictTimeToggle(event) {
+        const badge = event.target.closest('.list-orders-hours-badge');
+        if (!badge) return;
+
+        // Предотвращаем раскрытие/сворачивание карточки
+        event.stopPropagation();
+
+        const card = badge.closest('.list-orders-card');
+        if (!card) return;
+
+        const orderId = card.dataset.orderId;
+        if (!orderId) return;
+
+        // Проверяем статус: флаг доступен только для "В работе"
+        if (card.dataset.status !== 'in_progress') {
+            showNotification('Параметр «Строго ко времени» доступен только для заказов в работе', 'warning');
+            return;
+        }
+
+        // Определяем текущее состояние
+        const isStrictNow = card.classList.contains('list-orders-card--strict-time');
+        const newIsStrict = !isStrictNow;
+
+        // Оптимистично меняем UI
+        if (newIsStrict) {
+            card.classList.add('list-orders-card--strict-time');
+            card.dataset.strictTime = 'true';
+        } else {
+            card.classList.remove('list-orders-card--strict-time');
+            card.dataset.strictTime = 'false';
+        }
+
+        // Отправляем на сервер
+        const fd = new FormData();
+        fd.append('field_name', 'is_strict_time');
+        fd.append('field_value', newIsStrict ? 'true' : 'false');
+
+        fetch('/orders/api/order/' + orderId + '/update-field/', {
+            method: 'POST',
+            body: fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(newIsStrict ? 'Включено «Строго ко времени»' : 'Отключено «Строго ко времени»', 'success');
+            } else {
+                // Откат при ошибке
+                if (newIsStrict) {
+                    card.classList.remove('list-orders-card--strict-time');
+                    card.dataset.strictTime = 'false';
+                } else {
+                    card.classList.add('list-orders-card--strict-time');
+                    card.dataset.strictTime = 'true';
+                }
+                showNotification(data.error || 'Ошибка сохранения', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            // Откат при ошибке сети
+            if (newIsStrict) {
+                card.classList.remove('list-orders-card--strict-time');
+                card.dataset.strictTime = 'false';
+            } else {
+                card.classList.add('list-orders-card--strict-time');
+                card.dataset.strictTime = 'true';
+            }
+            showNotification('Ошибка сети при сохранении', 'error');
+        });
     }    
 })();
