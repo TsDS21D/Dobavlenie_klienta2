@@ -43,6 +43,10 @@ class WebOrderAdmin(admin.ModelAdmin):
     # Встроенный список товаров
     inlines = [WebOrderItemInline]
 
+    def items_summary(self, obj):
+        return ', '.join(f'{i.name} ×{i.count}' for i in obj.items.all())
+    items_summary.short_description = 'Состав'
+
 
 @admin.register(WebOrderItem)
 class WebOrderItemAdmin(admin.ModelAdmin):
