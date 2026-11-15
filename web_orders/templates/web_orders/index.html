@@ -113,6 +113,12 @@
                                     </span>
                                 {% endif %}
 
+                                {% comment %} Статус, который клиент видит в ЛК сайта. Вычисляется в services.get_site_status_code, а не хранится в базе — поэтому не может разойтись с реальностью. Класс с кодом статуса нужен для цвета. {% endcomment %}
+                                <span class="web-orders-card-site web-orders-card-site--{{ order.site_status_info.status }}"
+                                      title="Статус, который клиент видит на сайте">
+                                    {{ order.site_status_info.status_label }}
+                                </span>
+
                                 <span class="web-orders-card-sum">
                                     {{ order.total_summ|floatformat:2 }} ₽
                                 </span>

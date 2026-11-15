@@ -256,6 +256,19 @@
             {% if active_app == 'orders' %}На экране{% else %}Открыть{% endif %}
         </a>
     </div>
+    <!-- Панель входящих заявок с сайта (web_orders) -->
+    <!-- Отдельный пункт нужен, чтобы менеджер находил страницу без закладки:
+         иначе /web-orders/ открывается только по прямой ссылке. -->
+    <div class="nav-panel nav-web-orders">
+        <div class="nav-info">
+            <strong>Заявки с сайта</strong>
+            <div>Входящие с bukva-a.ru</div>
+        </div>
+        <a href="{% url 'web_orders:index' %}"
+           class="nav-btn {% if active_app == 'web_orders' %}nav-btn-active{% else %}nav-btn-inactive{% endif %}">
+            {% if active_app == 'web_orders' %}На экране{% else %}Открыть{% endif %}
+        </a>
+    </div>
 
     <!-- Панель справочника шаблонов просчётов -->
     <div class="nav-panel nav-templates">

@@ -2,16 +2,21 @@
 Представления (views) приложения "web_orders" (Входящие заявки с сайта).
 На этом шаге — один эндпоинт: приём POST-запроса от Moguta с данными заказа.
 """
+import hmac
 import json
 from decimal import Decimal, InvalidOperation
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
+from django.conf import settings
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from .models import WebOrder, WebOrderItem
-from .services import convert_web_order_to_order
+from .models import WebOrder, WebOrderItem, SiteOrderStatus
+from .services import convert_web_order_to_order, get_site_status_payload
 
 def _to_decimal(value):
     """
@@ -64,6 +69,54 @@ def _to_json(value):
     if isinstance(value, (dict, list)):
         return value
     return None
+
+
+
+def _send_web_order_event(event_type, web_order, request):
+    """
+    Рассылает событие об изменении заявки во все открытые вкладки /web-orders/.
+
+    ЗАЧЕМ: без этого менеджер видит новую заявку только после F5.
+    Событие получает WebOrdersConsumer (web_orders/consumers.py) и
+    пересылает всем подписанным вкладкам.
+
+    event_type: 'created' | 'updated' | 'converted'
+
+    ПРО actor_tab_id:
+    Session_key в Django общий на все вкладки браузера, поэтому по нему
+    нельзя отличить «своё действие в этой вкладке» от «своё действие
+    в соседней». Клиент шлёт заголовок X-Tab-Id (его ставит tab_id.js —
+    он подключается в orders/base.html, а наша страница её наследует).
+    Мы пробрасываем его в событие, клиент сравнивает со своим tab_id
+    и не показывает тост о собственном действии.
+
+    ПОЧЕМУ ВСЁ ОБЁРНУТО В try/except:
+    канальный слой живёт в Redis. Если он недоступен, приём заявки
+    с сайта не должен падать из-за этого — заявка важнее уведомления.
+    """
+    channel_layer = get_channel_layer()
+
+    # Канальный слой не настроен (например, тестовый запуск без Redis) —
+    # молча выходим: заявка сохранится, просто вкладки не обновятся сами.
+    if channel_layer is None:
+        return
+
+    try:
+        async_to_sync(channel_layer.group_send)(
+            # Имя группы — то же, что в WebOrdersConsumer.connect()
+            'web_orders_list',
+            {
+                'type': 'web_order_event',   # метод-обработчик в консьюмере
+                'event': event_type,
+                'web_order_id': web_order.id,
+                'number': web_order.moguta_order_number or '',
+                'actor_tab_id': request.headers.get('X-Tab-Id', ''),
+            },
+        )
+    except Exception:
+        # Redis недоступен, соединение оборвалось и т.п. Не роняем
+        # основной сценарий (создание/конвертацию заявки) из-за этого.
+        pass
 
 @csrf_exempt  # Запросы с Moguta идут без CSRF-токена
 @require_POST
@@ -229,6 +282,15 @@ def api_receive_order(request):
                     property=item_data.get('property') or '',
                     total_price=_to_decimal(item_data.get('total_price')),
                 )
+            # --- Статусы для сайта ---
+            # Создаём сразу при приёме, а не при конвертации: клиент видит
+            # свой заказ в личном кабинете с первой секунды, и статусы
+            # («В обработке», макет «Не загружен») должны существовать уже
+            # тогда. Конвертация в заказ их только дополнит.
+            #
+            # Внутри той же транзакции: если что-то упадёт, не останется
+            # заявки без записи статусов.
+            SiteOrderStatus.objects.create(web_order=web_order)
 
     except IntegrityError:
         # Гонка дублей: два запроса одновременно прошли предварительную
@@ -255,6 +317,12 @@ def api_receive_order(request):
             'error': f'Ошибка создания заявки: {str(e)}'
         }, status=500)
     
+    # --- Сообщаем открытым вкладкам /web-orders/ ---
+    # Новая заявка с сайта должна появиться у менеджера без F5.
+    # Если канальный слой недоступен — функция молча выйдет,
+    # заявка к этому моменту уже сохранена.
+    _send_web_order_event('created', web_order, request)
+
     # --- Успех ---
     return JsonResponse({
         'success': True,
@@ -330,6 +398,16 @@ def list_web_orders(request):
             (item.code or '').startswith('PR-') for item in order.items.all()
         )
 
+        # --- Статус, который видит клиент на сайте ---
+        # Он НЕ хранится, а вычисляется из заявки и связанного заказа
+        # (см. get_site_status_code в services.py). Считаем здесь, чтобы
+        # менеджер в карточке видел ту же картину, что клиент в ЛК.
+        #
+        # Функция делает один запрос к SiteOrderStatus и один к Order
+        # на заявку. Заявок в списке немного (это буфер, а не архив),
+        # поэтому отдельная оптимизация не нужна.
+        order.site_status_info = get_site_status_payload(order)
+
         by_status.setdefault(order.status, []).append(order)
 
     # --- Шаг 3. Готовые группы для шаблона ---
@@ -355,10 +433,10 @@ def list_web_orders(request):
         # Общее число неудалённых заявок — для заголовка страницы.
         'total_count': sum(group['count'] for group in groups),
         # active_app — какой раздел подсветить в правой панели навигации
-        # (counter/app_panels.html). Отдельного пункта «Заявки с сайта» там
-        # пока нет, поэтому подсвечиваем «Заказы». Когда добавим пункт —
-        # заменим на 'web_orders'.
-        'active_app': 'orders',
+        # (counter/app_panels.html). Значение должно совпадать с условием
+        # в шаблоне панели, иначе кнопка будет выглядеть как «Открыть»
+        # вместо «На экране».
+        'active_app': 'web_orders',
     }
 
     return render(request, 'web_orders/index.html', context)
@@ -435,6 +513,10 @@ def api_reject_web_order(request, order_id):
     web_order.status = WebOrder.STATUS_REJECTED
     web_order.save(update_fields=['status', 'manager_comment', 'updated_at'])
 
+    # Оповещаем другие вкладки: карточка должна переехать в «Отклонена»
+    # и у них тоже. Свою вкладку они отсекут по actor_tab_id.
+    _send_web_order_event('updated', web_order, request)
+
     # status_display — готовое человеческое название («Отклонена») из
     # STATUS_CHOICES. JS покажет его в уведомлении, не дублируя текст в коде.
     return JsonResponse({
@@ -499,6 +581,9 @@ def api_restore_web_order(request, order_id):
     web_order.status = WebOrder.STATUS_NEW
     web_order.save(update_fields=['status', 'updated_at'])
 
+    # Возврат — тоже изменение статуса, другие вкладки должны обновиться.
+    _send_web_order_event('updated', web_order, request)
+
     return JsonResponse({
         'success': True,
         'status': web_order.status,
@@ -556,9 +641,113 @@ def api_convert_web_order(request, order_id):
             'error': 'Ошибка конвертации: %s' % str(e),
         }, status=500)
 
+    # Оповещаем другие вкладки: заявка стала «Конвертированной»,
+    # у них она тоже должна уехать в эту группу.
+    _send_web_order_event('converted', web_order, request)
+
     return JsonResponse({
         'success': True,
         'order_id': order.id,
         # Номер заказа — для тоста: «Создан заказ ORD-12».
         'order_number': order.number,
+    })
+
+
+
+@csrf_exempt
+def api_site_statuses(request):
+    """
+    Отдаёт сайту bukva-a.ru статусы заказов для личного кабинета.
+    GET /web-orders/api/statuses/?ids=60,59,58
+
+    ЗАЧЕМ: клиент в ЛК на сайте должен видеть актуальный статус
+    производства, статус макета, оплату, ссылку на оплату и счёт.
+    Источник истины — ИС, поэтому сайт спрашивает её, а не хранит копию.
+
+    АВТОРИЗАЦИЯ — по образцу уже работающего API цен
+    (calculator/views.py → api_get_webcalc_prices):
+        1. заголовок X-Beauty-Secret сравнивается с BUKVA_API_SECRET
+           через hmac.compare_digest (защита от timing-атак);
+        2. если задан BUKVA_ALLOWED_IPS — проверяем IP клиента;
+        3. CSRF отключён: запрос идёт с чужого домена (bukva-a.ru).
+
+    ОТВЕТ:
+        {"success": true, "statuses": {"60": {...}, "59": {...}}}
+        Ключ — moguta_order_id, то есть ID заказа в базе Moguta.
+    """
+    # ===== Шаг 1. Проверка секретного ключа =====
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    # Ключ не настроен — это ошибка конфигурации, а не клиента.
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+            'message': 'Секретный ключ BUKVA_API_SECRET не задан в настройках',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+            'message': 'Неверный секретный ключ',
+        }, status=401)
+
+    # ===== Шаг 2. Проверка IP (если список задан) =====
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'forbidden',
+                'message': 'IP %s не разрешён' % client_ip,
+            }, status=403)
+
+    # ===== Шаг 3. Разбор списка ID =====
+    ids_raw = request.GET.get('ids', '')
+
+    # Оставляем только числа: мусор в параметре не должен ронять запрос.
+    ids = []
+    for chunk in ids_raw.split(','):
+        chunk = chunk.strip()
+        if chunk.isdigit():
+            ids.append(int(chunk))
+
+    if not ids:
+        return JsonResponse({
+            'success': False,
+            'error': 'bad_request',
+            'message': 'Параметр ids обязателен, например ?ids=60,59',
+        }, status=400)
+
+    # Защита от гигантского запроса: в ЛК редко больше 20 заказов.
+    if len(ids) > 100:
+        return JsonResponse({
+            'success': False,
+            'error': 'too_many_ids',
+            'message': 'Максимум 100 заказов за один запрос',
+        }, status=400)
+
+    # ===== Шаг 4. Собираем ответ =====
+    # prefetch_related('items') не нужен для статусов, но пригодится,
+    # если позже понадобится состав. Сейчас ограничились быстрым выбором.
+    web_orders = WebOrder.objects.filter(
+        moguta_order_id__in=ids,
+        is_deleted=False,
+    )
+
+    statuses = {}
+    for web_order in web_orders:
+        # Ключ — именно moguta_order_id: сайт знает свой ID заказа,
+        # а не наш внутренний.
+        statuses[str(web_order.moguta_order_id)] = get_site_status_payload(web_order)
+
+    return JsonResponse({
+        'success': True,
+        'statuses': statuses,
     })

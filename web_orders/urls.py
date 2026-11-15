@@ -17,6 +17,18 @@ urlpatterns = [
     # Имя 'index' — по аналогии с orders:index и sklad:index, чтобы в
     # шаблонах и редиректах было единообразно: {% url 'web_orders:index' %}.
     path('', views.list_web_orders, name='index'),
+
+    # GET /web-orders/api/statuses/?ids=60,59
+    # Отдаёт сайту bukva-a.ru статусы заказов для личного кабинета:
+    # производство, макет, оплату, ссылку на оплату и счёт.
+    # Авторизация — заголовок X-Beauty-Secret (BUKVA_API_SECRET),
+    # как у API цен в calculator.
+    path(
+        'api/statuses/',
+        views.api_site_statuses,
+        name='api_site_statuses',
+    ),
+
     # POST /web-orders/api/convert/<id>/
     # Конвертировать заявку в заказ (orders.Order).
     # Вызывается кнопкой «Конвертировать в заказ».

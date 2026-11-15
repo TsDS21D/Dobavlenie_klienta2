@@ -169,6 +169,10 @@
                         card.open = true;
                     }
                 });
+
+                // После перерисовки количество «Новых» могло измениться —
+                // пересчитываем и обновляем иконку вкладки.
+                updateFavicon();
             });
     }
 
@@ -286,4 +290,215 @@
         event.preventDefault();
         runAction(button, ACTIONS[actionKey]);
     });
+
+    /* ============================================================
+       WEBSOCKET + ИКОНКА ВКЛАДКИ
+       ============================================================
+
+       ЗАЧЕМ: менеджер держит /web-orders/ открытой. Новая заявка с сайта
+       должна появиться сама, без F5, а иконка вкладки — показать, есть ли
+       работа.
+
+       ЦВЕТА (приоритет сверху вниз):
+         синий   — есть непросмотренные заявки (статус «Новая»).
+                   Показывается НЕЗАВИСИМО от связи: работа важнее техники.
+         зелёный — непросмотренных нет, соединение есть;
+         красный — непросмотренных нет, соединения нет;
+         серый   — идёт подключение (и непросмотренных нет).
+
+       ПРО ОГРАНИЧЕНИЕ: количество «Новых» известно на момент загрузки
+       страницы и обновляется по WebSocket-событиям. Если связь уже
+       оборвана, новые заявки прийти не могут — иконка покажет то, что
+       было известно к моменту обрыва.
+       ============================================================ */
+
+    // Адрес сокета на сервере (см. web_orders/routing.py).
+    var WS_PATH = '/ws/web-orders/';
+
+    // Пауза перед переподключением после обрыва.
+    var WS_RECONNECT_DELAY_MS = 3000;
+
+    // Текущее состояние соединения: 'connecting' | 'connected' | 'disconnected'.
+    // Храним отдельно от цвета, потому что цвет зависит ещё и от количества
+    // непросмотренных заявок.
+    var wsState = 'connecting';
+
+    /* ------------------------------------------------------------
+       Иконка вкладки — глобус.
+
+       Цвет в data URI кодируется как %23RRGGBB: решётка # внутри
+       data:-ссылки должна быть экранирована, иначе браузер обрежет
+       остаток строки. Подставляем нужный цвет вместо COLOR.
+       ------------------------------------------------------------ */
+    var GLOBE_SVG =
+        "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' " +
+        // stroke-width=2 — линии тоньше, чем 2.5 у иконок из base.html:
+        // на размере 16×16 толстые линии выглядят жирно.
+        "fill='none' stroke='COLOR' stroke-width='2' stroke-linecap='round' " +
+        "stroke-linejoin='round'><circle cx='12' cy='12' r='10'></circle>" +
+        "<line x1='2' y1='12' x2='22' y2='12'></line>" +
+        "<path d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 " +
+        "15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'></path></svg>";
+
+    var FAVICON_COLORS = {
+        new: '%232a6fc9',           // синий  — есть непросмотренные заявки
+        connected: '%230B8661',     // зелёный
+        connecting: '%23999999',    // серый
+        disconnected: '%23c0392b'   // красный
+    };
+
+    /**
+     * Считает количество заявок в статусе «Новая» по текущей разметке.
+     *
+     * ПОЧЕМУ ИЗ DOM, А НЕ ОТДЕЛЬНЫМ ЗАПРОСОМ: список уже отрисован сервером,
+     * и цифра в заголовке группы — это и есть актуальное число. Отдельный
+     * fetch дал бы лишний запрос на каждое обновление.
+     *
+     * Если группы «Новая» нет (например, все заявки обработаны) —
+     * возвращаем 0.
+     */
+    function getNewOrdersCount() {
+        var group = document.getElementById('web-orders-group-new');
+        if (!group) {
+            return 0;
+        }
+
+        var counter = group.querySelector('.web-orders-group-count');
+        if (!counter) {
+            return 0;
+        }
+
+        // В разметке может быть «5» или « 5 » — parseInt справится,
+        // а нечисло даст NaN, который мы превращаем в 0.
+        var value = parseInt(counter.textContent, 10);
+        return isNaN(value) ? 0 : value;
+    }
+
+    /**
+     * Ставит иконке нужный цвет по приоритету: работа → связь.
+     * Вызывается при смене состояния сокета и после перерисовки списка.
+     */
+    function updateFavicon() {
+        var state;
+
+        if (getNewOrdersCount() > 0) {
+            // Есть непросмотренные заявки — синий, независимо от связи.
+            state = 'new';
+        } else {
+            state = wsState;
+        }
+
+        var link = document.getElementById('dynamic-favicon');
+        if (!link) {
+            // Страница открыта вне base.html — просто ничего не делаем.
+            return;
+        }
+
+        link.setAttribute(
+            'href',
+            GLOBE_SVG.replace('COLOR', FAVICON_COLORS[state] || FAVICON_COLORS.connecting)
+        );
+    }
+
+    /**
+     * Реакция на событие от другого пользователя/вкладки.
+     */
+    function handleRemoteEvent(payload) {
+        // Своё собственное действие: back-end положил наш X-Tab-Id в событие.
+        // Данные в этой вкладке уже обновлены локально — повторно
+        // перерисовывать и показывать тост не нужно.
+        var myTabId = (typeof window.getTabId === 'function') ? window.getTabId() : '';
+        if (payload.actor_tab_id && payload.actor_tab_id === myTabId) {
+            return;
+        }
+
+        var number = payload.number ? (' ' + payload.number) : '';
+        var text;
+
+        if (payload.event === 'created') {
+            text = 'Новая заявка с сайта' + number;
+        } else if (payload.event === 'converted') {
+            text = 'Заявка' + number + ' конвертирована в заказ';
+        } else {
+            text = 'Заявка' + number + ' изменена';
+        }
+
+        showToast(text, 'success');
+
+        // Раскрытые карточки запоминаем, чтобы не схлопнуть их после
+        // перерисовки — менеджер мог читать состав заявки.
+        var openCardIds = Array.prototype.map.call(
+            document.querySelectorAll('.web-orders-card[open]'),
+            function (el) { return el.getAttribute('data-order-id'); }
+        );
+
+        // refreshSection сам вызовет updateFavicon() после перерисовки,
+        // поэтому отдельно пересчитывать «Новые» здесь не нужно.
+        refreshSection(openCardIds).catch(function () {
+            showToast('Не удалось обновить список — нажмите F5', 'error');
+        });
+    }
+
+    /**
+     * Подключение и переподключение к сокету.
+     */
+    function connectWebSocket() {
+        // wss:// на HTTPS, ws:// на локальной разработке.
+        var scheme = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
+        var socket;
+
+        try {
+            socket = new WebSocket(scheme + window.location.host + WS_PATH);
+        } catch (e) {
+            // Некорректный URL — не роняем страницу, попробуем позже.
+            wsState = 'disconnected';
+            updateFavicon();
+            setTimeout(connectWebSocket, WS_RECONNECT_DELAY_MS);
+            return;
+        }
+
+        wsState = 'connecting';
+        updateFavicon();
+
+        socket.onopen = function () {
+            wsState = 'connected';
+            updateFavicon();
+        };
+
+        socket.onmessage = function (event) {
+            var payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (e) {
+                return;   // не наш формат — игнорируем
+            }
+
+            if (payload.type !== 'web_order_event') {
+                return;
+            }
+
+            handleRemoteEvent(payload);
+        };
+
+        socket.onclose = function () {
+            // Сюда попадаем и при обрыве, и при закрытии страницы.
+            // Переподключаемся: вкладка должна жить.
+            wsState = 'disconnected';
+            updateFavicon();
+            setTimeout(connectWebSocket, WS_RECONNECT_DELAY_MS);
+        };
+
+        socket.onerror = function () {
+            // onerror всегда сопровождается onclose, поэтому переподключение
+            // запустится там. Здесь только гасим событие.
+            socket.close();
+        };
+    }
+
+    // Первичная отрисовка иконки: если на странице уже есть «Новые»,
+    // синий должен появиться сразу, не дожидаясь сокета.
+    updateFavicon();
+
+    // Запускаем соединение: скрипт подключён в конце body, DOM уже готов.
+    connectWebSocket();
 })();

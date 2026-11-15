@@ -23,6 +23,7 @@ import counter.routing
 import proschety.routing 
 import orders.routing  # WebSocket-маршруты для приложения "Заказы"
 import shablony_proschetov.routing  # WebSocket-маршруты для справочника шаблонов
+import web_orders.routing  # WebSocket-маршруты для входящих заявок с сайта
 
 # Получаем стандартное Django ASGI приложение
 django_asgi_app = get_asgi_application()
@@ -40,7 +41,8 @@ application = ProtocolTypeRouter({
                 counter.routing.websocket_urlpatterns +
                 proschety.routing.websocket_urlpatterns +
                 orders.routing.websocket_urlpatterns +      # маршруты заказов
-                shablony_proschetov.routing.websocket_urlpatterns  # маршруты шаблонов
+                shablony_proschetov.routing.websocket_urlpatterns +  # маршруты шаблонов
+                web_orders.routing.websocket_urlpatterns    # маршруты входящих заявок
             )
         )
     ),

@@ -142,7 +142,9 @@
     /* Grid, а не flex: колонки должны совпадать во всех карточках,
        даже если номер или имя короче/длиннее. */
     display: grid;
-    grid-template-columns: 90px 115px 1fr auto auto auto 18px;
+    /* Колонки: номер · дата · клиент · плательщик · калькулятор ·
+       статус на сайте · сумма · стрелка. */
+    grid-template-columns: 90px 115px 1fr auto auto auto auto 18px;
     align-items: center;
     gap: 0.8rem;
     padding: 0.6rem 0.8rem;
@@ -204,6 +206,62 @@
     border: 1px solid #cbe9cd;
     color: var(--brand-green);
     white-space: nowrap;
+}
+
+/* Значок «статус на сайте» — то, что клиент видит в ЛК bukva-a.ru.
+   Базовый вид нейтральный, конкретный цвет задаётся кодом статуса:
+   .web-orders-card-site--in_work, --processing, --ready и т.д.
+   (код приходит из services.get_site_status_code). */
+.web-orders-card-site {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-border);
+    background: #fff;
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+/* В обработке — тёплый янтарный, как «в обработке» в ЛК сайта. */
+.web-orders-card-site--processing {
+    background: #fdf6e9;
+    border-color: #f2ddb4;
+    color: #a8700f;
+}
+
+/* В работе — фирменный зелёный. */
+.web-orders-card-site--in_work {
+    background: var(--brand-green-light);
+    border-color: #cbe9cd;
+    color: var(--brand-green);
+}
+
+/* Готов к выдаче — голубой: работа сделана, ждём клиента. */
+.web-orders-card-site--ready {
+    background: #eaf3f9;
+    border-color: #d3ecfd;
+    color: #2a6fc9;
+}
+
+/* В доставке — сине-фиолетовый. */
+.web-orders-card-site--delivering {
+    background: #eef1fb;
+    border-color: #d6ddf7;
+    color: #4b5bab;
+}
+
+/* Выполнен — спокойный серо-зелёный (заказ закрыт). */
+.web-orders-card-site--done {
+    background: #f4f7f4;
+    border-color: #dbe6dc;
+    color: #5c7a63;
+}
+
+/* Отменён — нейтральный серый. */
+.web-orders-card-site--cancelled {
+    background: #f9f9f9;
+    border-color: #ececec;
+    color: #888;
 }
 
 /* Сумма заявки. */
@@ -413,14 +471,17 @@
 
 /* ==================== АДАПТИВ ==================== */
 
-/* Планшеты: колонки шапки сжимаются, часть данных переносится. */
+/* Планшеты: колонки шапки сжимаются, второстепенное скрывается. */
 @media (max-width: 900px) {
     .web-orders-card-head {
+        /* Осталось: номер · клиент · статус на сайте · сумма · стрелка */
         grid-template-columns: 80px 1fr auto auto 18px;
     }
-    /* Дату и тип плательщика на планшете скрываем — они второстепенны. */
+    /* Дату, тип плательщика и метку «Калькулятор» на планшете скрываем —
+       они второстепенны, а место нужно статусу на сайте и сумме. */
     .web-orders-card-date,
-    .web-orders-card-type {
+    .web-orders-card-type,
+    .web-orders-card-calc {
         display: none;
     }
 }
@@ -428,7 +489,8 @@
 /* Телефоны: карточка в одну колонку, шапка в две строки. */
 @media (max-width: 600px) {
     .web-orders-card-head {
-        grid-template-columns: 1fr auto 18px;
+        /* Осталось: номер · статус на сайте · сумма · стрелка */
+        grid-template-columns: 1fr auto auto 18px;
         row-gap: 0.3rem;
     }
     /* Клиент — на всю ширину второй строки. */
@@ -453,65 +515,69 @@
 
 
 /* ==================== ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ (ТОСТЫ) ==================== */
-/* Появляются после AJAX-действий (например, «Заявка отклонена»).
-   Контейнер фиксирован в правом нижнем углу — там он не перекрывает
-   ни карточки, ни правую панель навигации. */
+/* Оформление 1-в-1 как у верхних уведомлений в /orders/
+   (.proschety-top-notification в list_orders.css): та же палитра,
+   та же полупрозрачность, то же положение — верхний левый угол. */
 
 .web-orders-toasts {
     position: fixed;
-    right: 1.25rem;
-    bottom: 1.25rem;
-    /* Выше правой панели навигации, иначе панель перекроет тост. */
-    z-index: 3000;
+    /* Координаты совпадают с orders: 20px от верхнего и левого края. */
+    top: 20px;
+    left: 20px;
+    /* Выше правой панели навигации, иначе она перекроет уведомление. */
+    z-index: 1400;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    /* Контейнер не должен перехватывать клики — иначе он закроет
-       собой часть страницы, хотя визуально пуст. */
+    gap: 0.4rem;
+    max-width: 320px;
+    /* Контейнер не перехватывает клики — иначе он закроет часть страницы. */
     pointer-events: none;
 }
 
 .web-orders-toast {
-    /* Сами тосты клики не перехватывают, но и не мешают читать текст. */
-    pointer-events: none;
-    max-width: 320px;
-    padding: 0.6rem 0.9rem;
-    border-radius: var(--radius-input);
-    font-size: 0.82rem;
-    line-height: 1.35;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-    /* Появление: плавно выезжает справа и проявляется. */
+    pointer-events: auto;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    /* Матовое стекло: полупрозрачный фон + размытие, как в /orders/. */
+    backdrop-filter: blur(3px);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
     animation: web-orders-toast-in 0.2s ease-out;
 }
 
-/* Успех — в фирменной зелёной гамме. */
+/* Успех — фирменная зелёная гамма (цвета взяты из .proschety-top-notification). */
 .web-orders-toast--success {
-    background: var(--brand-green-light);
-    border: 1px solid #cbe9cd;
-    color: var(--brand-green);
+    background: rgba(228, 244, 236, 0.94);
+    border: 1px solid rgba(11, 134, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(11, 134, 97, 0.18);
+    color: #0a6e51;
 }
 
-/* Ошибка — мягкая красная, как уведомления об ошибках в ЛК сайта. */
+/* Ошибка — мягкая красная, как .proschety-top-notification-error. */
 .web-orders-toast--error {
-    background: #fdf1f1;
-    border: 1px solid #f7d5d5;
-    color: #c0392b;
+    background: rgba(244, 228, 227, 0.94);
+    border: 1px solid rgba(170, 100, 97, 0.45);
+    box-shadow: 0 8px 20px rgba(122, 40, 35, 0.18);
+    color: #a03a35;
 }
 
-/* Класс добавляется за 200 мс до удаления элемента из DOM. */
+/* Класс добавляется за 200 мс до удаления элемента из DOM:
+   плавно уводим вверх и гасим прозрачность. */
 .web-orders-toast--hide {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateY(-8px);
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+/* Появление: выезжает сверху и проявляется. */
 @keyframes web-orders-toast-in {
     from {
         opacity: 0;
-        transform: translateX(12px);
+        transform: translateY(-8px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }

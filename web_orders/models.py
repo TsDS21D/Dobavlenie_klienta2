@@ -351,3 +351,104 @@ class WebOrderItem(models.Model):
     def __str__(self):
         """Строковое представление: «Визитки × 1000»."""
         return f'{self.name} × {self.count}'
+
+
+
+class SiteOrderStatus(models.Model):
+    """
+    Данные интернет-заказа, которые видит клиент в личном кабинете bukva-a.ru.
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ МОДЕЛЬ, А НЕ ПОЛЯ В orders.Order:
+    приложение orders — про производство и бухгалтерию, и его модель нельзя
+    трогать без отдельного согласования (это ядро). Всё, что относится
+    к интеграции с сайтом, живёт в интеграционном приложении web_orders.
+    Так у нас нет ни одной миграции в orders.
+
+    ЧЕГО ЗДЕСЬ НЕТ И ПОЧЕМУ:
+        • статус производства для сайта — не храним, он ВЫЧИСЛЯЕТСЯ
+          из orders.Order (статус, доставка, курьер) и web_orders.WebOrder
+          (отклонена или нет). Хранить копию значит рано или поздно
+          получить две разные правды;
+        • статус оплаты — тоже вычисляется из orders.Order.is_paid:
+          деньги либо пришли, либо нет, дублировать нечего.
+
+    ЧТО ДЕЙСТВИТЕЛЬНО НУЖНО ХРАНИТЬ:
+        • статус макета — такого понятия в orders нет вообще;
+        • ссылку на оплату — её формирует менеджер вручную (ЮKassa);
+        • файл счёта — бухгалтерия загружает PDF для юрлиц.
+    """
+
+    # ===== СТАТУС МАКЕТА =====
+    # Значения повторяют список из доп. поля Moguta (ID 4), чтобы клиент
+    # видел те же слова, что и раньше, и чтобы можно было без потерь
+    # перейти с Moguta на ИС как источник данных.
+    LAYOUT_NOT_LOADED = 'not_loaded'   # макет ещё не присылали
+    LAYOUT_CHECKING = 'checking'       # клиент прислал, мы смотрим
+    LAYOUT_CHECKED = 'checked'         # проверен, можно печатать
+    LAYOUT_ERRORS = 'errors'           # найдены ошибки, нужно переделать
+
+    LAYOUT_CHOICES = [
+        (LAYOUT_NOT_LOADED, 'Не загружен'),
+        (LAYOUT_CHECKING, 'На проверке'),
+        (LAYOUT_CHECKED, 'Проверен'),
+        (LAYOUT_ERRORS, 'Содержит ошибки'),
+    ]
+
+    # ===== СВЯЗЬ С ЗАЯВКОЙ =====
+    # OneToOne: у каждой заявки ровно одна запись статусов.
+    # CASCADE: удалили заявку — статусы для сайта больше не нужны.
+    # related_name='site_status' даёт удобное обращение web_order.site_status.
+    web_order = models.OneToOneField(
+        WebOrder,
+        verbose_name='Заявка',
+        on_delete=models.CASCADE,
+        related_name='site_status',
+    )
+
+    layout_status = models.CharField(
+        verbose_name='Статус макета',
+        max_length=20,
+        choices=LAYOUT_CHOICES,
+        default=LAYOUT_NOT_LOADED,
+        help_text='Что клиент видит в личном кабинете на сайте',
+    )
+
+    # ===== ССЫЛКА НА ОПЛАТУ =====
+    # Для физлиц: менеджер создаёт платёж в ЮKassa и вставляет ссылку.
+    # max_length=500 — ссылки ЮKassa бывают длинными (параметры + подпись).
+    pay_link = models.CharField(
+        verbose_name='Ссылка на оплату',
+        max_length=500,
+        blank=True,
+        default='',
+        help_text='Ссылка на оплату (ЮKassa) для физических лиц',
+    )
+
+    # ===== СЧЁТ НА ОПЛАТУ (PDF) =====
+    # Для юрлиц: файл, который клиент скачивает из личного кабинета.
+    # upload_to — подпапка внутри MEDIA_ROOT (media/web_orders/invoices/).
+    # null=True — файла может не быть (счёт ещё не выставили).
+    invoice_file = models.FileField(
+        verbose_name='Счёт на оплату (PDF)',
+        upload_to='web_orders/invoices/',
+        blank=True,
+        null=True,
+        help_text='PDF со счётом для юридических лиц',
+    )
+
+    # ===== СЛУЖЕБНОЕ =====
+    # auto_now: фиксирует любое изменение — удобно, когда смотришь,
+    # давно ли менеджер трогал статусы.
+    updated_at = models.DateTimeField(
+        verbose_name='Дата обновления',
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = 'Статусы для сайта'
+        verbose_name_plural = 'Статусы для сайта'
+
+    def __str__(self):
+        """Строковое представление: «Статусы заявки M-01060»."""
+        number = self.web_order.moguta_order_number or self.web_order.id
+        return 'Статусы заявки %s' % number    

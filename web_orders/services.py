@@ -27,7 +27,7 @@ from orders.models import Order, OrderTovar
 from orders.services import add_product_to_order
 from calculator.models_list_proschet import Proschet
 
-from .models import WebOrder
+from .models import WebOrder, SiteOrderStatus
 
 
 def _normalize_phone(phone):
@@ -336,3 +336,156 @@ def convert_web_order_to_order(web_order, created_by=None):
     ])
 
     return order
+
+
+
+# ============================================================================
+# СТАТУСЫ ДЛЯ САЙТА (bukva-a.ru)
+# ============================================================================
+
+# Подписи статусов — те же слова, что клиент видел в Moguta.
+# Ключ — короткий код (удобно передавать в JSON и использовать в JS).
+SITE_STATUS_LABELS = {
+    'processing': 'В обработке',
+    'in_work': 'В работе',
+    'ready': 'Готов к выдаче',
+    'delivering': 'В доставке',
+    'done': 'Выполнен',
+    'cancelled': 'Отменен',
+}
+
+# Подписи оплаты — для ЛК сайта.
+SITE_PAY_LABELS = {
+    'paid': 'Оплачен',
+    'unpaid': 'Не оплачен',
+}
+
+
+def _get_linked_order(web_order):
+    """
+    Возвращает заказ orders.Order, созданный из этой заявки, или None.
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ ФУНКЦИЯ: заказ нужен и для статуса производства,
+    и для статуса оплаты. Обращаться к базе дважды незачем.
+    """
+    if not web_order.converted_order_id:
+        return None
+
+    # is_deleted=False: удалённый заказ не должен влиять на то, что
+    # видит клиент на сайте.
+    return Order.objects.filter(
+        pk=web_order.converted_order_id,
+        is_deleted=False,
+    ).first()
+
+
+def get_site_status_code(web_order):
+    """
+    Считает статус производства для сайта. Возвращает КОД из SITE_STATUS_LABELS.
+
+    ЭТО НЕ ОТДЕЛЬНОЕ ПОЛЕ, А ВЫЧИСЛЕНИЕ — намеренно:
+    хранить копию статуса значит рано или поздно получить две разные
+    правды. Здесь единственные источники — web_orders.WebOrder (отклонена
+    или нет) и orders.Order (статус, наличие доставки, назначен ли курьер).
+
+    ПРАВИЛА (согласованы с заказчиком):
+        заявка отклонена                          → Отменен
+        заказа ещё нет                            → В обработке
+        заказ «Принят»                            → В обработке
+        заказ «В работе»                          → В работе
+        заказ «Готов», без доставки                → Готов к выдаче
+        заказ «Готов», доставка, курьер не назначен → В работе
+        заказ «Готов», доставка, курьер назначен    → В доставке
+        заказ «Выдан» (передан курьеру)            → Выполнен
+
+    ПРО УПРОЩЕНИЕ: факт вручения клиенту мы не отслеживаем. Считается,
+    что «Выдан» = передан курьеру, и для клиента это «Выполнен».
+    Так договорились осознанно.
+    """
+    # --- 1. Отклонённая заявка ---
+    # Клиент должен узнать, что заказ не принят, иначе он будет ждать
+    # производства, которого не будет.
+    if web_order.status == WebOrder.STATUS_REJECTED:
+        return 'cancelled'
+
+    order = _get_linked_order(web_order)
+
+    # --- 2. Заказа ещё нет ---
+    if order is None:
+        return 'processing'
+
+    # --- 3. Статусы заказа ---
+    if order.status == Order.STATUS_COMPLETED:
+        return 'done'
+
+    if order.status == Order.STATUS_READY:
+        if order.is_delivery:
+            # Готово, но доставка ещё не организована — для клиента работа
+            # продолжается. Как только курьер назначен, показываем «В доставке».
+            return 'delivering' if order.is_courier_ordered else 'in_work'
+        # Самовывоз: изделие готово и ждёт клиента.
+        return 'ready'
+
+    if order.status == Order.STATUS_IN_PROGRESS:
+        return 'in_work'
+
+    # Остался только STATUS_ACCEPTED.
+    return 'processing'
+
+
+def get_site_status_payload(web_order):
+    """
+    Собирает всё, что нужно отдать сайту по одной заявке.
+
+    Возвращает словарь:
+        {
+            'status': 'in_work',          # код статуса производства
+            'status_label': 'В работе',   # готовая подпись для ЛК
+            'pay': 'unpaid',              # код оплаты
+            'pay_label': 'Не оплачен',
+            'layout': 'checked',          # код статуса макета
+            'layout_label': 'Проверен',
+            'pay_link': 'https://...',    # может быть пустым
+            'invoice_url': 'https://...', # может быть пустым
+            'order_number': 'ORD-77',     # номер в ИС (для отладки)
+            'moguta_number': 'M-01060',
+        }
+
+    Оплата берётся из orders.Order.is_paid; если заказа ещё нет —
+    считаем «Не оплачен».
+    """
+    order = _get_linked_order(web_order)
+
+    status_code = get_site_status_code(web_order)
+
+    # Оплата: единственный источник — флаг заказа.
+    pay_code = 'paid' if (order and order.is_paid) else 'unpaid'
+
+    # Макет, ссылка и счёт живут в SiteOrderStatus.
+    # Записи может не быть (например, заявка пришла до появления этой
+    # модели) — тогда отдаём значения по умолчанию, а не падаем.
+    site_status = SiteOrderStatus.objects.filter(web_order=web_order).first()
+
+    if site_status is not None:
+        layout_code = site_status.layout_status
+        layout_label = site_status.get_layout_status_display()
+        pay_link = site_status.pay_link or ''
+        invoice_url = site_status.invoice_file.url if site_status.invoice_file else ''
+    else:
+        layout_code = SiteOrderStatus.LAYOUT_NOT_LOADED
+        layout_label = 'Не загружен'
+        pay_link = ''
+        invoice_url = ''
+
+    return {
+        'status': status_code,
+        'status_label': SITE_STATUS_LABELS.get(status_code, ''),
+        'pay': pay_code,
+        'pay_label': SITE_PAY_LABELS.get(pay_code, ''),
+        'layout': layout_code,
+        'layout_label': layout_label,
+        'pay_link': pay_link,
+        'invoice_url': invoice_url,
+        'order_number': order.number if order else '',
+        'moguta_number': web_order.moguta_order_number or '',
+    }
