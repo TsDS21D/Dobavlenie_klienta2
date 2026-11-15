@@ -17,6 +17,16 @@ urlpatterns = [
     # Имя 'index' — по аналогии с orders:index и sklad:index, чтобы в
     # шаблонах и редиректах было единообразно: {% url 'web_orders:index' %}.
     path('', views.list_web_orders, name='index'),
+    # POST /web-orders/api/convert/<id>/
+    # Конвертировать заявку в заказ (orders.Order).
+    # Вызывается кнопкой «Конвертировать в заказ».
+    # Ответ — JSON: {success: true, order_id: 12, order_number: 'ORD-12'}
+    path(
+        'api/convert/<int:order_id>/',
+        views.api_convert_web_order,
+        name='api_convert_web_order',
+    ),
+
     # POST /web-orders/api/restore/<id>/
     # Вернуть отклонённую заявку в работу (статус → «Новая»).
     # Вызывается кнопкой «Вернуть» в карточке отклонённой заявки.

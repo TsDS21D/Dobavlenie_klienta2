@@ -1,0 +1,338 @@
+"""
+Сервисный слой приложения web_orders (Входящие заявки с сайта).
+
+ЗАЧЕМ ОТДЕЛЬНЫЙ ФАЙЛ:
+логика «превратить заявку в заказ» — это не одна строка в представлении.
+Она ищет или создаёт клиента, юрлицо и контактное лицо, раскладывает
+позиции на изделия и товары, переносит доставку. Держать это во views.py
+значит получить функцию на 300 строк, которую невозможно ни прочитать,
+ни протестировать. В проекте уже принят такой подход: orders/services.py,
+calculator/services_webcalc.py.
+
+ВАЖНО ПРО ЯДРО:
+этот модуль НИЧЕГО не меняет в calculator/ и не трогает математику цен.
+Он только читает данные и вызывает существующие сервисные функции
+приложения orders (add_product_to_order).
+"""
+import re
+
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+
+from baza_klientov.models import Client, ContactPerson, LegalEntity
+from orders.models import Order, OrderTovar
+from orders.services import add_product_to_order
+from calculator.models_list_proschet import Proschet
+
+from .models import WebOrder
+
+
+def _normalize_phone(phone):
+    """
+    Оставляет от телефона только цифры и приводит к формату 7XXXXXXXXXX.
+
+    ЗАЧЕМ: телефон приходит с сайта в свободном виде — "+7 (213) 456 78-90",
+    "8-213-456-78-90", "72134567890". Сравнивать такие строки напрямую
+    бессмысленно, поэтому приводим к цифрам и убираем разницу между
+    «8» и «7» в начале номера.
+
+    Что делаем:
+        1. выбрасываем всё, кроме цифр;
+        2. если цифр 11 и номер начинается с 8 — заменяем первую на 7.
+
+    Возвращает строку цифр (может быть пустой, если телефона нет).
+    """
+    digits = re.sub(r'\D', '', phone or '')
+
+    # 8XXXXXXXXXX → 7XXXXXXXXXX (привычная запись в России)
+    if len(digits) == 11 and digits.startswith('8'):
+        digits = '7' + digits[1:]
+
+    return digits
+
+
+def resolve_client_for_web_order(web_order):
+    """
+    Находит клиента ИС по данным заявки или создаёт нового.
+
+    ПОРЯДОК ПОИСКА (от самого надёжного признака к самому слабому):
+        1. по e-mail среди контактных лиц (email уникален для человека);
+        2. по последним 10 цифрам телефона (мобильный и обычный);
+        3. если не нашли — создаём нового клиента.
+
+    ПОЧЕМУ e-mail, а не имя: у Client нет поля e-mail вообще — почта
+    хранится в ContactPerson. Именно поэтому поиск идёт по контактным
+    лицам, а клиент берётся из найденной связи contact.client.
+
+    ЧТО СОЗДАЁМ ДЛЯ НОВОГО КЛИЕНТА:
+        Client          — name = название компании (юрлицо) или ФИО;
+        ContactPerson   — ФИО, телефон, e-mail, признак «основное»;
+        LegalEntity     — только для юрлица: name + реквизиты из заявки.
+
+    Возвращает кортеж:
+        (client, contact_person, legal_entity, client_was_created)
+
+    legal_entity может быть None — для физлица.
+    client_was_created — True, если клиента создали именно сейчас
+    (пригодится, чтобы написать это в комментарий заказа/заявки).
+    """
+    # --- Готовим исходные данные ---
+    email = (web_order.email or '').strip()
+    phone_digits = _normalize_phone(web_order.phone)
+    fio = (web_order.fio or '').strip()
+    company = (web_order.company_name or '').strip()
+    is_yur = (web_order.customer_type == WebOrder.CUSTOMER_YUR)
+
+    contact = None
+
+    # --- Шаг 1. Ищем контактное лицо по e-mail ---
+    # is_deleted=False — в проекте мягкое удаление, удалённые не учитываем.
+    # order_by('id') — чтобы результат был предсказуемым, если почту
+    # когда-то продублировали у двух контактов.
+    if email:
+        contact = (
+            ContactPerson.objects
+            .filter(is_deleted=False, email__iexact=email)
+            .select_related('client')
+            .order_by('id')
+            .first()
+        )
+
+    # --- Шаг 2. Если по почте не нашли — ищем по телефону ---
+    # Сравниваем последние 10 цифр: этого достаточно, чтобы отличить
+    # номера, и при этом не зависит от формата записи.
+    # Q(...) | Q(...) — проверяем и обычный телефон, и мобильный.
+    if contact is None and len(phone_digits) >= 10:
+        phone_tail = phone_digits[-10:]
+        contact = (
+            ContactPerson.objects
+            .filter(is_deleted=False)
+            .filter(Q(phone__contains=phone_tail) | Q(mobile__contains=phone_tail))
+            .select_related('client')
+            .order_by('id')
+            .first()
+        )
+
+    # --- Шаг 3. Если контакт найден и его клиент жив — используем его ---
+    # Проверяем contact.client: контакт мог остаться, а клиент — быть
+    # помечен удалённым. В таком случае считаем, что клиента нет.
+    if contact is not None and contact.client_id and not contact.client.is_deleted:
+        client = contact.client
+
+        # Для юрлица подтягиваем существующее юрлицо клиента, чтобы не
+        # создавать второе. Приоритет — «основное» (is_primary=True).
+        legal_entity = None
+        if is_yur:
+            legal_entity = (
+                LegalEntity.objects
+                .filter(client=client, is_deleted=False)
+                .order_by('-is_primary', 'id')
+                .first()
+            )
+
+        return client, contact, legal_entity, False
+
+    # --- Шаг 4. Клиента нет — создаём ---
+    # Имя клиента: для юрлица — название компании (если клиент его ввёл),
+    # иначе ФИО. Фолбэки (email, «Клиент с сайта») нужны на случай, когда
+    # и ФИО пустое — поле name в Client обязательное, пустым его не создать.
+    client_name = company if (is_yur and company) else (fio or email or 'Клиент с сайта')
+
+    client = Client.objects.create(
+        name=client_name,
+        # Комментарий — след, откуда клиент взялся. Менеджер сразу увидит,
+        # что карточку создала интеграция, а не человек.
+        comment='Создан автоматически из заявки с сайта %s' % (
+            web_order.moguta_order_number or ('#' + str(web_order.moguta_order_id))
+        ),
+    )
+
+    # Контактное лицо — то, откуда мы вообще узнали про клиента.
+    contact = ContactPerson.objects.create(
+        client=client,
+        full_name=fio or client_name,
+        phone=web_order.phone or '',
+        email=email,
+        # Это первое контактное лицо клиента, значит основное.
+        is_primary=True,
+    )
+
+    # Юрлицо — только если заявка от организации.
+    legal_entity = None
+    if is_yur:
+        legal_entity = LegalEntity.objects.create(
+            client=client,
+            # Название компании; если клиент его не ввёл —
+            # подставляем ФИО, чтобы поле не осталось пустым.
+            name=company or fio or client_name,
+            requisites=web_order.requisites or '',
+            is_primary=True,
+        )
+
+    return client, contact, legal_entity, True
+
+
+
+@transaction.atomic
+def convert_web_order_to_order(web_order, created_by=None):
+    """
+    Превращает входящую заявку в заказ (orders.Order).
+
+    Аргументы:
+        web_order  — экземпляр WebOrder, которую конвертируем;
+        created_by — пользователь ИС, выполнивший конвертацию
+                     (попадёт в Order.created_by).
+
+    Возвращает:
+        Order — созданный заказ.
+
+    Бросает ValueError, если конвертировать нельзя (уже конвертирована,
+    удалена). Представление поймает это и вернёт 409 с текстом.
+
+    КАК РАСКЛАДЫВАЮТСЯ ПОЗИЦИИ:
+        • артикул PR-NN и просчёт найден → Product (изделие) через
+          существующую функцию orders.services.add_product_to_order;
+        • артикул PR-NN, но просчёт удалён → OrderTovar (снимок) + пометка
+          в комментарии менеджера;
+        • любой другой артикул (CN1_…) → OrderTovar (снимок названия и цены);
+        • доставка (если стоимость > 0) → отдельный OrderTovar «Доставка».
+
+    ПОЧЕМУ ДОСТАВКА — ТОВАР:
+        в модели Order нет поля стоимости доставки, есть только флаг
+        is_delivery и адрес. Чтобы итог заказа совпал с сайтом, стоимость
+        кладём отдельной позицией. Ядро orders при этом не меняется.
+
+    ВСЯ ФУНКЦИЯ АТОМАРНА:
+        если на любом шаге упадёт ошибка, не останется ни заказа без
+        позиций, ни «полуконвертированной» заявки.
+    """
+    # --- Защита от повторной конвертации ---
+    if web_order.is_deleted:
+        raise ValueError('Заявка удалена — конвертировать нельзя')
+
+    if web_order.status == WebOrder.STATUS_CONVERTED and web_order.converted_order_id:
+        raise ValueError('Заявка уже конвертирована в заказ')
+
+    # --- Клиент, контактное лицо, юрлицо ---
+    # Функция либо находит существующих, либо создаёт новых.
+    client, contact, legal_entity, client_created = resolve_client_for_web_order(web_order)
+
+    is_yur = (web_order.customer_type == WebOrder.CUSTOMER_YUR)
+    delivery_cost = web_order.delivery_cost or Decimal('0.00')
+
+    # --- Создаём заказ ---
+    # number сгенерируется автоматически в Order.save() (ORD-N).
+    # created_at оставляем «сейчас»: для системы заказ создан в момент
+    # конвертации. Дата оформления на сайте уходит в комментарий.
+    order = Order.objects.create(
+        client=client,
+        contact_person=contact,
+        legal_entity=legal_entity,
+        # 'legal' / 'individual' — значения из Order.PAYER_TYPE_CHOICES
+        payer_type='legal' if is_yur else 'individual',
+        # Дату сайта переводим в московское время: в базе add_date хранится
+        # в UTC (USE_TZ=True), и strftime() без перевода показал бы время
+        # на 3 часа меньше реального. timezone.localtime() переводит
+        # в текущую зону из settings.TIME_ZONE (Europe/Moscow).
+        comment='Заявка с сайта %s от %s' % (
+            web_order.moguta_order_number or ('#' + str(web_order.moguta_order_id)),
+            timezone.localtime(web_order.add_date).strftime('%d.%m.%Y %H:%M')
+            if web_order.add_date else '—',
+        ),
+        # Доставка есть, если за неё взяли деньги. Адрес и телефон
+        # переносим — менеджеру они нужны сразу.
+        is_delivery=(delivery_cost > 0),
+        delivery_address=web_order.address or '',
+        delivery_phone=web_order.phone or '',
+        created_by=created_by,
+    )
+
+    # --- Раскладываем позиции ---
+    # order_position — сквозной счётчик для OrderTovar (порядок в списке).
+    order_position = 0
+    missing_proschets = []   # артикулы PR-*, которых нет в базе
+
+    for item in web_order.items.all().order_by('id'):
+        code = (item.code or '').strip()
+        proschet = None
+
+        # Ищем просчёт только для калькуляторных позиций.
+        # is_deleted=False: удалённый просчёт использовать нельзя.
+        if code.upper().startswith('PR-'):
+            proschet = Proschet.objects.filter(number=code, is_deleted=False).first()
+
+        if proschet is not None:
+            # add_product_to_order пересчитает цену по актуальным
+            # справочникам и скидке клиента — это её штатное поведение,
+            # менять его нельзя (функция используется в других местах).
+            product = add_product_to_order(proschet, order)
+
+            # Перезаписываем цену изделия на ту, что клиент видел на сайте.
+            # Клиент согласовал сумму при оформлении — подменять её
+            # пересчётом нельзя.
+            site_total = item.total_price or (item.price * item.count)
+            if site_total and product.total_price != site_total:
+                product.total_price = site_total
+                product.save(update_fields=['total_price'])
+
+            continue
+
+        # Сюда попадаем в двух случаях:
+        #   • обычный товар каталога (CN1_…);
+        #   • калькуляторная позиция, но просчёта уже нет.
+        if code.upper().startswith('PR-'):
+            missing_proschets.append(code)
+
+        order_position += 1
+        OrderTovar.objects.create(
+            order=order,
+            # tovar не указываем: позиции нет в справочнике товаров.
+            # Поле nullable, а снимок name/article/price хранит всё нужное.
+            name=item.name or 'Позиция без названия',
+            article=code,
+            quantity=item.count or 1,
+            price=item.price or Decimal('0.00'),
+            # Скидку не применяем: цена из заявки уже итоговая для клиента.
+            discount=Decimal('0.00'),
+            discount_source=OrderTovar.DISCOUNT_SOURCE_MANUAL,
+            position=order_position,
+        )
+
+    # --- Доставка отдельной позицией ---
+    if delivery_cost > 0:
+        order_position += 1
+        OrderTovar.objects.create(
+            order=order,
+            name='Доставка',
+            article='',
+            quantity=1,
+            price=delivery_cost,
+            discount=Decimal('0.00'),
+            discount_source=OrderTovar.DISCOUNT_SOURCE_MANUAL,
+            position=order_position,
+        )
+
+    # --- Служебные пометки для менеджера ---
+    notes = []
+    if client_created:
+        notes.append('Клиент создан автоматически из заявки с сайта')
+    if missing_proschets:
+        notes.append(
+            'Просчёты не найдены, добавлены как товары: ' + ', '.join(missing_proschets)
+        )
+
+    if notes:
+        prefix = (web_order.manager_comment + '\n') if web_order.manager_comment else ''
+        web_order.manager_comment = prefix + '\n'.join(notes)
+
+    # --- Помечаем заявку конвертированной ---
+    web_order.status = WebOrder.STATUS_CONVERTED
+    web_order.converted_order_id = order.id
+    web_order.save(update_fields=[
+        'status', 'converted_order_id', 'manager_comment', 'updated_at',
+    ])
+
+    return order

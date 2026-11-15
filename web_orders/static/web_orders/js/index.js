@@ -50,6 +50,18 @@
             // поэтому лишний диалог только мешает.
             confirmText: null,
             successText: 'Заявка возвращена в работу'
+        },
+        convert: {
+            url: '/web-orders/api/convert/',
+            cssClass: 'web-orders-btn--convert',
+            // Конвертация создаёт реальный заказ в производстве —
+            // это необратимо из интерфейса заявки, спрашиваем обязательно.
+            confirmText: 'Создать заказ из этой заявки?',
+            // Текст собираем из ответа сервера: номер заказа (ORD-N)
+            // заранее неизвестен, его присваивает база.
+            successText: function (data) {
+                return 'Создан заказ ' + data.order_number;
+            }
         }
     };
 
@@ -220,7 +232,14 @@
                     return;
                 }
 
-                showToast(action.successText, 'success');
+                // Текст тоста может быть строкой или функцией от ответа
+                // сервера: для конвертации нужно показать номер заказа,
+                // который заранее неизвестен.
+                var toastText = (typeof action.successText === 'function')
+                    ? action.successText(result.data)
+                    : action.successText;
+
+                showToast(toastText, 'success');
 
                 // Перерисовку не ждём в цепочке: тост уже показан,
                 // а кнопка исчезнет вместе со старым DOM.

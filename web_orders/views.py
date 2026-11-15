@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .models import WebOrder, WebOrderItem
+from .services import convert_web_order_to_order
 
 def _to_decimal(value):
     """
@@ -187,6 +188,10 @@ def api_receive_order(request):
                 phone=data.get('phone') or '',
                 customer_type=data.get('customer_type') or 'fiz',
                 requisites=data.get('requisites') or '',
+                # Название организации (юрлицо). Приходит с сайта из поля
+                # yur_info[nameyur]; для физлица — пустая строка.
+                # Понадобится при конвертации: LegalEntity.name.
+                company_name=data.get('company_name') or '',
                 address=data.get('address') or '',
                 delivery_name=data.get('delivery_name') or '',
                 delivery_cost=_to_decimal(data.get('delivery_cost')),
@@ -498,4 +503,62 @@ def api_restore_web_order(request, order_id):
         'success': True,
         'status': web_order.status,
         'status_display': web_order.get_status_display(),
+    })
+
+
+
+@require_POST
+def api_convert_web_order(request, order_id):
+    """
+    Конвертация заявки в заказ — POST /web-orders/api/convert/<id>/.
+
+    ЗАЧЕМ: это финальная точка интеграции. Заявка с сайта живёт в буфере
+    до тех пор, пока менеджер не решит, что она настоящая. По этой кнопке
+    создаётся полноценный orders.Order: клиент, изделия, товары, доставка.
+
+    Вся работа с данными лежит в web_orders/services.py — здесь только
+    нашли заявку, вызвали сервис и перевели результат в HTTP-ответ.
+
+    ОТВЕТ (JSON):
+        успех:  {"success": true, "order_id": 12, "order_number": "ORD-12"}
+        ошибки: {"success": false, "error": "..."} + 404 / 409 / 500
+    """
+    # --- Ищем заявку ---
+    try:
+        web_order = WebOrder.objects.get(pk=order_id, is_deleted=False)
+    except WebOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    # --- Конвертируем ---
+    try:
+        order = convert_web_order_to_order(
+            web_order,
+            # Автор заказа: текущий пользователь, если он авторизован.
+            # is_authenticated — проверка нужна, потому что представление
+            # доступно и анонимно (страница заявок пока без @login_required).
+            created_by=request.user if request.user.is_authenticated else None,
+        )
+    except ValueError as e:
+        # Ожидаемые отказы сервиса: заявка уже конвертирована, удалена
+        # и т.п. Это не сбой системы, поэтому 409 Conflict и понятный текст.
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+        }, status=409)
+    except Exception as e:
+        # Непредвиденная ошибка (например, сбой БД). Транзакция в сервисе
+        # уже откатилась — «полузаказа» не осталось. Наружу отдаём 500.
+        return JsonResponse({
+            'success': False,
+            'error': 'Ошибка конвертации: %s' % str(e),
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'order_id': order.id,
+        # Номер заказа — для тоста: «Создан заказ ORD-12».
+        'order_number': order.number,
     })
