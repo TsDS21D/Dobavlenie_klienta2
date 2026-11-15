@@ -243,16 +243,26 @@
                                    ещё нет. Каркас ставим сразу, чтобы потом не
                                    переверстывать карточку. {% endcomment %}
                                 <div class="web-orders-actions">
-                                    <button type="button"
-                                            class="web-orders-btn web-orders-btn--reject"
-                                            disabled
-                                            title="Появится на следующем шаге">Отклонить</button>
+                                    {% comment %} Кнопки зависят от статуса заявки. Обычная заявка: отклонить или конвертировать. Отклонённая: только вернуть (отклонять дважды нечего, конвертировать отклонённую нельзя). {% endcomment %}
+                                    {% if order.status == 'new' or order.status == 'processing' %}
 
-                                    <button type="button"
-                                            class="web-orders-btn web-orders-btn--convert"
-                                            disabled
-                                            title="Появится на следующем шаге">Конвертировать в заказ</button>
+                                        <button type="button"
+                                                class="web-orders-btn web-orders-btn--reject">Отклонить</button>
 
+                                        <button type="button"
+                                                class="web-orders-btn web-orders-btn--convert"
+                                                disabled
+                                                title="Появится на следующем шаге">Конвертировать в заказ</button>
+
+                                    {% elif order.status == 'rejected' %}
+
+                                        {% comment %} Вернуть = снова в «Новые». Возврат безопасен, поэтому диалог подтверждения не спрашивается (см. confirmText: null в index.js). {% endcomment %}
+                                        <button type="button"
+                                                class="web-orders-btn web-orders-btn--restore">Вернуть</button>
+
+                                    {% endif %}
+
+                                    {% comment %} Подпись «получена …» показываем всегда — она не зависит от статуса. {% endcomment %}
                                     <span class="web-orders-created">
                                         получена {{ order.created_at|date:"d.m.Y H:i" }}
                                     </span>
@@ -267,4 +277,11 @@
     {% endfor %}
 
 </section>
+{% endblock %}
+
+{% block extra_js %}
+{% comment %} Скрипт страницы: отклонение заявки через AJAX.
+   Подключается в блок extra_js, который объявлен в orders/base.html —
+   значит, загрузится ПОСЛЕ tab_id.js и после отрисовки разметки. {% endcomment %}
+<script src="{% static 'web_orders/js/index.js' %}"></script>
 {% endblock %}

@@ -450,3 +450,68 @@
         width: 100%;
     }
 }
+
+
+/* ==================== ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ (ТОСТЫ) ==================== */
+/* Появляются после AJAX-действий (например, «Заявка отклонена»).
+   Контейнер фиксирован в правом нижнем углу — там он не перекрывает
+   ни карточки, ни правую панель навигации. */
+
+.web-orders-toasts {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    /* Выше правой панели навигации, иначе панель перекроет тост. */
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    /* Контейнер не должен перехватывать клики — иначе он закроет
+       собой часть страницы, хотя визуально пуст. */
+    pointer-events: none;
+}
+
+.web-orders-toast {
+    /* Сами тосты клики не перехватывают, но и не мешают читать текст. */
+    pointer-events: none;
+    max-width: 320px;
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-input);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    /* Появление: плавно выезжает справа и проявляется. */
+    animation: web-orders-toast-in 0.2s ease-out;
+}
+
+/* Успех — в фирменной зелёной гамме. */
+.web-orders-toast--success {
+    background: var(--brand-green-light);
+    border: 1px solid #cbe9cd;
+    color: var(--brand-green);
+}
+
+/* Ошибка — мягкая красная, как уведомления об ошибках в ЛК сайта. */
+.web-orders-toast--error {
+    background: #fdf1f1;
+    border: 1px solid #f7d5d5;
+    color: #c0392b;
+}
+
+/* Класс добавляется за 200 мс до удаления элемента из DOM. */
+.web-orders-toast--hide {
+    opacity: 0;
+    transform: translateX(12px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@keyframes web-orders-toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

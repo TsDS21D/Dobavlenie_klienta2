@@ -357,3 +357,145 @@ def list_web_orders(request):
     }
 
     return render(request, 'web_orders/index.html', context)
+
+
+
+@require_POST
+def api_reject_web_order(request, order_id):
+    """
+    Отклонение входящей заявки — POST /web-orders/api/reject/<id>/.
+
+    ЗАЧЕМ: заявка с сайта может быть спамом, тестовой или ошибочной.
+    Менеджер должен уметь убрать её из работы, не удаляя физически
+    (в проекте принято мягкое удаление, а «отклонена» — это статус,
+    заявка остаётся в базе и её видно в группе «Отклонена»).
+
+    ОТВЕТ (JSON):
+        успех:  {"success": true,  "status": "rejected", "status_display": "Отклонена"}
+        ошибки: {"success": false, "error": "..."}  + код 404 / 409
+
+    ПОЧЕМУ ЗДЕСЬ НЕТ @csrf_exempt:
+    в отличие от приёма заявок с Moguta (чужой домен, токена CSRF нет),
+    этот запрос идёт со СВОЕЙ страницы. Значит CSRF-защиту надо
+    оставить включённой — она бесплатно защищает от подделки запроса
+    с чужого сайта. Токен JS возьмёт из <meta name="csrf-token">,
+    который уже есть в orders/base.html.
+    """
+    # --- Ищем заявку ---
+    # is_deleted=False: уже удалённую заявку отклонять бессмысленно.
+    try:
+        web_order = WebOrder.objects.get(pk=order_id, is_deleted=False)
+    except WebOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    # --- Проверяем, что отклонять ещё можно ---
+    # Конвертированную заявку отклонять нельзя: за ней уже стоит реальный
+    # заказ в производстве. Сначала нужно разобраться с заказом, а не
+    # помечать заявку отклонённой (иначе в отчётах будет противоречие:
+    # «отклонена», а заказ существует).
+    if web_order.status == WebOrder.STATUS_CONVERTED:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка уже конвертирована в заказ — отклонять нельзя',
+        }, status=409)
+
+    # --- Необязательный комментарий менеджера ---
+    # Тело запроса может быть пустым (кнопка без формы) — это нормально.
+    # Если комментарий пришёл, ДОПИСЫВАЕМ его к уже существующему, а не
+    # затираем: в поле могло уже быть что-то написано вручную в админке.
+    comment = ''
+    if request.body:
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+            comment = (payload.get('comment') or '').strip()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # Битый JSON не должен мешать отклонению — просто игнорируем его.
+            comment = ''
+
+    if comment:
+        if web_order.manager_comment:
+            web_order.manager_comment = web_order.manager_comment + '\n' + comment
+        else:
+            web_order.manager_comment = comment
+
+    # --- Меняем статус ---
+    # update_fields — сохраняем только эти колонки: меньше нагрузки на БД
+    # и никакого риска затереть другие поля (например, если менеджер
+    # параллельно правил заявку в админке).
+    # updated_at включаем явно: при auto_now Django обновляет поле только
+    # если оно перечислено в update_fields.
+    web_order.status = WebOrder.STATUS_REJECTED
+    web_order.save(update_fields=['status', 'manager_comment', 'updated_at'])
+
+    # status_display — готовое человеческое название («Отклонена») из
+    # STATUS_CHOICES. JS покажет его в уведомлении, не дублируя текст в коде.
+    return JsonResponse({
+        'success': True,
+        'status': web_order.status,
+        'status_display': web_order.get_status_display(),
+    })
+
+
+
+@require_POST
+def api_restore_web_order(request, order_id):
+    """
+    Возврат отклонённой заявки в работу — POST /web-orders/api/restore/<id>/.
+
+    ЗАЧЕМ: менеджер может отклонить заявку по ошибке (не тот заказ,
+    передумал, клиент позвонил и подтвердил). Без этой кнопки вернуть
+    заявку в работу можно только через админку Django, а это лишние
+    шаги и риск ошибиться.
+
+    КУДА ВОЗВРАЩАЕМ: в статус «Новая» (STATUS_NEW), а не в «В работе».
+    «Новая» — это начало очереди, и заявка снова попадёт на глаза
+    менеджеру вместе с остальными необработанными.
+
+    ЧТО НЕ ТРОГАЕМ: комментарий менеджера (manager_comment) оставляем
+    как есть. Это история работы с заявкой, а не её состояние.
+
+    ОТВЕТ (JSON):
+        успех:  {"success": true, "status": "new", "status_display": "Новая"}
+        ошибки: {"success": false, "error": "..."} + код 404 / 409
+    """
+    # --- Ищем заявку ---
+    try:
+        web_order = WebOrder.objects.get(pk=order_id, is_deleted=False)
+    except WebOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    # --- Проверяем, что возвращать есть смысл ---
+    # Конвертированную заявку возвращать нельзя: за ней стоит реальный
+    # заказ, и «вернуть в новые» означало бы создать его повторно.
+    if web_order.status == WebOrder.STATUS_CONVERTED:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка уже конвертирована в заказ — вернуть нельзя',
+        }, status=409)
+
+    # Если заявка не отклонена, возвращать нечего. Отвечаем успехом без
+    # изменений: для интерфейса это не ошибка (кнопку просто не должно
+    # быть видно), но и молча менять статус «Новой» на «Новую» незачем.
+    if web_order.status != WebOrder.STATUS_REJECTED:
+        return JsonResponse({
+            'success': False,
+            'error': 'Вернуть можно только отклонённую заявку',
+        }, status=409)
+
+    # --- Возвращаем в «Новые» ---
+    # update_fields — по той же причине, что и в api_reject_web_order:
+    # правим ровно две колонки и не рискуем затереть чужие изменения.
+    web_order.status = WebOrder.STATUS_NEW
+    web_order.save(update_fields=['status', 'updated_at'])
+
+    return JsonResponse({
+        'success': True,
+        'status': web_order.status,
+        'status_display': web_order.get_status_display(),
+    })

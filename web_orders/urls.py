@@ -17,6 +17,30 @@ urlpatterns = [
     # Имя 'index' — по аналогии с orders:index и sklad:index, чтобы в
     # шаблонах и редиректах было единообразно: {% url 'web_orders:index' %}.
     path('', views.list_web_orders, name='index'),
+    # POST /web-orders/api/restore/<id>/
+    # Вернуть отклонённую заявку в работу (статус → «Новая»).
+    # Вызывается кнопкой «Вернуть» в карточке отклонённой заявки.
+    # Ответ — JSON: {success: true, status: 'new', status_display: 'Новая'}
+    path(
+        'api/restore/<int:order_id>/',
+        views.api_restore_web_order,
+        name='api_restore_web_order',
+    ),
+
+
+    # POST /web-orders/api/reject/<id>/
+    # Отклонить входящую заявку (статус → «Отклонена»).
+    # Вызывается кнопкой «Отклонить» в карточке заявки на /web-orders/.
+    # Ответ — JSON: {success: true, status: 'rejected', status_display: 'Отклонена'}
+    #
+    # <int:order_id> — Django сам приведёт часть адреса к целому числу
+    # и не пропустит сюда «/reject/abc/» (вернёт 404 ещё до вызова view).
+    path(
+        'api/reject/<int:order_id>/',
+        views.api_reject_web_order,
+        name='api_reject_web_order',
+    ),
+
 
     # POST /web-orders/api/receive/
     # Принимает JSON с данными заказа от Moguta (bukva-a.ru).
