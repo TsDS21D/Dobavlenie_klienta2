@@ -1,0 +1,452 @@
+/* ============================================================
+   web_orders/static/web_orders/css/index.css
+   Стили страницы «Заявки с сайта» (/web-orders/).
+
+   СТИЛЬ: 1-в-1 как у /orders/ (list_orders.css). Цвета берём из
+   CSS-переменных, которые уже определены в orders/css/base.css
+   (--brand-green, --brand-text, --radius-card и т.д.). Своих хардкодов
+   по фирменному цвету не вводим, чтобы при смене бренда править
+   пришлось в одном месте.
+
+   ВСЕ КЛАССЫ С ПРЕФИКСОМ web-orders- : они не пересекаются с
+   .list-orders-* из orders, поэтому страницы не влияют друг на друга.
+   ============================================================ */
+
+/* ==================== ОБЩАЯ ОБЁРТКА ==================== */
+
+.web-orders-page {
+    /* .container из base.css уже даёт белый фон, скругление и padding,
+       поэтому здесь только собственные отступы внутри. */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* ==================== ШАПКА СТРАНИЦЫ ==================== */
+
+.web-orders-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.web-orders-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--brand-text);
+}
+
+/* «Всего: N» — приглушённая подпись справа от заголовка. */
+.web-orders-total {
+    font-size: 0.82rem;
+    color: var(--brand-muted);
+}
+
+/* ==================== ЧИПЫ-СЧЁТЧИКИ ПО СТАТУСАМ ==================== */
+
+.web-orders-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.web-orders-chip {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;          /* «таблетка» */
+    border: 1px solid var(--brand-border);
+    background: #fafafa;
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+/* Цвет чипа по статусу — те же оттенки, что и у карточек ниже. */
+.web-orders-chip--new        { background: #f2f9f3; border-color: #cbe9cd; color: #0B8661; }
+.web-orders-chip--processing { background: #faf4ed; border-color: #fdeacc; color: #a8700f; }
+.web-orders-chip--converted  { background: #eaf3f9; border-color: #d3ecfd; color: #2a6fc9; }
+.web-orders-chip--rejected   { background: #f9f9f9; border-color: #ececec; color: #888; }
+.web-orders-chip--error      { background: #fdf1f1; border-color: #f7d5d5; color: #c0392b; }
+
+/* ==================== ПУСТОЕ СОСТОЯНИЕ ==================== */
+
+.web-orders-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--brand-muted);
+    border: 1px dashed var(--brand-dashed);
+    border-radius: var(--radius-card);
+}
+
+/* ==================== ГРУППА ПО СТАТУСУ ==================== */
+
+.web-orders-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.web-orders-group-title {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--brand-text);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* Кружок с количеством рядом с заголовком группы. */
+.web-orders-group-count {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--brand-green);
+    background: var(--brand-green-light);
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+}
+
+.web-orders-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* ==================== КАРТОЧКА ЗАЯВКИ ==================== */
+
+/* <details>: браузерный аккордеон без JavaScript.
+   Убираем стандартный маркер-треугольник — свою стрелку рисуем сами. */
+.web-orders-card {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: #fff;
+    /* Мягкая тень как у карточек заказов при наведении, но постоянная —
+       чтобы карточки не «слипались» с белым фоном контейнера. */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    scroll-margin-top: 80px;
+}
+
+/* Цветовые темы по статусу (мягче, чем у заказов). */
+.web-orders-card--new        { background-color: #f2f9f3; border-color: #cbe9cd; }
+.web-orders-card--processing { background-color: #faf4ed; border-color: #fdeacc; }
+.web-orders-card--converted  { background-color: #eaf3f9; border-color: #d3ecfd; }
+.web-orders-card--rejected   { background-color: #f9f9f9; border-color: #ececec; }
+.web-orders-card--error      { background-color: #fdf1f1; border-color: #f7d5d5; }
+
+/* ==================== ШАПКА КАРТОЧКИ (SUMMARY) ==================== */
+
+.web-orders-card-head {
+    /* Grid, а не flex: колонки должны совпадать во всех карточках,
+       даже если номер или имя короче/длиннее. */
+    display: grid;
+    grid-template-columns: 90px 115px 1fr auto auto auto 18px;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    cursor: pointer;
+    /* Убираем стандартный маркер <summary> во всех браузерах. */
+    list-style: none;
+    user-select: none;             /* чтобы клик не выделял текст */
+}
+
+/* Safari/Chrome: убрать системный треугольник. */
+.web-orders-card-head::-webkit-details-marker {
+    display: none;
+}
+
+/* Номер заказа — моноширинный, как в /orders/. */
+.web-orders-card-number {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--brand-green);
+    white-space: nowrap;
+}
+
+/* Дата с сайта. */
+.web-orders-card-date {
+    font-size: 0.78rem;
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+/* Клиент — занимает всё свободное место, длинное имя обрезается. */
+.web-orders-card-client {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--brand-text);
+    min-width: 0;                  /* разрешает сжатие внутри grid */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Бейдж «Физ. лицо / Юр. лицо». */
+.web-orders-card-type {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-border);
+    background: #fff;
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+/* Метка «Калькулятор» — заявка содержит позицию PR-*. */
+.web-orders-card-calc {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--brand-green-light);
+    border: 1px solid #cbe9cd;
+    color: var(--brand-green);
+    white-space: nowrap;
+}
+
+/* Сумма заявки. */
+.web-orders-card-sum {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--brand-text);
+    white-space: nowrap;
+}
+
+/* Стрелка: два бортика квадрата, повёрнутые на 45° — «галочка» вниз.
+   При раскрытии <details> поворачиваем на 180°. */
+.web-orders-card-arrow {
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--brand-muted);
+    border-bottom: 2px solid var(--brand-muted);
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+    margin-bottom: 3px;            /* визуально центрируем «галочку» */
+}
+
+/* Раскрытая карточка: стрелка смотрит вверх. */
+.web-orders-card[open] .web-orders-card-arrow {
+    transform: rotate(225deg);
+    margin-bottom: -3px;
+}
+
+/* ==================== РАСКРЫТАЯ ЧАСТЬ ==================== */
+
+.web-orders-card-body {
+    padding: 0 0.8rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+/* ==================== ТАБЛИЦА ПОЗИЦИЙ ==================== */
+
+.web-orders-items {
+    border-top: 1px dashed var(--brand-dashed);
+    padding-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Сетка колонок: имя тянется, остальные фиксированные.
+   Одна и та же сетка в шапке и в строках — чтобы колонки совпадали. */
+.web-orders-items-head,
+.web-orders-item {
+    display: grid;
+    grid-template-columns: 1fr 70px 100px 110px;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+/* Шапка таблицы — мелкая серая подпись. */
+.web-orders-items-head {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--brand-muted);
+    padding-bottom: 0.2rem;
+}
+
+/* Строка позиции — белая карточка внутри цветной карточки заявки. */
+.web-orders-item {
+    background: #fff;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.82rem;
+    color: var(--brand-text);
+}
+
+/* Позиции нет — предупреждение вместо строки. */
+.web-orders-item--empty {
+    color: #c0392b;
+    font-style: italic;
+    display: block;                /* не сетка: текст на всю ширину */
+}
+
+/* Артикул под названием товара. */
+.web-orders-item-code {
+    display: inline-block;
+    margin-left: 0.4rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: var(--brand-muted);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 0 0.3rem;
+}
+
+/* Числовые колонки — по правому краю, как в бухгалтерских таблицах. */
+.web-orders-col-count,
+.web-orders-col-price,
+.web-orders-col-sum {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.web-orders-col-sum {
+    font-weight: 600;
+}
+
+/* ==================== ДОСТАВКА / ОПЛАТА / РЕКВИЗИТЫ ==================== */
+
+.web-orders-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.web-orders-meta-row {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    align-items: start;
+}
+
+.web-orders-meta-label {
+    color: var(--brand-muted);
+    font-size: 0.78rem;
+}
+
+.web-orders-meta-value {
+    color: var(--brand-text);
+    /* Реквизиты и адрес могут быть длинными — переносим по словам. */
+    overflow-wrap: anywhere;
+}
+
+/* ==================== ДОП. ПОЛЯ MOGUTA ==================== */
+
+.web-orders-opfields {
+    border-top: 1px dashed var(--brand-dashed);
+    padding-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.web-orders-opfields-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--brand-muted);
+    margin-bottom: 0.2rem;
+}
+
+/* ==================== КНОПКИ ДЕЙСТВИЙ ==================== */
+
+.web-orders-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    border-top: 1px dashed var(--brand-dashed);
+    padding-top: 0.6rem;
+}
+
+.web-orders-btn {
+    font-family: inherit;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-input);
+    border: 1px solid var(--brand-border);
+    background: #fff;
+    color: var(--brand-text);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Зелёная кнопка — основное действие (конвертация). */
+.web-orders-btn--convert {
+    background: var(--brand-green);
+    border-color: var(--brand-green);
+    color: #fff;
+}
+
+/* Красная — отклонение (мягкий розовый фон, как модалка удаления). */
+.web-orders-btn--reject {
+    background: #fdf1f1;
+    border-color: #f7d5d5;
+    color: #c0392b;
+}
+
+.web-orders-btn:hover:not(:disabled) {
+    filter: brightness(0.97);
+}
+
+/* Неактивные кнопки: логики ещё нет, но каркас уже стоит. */
+.web-orders-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Служебная подпись «получена …» — прижимаем вправо. */
+.web-orders-created {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+/* ==================== АДАПТИВ ==================== */
+
+/* Планшеты: колонки шапки сжимаются, часть данных переносится. */
+@media (max-width: 900px) {
+    .web-orders-card-head {
+        grid-template-columns: 80px 1fr auto auto 18px;
+    }
+    /* Дату и тип плательщика на планшете скрываем — они второстепенны. */
+    .web-orders-card-date,
+    .web-orders-card-type {
+        display: none;
+    }
+}
+
+/* Телефоны: карточка в одну колонку, шапка в две строки. */
+@media (max-width: 600px) {
+    .web-orders-card-head {
+        grid-template-columns: 1fr auto 18px;
+        row-gap: 0.3rem;
+    }
+    /* Клиент — на всю ширину второй строки. */
+    .web-orders-card-client {
+        grid-column: 1 / -1;
+        order: 5;
+    }
+    .web-orders-items-head,
+    .web-orders-item {
+        grid-template-columns: 1fr 45px 70px 80px;
+        font-size: 0.75rem;
+    }
+    .web-orders-meta-row {
+        grid-template-columns: 1fr;
+        gap: 0.1rem;
+    }
+    .web-orders-created {
+        margin-left: 0;
+        width: 100%;
+    }
+}

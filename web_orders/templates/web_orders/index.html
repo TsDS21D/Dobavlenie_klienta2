@@ -1,0 +1,270 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% comment %} ============================================================
+   web_orders/templates/web_orders/index.html
+   Страница «Заявки с сайта» (/web-orders/).
+
+   НАСЛЕДУЕТ orders/base.html — чтобы страница жила в том же каркасе,
+   что /orders/ и /sklad/: тот же фон, тот же контейнер, та же правая
+   панель навигации (counter/app_panels.html).
+
+   СТРУКТУРА:
+     - шапка: заголовок и общее количество заявок;
+     - чипы-счётчики по статусам;
+     - группы по статусам (Новые → В работе → Конвертированы → Отклонены → Ошибка);
+     - внутри группы — карточки-аккордеоны на <details>/<summary>.
+
+   ПОЧЕМУ <details>/<summary>, а не div + JS:
+   браузер умеет раскрывать/сворачивать такие блоки сам, без единой строки
+   JavaScript. Нам это важно: JS появится позже (AJAX-отправка, WS-обновления),
+   и до тех пор страница должна оставаться рабочей. Стрелочку нарисуем в CSS.
+
+   ЧЕГО ПОКА НЕТ:
+     - кнопки «Отклонить» / «Конвертировать» неактивны (disabled) — логика
+       появится на следующих шагах;
+     - метка «Калькулятор» пока не показывается: она опирается на флаг
+       order.has_pr_item, который представление ещё не выставляет.
+   ============================================================ {% endcomment %}
+
+
+{% block title %}Заявки с сайта{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'web_orders/css/index.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="web-orders-page" id="web-orders-page">
+
+    {% comment %} ==================== ШАПКА ==================== {% endcomment %}
+    <div class="web-orders-header">
+        <h2 class="web-orders-title">Заявки с сайта</h2>
+        <div class="web-orders-total">Всего: {{ total_count }}</div>
+    </div>
+
+    {% comment %} ==================== ЧИПЫ-СЧЁТЧИКИ ПО СТАТУСАМ ==================== {% endcomment %}
+    {% comment %} Показываем только непустые: пустые чипы — визуальный мусор. {% endcomment %}
+    {% if total_count %}
+        <div class="web-orders-chips">
+            {% for group in groups %}
+                {% if group.count %}
+                    <span class="web-orders-chip web-orders-chip--{{ group.status }}">
+                        {{ group.label }}: {{ group.count }}
+                    </span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% comment %} ==================== ПУСТОЕ СОСТОЯНИЕ ==================== {% endcomment %}
+    {% if not total_count %}
+        <div class="web-orders-empty">
+            Пока нет ни одной заявки с сайта.
+        </div>
+    {% endif %}
+
+    {% comment %} ==================== ГРУППЫ ПО СТАТУСАМ ==================== {% endcomment %}
+    {% comment %} groups уже отсортированы в нужном порядке в представлении. {% endcomment %}
+    {% for group in groups %}
+        {% if group.count %}
+            <div class="web-orders-group" id="web-orders-group-{{ group.status }}">
+
+                <h3 class="web-orders-group-title">
+                    {{ group.label }}
+                    <span class="web-orders-group-count">{{ group.count }}</span>
+                </h3>
+
+                <div class="web-orders-cards">
+                    {% for order in group.orders %}
+                        {% comment %} data-атрибуты понадобятся позже для AJAX:
+                           data-order-id — чтобы знать, какую заявку правим;
+                           data-moguta-id — для отладки и поиска на сайте. {% endcomment %}
+                        <details class="web-orders-card web-orders-card--{{ group.status }}"
+                                 data-order-id="{{ order.id }}"
+                                 data-moguta-id="{{ order.moguta_order_id }}">
+
+                            {% comment %} ---------- ШАПКА КАРТОЧКИ (видна всегда) ---------- {% endcomment %}
+                            <summary class="web-orders-card-head">
+
+                                <span class="web-orders-card-number">
+                                    {{ order.moguta_order_number|default:"—" }}
+                                </span>
+
+                                <span class="web-orders-card-date">
+                                    {{ order.add_date|date:"d.m.Y H:i"|default:"—" }}
+                                </span>
+
+                                <span class="web-orders-card-client">
+                                    {{ order.fio|default:"—" }}
+                                </span>
+
+                                <span class="web-orders-card-type">
+                                    {% if order.customer_type == 'yur' %}Юр. лицо{% else %}Физ. лицо{% endif %}
+                                </span>
+
+                                {% comment %} Метка «Калькулятор» — когда в заявке есть позиция
+                                   с артикулом PR-*, то есть она пришла из
+                                   веб-калькулятора и её можно связать с просчётом.
+                                   Флаг выставит представление (следующий шаг);
+                                   пока атрибута нет — блок просто не рендерится. {% endcomment %}
+                                {% if order.has_pr_item %}
+                                    <span class="web-orders-card-calc" title="Есть позиция из веб-калькулятора (PR-NN)">
+                                        Калькулятор
+                                    </span>
+                                {% endif %}
+
+                                <span class="web-orders-card-sum">
+                                    {{ order.total_summ|floatformat:2 }} ₽
+                                </span>
+
+                                {% comment %} Стрелочка. Рисуется в CSS, поворачивается при раскрытии. {% endcomment %}
+                                <span class="web-orders-card-arrow" aria-hidden="true"></span>
+
+                            </summary>
+
+                            {% comment %} ---------- РАСКРЫТАЯ ЧАСТЬ ---------- {% endcomment %}
+                            <div class="web-orders-card-body">
+
+                                {% comment %} ===== ПОЗИЦИИ ===== {% endcomment %}
+                                <div class="web-orders-items">
+                                    <div class="web-orders-items-head">
+                                        <span class="web-orders-col-name">Товар</span>
+                                        <span class="web-orders-col-count">Кол-во</span>
+                                        <span class="web-orders-col-price">Цена</span>
+                                        <span class="web-orders-col-sum">Сумма</span>
+                                    </div>
+
+                                    {% for item in order.items.all %}
+                                        <div class="web-orders-item">
+                                            <span class="web-orders-col-name">
+                                                {{ item.name }}
+                                                {% comment %} Артикул: для калькуляторных позиций
+                                                   здесь будет PR-NN — по нему пойдёт
+                                                   связь с просчётом. {% endcomment %}
+                                                {% if item.code %}
+                                                    <span class="web-orders-item-code">{{ item.code }}</span>
+                                                {% endif %}
+                                            </span>
+                                            <span class="web-orders-col-count">{{ item.count }}</span>
+                                            <span class="web-orders-col-price">{{ item.price|floatformat:2 }} ₽</span>
+                                            <span class="web-orders-col-sum">{{ item.total_price|floatformat:2 }} ₽</span>
+                                        </div>
+                                    {% empty %}
+                                        {% comment %} Такое возможно, если позиции не сохранились
+                                           при приёме заявки (например, пришёл пустой
+                                           items). Заявка при этом цела. {% endcomment %}
+                                        <div class="web-orders-item web-orders-item--empty">
+                                            Позиции не сохранились — добавьте вручную.
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                {% comment %} ===== ДОСТАВКА И ОПЛАТА ===== {% endcomment %}
+                                <div class="web-orders-meta">
+
+                                    <div class="web-orders-meta-row">
+                                        <span class="web-orders-meta-label">Доставка</span>
+                                        <span class="web-orders-meta-value">
+                                            {{ order.delivery_name|default:"—" }}
+                                            {% comment %} Стоимость показываем только если она не ноль:
+                                               при самовывозе 0 ₽ — лишний шум. {% endcomment %}
+                                            {% if order.delivery_cost %} — {{ order.delivery_cost|floatformat:2 }} ₽{% endif %}
+                                        </span>
+                                    </div>
+
+                                    <div class="web-orders-meta-row">
+                                        <span class="web-orders-meta-label">Оплата</span>
+                                        <span class="web-orders-meta-value">{{ order.payment_name|default:"—" }}</span>
+                                    </div>
+
+                                    {% comment %} Реквизиты и адрес показываем только если заполнены:
+                                       у физлица и при самовывозе их просто нет. {% endcomment %}
+                                    {% if order.requisites %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Реквизиты</span>
+                                            {% comment %} linebreaksbr — чтобы текст из 1С/Контура
+                                               сохранял переводы строк. {% endcomment %}
+                                            <span class="web-orders-meta-value web-orders-meta-value--multiline">{{ order.requisites|linebreaksbr }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if order.address %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Адрес</span>
+                                            <span class="web-orders-meta-value">{{ order.address|linebreaksbr }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if order.comment %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Комментарий</span>
+                                            <span class="web-orders-meta-value">{{ order.comment|linebreaksbr }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                                {% comment %} ===== ДОП. ПОЛЯ MOGUTA ===== {% endcomment %}
+                                {% comment %} В базе это словарь с ключами-строками: {"3": "...", ...}.
+                                   Обращаться к нему по номеру (order.op_fields.3) в шаблоне
+                                   нельзя — Django попытается взять ключ-число, а ключи
+                                   строковые. Поэтому перебираем пары key/value и
+                                   подставляем подпись по ключу.
+
+                                   Показываем только НЕПУСТЫЕ значения: у нового заказа
+                                   все статусы пустые (Moguta заполняет их, когда менеджер
+                                   их выставит), и блок просто не появится. {% endcomment %}
+                                {% if order.op_fields %}
+                                    <div class="web-orders-opfields">
+                                        <div class="web-orders-opfields-title">Доп. поля сайта</div>
+                                        {% for key, value in order.op_fields.items %}
+                                            {% if value %}
+                                                <div class="web-orders-meta-row">
+                                                    <span class="web-orders-meta-label">
+                                                        {% if key == '2' %}Реквизиты
+                                                        {% elif key == '3' %}Статус производства
+                                                        {% elif key == '4' %}Статус макета
+                                                        {% elif key == '5' %}Статус оплаты
+                                                        {% elif key == '6' %}Ссылка на оплату
+                                                        {% elif key == '7' %}Счёт (PDF)
+                                                        {% elif key == '8' %}Доставка согласована
+                                                        {% else %}Поле {{ key }}
+                                                        {% endif %}
+                                                    </span>
+                                                    <span class="web-orders-meta-value">{{ value }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                {% comment %} ===== КНОПКИ ДЕЙСТВИЙ ===== {% endcomment %}
+                                {% comment %} Пока неактивны: логики отклонения и конвертации
+                                   ещё нет. Каркас ставим сразу, чтобы потом не
+                                   переверстывать карточку. {% endcomment %}
+                                <div class="web-orders-actions">
+                                    <button type="button"
+                                            class="web-orders-btn web-orders-btn--reject"
+                                            disabled
+                                            title="Появится на следующем шаге">Отклонить</button>
+
+                                    <button type="button"
+                                            class="web-orders-btn web-orders-btn--convert"
+                                            disabled
+                                            title="Появится на следующем шаге">Конвертировать в заказ</button>
+
+                                    <span class="web-orders-created">
+                                        получена {{ order.created_at|date:"d.m.Y H:i" }}
+                                    </span>
+                                </div>
+
+                            </div>
+                        </details>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+
+</section>
+{% endblock %}

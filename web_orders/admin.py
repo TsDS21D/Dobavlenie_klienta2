@@ -38,8 +38,13 @@ class WebOrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'customer_type', 'site')
     # Поля для поиска
     search_fields = ('moguta_order_number', 'fio', 'email', 'phone')
-    # Поля, которые нельзя редактировать вручную
-    readonly_fields = ('created_at', 'updated_at', 'raw_payload')
+    # Поля, которые нельзя редактировать вручную.
+    # op_fields добавлен сюда по той же причине, что и raw_payload:
+    # это снимок данных из Moguta, а не рабочее поле. В админке он
+    # выводится как редактируемая текстовая область с JSON — если
+    # менеджер случайно тронет кавычку, поле превратится в битую строку
+    # и заявка перестанет разбираться. Только чтение.
+    readonly_fields = ('created_at', 'updated_at', 'raw_payload', 'op_fields')
     # Встроенный список товаров
     inlines = [WebOrderItemInline]
 
