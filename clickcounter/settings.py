@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'orders', # заказы
     'tovary', # справочник товаров
     'web_calculators',
+    'web_orders',
 ]
 
 MIDDLEWARE = [

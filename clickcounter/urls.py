@@ -96,6 +96,12 @@ urlpatterns = [
     # Все URL, начинающиеся с /tovary/, обрабатываются в tovary.urls
     # namespace='tovary' — для {% url 'tovary:index' %} в шаблонах
     path('tovary/', include(('tovary.urls', 'tovary'), namespace='tovary')),
+
+    # ===== НОВОЕ ПРИЛОЖЕНИЕ: ВХОДЯЩИЕ ЗАЯВКИ С САЙТА =====
+    # POST /web-orders/api/receive/
+    # Принимает JSON с данными заказа от Moguta (bukva-a.ru).
+    # ВАЖНО: маршрут НЕ защищён @login_required — запросы идут с сервера Moguta.
+    path('web-orders/', include('web_orders.urls')),
 ]
 
 # В режиме отладки добавляем обслуживание статических и медиа файлов
