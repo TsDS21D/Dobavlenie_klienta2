@@ -177,6 +177,14 @@
                                         <span class="web-orders-meta-value">{{ order.payment_name|default:"—" }}</span>
                                     </div>
 
+                                    {% comment %} Название компании — только для юрлица: у физлица поле пустое, и строки не будет. {% endcomment %}
+                                    {% if order.company_name %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Компания</span>
+                                            <span class="web-orders-meta-value">{{ order.company_name }}</span>
+                                        </div>
+                                    {% endif %}
+
                                     {% comment %} Реквизиты и адрес показываем только если заполнены:
                                        у физлица и при самовывозе их просто нет. {% endcomment %}
                                     {% if order.requisites %}
