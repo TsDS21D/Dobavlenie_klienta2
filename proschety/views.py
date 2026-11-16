@@ -55,10 +55,26 @@ def _proschets_for_page(request):
     """
     Список просчётов для страницы и для AJAX-перерисовки списка.
     Единая точка, чтобы основная страница и api_rows не разошлись.
+
+    ДВА ВЗАИМОИСКЛЮЧАЮЩИХ РЕЖИМА (не «показывать всё», а «или-или»):
+
+        переключатель выключен (обычный режим)
+            → только «настоящие» просчёты менеджера: is_from_cart = False
+
+        переключатель включён (?show_cart=1, «просчёты с bukva-a.ru»)
+            → только просчёты, созданные из корзины сайта: is_from_cart = True
+
+    Почему не «показать всё»: у менеджера и так десятки рабочих просчётов,
+    а корзинных может быть сотни. Смешивать их в одном списке бессмысленно —
+    когда нужны корзинные, нужны именно они.
     """
     queryset = Proschet.objects.filter(is_deleted=False)
 
-    if not _show_cart_proschets(request):
+    if _show_cart_proschets(request):
+        # Режим «просчёты с bukva-a.ru»: ТОЛЬКО корзинные.
+        queryset = queryset.filter(is_from_cart=True)
+    else:
+        # Обычный режим: ТОЛЬКО просчёты менеджера.
         queryset = queryset.filter(is_from_cart=False)
 
     return queryset.order_by('-created_at')
