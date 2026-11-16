@@ -1012,3 +1012,39 @@ proschety/static/proschety/css/sections/list_proschet.css
     background: #0a6e51;
     transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   BEAUTY-PRINT: переключатель «просчёты с bukva-a.ru»
+   ==========================================================================
+   Компактная «пилюля» справа от заголовка «Список просчётов».
+   Выключена — пунктирная рамка и серый текст, включена — зелёная
+   заливка и галочка (её добавляет шаблон).
+   ========================================================================== */
+
+.list-proschet-cart-toggle {
+    margin-left: 1rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    border-radius: 999px;
+    border: 1px dashed #c9d2cf;
+    background: transparent;
+    color: #6b7a76;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.list-proschet-cart-toggle:hover {
+    border-color: #0b8661;
+    color: #0b8661;
+}
+
+.list-proschet-cart-toggle.is-active {
+    border-style: solid;
+    border-color: #0b8661;
+    background-color: #e8f5ef;
+    color: #0b8661;
+    font-weight: 600;
+}

@@ -78,6 +78,12 @@ JavaScript секции «Список просчётов» новой стра�
             if (inputAll)    inputAll.addEventListener('input', handleSearch);
             if (inputTitle)  inputTitle.addEventListener('input', handleSearch);
             if (inputClient) inputClient.addEventListener('input', handleSearch);
+            // BEAUTY-PRINT: переключатель «просчёты с bukva-a.ru».
+            // Включается двойным кликом, чтобы случайно не нажать мышкой.
+            const cartToggle = document.getElementById('list-proschet-cart-toggle');
+            if (cartToggle) {
+                cartToggle.addEventListener('dblclick', toggleCartProschets);
+            }
         }
 
         // Обработчики dblclick/click вешаем на document, а не на tableBody.
@@ -363,6 +369,27 @@ JavaScript секции «Список просчётов» новой стра�
     // ========================================================================
     // 5. ПЕРЕРИСОВКА ТАБЛИЦЫ И ПОДСВЕТКА НОВОЙ СТРОКИ.
     // ========================================================================
+    // ========================================================================
+    // BEAUTY-PRINT: режим «показать просчёты из корзины bukva-a.ru»
+    // ========================================================================
+    // Режим хранится в адресе страницы: ?show_cart=1 — показывать.
+    // Так он переживает перезагрузку и не требует ни localStorage, ни сессии.
+
+    function isCartProschetsMode() {
+        return new URL(window.location.href).searchParams.get('show_cart') === '1';
+    }
+
+    function toggleCartProschets() {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.get('show_cart') === '1') {
+            url.searchParams.delete('show_cart');
+        } else {
+            url.searchParams.set('show_cart', '1');
+        }
+
+        window.location.href = url.toString();
+    }
 
     /**
      * Запрашивает у сервера актуальный HTML-партиал с <tr>-строками
@@ -381,7 +408,14 @@ JavaScript секции «Список просчётов» новой стра�
             }
         }
 
-        return fetch('/proschety/api/rows/', {
+        // BEAUTY-PRINT: сохраняем режим «показать просчёты из корзины»
+        // при перерисовке списка. Без этого после создания или удаления
+        // просчёта корзинные записи исчезали бы из уже открытого списка.
+        const rowsUrl = isCartProschetsMode()
+            ? '/proschety/api/rows/?show_cart=1'
+            : '/proschety/api/rows/';
+
+        return fetch(rowsUrl, {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })

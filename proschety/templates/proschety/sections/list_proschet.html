@@ -48,11 +48,30 @@ proschety/templates/proschety/sections/list_proschet.html
 
 <section class="list-proschet-section" id="list-proschet-section">
 
-    <!-- Шапка секции: название + кнопка «Создать» -->
+    <!-- Шапка секции: название + переключатель + кнопка «Создать» -->
     <div class="list-proschet-header">
         <h2 class="list-proschet-title">
             Список просчётов
         </h2>
+
+        {% comment %}
+        Переключатель «просчёты с bukva-a.ru», управляется двойным кликом.
+        Справа от заголовка, в той же строке.
+
+        Зачем: на каждый клик «Добавить в корзину» в веб-калькуляторе
+        создаётся технический просчёт (is_from_cart=True). В обычном списке
+        они не нужны — их десятки. Здесь их можно посмотреть, когда надо:
+        например, сверить, что из корзины клиента ушло в заказ.
+
+        Состояние хранится в адресе (?show_cart=1), поэтому переживает
+        перезагрузку страницы и обновление списка через AJAX.
+        {% endcomment %}
+        <button type="button"
+                class="list-proschet-cart-toggle{% if show_cart %} is-active{% endif %}"
+                id="list-proschet-cart-toggle"
+                title="Двойной клик — показать или скрыть просчёты, созданные из корзины bukva-a.ru">
+            просчёты с bukva-a.ru{% if show_cart %} ✓{% endif %}
+        </button>
 
         <div class="list-proschet-actions">
             <button type="button"
