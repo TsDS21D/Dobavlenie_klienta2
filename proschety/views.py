@@ -32,6 +32,36 @@ from shablony_proschetov.models import TemplateCategory, ProschetTemplate
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
+# ============================================================================
+# ФИЛЬТР «ПРОСЧЁТЫ ИЗ КОРЗИНЫ САЙТА»
+# ============================================================================
+# На каждый клик «Добавить в корзину» в веб-калькуляторе bukva-a.ru
+# создаётся технический просчёт (is_from_cart=True). Менеджеру такие
+# записи в общем списке не нужны — их десятки и они ничего не значат.
+#
+# Поэтому по умолчанию они скрыты. Показываются, только если в адресе
+# есть ?show_cart=1 — это делает переключатель «просчёты с bukva-a.ru».
+#
+# ВАЖНО ПРО ПОИСК: поиск на странице работает по уже отрисованным строкам.
+# Скрытые просчёты в разметку не попадают, поэтому и поиск по номеру их
+# не находит — ровно как договорились.
+
+def _show_cart_proschets(request):
+    """True, если включён показ просчётов из корзины сайта."""
+    return request.GET.get('show_cart') == '1'
+
+
+def _proschets_for_page(request):
+    """
+    Список просчётов для страницы и для AJAX-перерисовки списка.
+    Единая точка, чтобы основная страница и api_rows не разошлись.
+    """
+    queryset = Proschet.objects.filter(is_deleted=False)
+
+    if not _show_cart_proschets(request):
+        queryset = queryset.filter(is_from_cart=False)
+
+    return queryset.order_by('-created_at')
 
 @login_required(login_url='/login/')
 @never_cache
@@ -47,7 +77,7 @@ def index(request):
       - is_admin        — доступ к выбору шаблона только для админов,
       - active_app      — для подсветки в боковой панели.
     """
-    proschets = Proschet.objects.filter(is_deleted=False).order_by('-created_at')
+    proschets = _proschets_for_page(request)
     # Сортируем клиентов по алфавиту (по имени), чтобы в выпадающем списке
     # они шли в порядке, привычном для поиска.
     clients = Client.objects.all().order_by('name')
@@ -82,6 +112,9 @@ def index(request):
         'templates_json': json.dumps(templates_data, ensure_ascii=False),
         'is_admin': request.user.is_staff,
         'active_app': 'proschety',
+        # Состояние переключателя «просчёты с bukva-a.ru»:
+        # в шаблоне по нему решаем, как выглядит индикатор.
+        'show_cart': _show_cart_proschets(request),        
         # session_key текущего пользователя — прокидываем в JS,
         # чтобы фильтровать «свои» WebSocket-уведомления.
         # Из cookie его прочитать нельзя (HttpOnly).
@@ -142,7 +175,9 @@ def api_rows(request):
     перерисовать tbody таблицы без перезагрузки страницы.
     Логика фильтрации и сортировки — та же, что в index().
     """
-    proschets = Proschet.objects.filter(is_deleted=False).order_by('-created_at')
+    # Тот же фильтр, что на странице: иначе после создания или удаления
+    # просчёта список «мигал» бы — корзинные просчёты то появлялись, то нет.
+    proschets = _proschets_for_page(request)
     return render(
         request,
         'proschety/sections/_proschet_rows.html',
