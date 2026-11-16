@@ -449,10 +449,25 @@ def get_site_status_payload(web_order):
             'invoice_url': 'https://...', # может быть пустым
             'order_number': 'ORD-77',     # номер в ИС (для отладки)
             'moguta_number': 'M-01060',
+            'customer_type': 'yur',       # тип плательщика из заявки
+            'requisites': 'ИНН ...',      # реквизиты юрлица из заявки
+            'company_name': 'ООО ...',    # название организации
         }
 
     Оплата берётся из orders.Order.is_paid; если заказа ещё нет —
     считаем «Не оплачен».
+
+    ЗАЧЕМ customer_type И requisites:
+    На сайте личный кабинет показывает модалку смены способа оплаты и
+    фильтрует список способов по типу плательщика. Раньше тип определялся
+    по заполненности доп. поля «Реквизиты» (op_fields[2]) — и для заказов,
+    где реквизиты ушли в yur_info, а не в доп. поле, получалось «физ. лицо».
+    Из-за этого в списке не было «Оплаты по счёту», и текущий способ
+    оплаты не подсвечивался.
+
+    Здесь тип плательщика берётся из самой заявки — он приходит с сайта
+    из $_POST['customer'] и сохраняется без домыслов. Значения совпадают
+    с тем, что ждёт JS сайта: 'fiz' и 'yur'.
     """
     order = _get_linked_order(web_order)
 
@@ -488,4 +503,11 @@ def get_site_status_payload(web_order):
         'invoice_url': invoice_url,
         'order_number': order.number if order else '',
         'moguta_number': web_order.moguta_order_number or '',
+        # Тип плательщика и реквизиты — для модалки смены оплаты в ЛК.
+        # Показываем ровно то, что клиент выбрал при оформлении: если он
+        # указал юрлицо, ЛК должен открыть модалку с юрлицом, а не гадать
+        # по заполненности полей.
+        'customer_type': web_order.customer_type or WebOrder.CUSTOMER_FIZ,
+        'requisites': web_order.requisites or '',
+        'company_name': web_order.company_name or '',
     }
