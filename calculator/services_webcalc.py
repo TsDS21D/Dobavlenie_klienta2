@@ -36,7 +36,7 @@
 """
 
 # ===== СТАНДАРТНЫЕ ИМПОРТЫ =====
-from decimal import Decimal              # точные числа — для финансов
+from decimal import Decimal, ROUND_CEILING   # точные числа и округление «вверх» для финансов
 from typing import Optional              # для типизации (может быть None)
 
 # ===== ИМПОРТЫ DJANGO =====
@@ -53,6 +53,62 @@ from print_price.utils import get_cost_and_markup_for_printer_and_copies
 # (используем именно get_cost_and_markup, а не calculate_price_for_printer_and_copies,
 #  потому что нам нужны и себестоимость, и наценка — по аналогии с views.get_proschet_price_data)
 
+# ============================================================================
+# ПОДГОНКА ЦЕНЫ «ЗА ШТУКУ»
+# ============================================================================
+# Зачем это нужно.
+#
+# В типографии цена за штуку должна быть «круглой»: клиенту неудобно видеть
+# 4,854333 ₽ за визитку. Поэтому на странице просчёта цена за штуку
+# округляется ВВЕРХ до копеек, а итог пересчитывается как «цена за штуку ×
+# тираж». Разница (обычно несколько рублей) добавляется к сумме.
+#
+# Правило до сих пор жило только в браузере —
+# proschety/static/proschety/js/sections/proschet_summary.js:
+#
+#     unitPrice      = Math.ceil((rawTotalPrice / circulation) * 100) / 100;
+#     finalTotalPrice = unitPrice * circulation;
+#
+# Из-за этого сайт bukva-a.ru получал СЫРУЮ сумму (например, 14 563),
+# а страница просчёта показывала подогнанную (14 580). Клиент видел
+# в корзине одну цену, менеджер в просчёте — другую.
+#
+# Теперь то же правило есть в Python, и все внешние потребители
+# (корзина сайта, товар в Moguta) получают ровно ту цену, что видит
+# менеджер в просчёте.
+
+def apply_unit_price_rounding(total_price, circulation):
+    """
+    Округляет цену за штуку ВВЕРХ до копеек и возвращает итог за тираж.
+
+    Аргументы:
+        total_price — сумма по просчёту (Decimal или число), уже со скидкой;
+        circulation — тираж (целое число штук).
+
+    Возвращает:
+        Decimal — итог, кратный тиражу: unit_price * circulation.
+
+    Пример:
+        14563 ₽ / 3000 шт = 4,854333…
+        округляем вверх → 4,86 ₽/шт
+        итог → 4,86 × 3000 = 14 580 ₽
+    """
+    total_price = Decimal(str(total_price))
+
+    # Тираж не указан или нулевой — округлять нечего.
+    if not circulation or int(circulation) <= 0:
+        return total_price.quantize(Decimal('0.01'))
+
+    circulation = int(circulation)
+
+    # Делим итог на тираж и округляем ВВЕРХ до копеек:
+    # ROUND_CEILING — всегда в сторону большей суммы, как Math.ceil в JS.
+    unit_price = (total_price / Decimal(circulation)).quantize(
+        Decimal('0.01'),
+        rounding=ROUND_CEILING,
+    )
+
+    return (unit_price * circulation).quantize(Decimal('0.01'))
 
 def calculate_proschet_current_price(proschet):
     """
@@ -222,13 +278,23 @@ def calculate_proschet_current_price(proschet):
         component_total = printing_cost + paper_cost + lamination_cost + works_cost
         total_price += component_total
 
-    # --- Шаг 7. Финальное округление ---
+    # --- Шаг 7. Финальное округление до копеек ---
     total_price = total_price.quantize(Decimal('0.01'))
+
+    # --- Шаг 7.1. Подгонка «цена за штуку» ---
+    # ВАЖНО: применяется ПОСЛЕ скидки, потому что total_price уже со скидкой.
+    # Именно эту сумму клиент видит в просчёте и должен видеть в корзине.
+    total_price = apply_unit_price_rounding(total_price, circulation)
+
+    # Цена за штуку — справочно (для отладки и логов).
+    unit_price = (total_price / Decimal(int(circulation))).quantize(Decimal('0.01')) \
+        if circulation else total_price
 
     # --- Шаг 8. Возврат результата ---
     return {
         'available': True,
         'total_price': float(total_price),         # float — чтобы json.dumps работал без кастомного encoder
+        'unit_price': float(unit_price),           # цена за штуку после подгонки
         'currency': 'RUR',
         'components_count': components_count,      # для отладки
         'works_count': works_count,                # для отладки

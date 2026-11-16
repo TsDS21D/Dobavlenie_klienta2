@@ -21,6 +21,10 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib.auth.decorators import login_required, user_passes_test
 
+from decimal import Decimal
+
+from calculator.services_webcalc import apply_unit_price_rounding
+
 # ===== ИМПОРТЫ НАШИХ МОДУЛЕЙ =====
 from .models import WebCalculator
 from .moguta import get_client, MogutaError
@@ -272,15 +276,24 @@ def web_calculator_add_to_cart_api(request, slug):
     except Exception:
         import traceback
         traceback.print_exc()
-        
+
     # ===== 3. Собираем данные товара для Moguta =====
     # Передаём proschet — из него берётся номер (code) и итоговая цена.
     try:
+        # BEAUTY-PRINT: цену товара подгоняем так же, как страница просчёта,
+        # иначе клиент сразу после добавления в корзину видит СЫРУЮ сумму
+        # (14 563), а правильная (14 580) появляется только после обновления
+        # цен плагином на сайте.
+        rounded_price = apply_unit_price_rounding(
+            Decimal(str(result['total_price'])),
+            proschet.circulation,
+        )
+
         product_data = build_product_for_webcalc(
             calculator,
             payload,
             proschet=proschet,
-            price=result['total_price'],
+            price=rounded_price,
             mass_g=result['total_mass_g'],
         )
     except Exception as e:
@@ -331,7 +344,7 @@ def web_calculator_add_to_cart_api(request, slug):
         'product_id': product_id,
         'product_code': product_data['code'],       # например, "PR-42"
         'product_title': product_data['title'],
-        'price': float(proschet.total_price),
+        'price': float(rounded_price),
         'proschet_id': proschet.id,
         'proschet_number': proschet.number,
         'properties': product_data.get('property', []),
