@@ -44,6 +44,9 @@ from django.db import transaction
 # ===== ИМПОРТЫ МОДЕЛЕЙ =====
 from calculator.models_lamination import Laminate
 from calculator.models_list_proschet import Proschet, PrintComponent, AdditionalWork
+# Единое правило округления «цена за штуку вверх» — то же, что
+# на странице просчёта и в API для сайта.
+from calculator.services_webcalc import apply_unit_price_rounding
 from vichisliniya_listov.models import VichisliniyaListovModel
 from vichisliniya_listov.multipage_models import VichisliniyaMultipageModel
 from print_price.utils import calculate_price_for_printer_and_copies
@@ -319,10 +322,16 @@ def calculate_price(calculator, data):
 
     # Сначала округляем цену за штуку, потом пересчитываем итог от неё.
     # Так цифры сходятся: price_per_unit × circulation = total_price.
-    # Пример: точная цена 667.80 ₽ / 100 шт = 6.678 ₽/шт → округляем до 6.68,
-    # итог = 6.68 × 100 = 668.00 ₽. Клиент не увидит расхождения.
-    price_per_unit = (total_price / Decimal(circulation)).quantize(Decimal('0.01'))
-    total_price = (price_per_unit * Decimal(circulation)).quantize(Decimal('0.01'))
+    #
+    # ВАЖНО: округляем ВВЕРХ — тем же правилом, что страница просчёта
+    # и API для сайта (см. apply_unit_price_rounding). Иначе получалось
+    # расхождение: калькулятор показывал 4 169,00 ₽ (7,58 × 550),
+    # а просчёт — 4 174,50 ₽ (7,59 × 550).
+    total_price = apply_unit_price_rounding(total_price, circulation)
+
+    # После подгонки итог кратен тиражу, поэтому цена за штуку
+    # получается ровно с двумя знаками.
+    price_per_unit = (Decimal(str(total_price)) / Decimal(circulation)).quantize(Decimal('0.01'))
 
     return {
         'success': True,
