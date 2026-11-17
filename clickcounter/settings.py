@@ -145,6 +145,20 @@ MOGUTA_CATEGORY_ID = int(os.environ.get('MOGUTA_CATEGORY_ID', '0'))
 # X-Beauty-Secret. Если не задан — API отвечает 500.
 BUKVA_API_SECRET = os.environ.get('BUKVA_API_SECRET', '')
 
+# ===== Секрет отправителя заявок с сайта (bukva-a.ru) =====
+# Отдельный ключ от BUKVA_API_SECRET — сознательно:
+#   • BUKVA_API_SECRET используется для ЧТЕНИЯ (цены, статусы);
+#   • BUKVA_SENDER_TOKEN — для ЗАПИСИ (создание заявки).
+# Если один утечёт, второй продолжит защищать свою операцию.
+#
+# Передаётся сайтом в заголовке X-Sender-Token при POST
+# /web-orders/api/receive/ (см. mg-core/script/web_orders_sender.php).
+#
+# МЯГКИЙ РЕЖИМ: если переменная не задана (пустая строка), проверка
+# в api_receive_order ПРОПУСКАЕТСЯ. Это позволяет выложить код раньше,
+# чем ключ появится в .env, и не потерять заявки в момент переключения.
+BUKVA_SENDER_TOKEN = os.environ.get('BUKVA_SENDER_TOKEN', '')
+
 # Список разрешённых IP-адресов (через запятую). Если пусто —
 # проверка IP отключается, остаётся только проверка ключа.
 # Список разбираем в массив, чтобы удобно проверять "in".

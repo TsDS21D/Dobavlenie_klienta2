@@ -14,6 +14,9 @@ from django.conf import settings
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+# Авторизация: доступ к заявкам с сайта — только для сотрудников.
+# login_url тот же, что в остальных разделах ИС (см. proschety, orders).
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from .models import WebOrder, WebOrderItem, SiteOrderStatus
 from .services import convert_web_order_to_order, get_site_status_payload
@@ -174,6 +177,31 @@ def api_receive_order(request):
         "error": "Описание ошибки"
     }
     """
+
+    # ========================================================================
+    # ПРОВЕРКА СЕКРЕТА ОТПРАВИТЕЛЯ
+    # ========================================================================
+    # Заявку присылает только сайт bukva-a.ru, и только он должен уметь
+    # её создавать. Без проверки любой мог отправить POST с корректным
+    # JSON и создать заявку от имени клиента.
+    #
+    # Сравнение через hmac.compare_digest — постоянное время, без утечки
+    # информации о правильных префиксах ключа.
+    #
+    # Если BUKVA_SENDER_TOKEN не задан в .env — проверка пропускается
+    # (мягкий режим), чтобы можно было включить защиту постепенно.
+    # ========================================================================
+    expected_sender_token = getattr(settings, 'BUKVA_SENDER_TOKEN', '')
+
+    if expected_sender_token:
+        provided_sender_token = request.headers.get('X-Sender-Token', '')
+
+        if not hmac.compare_digest(str(provided_sender_token), str(expected_sender_token)):
+            return JsonResponse({
+                'success': False,
+                'error': 'Неверный или отсутствующий X-Sender-Token',
+            }, status=403)
+
     # --- Разбираем JSON ---
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -331,7 +359,7 @@ def api_receive_order(request):
     }, status=201)
 
 
-
+@login_required(login_url='/login/')
 def list_web_orders(request):
     """
     Страница «Входящие заявки с сайта» — GET /web-orders/.
@@ -442,7 +470,7 @@ def list_web_orders(request):
     return render(request, 'web_orders/index.html', context)
 
 
-
+@login_required(login_url='/login/')
 @require_POST
 def api_reject_web_order(request, order_id):
     """
@@ -526,7 +554,7 @@ def api_reject_web_order(request, order_id):
     })
 
 
-
+@login_required
 @require_POST
 def api_restore_web_order(request, order_id):
     """
@@ -591,7 +619,7 @@ def api_restore_web_order(request, order_id):
     })
 
 
-
+@login_required
 @require_POST
 def api_convert_web_order(request, order_id):
     """
