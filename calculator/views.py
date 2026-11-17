@@ -1229,6 +1229,20 @@ def recalculate_components_for_circulation(request, proschet_id):
         }
         updated_components.append(component_data)
 
+    # ========================================================================
+    # BEAUTY-PRINT: пушим новую цену в товар на сайте
+    # ========================================================================
+    # Пересчёт тиража меняет цену. Без этого корзина показывала бы старое
+    # значение, пока клиент не откроет /cart (там плагин обновляет цены).
+    # Ошибка Moguta не должна ломать ответ: пересчёт уже сохранён в БД.
+    # ========================================================================
+    try:
+        from web_calculators.services import push_proschet_price_to_moguta
+        push_proschet_price_to_moguta(proschet)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
     print(f"✅ Массовый пересчёт завершён. Обновлено {len(updated_components)} компонентов")
     return JsonResponse({
         'success': True,

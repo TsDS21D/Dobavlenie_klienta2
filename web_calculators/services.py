@@ -1440,6 +1440,60 @@ def push_proschet_title_to_moguta(proschet, new_title, old_title=None):
     )
     return True
 
+def push_proschet_price_to_moguta(proschet):
+    """
+    Обновляет ЦЕНУ товара в Moguta по актуальному расчёту просчёта.
+
+    ЗАЧЕМ: цену на сайте обновляет плагин beauty-price-updater, но только
+    при открытии страницы корзины. Пока клиент ходит по другим страницам
+    (например, по калькулятору), в мини-корзине видна старая цена товара —
+    та, что была записана в Moguta при добавлении.
+
+    После этой функции цена в товаре сразу актуальная, и плагин лишь
+    подтверждает её при открытии корзины.
+
+    Аргументы:
+        proschet — просчёт; его номер (PR-N) = артикул товара в Moguta.
+
+    Возвращает:
+        True  — цена обновлена;
+        False — просчёт не из корзины, товар не найден или расчёт невозможен.
+
+    Исключения не глотает — вызывающий код решает, что делать с ошибкой.
+    """
+    from .moguta import get_client
+    from calculator.services_webcalc import calculate_proschet_current_price
+
+    # Товар в Moguta есть только у просчётов, созданных из корзины сайта.
+    if not getattr(proschet, 'is_from_cart', False):
+        return False
+
+    # Пересчитываем цену тем же правилом, что отдаём сайту:
+    # цена за штуку округлена вверх, итог = цена × тираж.
+    api_result = calculate_proschet_current_price(proschet)
+
+    if not api_result.get('available'):
+        logger.warning(
+            'Moguta: цена просчёта %s не пересчитана (%s)',
+            proschet.number, api_result.get('error'),
+        )
+        return False
+
+    price = api_result['total_price']
+
+    client = get_client()
+    client.import_product({
+        'code': proschet.number,
+        'price': price,
+    })
+
+    logger.info(
+        'Moguta: цена товара %s обновлена на %s',
+        proschet.number, price,
+    )
+    return True
+
+
 
 
 # ============================================================================
