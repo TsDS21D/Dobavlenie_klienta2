@@ -176,18 +176,40 @@ def update_proschet_title(request, proschet_id):
 
     try:
         proschet.save()
-        return JsonResponse({
-            'success': True,
-            'message': 'Название успешно обновлено',
-            'new_title': new_title,
-            'proschet_id': proschet.id,
-            'proschet_number': proschet.number
-        })
     except Exception as e:
         return JsonResponse({
             'success': False,
             'message': f'Ошибка при сохранении: {str(e)}'
         }, status=500)
+
+    # ========================================================================
+    # BEAUTY-PRINT: пробрасываем название в товар на сайте bukva-a.ru
+    # ========================================================================
+    # Название в просчёте — «источник правды». Товар в корзине клиента
+    # должен называться так же, иначе менеджер и клиент видят разное.
+    #
+    # Ошибка Moguta НЕ должна ломать сохранение названия: менеджер уже
+    # ввёл текст, и терять его из-за недоступности сайта нельзя.
+    # Поэтому — отдельный try/except с логом.
+    # ========================================================================
+    moguta_updated = False
+    try:
+        from web_calculators.services import push_proschet_title_to_moguta
+        moguta_updated = push_proschet_title_to_moguta(proschet, new_title, old_title)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Название успешно обновлено',
+        'new_title': new_title,
+        'proschet_id': proschet.id,
+        'proschet_number': proschet.number,
+        # True — товар в Moguta тоже обновлён; False — просчёт ручной
+        # или сайт недоступен (название в ИС при этом сохранено).
+        'moguta_updated': moguta_updated,
+    })
 
 
 @require_http_methods(["POST"])

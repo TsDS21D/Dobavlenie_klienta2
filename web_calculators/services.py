@@ -16,8 +16,27 @@ VichisliniyaMultipageModel, Laminate, AdditionalWork — создаются в �
 """
 
 # ===== СТАНДАРТНЫЕ ИМПОРТЫ =====
+import logging
 import math
 from decimal import Decimal, InvalidOperation
+
+# ============================================================================
+# ОБЩИЕ ДАННЫЕ МОДУЛЯ
+# ============================================================================
+# Логгер — чтобы ошибки обмена с Moguta не терялись, но и не роняли
+# сохранение названия просчёта.
+logger = logging.getLogger(__name__)
+
+# Расшифровка комбинаций печати. Используется в двух местах:
+#   1. в названии изделия (build_webcalc_title);
+#   2. в характеристиках товара (build_product_for_webcalc).
+# Вынесено на уровень модуля, чтобы не держать два одинаковых словаря.
+COMBO_TEXTS = {
+    'color_single': 'цветная односторонняя',
+    'color_duplex': 'цветная двусторонняя',
+    'bw_single':    'ч/б односторонняя',
+    'bw_duplex':    'ч/б двусторонняя',
+}
 
 # ===== ИМПОРТЫ DJANGO =====
 from django.db import transaction
@@ -1026,6 +1045,71 @@ def _to_decimal(value, field_name):
 # ============================================================================
 
 @transaction.atomic
+
+# ============================================================================
+# НАЗВАНИЕ ПРОСЧЁТА И ТОВАРА — ЕДИНЫЙ ГЕНЕРАТОР
+# ============================================================================
+# Раньше название собиралось в двух местах по-разному:
+#   • просчёт создавался с title = calculator.name («Визитки»);
+#   • товар для Moguta получал подробное название
+#     («Визитки, 90×50 мм, 2550 шт., цветная двусторонняя, Меловка матовая 350 г/кв.м»).
+#
+# Из-за этого менеджер в списке просчётов видел «Визитки» и не понимал,
+# какой именно тираж открывает. Теперь оба места используют эту функцию,
+# поэтому названия совпадают символ в символ.
+
+def build_webcalc_title(calculator, payload):
+    """
+    Собирает подробное название изделия из параметров веб-калькулятора.
+
+    Пример результата:
+        «Визитки, 90×50 мм, 2550 шт., цветная двусторонняя, Меловка матовая 350 г/кв.м»
+
+    Аргументы:
+        calculator — экземпляр WebCalculator (даёт первую часть названия);
+        payload    — параметры расчёта (тираж, компоненты, размеры, бумага).
+
+    Возвращает:
+        str — название, обрезанное до 200 символов
+              (такая длина у поля Proschet.title и у товара в Moguta).
+    """
+    from sklad.models import Material   # локальный импорт: модуль тяжёлый
+
+    circulation = int(payload.get('circulation', 0) or 0)
+    components_in = payload.get('components') or []
+    comps_by_id = {c.id: c for c in calculator.components.all()}
+
+    # Расшифровка печати — общий словарь модуля (см. COMBO_TEXTS выше).
+
+    # Название строим по первому компоненту — так же, как это делал
+    # build_product_for_webcalc до выноса в общую функцию.
+    first_data = components_in[0] if components_in else {}
+    first_comp = comps_by_id.get(first_data.get('component_id'))
+
+    title_parts = [calculator.name]
+
+    if first_comp:
+        w = first_data.get('width_mm')
+        h = first_data.get('height_mm')
+        if w and h:
+            title_parts.append(f"{int(round(float(w)))}×{int(round(float(h)))} мм")
+
+    title_parts.append(f"{circulation} шт.")
+
+    combo = first_data.get('print_combo')
+    if combo and combo in COMBO_TEXTS:
+        title_parts.append(COMBO_TEXTS[combo])
+
+    if first_data.get('paper_id'):
+        try:
+            paper = Material.objects.get(id=first_data['paper_id'])
+            title_parts.append(paper.name)
+        except Material.DoesNotExist:
+            pass
+
+    return ', '.join(title_parts)[:200]
+
+
 def create_proschet_from_webcalc(calculator, data, user=None):
     """
     Создаёт реальный просчёт (calculator.Proschet) со всеми вложенными
@@ -1071,10 +1155,13 @@ def create_proschet_from_webcalc(calculator, data, user=None):
     provided_ids = set()
 
     # --- 2. Корневой просчёт ---
-    # title = название калькулятора (например, «Простые визитки»).
+    # title = ПОДРОБНОЕ название, то же самое, что увидит клиент
+    # в корзине на сайте. Собирается тем же генератором, что и название
+    # товара в Moguta (build_webcalc_title) — чтобы в списке просчётов
+    # было видно, какой именно тираж открыт.
     # source_template оставляем пустым — просчёт создан не из шаблона.
     proschet = Proschet.objects.create(
-        title=calculator.name,
+        title=build_webcalc_title(calculator, data),
         circulation=circulation,
     )
 
@@ -1258,6 +1345,93 @@ def create_proschet_from_webcalc(calculator, data, user=None):
 
     return proschet
 
+# ============================================================================
+# ОБНОВЛЕНИЕ НАЗВАНИЯ ТОВАРА В MOGUTA
+# ============================================================================
+# Зачем: менеджер правит название просчёта на /proschety (inline-редактирование),
+# и это название должно сразу появиться в товаре, который лежит в корзине
+# клиента на bukva-a.ru. Иначе клиент видит старое название, а менеджер — новое.
+#
+# ПОЧЕМУ ТОЛЬКО title И ОПИСАНИЯ:
+# проверено на живом API (PR-213): importProduct с частичным набором полей
+# обновляет ТОЛЬКО их, а цену, склад и категорию оставляет как были.
+# Поэтому не отправляем всю карточку — меньше риска что-то затереть.
+#
+# ЗАЧЕМ ПРАВИТЬ ОПИСАНИЯ:
+# в description и short_description название продублировано текстом
+# (например, «<h3>Визитки, 90×50 мм, 200 шт. …</h3>»). Если поменять только
+# title, на странице товара в заголовке описания останется старое название.
+
+def push_proschet_title_to_moguta(proschet, new_title, old_title=None):
+    """
+    Обновляет название товара в Moguta, связанного с просчётом.
+
+    Аргументы:
+        proschet  — просчёт; номер (PR-N) = артикул товара в Moguta;
+        new_title — новое название;
+        old_title — прежнее название просчёта. Нужно, чтобы заменить текст
+                    в описаниях, даже если название товара в Moguta
+                    по какой-то причине отличалось от названия просчёта.
+
+    Возвращает:
+        True  — товар найден и обновлён;
+        False — товара нет (например, просчёт создан вручную и в Moguta
+                его никогда не было).
+
+    Исключения не глотает: вызывающий код сам решает, что делать
+    с ошибкой Moguta (обычно — залогировать и не мешать сохранению).
+    """
+    from .moguta import get_client   # локальный импорт: избегаем лишних зависимостей на старте
+
+    # Обновлять имеет смысл только просчёты, созданные из корзины сайта:
+    # у остальных товара в Moguta нет по определению.
+    if not getattr(proschet, 'is_from_cart', False):
+        return False
+
+    client = get_client()
+    product = client.get_product_by_code(proschet.number)
+
+    if not product:
+        logger.warning(
+            'Moguta: товар по коду %s не найден, название не обновлено',
+            proschet.number,
+        )
+        return False
+
+    product_title = product.get('title') or ''
+
+    # Данные для отправки: только артикул (по нему Moguta находит товар)
+    # и новое название.
+    payload = {
+        'code': proschet.number,
+        'title': new_title,
+    }
+
+    # Заменяем название внутри описаний. Проверяем оба варианта старого
+    # названия: из товара и из просчёта — они могут различаться,
+    # если синхронизация раньше не срабатывала.
+    candidates = [t for t in (product_title, old_title) if t and t != new_title]
+
+    for field in ('description', 'short_description'):
+        text = product.get(field) or ''
+        original = text
+
+        for candidate in candidates:
+            if candidate and candidate in text:
+                text = text.replace(candidate, new_title)
+
+        if text != original:
+            payload[field] = text
+
+    client.import_product(payload)
+
+    logger.info(
+        'Moguta: название товара %s обновлено на «%s»',
+        proschet.number, new_title,
+    )
+    return True
+
+
 
 # ============================================================================
 # СБОРКА ТОВАРА ДЛЯ MOGUTA (bukva-a.ru)
@@ -1300,41 +1474,11 @@ def build_product_for_webcalc(calculator, payload, proschet, price=None, mass_g=
     comps_by_id = {c.id: c for c in calculator.components.all()}
 
     # ---------------------------------------------------------------
-    # Расшифровка комбинации печати — словарь, чтобы не повторяться.
+    # 1. Название товара — из общего генератора.
+    # Тот же текст получает и просчёт (см. create_proschet_from_webcalc),
+    # поэтому название в корзине и в списке просчётов совпадает.
     # ---------------------------------------------------------------
-    combo_texts = {
-        'color_single': 'цветная односторонняя',
-        'color_duplex': 'цветная двусторонняя',
-        'bw_single':    'ч/б односторонняя',
-        'bw_duplex':    'ч/б двусторонняя',
-    }
-
-    # ---------------------------------------------------------------
-    # 1. Собираем название товара по первому компоненту.
-    # ---------------------------------------------------------------
-    first_data = components_in[0] if components_in else {}
-    first_comp = comps_by_id.get(first_data.get('component_id'))
-
-    title_parts = [calculator.name]
-    if first_comp:
-        w = first_data.get('width_mm')
-        h = first_data.get('height_mm')
-        if w and h:
-            title_parts.append(f"{int(round(float(w)))}×{int(round(float(h)))} мм")
-    title_parts.append(f"{circulation} шт.")
-
-    combo = first_data.get('print_combo')
-    if combo and combo in combo_texts:
-        title_parts.append(combo_texts[combo])
-
-    if first_data.get('paper_id'):
-        try:
-            paper = Material.objects.get(id=first_data['paper_id'])
-            title_parts.append(paper.name)
-        except Material.DoesNotExist:
-            pass
-
-    title = ', '.join(title_parts)
+    title = build_webcalc_title(calculator, payload)
 
     # ---------------------------------------------------------------
     # 2. Цена товара — берём из просчёта. Это гарантирует, что цена
@@ -1348,8 +1492,7 @@ def build_product_for_webcalc(calculator, payload, proschet, price=None, mass_g=
     if price is not None:
         try:
             if abs(float(price) - actual_price) > 0.01:
-                import logging
-                logger = logging.getLogger(__name__)
+                # Логгер уже объявлен на уровне модуля — см. начало файла.
                 logger.warning(
                     "Расхождение цен для просчёта %s: calculate_price=%s, "
                     "proschet.total_price=%s",
@@ -1371,7 +1514,7 @@ def build_product_for_webcalc(calculator, payload, proschet, price=None, mass_g=
         w = comp_in.get('width_mm')
         h = comp_in.get('height_mm')
         combo = comp_in.get('print_combo', '')
-        combo_text = combo_texts.get(combo, combo)
+        combo_text = COMBO_TEXTS.get(combo, combo)
 
         if len(components_in) > 1:
             lines.append(f'<li><b>Компонент:</b> {comp.name}</li>')
@@ -1466,11 +1609,11 @@ def build_product_for_webcalc(calculator, payload, proschet, price=None, mass_g=
         })
 
         combo = comp_in.get('print_combo')
-        if combo and combo in combo_texts:
+        if combo and combo in COMBO_TEXTS:
             properties_list.append({
                 'name':  f'{prefix}Печать',
                 'type':  'string',
-                'value': combo_texts[combo].capitalize(),
+                'value': COMBO_TEXTS[combo].capitalize(),
             })
 
         if comp_in.get('paper_id'):
