@@ -1491,8 +1491,9 @@ def api_client_files(request):
             # Только файлы, видимые клиенту.
             files = item.files.filter(is_client_visible=True).order_by('created_at')
 
-            if not files:
-                continue
+            # Позиции БЕЗ файлов тоже нужны клиенту: именно к ним он
+            # прикладывает первый макет из ЛК. Поэтому continue убран —
+            # ниже позиция попадёт в ответ с пустым списком files.
 
             files_data = []
 
@@ -1532,9 +1533,26 @@ def api_client_files(request):
                     ],
                 })
 
+            # Токен на загрузку правки именно к этой позиции.
+            # Отдаём сразу вместе с файлами: иначе ЛК пришлось бы делать
+            # отдельный HTTP-запрос на каждую позицию каждого заказа.
+            # Живёт 1 час — клиент успевает открыть ЛК и приложить файл.
+            from .upload_tokens import make_order_upload_token
+
+            try:
+                item_upload_token, item_upload_expires = make_order_upload_token(
+                    order.moguta_order_number,
+                    item.id,
+                )
+            except ValueError:
+                item_upload_token = ''
+                item_upload_expires = 0
+
             items_data.append({
                 'item_id': item.id,
                 'name': item.name or 'Позиция',
+                'upload_token': item_upload_token,
+                'upload_expires_at': item_upload_expires,
                 'files': files_data,
             })
 
