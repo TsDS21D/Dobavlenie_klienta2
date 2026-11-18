@@ -29,6 +29,14 @@ urlpatterns = [
         name='api_site_statuses',
     ),
 
+    # POST /web-orders/api/client/files/
+    # Макеты и переписка для ЛК клиента (только is_client_visible=True).
+    path(
+        'api/client/files/',
+        views.api_client_files,
+        name='api_client_files',
+    ),
+
     # POST /web-orders/api/convert/<id>/
     # Конвертировать заявку в заказ (orders.Order).
     # Вызывается кнопкой «Конвертировать в заказ».

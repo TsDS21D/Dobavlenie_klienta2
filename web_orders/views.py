@@ -1360,3 +1360,151 @@ def api_site_upload_file(request):
         }, status=405))
 
     return _beauty_cors(_api_site_upload_file_impl(request))
+
+# ============================================================================
+# ФАЙЛЫ МАКЕТОВ ДЛЯ ЛИЧНОГО КАБИНЕТА КЛИЕНТА
+# ============================================================================
+
+@csrf_exempt
+def api_client_files(request):
+    """
+    POST /web-orders/api/client/files/
+
+    Отдаёт сайту bukva-a.ru макеты и переписку по ним для ЛК клиента.
+
+    ЗАПРОС (JSON):
+        {"order_numbers": ["M-01074", "M-01073"]}
+
+    ОТВЕТ (JSON):
+        {
+          "success": true,
+          "orders": {
+            "M-01074": {
+              "items": [
+                {"item_id": 5, "name": "Визитки…", "files": [
+                   {"id": 12, "name": "макет.pdf", "size": 191234,
+                    "created_at": "18.11.2026 23:42",
+                    "kind": "Макет",
+                    "comments": [
+                       {"author": "Менеджер", "author_kind": "manager",
+                        "text": "Утвердили", "created_at": "19.11.2026 10:15"}
+                    ]}
+                ]}
+              ]
+            }
+          }
+        }
+
+    АВТОРИЗАЦИЯ — как у api_site_statuses: заголовок X-Beauty-Secret
+    сравнивается с BUKVA_API_SECRET (hmac.compare_digest), при заданном
+    BUKVA_ALLOWED_IPS дополнительно проверяется IP.
+
+    ВАЖНО ПРО ПРИВАТНОСТЬ:
+        Отдаём ТОЛЬКО записи с is_client_visible=True — и файлы, и
+        комментарии. Внутренние заметки менеджера клиент видеть не должен
+        ни при каких условиях, поэтому фильтр стоит в самом запросе к БД,
+        а не в шаблоне.
+    """
+    # ===== Проверка секретного ключа =====
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+            'message': 'Секретный ключ BUKVA_API_SECRET не задан в настройках',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+            'message': 'Неверный секретный ключ',
+        }, status=401)
+
+    # ===== Проверка IP (если список задан) =====
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'ip_not_allowed',
+                'message': 'IP не разрешён',
+            }, status=403)
+
+    # ===== Разбор запроса =====
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'bad_request',
+            'message': 'Некорректный JSON',
+        }, status=400)
+
+    order_numbers = data.get('order_numbers') or []
+    if not isinstance(order_numbers, list):
+        order_numbers = []
+
+    # Ограничение размера пачки: ЛК запрашивает максимум 50 заказов.
+    order_numbers = [str(n).strip() for n in order_numbers[:50] if str(n).strip()]
+
+    if not order_numbers:
+        return JsonResponse({'success': True, 'orders': {}})
+
+    orders = WebOrder.objects.filter(
+        moguta_order_number__in=order_numbers,
+        is_deleted=False,
+    )
+
+    result = {}
+
+    for order in orders:
+        items_data = []
+
+        for item in order.items.all().order_by('id'):
+            # Только файлы, видимые клиенту.
+            files = item.files.filter(is_client_visible=True).order_by('created_at')
+
+            if not files:
+                continue
+
+            files_data = []
+
+            for file_obj in files:
+                # Только комментарии, видимые клиенту.
+                comments = file_obj.comments.filter(is_client_visible=True).order_by('created_at')
+
+                files_data.append({
+                    'id': file_obj.id,
+                    'name': file_obj.display_name,
+                    'size': file_obj.display_size,
+                    'kind': file_obj.get_kind_display(),
+                    'created_at': timezone.localtime(file_obj.created_at).strftime('%d.%m.%Y %H:%M'),
+                    'comments': [
+                        {
+                            'author': c.get_author_kind_display(),
+                            'author_kind': c.author_kind,
+                            'text': c.text,
+                            'created_at': timezone.localtime(c.created_at).strftime('%d.%m.%Y %H:%M'),
+                        }
+                        for c in comments
+                    ],
+                })
+
+            items_data.append({
+                'item_id': item.id,
+                'name': item.name or 'Позиция',
+                'files': files_data,
+            })
+
+        result[order.moguta_order_number] = {'items': items_data}
+
+    return JsonResponse({
+        'success': True,
+        'orders': result,
+    })    
