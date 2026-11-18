@@ -187,3 +187,77 @@ def parse_download_token(token):
         return None
 
     return payload
+
+# ============================================================================
+# ТОКЕНЫ НА ЗАГРУЗКУ ПРАВКИ К ЗАКАЗУ (из личного кабинета)
+# ============================================================================
+# Клиент в ЛК прикладывает новый макет к уже существующему заказу.
+# Токен привязан к конкретному заказу и конкретной позиции: получив его,
+# нельзя загрузить файл в чужой заказ или в другую позицию.
+# ============================================================================
+
+
+def make_order_upload_token(order_number, item_id, ttl_hours=None):
+    """
+    Создаёт подписанный токен на загрузку файла к позиции заказа.
+
+    Аргументы:
+        order_number — номер заказа сайта (например, 'M-01074');
+        item_id      — id позиции заявки в ИС (WebOrderItem.id);
+        ttl_hours    — срок жизни в часах (по умолчанию 1).
+
+    Возвращает (token, expires_at).
+    """
+    import time as _time
+
+    if not _get_secret():
+        raise ValueError('Не настроен WEB_ORDER_UPLOAD_SECRET (или BUKVA_SENDER_TOKEN)')
+
+    if ttl_hours is None:
+        ttl_hours = 1
+
+    expires_at = int(_time.time()) + int(ttl_hours) * 3600
+
+    payload = {
+        'on': str(order_number)[:50],
+        'iid': int(item_id),
+        'exp': expires_at,
+    }
+
+    payload_b64 = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    ).decode('ascii').rstrip('=')
+
+    return f'{payload_b64}.{_sign(payload_b64)}', expires_at
+
+
+def parse_order_upload_token(token):
+    """
+    Проверяет токен загрузки к заказу.
+
+    Возвращает payload словарём либо None.
+    """
+    if not token or '.' not in token:
+        return None
+
+    payload_b64, signature = token.rsplit('.', 1)
+
+    if not hmac.compare_digest(signature, _sign(payload_b64)):
+        return None
+
+    try:
+        padded = payload_b64 + '=' * (-len(payload_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded.encode('ascii')))
+    except (ValueError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    if not payload.get('on') or not payload.get('iid'):
+        return None
+
+    if int(payload.get('exp', 0)) < int(time.time()):
+        return None
+
+    return payload

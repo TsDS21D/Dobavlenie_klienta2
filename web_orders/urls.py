@@ -29,6 +29,24 @@ urlpatterns = [
         name='api_site_statuses',
     ),
 
+    # POST /web-orders/api/site/order-upload/
+    # Прямая загрузка правки макета клиентом из ЛК (защита — X-Upload-Token).
+    path(
+        'api/site/order-upload/',
+        views.api_site_order_upload,
+        name='api_site_order_upload',
+    ),
+
+
+    # POST /web-orders/api/site/order-upload-token/
+    # Токен на загрузку правки к позиции заказа из ЛК клиента.
+    path(
+        'api/site/order-upload-token/',
+        views.api_site_order_upload_token,
+        name='api_site_order_upload_token',
+    ),
+
+
     # POST /web-orders/api/client/files/
     # Макеты и переписка для ЛК клиента (только is_client_visible=True).
     path(

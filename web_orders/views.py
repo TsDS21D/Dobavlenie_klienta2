@@ -1544,3 +1544,247 @@ def api_client_files(request):
         'success': True,
         'orders': result,
     })    
+
+# ============================================================================
+# ТОКЕН НА ЗАГРУЗКУ ПРАВКИ К ЗАКАЗУ (для ЛК клиента)
+# ============================================================================
+
+@csrf_exempt
+def api_site_order_upload_token(request):
+    """
+    POST /web-orders/api/site/order-upload-token/
+
+    Вызывается сайтом (серверная часть) с заголовком X-Beauty-Secret.
+
+    Тело JSON:
+        {"order_number": "M-01074", "item_id": 23}
+
+    Ответ:
+        {"success": true, "token": "…", "expires_at": 1234567890}
+
+    ПРОВЕРКИ:
+        1. секрет сайта;
+        2. заказ с таким номером существует;
+        3. позиция принадлежит именно этому заказу — иначе, зная чужой
+           item_id, можно было бы приложить файл в чужой заказ.
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Метод не поддерживается',
+        }, status=405)
+
+    # ===== Проверка секрета =====
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+        }, status=401)
+
+    # ===== Разбор запроса =====
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON',
+        }, status=400)
+
+    order_number = str(data.get('order_number') or '').strip()
+
+    try:
+        item_id = int(data.get('item_id') or 0)
+    except (TypeError, ValueError):
+        item_id = 0
+
+    if not order_number or item_id <= 0:
+        return JsonResponse({
+            'success': False,
+            'error': 'Нужны order_number и item_id',
+        }, status=400)
+
+    # ===== Проверка, что позиция принадлежит заказу =====
+    order = WebOrder.objects.filter(
+        moguta_order_number=order_number,
+        is_deleted=False,
+    ).first()
+
+    if order is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заказ не найден',
+        }, status=404)
+
+    item = order.items.filter(pk=item_id).first()
+
+    if item is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Позиция не принадлежит этому заказу',
+        }, status=403)
+
+    from .upload_tokens import make_order_upload_token
+
+    try:
+        token, expires_at = make_order_upload_token(order_number, item.id)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'token': token,
+        'expires_at': expires_at,
+    })
+
+# ============================================================================
+# ЗАГРУЗКА ПРАВКИ МАКЕТА К ЗАКАЗУ (из ЛК клиента)
+# ============================================================================
+
+@csrf_exempt
+def _api_site_order_upload_impl(request):
+    """
+    POST /web-orders/api/site/order-upload/
+
+    Браузер клиента шлёт файл напрямую в ИС с заголовком X-Upload-Token
+    (токен выдаёт api_site_order_upload_token для конкретной позиции).
+
+    Поля формы:
+        file    — файл (либо link_url)
+        comment — комментарий клиента
+
+    Создаёт обычный WebOrderItemFile с author_kind=client и
+    is_client_visible=True: менеджер видит правку в заявке, клиент —
+    в ЛК, при конвертации файл уедет в изделие вместе с остальными.
+    """
+    import os
+
+    from .upload_tokens import parse_order_upload_token
+
+    payload = parse_order_upload_token(request.headers.get('X-Upload-Token', ''))
+
+    if payload is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Ссылка на загрузку недействительна или устарела',
+        }, status=403)
+
+    # ===== Проверяем заказ и позицию из токена =====
+    order = WebOrder.objects.filter(
+        moguta_order_number=payload['on'],
+        is_deleted=False,
+    ).first()
+
+    if order is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заказ не найден',
+        }, status=404)
+
+    item = order.items.filter(pk=int(payload['iid'])).first()
+
+    if item is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Позиция не найдена',
+        }, status=404)
+
+    uploaded = request.FILES.get('file')
+    link_url = (request.POST.get('link_url') or '').strip()
+    comment = (request.POST.get('comment') or '').strip()
+
+    if not uploaded and not link_url:
+        return JsonResponse({
+            'success': False,
+            'error': 'Приложите файл или укажите ссылку',
+        }, status=400)
+
+    max_size = getattr(settings, 'WEB_ORDER_MAX_FILE_SIZE', 512 * 1024 * 1024)
+    if uploaded and uploaded.size > max_size:
+        return JsonResponse({
+            'success': False,
+            'error': 'Файл больше %s МБ' % (max_size // (1024 * 1024)),
+        }, status=413)
+
+    allowed_ext = getattr(settings, 'WEB_ORDER_ALLOWED_FILE_EXTENSIONS', [])
+    if uploaded and allowed_ext:
+        ext = os.path.splitext(uploaded.name)[1].lower()
+        if ext not in allowed_ext:
+            return JsonResponse({
+                'success': False,
+                'error': 'Недопустимый тип файла: %s' % ext,
+            }, status=400)
+
+    file_obj = WebOrderItemFile(
+        item=item,
+        kind=WebOrderItemFile.KIND_LAYOUT,
+        author_kind=WebOrderItemFile.AUTHOR_CLIENT,
+        is_client_visible=True,
+        comment=comment,
+        link_url=link_url,
+    )
+
+    if uploaded:
+        file_obj.original_name = uploaded.name
+        file_obj.size = uploaded.size
+        file_obj.content_type = getattr(uploaded, 'content_type', '') or ''
+        file_obj.file = uploaded
+
+    # Если заявка уже сконвертирована — привязываем к тому же
+    # изделию/товару, что и остальные файлы позиции, иначе правка
+    # не появится в карточке заказа.
+    sibling_file = (
+        item.files.exclude(order_product__isnull=True).first()
+        or item.files.exclude(order_tovar__isnull=True).first()
+    )
+
+    if sibling_file is not None:
+        file_obj.order_product = sibling_file.order_product
+        file_obj.order_tovar = sibling_file.order_tovar
+
+    file_obj.save()
+
+    from .upload_tokens import make_download_token
+
+    download_path = '%s/web-orders/files/%d/download/?token=%s' % (
+        getattr(settings, 'WEB_ORDER_PUBLIC_BASE_URL', 'https://beauty-print.ru'),
+        file_obj.id,
+        make_download_token(file_obj.id),
+    )
+
+    return JsonResponse({
+        'success': True,
+        'id': file_obj.id,
+        'name': file_obj.display_name,
+        'size': file_obj.display_size,
+        'download_url': download_path,
+    }, status=201)
+
+
+@csrf_exempt
+def api_site_order_upload(request):
+    """
+    Публичная обёртка: CORS-preflight и заголовки разрешения.
+    """
+    if request.method == 'OPTIONS':
+        return _beauty_cors(HttpResponse(status=204))
+
+    if request.method != 'POST':
+        return _beauty_cors(JsonResponse({
+            'success': False,
+            'error': 'Метод не поддерживается',
+        }, status=405))
+
+    return _beauty_cors(_api_site_order_upload_impl(request))
