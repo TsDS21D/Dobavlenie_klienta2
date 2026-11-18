@@ -1504,7 +1504,12 @@ def api_client_files(request):
                 # токен живёт 1 час и действует только на этот файл.
                 from .upload_tokens import make_download_token
 
-                download_path = '/web-orders/files/%d/download/?token=%s' % (
+                # Абсолютный адрес собираем от публичной константы, а не
+                # от request.build_absolute_uri(): за nginx Django считает
+                # схему http, и клиент на https-странице получал ссылку
+                # http://, которую браузер блокирует (mixed content).
+                download_path = '%s/web-orders/files/%d/download/?token=%s' % (
+                    getattr(settings, 'WEB_ORDER_PUBLIC_BASE_URL', 'https://beauty-print.ru'),
                     file_obj.id,
                     make_download_token(file_obj.id),
                 )
@@ -1513,7 +1518,7 @@ def api_client_files(request):
                     'id': file_obj.id,
                     'name': file_obj.display_name,
                     'size': file_obj.display_size,
-                    'download_url': request.build_absolute_uri(download_path),
+                    'download_url': download_path,
                     'kind': file_obj.get_kind_display(),
                     'created_at': timezone.localtime(file_obj.created_at).strftime('%d.%m.%Y %H:%M'),
                     'comments': [
