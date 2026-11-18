@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db import IntegrityError, transaction
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_POST
@@ -1222,9 +1222,30 @@ def api_site_upload_token(request):
 # ЗАГРУЗКА ФАЙЛА КЛИЕНТОМ (напрямую из браузера, до оформления заказа)
 # ============================================================================
 
+# ============================================================================
+# CORS ДЛЯ ЗАГРУЗКИ С САЙТА
+# ============================================================================
+# Браузер грузит файл с bukva-a.ru на beauty-print.ru — это кросс-доменный
+# запрос. Заголовок X-Upload-Token делает его «непростым», поэтому браузер
+# сначала шлёт предварительный OPTIONS и требует явного разрешения.
+# Без этих заголовков Chrome блокирует запрос с ошибкой CORS.
+
+BEAUTY_UPLOAD_ALLOWED_ORIGIN = 'https://bukva-a.ru'
+
+
+def _beauty_cors(response):
+    """Проставляет CORS-заголовки для эндпоинта загрузки файлов."""
+    response['Access-Control-Allow-Origin'] = BEAUTY_UPLOAD_ALLOWED_ORIGIN
+    response['Access-Control-Allow-Headers'] = 'X-Upload-Token, Content-Type'
+    response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    response['Access-Control-Max-Age'] = '86400'
+    response['Vary'] = 'Origin'
+    return response
+
+
 @csrf_exempt
 @require_POST
-def api_site_upload_file(request):
+def _api_site_upload_file_impl(request):
     """
     POST /web-orders/api/site/upload/
 
@@ -1322,3 +1343,20 @@ def api_site_upload_file(request):
         'comment': pending.comment,
         'line_uid': pending.line_uid,
     }, status=201)
+
+@csrf_exempt
+def api_site_upload_file(request):
+    """
+    Публичная обёртка: обрабатывает предварительный OPTIONS-запрос
+    (CORS preflight) и проставляет заголовки разрешения на все ответы.
+    """
+    if request.method == 'OPTIONS':
+        return _beauty_cors(HttpResponse(status=204))
+
+    if request.method != 'POST':
+        return _beauty_cors(JsonResponse({
+            'success': False,
+            'error': 'Метод не поддерживается',
+        }, status=405))
+
+    return _beauty_cors(_api_site_upload_file_impl(request))
