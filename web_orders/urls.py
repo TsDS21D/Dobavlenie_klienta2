@@ -63,6 +63,38 @@ urlpatterns = [
         name='api_reject_web_order',
     ),
 
+    # POST /web-orders/api/item/<id>/files/upload/
+    # Загрузка файла макета к конкретной позиции заявки
+    # (изделию или товару; доставка исключена).
+    path(
+        'api/item/<int:item_id>/files/upload/',
+        views.api_upload_item_file,
+        name='api_upload_item_file',
+    ),
+    path(
+        'api/file/<int:file_id>/comments/add/',
+        views.api_add_file_comment,
+        name='api_add_file_comment',
+    ),
+
+    path(
+        'files/<int:file_id>/download/',
+        views.api_download_item_file,
+        name='api_download_item_file',
+    ),
+
+    path(
+        'files/<int:file_id>/delete/',
+        views.api_delete_item_file,
+        name='api_delete_item_file',
+    ),
+
+    path(
+        'files/<int:file_id>/delete/',
+        views.api_delete_item_file,
+        name='api_delete_item_file',
+    ),
+
 
     # POST /web-orders/api/receive/
     # Принимает JSON с данными заказа от Moguta (bukva-a.ru).

@@ -154,6 +154,134 @@
                                             <span class="web-orders-col-count">{{ item.count }}</span>
                                             <span class="web-orders-col-price">{{ item.price|floatformat:2 }} ₽</span>
                                             <span class="web-orders-col-sum">{{ item.total_price|floatformat:2 }} ₽</span>
+
+                                            {% comment %} ===== ФАЙЛЫ МАКЕТОВ ЭТОЙ ПОЗИЦИИ =====
+                                               Макет относится к конкретному изделию/товару,
+                                               поэтому выводим его внутри строки позиции
+                                               на всю ширину (grid-column: 1 / -1).
+                                            {% endcomment %}
+                                                <div class="web-orders-item-files">
+                                                    {% for f in item.files.all %}
+                                                        <div class="web-orders-file">
+                                                            <div class="web-orders-file-head">
+                                                                <span class="web-orders-file-kind">{{ f.get_kind_display }}</span>
+
+                                                                {% comment %} Файл или ссылка: у файла выводим
+                                                                   ссылку на скачивание и размер, у ссылки —
+                                                                   саму ссылку. {% endcomment %}
+                                                                {% if f.file %}
+                                                                    <a class="web-orders-file-name"
+                                                                       href="{% url 'web_orders:api_download_item_file' f.id %}"
+                                                                       rel="noopener">
+                                                                        {{ f.display_name }}
+                                                                    </a>
+                                                                    <span class="web-orders-file-size">{{ f.display_size|filesizeformat }}</span>
+                                                                {% elif f.link_url %}
+                                                                    <a class="web-orders-file-name"
+                                                                       href="{{ f.link_url }}"
+                                                                       target="_blank"
+                                                                       rel="noopener">
+                                                                        ссылка на макет
+                                                                    </a>
+                                                                {% endif %}
+
+                                                                <span class="web-orders-file-author">{{ f.get_author_kind_display }}</span>
+
+                                                                {% if not f.is_client_visible %}
+                                                                    <span class="web-orders-file-internal" title="Клиент этот файл не видит">внутренний</span>
+                                                                {% endif %}
+
+                                                                <span class="web-orders-file-date">{{ f.created_at|date:"d.m.Y H:i" }}</span>
+
+                                                                {% comment %} Удаление файла: кнопка есть только в заявке,
+                                                                   где менеджер управляет макетами. {% endcomment %}
+                                                                <button type="button"
+                                                                        class="web-orders-file-delete-btn"
+                                                                        data-file-id="{{ f.id }}"
+                                                                        title="Удалить файл">×</button>
+                                                            </div>
+
+                                                            {% if f.comment %}
+                                                                <div class="web-orders-file-comment">{{ f.comment }}</div>
+                                                            {% endif %}
+
+                                                            {% comment %} Комментарии к файлу — диалог клиента
+                                                               и менеджера. Пока выводим все: менеджер должен
+                                                               видеть полную переписку. {% endcomment %}
+                                                            {% for c in f.comments.all %}
+                                                                <div class="web-orders-file-note">
+                                                                    <span class="web-orders-file-note-author">{{ c.get_author_kind_display }}</span>
+                                                                    <span class="web-orders-file-note-date">{{ c.created_at|date:"d.m.Y H:i" }}</span>
+                                                                    {% if not c.is_client_visible %}<span class="web-orders-file-internal">внутренний</span>{% endif %}
+                                                                    <div class="web-orders-file-note-text">{{ c.text }}</div>
+                                                                </div>
+                                                            {% endfor %}
+
+                                                            {% comment %} Форма ответа на файл. Клиент увидит комментарий,
+                                                               если оставить галочку «клиенту». {% endcomment %}
+                                                            <div class="web-orders-file-reply">
+                                                                <input type="text"
+                                                                       class="web-orders-comment-input"
+                                                                       placeholder="Комментарий к файлу…"
+                                                                       maxlength="5000">
+
+                                                                <label class="web-orders-upload-visible-label"
+                                                                       title="Клиент увидит комментарий в личном кабинете">
+                                                                    <input type="checkbox" class="web-orders-comment-visible" checked>
+                                                                    клиенту
+                                                                </label>
+
+                                                                <button type="button"
+                                                                        class="web-orders-comment-btn"
+                                                                        data-file-id="{{ f.id }}">Ответить</button>
+
+                                                                <span class="web-orders-comment-status"></span>
+                                                            </div>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+
+                                            {% comment %} ===== ЗАГРУЗКА ФАЙЛА МЕНЕДЖЕРОМ =====
+                                               Отправляется через XHR с прогрессом:
+                                               большие макеты (до 512 МБ) нельзя
+                                               грузить обычной формой — пользователь
+                                               не увидит, идёт загрузка или всё встало.
+                                            {% endcomment %}
+                                            <div class="web-orders-item-upload" data-item-id="{{ item.id }}">
+                                                <div class="web-orders-upload-row">
+                                                    <select class="web-orders-upload-kind" title="Тип файла">
+                                                        <option value="layout">Макет</option>
+                                                        <option value="proof">Правка</option>
+                                                        <option value="prepress">От менеджера</option>
+                                                        <option value="other">Другое</option>
+                                                    </select>
+
+                                                    <input type="file" class="web-orders-upload-file" title="Файл">
+
+                                                    <input type="text"
+                                                           class="web-orders-upload-link"
+                                                           placeholder="или ссылка на макет"
+                                                           title="Ссылка вместо файла">
+
+                                                    <input type="text"
+                                                           class="web-orders-upload-comment"
+                                                           placeholder="комментарий"
+                                                           title="Комментарий к файлу">
+
+                                                    <label class="web-orders-upload-visible-label" title="Клиент увидит файл в личном кабинете">
+                                                        <input type="checkbox" class="web-orders-upload-visible" checked>
+                                                        клиенту
+                                                    </label>
+
+                                                    <button type="button" class="web-orders-upload-btn">Загрузить</button>
+                                                </div>
+
+                                                <div class="web-orders-upload-progress" hidden>
+                                                    <div class="web-orders-upload-bar"></div>
+                                                </div>
+
+                                                <div class="web-orders-upload-status"></div>
+                                            </div>
                                         </div>
                                     {% empty %}
                                         {% comment %} Такое возможно, если позиции не сохранились
@@ -288,6 +416,30 @@
         {% endif %}
     {% endfor %}
 
+    {% comment %} ===== МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ФАЙЛА =====
+       Своя модалка вместо window.confirm: браузерное окно нельзя
+       стилизовать, и оно выбивается из оформления ИС.
+       Стили повторяют модалку удаления просчёта на /proschety/.
+       Лежит вне #web-orders-page, чтобы не перерисовываться
+       при AJAX-обновлении списка заявок.
+    {% endcomment %}
+    <div class="web-orders-confirm-overlay" id="web-orders-file-confirm" style="display: none;">
+        <div class="web-orders-confirm">
+            <div class="web-orders-confirm-title">Удалить файл?</div>
+            <div class="web-orders-confirm-text">
+                Файл будет удалён с сервера. Восстановить его не получится.
+            </div>
+            <div class="web-orders-confirm-actions">
+                <button type="button"
+                        class="web-orders-confirm-btn web-orders-confirm-btn--no"
+                        data-confirm="no">Отмена</button>
+                <button type="button"
+                        class="web-orders-confirm-btn web-orders-confirm-btn--yes"
+                        data-confirm="yes">Удалить</button>
+            </div>
+        </div>
+    </div>
+
 </section>
 {% endblock %}
 
@@ -296,4 +448,7 @@
    Подключается в блок extra_js, который объявлен в orders/base.html —
    значит, загрузится ПОСЛЕ tab_id.js и после отрисовки разметки. {% endcomment %}
 <script src="{% static 'web_orders/js/index.js' %}"></script>
+{% comment %} Загрузка файлов макетов: отдельный скрипт, чтобы не трогать
+   основной index.js. Грузим после него — использует те же селекторы. {% endcomment %}
+<script src="{% static 'web_orders/js/upload.js' %}"></script>
 {% endblock %}

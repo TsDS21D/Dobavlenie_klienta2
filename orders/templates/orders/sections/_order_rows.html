@@ -199,6 +199,7 @@ orders/templates/orders/sections/_order_rows.html
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
                                         </div>
+                                        {% include 'orders/sections/_files_product.html' %}
                                         <!-- СКРЫТЫЙ БЛОК С ДЕТАЛЯМИ (сюда JS вставит компоненты) -->
                                         <div class="list-orders-product-expanded" style="display: none;"></div>
                                     </div>
@@ -235,6 +236,7 @@ orders/templates/orders/sections/_order_rows.html
                                         <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
                                         <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
                                     </div>
+                                    {% include 'orders/sections/_files_tovar.html' %}
                                 {% endfor %}
                             </div>
                             {% endif %}
@@ -566,6 +568,7 @@ orders/templates/orders/sections/_order_rows.html
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
                                         </div>
+                                        {% include 'orders/sections/_files_product.html' %}
                                         <!-- СКРЫТЫЙ БЛОК С ДЕТАЛЯМИ (сюда JS вставит компоненты) -->
                                         <div class="list-orders-product-expanded" style="display: none;"></div>
                                     </div>
@@ -601,6 +604,7 @@ orders/templates/orders/sections/_order_rows.html
                                     <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
                                     <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
                                 </div>
+                                    {% include 'orders/sections/_files_tovar.html' %}
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -933,6 +937,7 @@ orders/templates/orders/sections/_order_rows.html
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
                                         </div>
+                                        {% include 'orders/sections/_files_product.html' %}
                                         <!-- СКРЫТЫЙ БЛОК С ДЕТАЛЯМИ (сюда JS вставит компоненты) -->
                                         <div class="list-orders-product-expanded" style="display: none;"></div>
                                     </div>
@@ -968,6 +973,7 @@ orders/templates/orders/sections/_order_rows.html
                                     <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
                                     <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
                                 </div>
+                                    {% include 'orders/sections/_files_tovar.html' %}        
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -1304,6 +1310,7 @@ orders/templates/orders/sections/_order_rows.html
                                             <button type="button" class="list-orders-product-edit-btn" data-product-id="{{ product.id }}" title="Редактировать изделие">✎</button>
                                             <button type="button" class="list-orders-product-delete-btn" data-product-id="{{ product.id }}" title="Удалить изделие">×</button>
                                         </div>
+                                        {% include 'orders/sections/_files_product.html' %}
                                         <!-- СКРЫТЫЙ БЛОК С ДЕТАЛЯМИ (сюда JS вставит компоненты) -->
                                         <div class="list-orders-product-expanded" style="display: none;"></div>
                                     </div>
@@ -1339,6 +1346,7 @@ orders/templates/orders/sections/_order_rows.html
                                     <span class="list-orders-tovar-total">{{ tovar.formatted_total_price }}</span>
                                     <button type="button" class="list-orders-tovar-delete-btn" data-tovar-id="{{ tovar.id }}" title="Удалить товар">×</button>
                                 </div>
+                                    {% include 'orders/sections/_files_tovar.html' %}
                             {% endfor %}
                         </div>
                         {% endif %}

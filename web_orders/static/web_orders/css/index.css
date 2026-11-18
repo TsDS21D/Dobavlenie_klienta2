@@ -581,3 +581,352 @@
         transform: translateY(0);
     }
 }
+
+/* ==========================================================================
+   ФАЙЛЫ МАКЕТОВ В СТРОКЕ ПОЗИЦИИ
+   ==========================================================================
+   Позиция — это CSS-grid из четырёх колонок (название, кол-во, цена, сумма).
+   Блок файлов должен занимать всю ширину строки, поэтому
+   grid-column: 1 / -1.
+   ========================================================================== */
+
+.web-orders-item-files {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.4rem 0 0.2rem 0;
+    border-top: 1px dotted var(--brand-dashed);
+}
+
+.web-orders-file {
+    background: #fafcfb;
+    border: 1px solid #e3ece8;
+    border-radius: 6px;
+    padding: 0.4rem 0.55rem;
+}
+
+.web-orders-file-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+}
+
+.web-orders-file-kind {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: var(--brand-green, #0b8661);
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+}
+
+.web-orders-file-name {
+    color: var(--brand-green, #0b8661);
+    text-decoration: none;
+    border-bottom: 1px dashed currentColor;
+}
+
+.web-orders-file-name:hover {
+    border-bottom-style: solid;
+}
+
+.web-orders-file-size,
+.web-orders-file-date {
+    color: var(--brand-muted, #8a9a95);
+    font-size: 0.72rem;
+}
+
+.web-orders-file-author {
+    font-size: 0.72rem;
+    color: var(--brand-muted, #8a9a95);
+}
+
+.web-orders-file-internal {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #b0713b;
+    border: 1px solid #e7c9a8;
+    border-radius: 3px;
+    padding: 0.05rem 0.3rem;
+}
+
+.web-orders-file-comment {
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: #33443f;
+	white-space: pre-wrap;
+}
+
+.web-orders-file-note {
+    margin-top: 0.3rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid #dfe9e5;
+    font-size: 0.78rem;
+}
+
+.web-orders-file-note-author {
+    font-weight: 600;
+    color: #33443f;
+    margin-right: 0.4rem;
+}
+
+.web-orders-file-note-date {
+    color: var(--brand-muted, #8a9a95);
+    font-size: 0.7rem;
+    margin-right: 0.4rem;
+}
+
+.web-orders-file-note-text {
+    margin-top: 0.1rem;
+    white-space: pre-wrap;
+    color: #33443f;
+}
+
+/* ==========================================================================
+   ФОРМА ЗАГРУЗКИ ФАЙЛА В КАРТОЧКЕ ЗАЯВКИ
+   ========================================================================== */
+
+.web-orders-item-upload {
+    grid-column: 1 / -1;
+    margin-top: 0.35rem;
+    padding-top: 0.4rem;
+    border-top: 1px dotted var(--brand-dashed);
+}
+
+.web-orders-upload-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+}
+
+.web-orders-upload-row select,
+.web-orders-upload-row input[type="text"] {
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    background: #fff;
+    color: #33443f;
+}
+
+.web-orders-upload-row input[type="text"] {
+    min-width: 160px;
+}
+
+.web-orders-upload-file {
+    font-size: 0.75rem;
+    max-width: 260px;
+}
+
+.web-orders-upload-visible-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--brand-muted, #8a9a95);
+}
+
+.web-orders-upload-btn {
+    padding: 0.3rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--brand-green, #0b8661);
+    color: #fff;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.web-orders-upload-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.web-orders-upload-progress {
+    margin-top: 0.4rem;
+    height: 6px;
+    background: #eef3f1;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.web-orders-upload-bar {
+    height: 100%;
+    width: 0;
+    background: var(--brand-green, #0b8661);
+    transition: width 0.15s linear;
+}
+
+.web-orders-upload-status {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    min-height: 1rem;
+}
+
+.web-orders-upload-status.is-error {
+    color: #cf3a3a;
+}
+
+.web-orders-upload-status.is-ok {
+    color: var(--brand-green, #0b8661);
+}
+
+/* ==========================================================================
+   ФОРМА КОММЕНТАРИЯ К ФАЙЛУ
+   ========================================================================== */
+
+.web-orders-file-reply {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+    padding-top: 0.35rem;
+    border-top: 1px dotted var(--brand-dashed);
+}
+
+.web-orders-comment-input {
+    flex: 1 1 220px;
+    min-width: 160px;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    background: #fff;
+    color: #33443f;
+}
+
+.web-orders-comment-btn {
+    padding: 0.25rem 0.7rem;
+    border: 1px solid var(--brand-green, #0b8661);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--brand-green, #0b8661);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.web-orders-comment-btn:hover {
+    background: var(--brand-green, #0b8661);
+    color: #fff;
+}
+
+.web-orders-comment-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.web-orders-comment-status {
+    font-size: 0.72rem;
+}
+
+.web-orders-comment-status.is-error {
+    color: #cf3a3a;
+}
+
+.web-orders-comment-status.is-ok {
+    color: var(--brand-green, #0b8661);
+}
+
+/* Кнопка удаления файла макета */
+.web-orders-file-delete-btn {
+    margin-left: auto;
+    width: 22px;
+    height: 22px;
+    line-height: 1;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #b3c0bb;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.web-orders-file-delete-btn:hover {
+    background: #f3d9d9;
+    color: #cf3a3a;
+}
+
+/* ==========================================================================
+   МОДАЛКА ПОДТВЕРЖДЕНИЯ (как на /proschety/)
+   ==========================================================================
+   Мягкий розовый фон, тонкая красная рамка, затемнение и размытие подложки.
+   ========================================================================== */
+
+.web-orders-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(40, 40, 40, 0.18);
+    backdrop-filter: blur(2px);
+}
+
+.web-orders-confirm {
+    width: min(420px, calc(100vw - 2rem));
+    background: #fbeceb;
+    border: 1px solid rgba(170, 100, 97, 0.35);
+    border-radius: 10px;
+    box-shadow: 0 18px 40px rgba(122, 40, 35, 0.18);
+    padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.web-orders-confirm-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #a03a35;
+    margin-bottom: 0.5rem;
+}
+
+.web-orders-confirm-text {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #6b3f3c;
+    margin-bottom: 1rem;
+}
+
+.web-orders-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.web-orders-confirm-btn {
+    padding: 0.35rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.web-orders-confirm-btn--no {
+    background: #ffffff;
+    border-color: #d9cfce;
+    color: #6b3f3c;
+}
+
+.web-orders-confirm-btn--no:hover {
+    background: #f6f0ef;
+}
+
+.web-orders-confirm-btn--yes {
+    background: #c2453f;
+    color: #ffffff;
+}
+
+.web-orders-confirm-btn--yes:hover {
+    background: #a83a35;
+}
+
+.web-orders-confirm-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

@@ -1,0 +1,40 @@
+{% comment %} Файлы макетов товара. Ждут в контексте переменную tovar.
+   Подключается во всех четырёх секциях _order_rows.html. {% endcomment %}
+{% if tovar.layout_files.all %}
+    <div class="list-orders-tovar-files">
+        {% for f in tovar.layout_files.all %}
+            <div class="list-orders-file">
+                <span class="list-orders-file-kind">{{ f.get_kind_display }}</span>
+                {% if f.file %}
+                    <a class="list-orders-file-name"
+                       href="{% url 'web_orders:api_download_item_file' f.id %}"
+                       rel="noopener">{{ f.display_name }}</a>
+                    <span class="list-orders-file-size">{{ f.display_size|filesizeformat }}</span>
+                {% elif f.link_url %}
+                    <a class="list-orders-file-name"
+                       href="{{ f.link_url }}"
+                       target="_blank"
+                       rel="noopener">ссылка на макет</a>
+                {% endif %}
+                {% if not f.is_client_visible %}
+                    <span class="list-orders-file-internal">внутренний</span>
+                {% endif %}
+                {% if f.comment %}
+                    <div class="list-orders-file-comment">{{ f.comment }}</div>
+                {% endif %}
+
+                {% comment %} Диалог по файлу: комментарии клиента и менеджера.
+                   У каждого — автор, дата и пометка «внутренний», если
+                   клиент его не видит. {% endcomment %}
+                {% for c in f.comments.all %}
+                    <div class="list-orders-file-note">
+                        <span class="list-orders-file-note-author">{{ c.get_author_kind_display }}</span>
+                        <span class="list-orders-file-note-date">{{ c.created_at|date:"d.m.Y H:i" }}</span>
+                        {% if not c.is_client_visible %}<span class="list-orders-file-internal">внутренний</span>{% endif %}
+                        <div class="list-orders-file-note-text">{{ c.text }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

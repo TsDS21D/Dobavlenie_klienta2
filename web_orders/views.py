@@ -9,16 +9,22 @@ from decimal import Decimal, InvalidOperation
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 # Авторизация: доступ к заявкам с сайта — только для сотрудников.
 # login_url тот же, что в остальных разделах ИС (см. proschety, orders).
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from .models import WebOrder, WebOrderItem, SiteOrderStatus
+from .models import (
+    WebOrder,
+    WebOrderItem,
+    SiteOrderStatus,
+    WebOrderItemFile,
+    WebOrderItemFileComment,
+)
 from .services import convert_web_order_to_order, get_site_status_payload
 
 def _to_decimal(value):
@@ -778,4 +784,288 @@ def api_site_statuses(request):
     return JsonResponse({
         'success': True,
         'statuses': statuses,
+    })
+
+# ============================================================================
+# ЗАГРУЗКА ФАЙЛА МАКЕТА К ПОЗИЦИИ ЗАЯВКИ
+# ============================================================================
+
+@login_required(login_url='/login/')
+@require_POST
+def api_upload_item_file(request, item_id):
+    """
+    POST /web-orders/api/item/<id>/files/upload/
+
+    Принимает multipart/form-data:
+        file             — файл (необязательно, если есть link_url)
+        link_url         — ссылка на макет (необязательно, если есть файл)
+        comment          — комментарий автора
+        kind             — тип: layout / proof / prepress / other
+        is_client_visible — '1', если файл виден клиенту
+
+    Возвращает JSON:
+        {"success": true, "id": 12, "display_name": "...", "display_size": 12345,
+         "url": "https://.../media/...", "kind": "layout",
+         "kind_display": "Макет", "author_kind_display": "Менеджер",
+         "comment": "...", "created_at": "18.11.2026 01:00"}
+
+    ПОЧЕМУ ОТДЕЛЬНАЯ ПРОВЕРКА РАЗМЕРА:
+    nginx режет запрос по client_max_body_size (по умолчанию 1 МБ),
+    но настройка может быть увеличена неаккуратно. Своя проверка
+    гарантирует, что в media не попадёт файл больше разрешённого,
+    даже если nginx пропустит.
+    """
+    import os
+
+    item = get_object_or_404(WebOrderItem, pk=item_id)
+
+    # Позиция «Доставка» файлов иметь не может.
+    # Проверяем по названию: отдельного флага «это доставка» в модели нет.
+    if not item.code and item.name.strip().lower().startswith('доставка'):
+        return JsonResponse({
+            'success': False,
+            'error': 'К позиции «Доставка» файл приложить нельзя',
+        }, status=400)
+
+    uploaded = request.FILES.get('file')
+    link_url = (request.POST.get('link_url') or '').strip()
+    comment = (request.POST.get('comment') or '').strip()
+    kind = request.POST.get('kind') or WebOrderItemFile.KIND_LAYOUT
+    is_client_visible = request.POST.get('is_client_visible') in ('1', 'on', 'true')
+
+    # Хотя бы что-то одно должно быть: файл или ссылка.
+    if not uploaded and not link_url:
+        return JsonResponse({
+            'success': False,
+            'error': 'Приложите файл или укажите ссылку на макет',
+        }, status=400)
+
+    # Тип файла — только из списка.
+    valid_kinds = [k for k, _ in WebOrderItemFile.KIND_CHOICES]
+    if kind not in valid_kinds:
+        kind = WebOrderItemFile.KIND_LAYOUT
+
+    # Ограничение размера.
+    max_size = getattr(settings, 'WEB_ORDER_MAX_FILE_SIZE', 512 * 1024 * 1024)
+    if uploaded and uploaded.size > max_size:
+        return JsonResponse({
+            'success': False,
+            'error': 'Файл больше %s МБ' % (max_size // (1024 * 1024)),
+        }, status=413)
+
+    # Ограничение по расширению.
+    allowed_ext = getattr(settings, 'WEB_ORDER_ALLOWED_FILE_EXTENSIONS', [])
+    if uploaded and allowed_ext:
+        ext = os.path.splitext(uploaded.name)[1].lower()
+        if ext not in allowed_ext:
+            return JsonResponse({
+                'success': False,
+                'error': 'Недопустимый тип файла: %s' % ext,
+            }, status=400)
+
+    file_obj = WebOrderItemFile(
+        item=item,
+        link_url=link_url,
+        comment=comment,
+        kind=kind,
+        author_kind=WebOrderItemFile.AUTHOR_MANAGER,
+        author=request.user,
+        is_client_visible=is_client_visible,
+    )
+
+    if uploaded:
+        # Исходное имя и размер сохраняем ДО сохранения: после
+        # сохранения Django уже переименует файл в uuid.
+        file_obj.original_name = uploaded.name
+        file_obj.size = uploaded.size
+        file_obj.content_type = getattr(uploaded, 'content_type', '') or ''
+        file_obj.file = uploaded
+
+    # ========================================================================
+    # ФАЙЛ, ЗАГРУЖЕННЫЙ ПОСЛЕ КОНВЕРТАЦИИ, ТОЖЕ ДОЛЖЕН ПОПАСТЬ В ЗАКАЗ
+    # ========================================================================
+    # Связь с изделием/товаром проставляется в момент конвертации заявки.
+    # Если менеджер загружает файл уже после неё (например, клиент прислал
+    # правку), связи у новой записи нет — и в карточке заказа файл
+    # не появится, хотя в заявке будет.
+    #
+    # Решение: наследуем связь у других файлов этой же позиции. Если у
+    # позиции уже есть файл, привязанный к изделию или товару, значит
+    # заявка сконвертирована — и новый файл относится туда же.
+    #
+    # Явно исключаем пустые значения: иначе возьмём «первый попавшийся»
+    # файл, у которого связи тоже нет, и ничего не изменится.
+    sibling_file = (
+        item.files.exclude(order_product__isnull=True).first()
+        or item.files.exclude(order_tovar__isnull=True).first()
+    )
+
+    if sibling_file is not None:
+        file_obj.order_product = sibling_file.order_product
+        file_obj.order_tovar = sibling_file.order_tovar
+
+    file_obj.save()
+
+    return JsonResponse({
+        'success': True,
+        'id': file_obj.id,
+        'display_name': file_obj.display_name,
+        'display_size': file_obj.display_size,
+        'url': file_obj.file.url if file_obj.file else '',
+        # link_url и is_client_visible нужны, чтобы фронтенд мог сразу
+        # нарисовать строку файла без перезагрузки страницы.
+        'link_url': file_obj.link_url or '',
+        'is_client_visible': file_obj.is_client_visible,
+        'kind': file_obj.kind,
+        'kind_display': file_obj.get_kind_display(),
+        'author_kind_display': file_obj.get_author_kind_display(),
+        'comment': file_obj.comment,
+        'created_at': timezone.localtime(file_obj.created_at).strftime('%d.%m.%Y %H:%M'),
+    }, status=201)
+
+# ============================================================================
+# КОММЕНТАРИЙ К ФАЙЛУ МАКЕТА (менеджер → клиент и обратно)
+# ============================================================================
+
+@login_required(login_url='/login/')
+@require_POST
+def api_add_file_comment(request, file_id):
+    """
+    POST /web-orders/api/file/<id>/comments/add/
+
+    Принимает:
+        text              — текст комментария (обязательный)
+        is_client_visible — '1', если комментарий виден клиенту
+
+    Возвращает JSON:
+        {"success": true, "id": 5, "text": "...", "author_kind": "manager",
+         "author_kind_display": "Менеджер", "is_client_visible": true,
+         "created_at": "18.11.2026 01:20"}
+
+    ЗАЧЕМ ОТДЕЛЬНЫЙ ЭНДПОИНТ:
+    комментарии нужны и менеджеру (уточнить правку), и клиенту (ответить).
+    Один endpoint на оба случая: разница только в author_kind, который
+    определяется по факту авторизации, а не приходит из формы — иначе
+    клиент мог бы выдать себя за менеджера.
+    """
+    file_obj = get_object_or_404(WebOrderItemFile, pk=file_id)
+
+    text = (request.POST.get('text') or '').strip()
+    is_client_visible = request.POST.get('is_client_visible') in ('1', 'on', 'true')
+
+    if not text:
+        return JsonResponse({
+            'success': False,
+            'error': 'Комментарий не может быть пустым',
+        }, status=400)
+
+    if len(text) > 5000:
+        return JsonResponse({
+            'success': False,
+            'error': 'Комментарий не должен превышать 5000 символов',
+        }, status=400)
+
+    comment = WebOrderItemFileComment.objects.create(
+        file=file_obj,
+        text=text,
+        # author_kind не берём из запроса: сюда приходит только менеджер
+        # (endpoint закрыт @login_required). Клиентские комментарии будут
+        # приходить через отдельный публичный endpoint с сайта.
+        author_kind=WebOrderItemFileComment.AUTHOR_MANAGER,
+        author=request.user,
+        is_client_visible=is_client_visible,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'id': comment.id,
+        'text': comment.text,
+        'author_kind': comment.author_kind,
+        'author_kind_display': comment.get_author_kind_display(),
+        'is_client_visible': comment.is_client_visible,
+        'created_at': timezone.localtime(comment.created_at).strftime('%d.%m.%Y %H:%M'),
+    }, status=201)
+
+# ============================================================================
+# СКАЧИВАНИЕ ФАЙЛА МАКЕТА
+# ============================================================================
+
+@login_required(login_url='/login/')
+def api_download_item_file(request, file_id):
+    """
+    GET /web-orders/files/<id>/download/
+
+    Отдаёт файл макета с ИСХОДНЫМ именем в заголовке Content-Disposition.
+
+    ЗАЧЕМ ОТДЕЛЬНЫЙ ENDPOINT, А НЕ ССЫЛКА НА /media/:
+      1. На диске файлы лежат под uuid — иначе два «макет.pdf» затрут
+         друг друга, а имя от пользователя нельзя пускать в путь.
+      2. Прямая ссылка на /media/ доступна любому, кто её узнал.
+         Здесь доступ только у авторизованного сотрудника.
+      3. Браузер сохраняет файл под человеческим именем
+         («Реквизиты счёта ИП … .pdf»), а не «d3dedfc6….pdf».
+
+    FileResponse отдаёт файл потоком: макет на 500 МБ не будет
+    целиком прочитан в память процесса.
+    """
+    file_obj = get_object_or_404(WebOrderItemFile, pk=file_id)
+
+    if not file_obj.file:
+        return JsonResponse({
+            'success': False,
+            'error': 'У этой записи нет файла — только ссылка',
+        }, status=400)
+
+    try:
+        file_obj.file.open('rb')
+    except (FileNotFoundError, OSError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Файл не найден на диске',
+        }, status=404)
+
+    # filename=... Django сам закодирует кириллицу через filename*
+    # (RFC 5987), поэтому русские имена сохраняются корректно.
+    return FileResponse(
+        file_obj.file,
+        as_attachment=True,
+        filename=file_obj.display_name or 'lаyout',
+    )
+
+# ============================================================================
+# УДАЛЕНИЕ ФАЙЛА МАКЕТА
+# ============================================================================
+
+@login_required(login_url='/login/')
+@require_POST
+def api_delete_item_file(request, file_id):
+    """
+    POST /web-orders/files/<id>/delete/
+
+    Удаляет запись файла и сам файл с диска.
+
+    ЗАЧЕМ: менеджер может загрузить не тот файл, дубликат или файл,
+    который клиент просил не хранить. Без удаления такие записи
+    остаются в карточке навсегда.
+
+    ВАЖНО: удаляем и физический файл — иначе диск будет забиваться
+    «осиротевшими» макетами, на которые уже никто не ссылается.
+    Ошибку удаления с диска не считаем фатальной: запись из базы
+    всё равно должна исчезнуть.
+    """
+    file_obj = get_object_or_404(WebOrderItemFile, pk=file_id)
+
+    # Сначала стираем файл из хранилища, потом саму запись.
+    if file_obj.file:
+        try:
+            file_obj.file.delete(save=False)
+        except (OSError, ValueError):
+            # Файла на диске уже нет — не мешаем удалению записи.
+            pass
+
+    file_obj.delete()
+
+    return JsonResponse({
+        'success': True,
+        'id': file_id,
     })

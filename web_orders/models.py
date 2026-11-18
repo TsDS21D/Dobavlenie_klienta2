@@ -11,6 +11,8 @@ WebOrderItem  — позиция заявки (товар из корзины Mo
 ВСЕ ЗАЯВКИ — МЯГКОЕ УДАЛЕНИЕ (is_deleted), как в orders.
 """
 from decimal import Decimal
+
+from django.conf import settings
 from django.db import models
 
 
@@ -452,3 +454,289 @@ class SiteOrderStatus(models.Model):
         """Строковое представление: «Статусы заявки M-01060»."""
         number = self.web_order.moguta_order_number or self.web_order.id
         return 'Статусы заявки %s' % number    
+
+# ============================================================================
+# ФАЙЛЫ МАКЕТОВ, ПРИВЯЗАННЫЕ К ПОЗИЦИИ ЗАЯВКИ
+# ============================================================================
+# Зачем отдельная модель, а не поле у заявки:
+#   • макет относится к КОНКРЕТНОМУ изделию/товару, а не ко всему заказу
+#     (у заказа из трёх позиций может быть три разных макета);
+#   • файлов на позицию может быть несколько: исходный макет, правка,
+#     препресс, ещё правка;
+#   • у клиента и менеджера разные права, и нужна история «кто когда что
+#     приложил и что прокомментировал».
+#
+# У позиции «Доставка» файлов быть не может — это не изделие.
+
+
+def layout_upload_path(instance, filename):
+    """
+    Куда физически кладём файл: media/web_orders/layouts/ГГГГ/ММ/<uuid>_<имя>.
+
+    ЗАЧЕМ uuid в имени:
+        два клиента могут прислать файл с одинаковым названием
+        «макет.pdf» — без уникального префикса второй затрёт первый.
+
+    ЗАЧЕМ ГГГГ/ММ:
+        чтобы в одной папке не оказалось десятков тысяч файлов
+        (это замедляет работу файловой системы и неудобно при бэкапе).
+    """
+    import os
+    import uuid
+    from django.utils import timezone
+
+    today = timezone.now()
+    ext = os.path.splitext(filename)[1].lower()[:10]
+    safe_name = uuid.uuid4().hex
+
+    return f'web_orders/layouts/{today:%Y}/{today:%m}/{safe_name}{ext}'
+
+
+class WebOrderItemFile(models.Model):
+    """
+    Файл (или ссылка) макета, привязанный к позиции заявки.
+
+    Может содержать либо файл, либо ссылку — хотя бы одно из двух.
+    """
+
+    # --- Кто приложил ---
+    AUTHOR_CLIENT = 'client'
+    AUTHOR_MANAGER = 'manager'
+    AUTHOR_CHOICES = [
+        (AUTHOR_CLIENT, 'Клиент'),
+        (AUTHOR_MANAGER, 'Менеджер'),
+    ]
+
+    # --- Что это за файл ---
+    KIND_LAYOUT = 'layout'       # исходный макет от клиента
+    KIND_PROOF = 'proof'         # исправленная версия клиента
+    KIND_PREPRESS = 'prepress'   # файл от менеджера (препресс, доработка)
+    KIND_OTHER = 'other'
+    KIND_CHOICES = [
+        (KIND_LAYOUT, 'Макет'),
+        (KIND_PROOF, 'Правка'),
+        (KIND_PREPRESS, 'От менеджера'),
+        (KIND_OTHER, 'Другое'),
+    ]
+
+    item = models.ForeignKey(
+        WebOrderItem,
+        verbose_name='Позиция заявки',
+        on_delete=models.CASCADE,
+        related_name='files',
+        help_text='Изделие или товар, к которому относится макет',
+    )
+
+    file = models.FileField(
+        verbose_name='Файл',
+        upload_to=layout_upload_path,
+        blank=True,
+        null=True,
+        help_text='Может быть пустым, если вместо файла передана ссылка',
+    )
+
+    link_url = models.URLField(
+        verbose_name='Ссылка на макет',
+        max_length=1000,
+        blank=True,
+        default='',
+        help_text='Если клиент прислал ссылку (Яндекс.Диск, Google Drive и т.п.)',
+    )
+
+    comment = models.TextField(
+        verbose_name='Комментарий к файлу',
+        blank=True,
+        default='',
+        help_text='Пояснение автора: что это за файл, что исправлено и т.п.',
+    )
+
+    kind = models.CharField(
+        verbose_name='Тип файла',
+        max_length=20,
+        choices=KIND_CHOICES,
+        default=KIND_LAYOUT,
+    )
+
+    author_kind = models.CharField(
+        verbose_name='Кто приложил',
+        max_length=10,
+        choices=AUTHOR_CHOICES,
+        default=AUTHOR_CLIENT,
+    )
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='Сотрудник',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        help_text='Заполняется, если файл приложил менеджер',
+    )
+
+    # Внутренние файлы менеджера клиенту не показываем.
+    is_client_visible = models.BooleanField(
+        verbose_name='Виден клиенту',
+        default=True,
+        help_text='Снимите галочку для внутренних файлов',
+    )
+
+    # --- Служебная информация о файле (снимок на момент загрузки) ---
+    original_name = models.CharField(
+        verbose_name='Исходное имя файла',
+        max_length=255,
+        blank=True,
+        default='',
+    )
+    size = models.PositiveBigIntegerField(
+        verbose_name='Размер, байт',
+        default=0,
+    )
+    content_type = models.CharField(
+        verbose_name='MIME-тип',
+        max_length=100,
+        blank=True,
+        default='',
+    )
+
+    # --- Связь с заказом после конвертации заявки ---
+    # Заполняется, когда заявка превращается в заказ: файл «переезжает»
+    # к изделию (Product) или к товару (OrderTovar).
+    # SET_NULL: если изделие/товар удалят, файл останется в заявке.
+    order_product = models.ForeignKey(
+        'orders.Product',
+        verbose_name='Изделие в заказе',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='layout_files',
+    )
+    order_tovar = models.ForeignKey(
+        'orders.OrderTovar',
+        verbose_name='Товар в заказе',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='layout_files',
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name='Загружен',
+        auto_now_add=True,
+    )
+
+    class Meta:
+        verbose_name = 'Файл макета'
+        verbose_name_plural = 'Файлы макетов'
+        ordering = ['created_at']
+
+    def __str__(self):
+        name = self.original_name or (self.file.name if self.file else self.link_url)
+        return f'{name} — {self.item}'
+
+    @property
+    def is_link_only(self):
+        """True, если файла нет и передан только ссылка."""
+        return not self.file and bool(self.link_url)
+
+    @property
+    def display_name(self):
+        """
+        Имя файла для показа в интерфейсе.
+
+        Порядок: сохранённое original_name → имя из хранилища без пути →
+        ссылка (если файла нет).
+
+        ЗАЧЕМ: original_name заполняется при загрузке через наш API.
+        Если файл добавлен иначе (через админку-inline, импорт, скрипт),
+        поле может быть пустым — и тогда в интерфейсе появлялся бы
+        технический путь вида «web_orders/layouts/2026/11/<uuid>.pdf».
+        Здесь мы это подстраховываем.
+        """
+        if self.original_name:
+            return self.original_name
+
+        if self.file:
+            # storage может вернуть путь с подпапками — оставляем только имя.
+            return self.file.name.rsplit('/', 1)[-1]
+
+        return self.link_url
+
+    @property
+    def display_size(self):
+        """
+        Размер файла в байтах.
+
+        Если поле size не заполнено (файл добавлен не через наш API),
+        читаем размер из хранилища. Исключения глушим: файл мог быть
+        удалён с диска — страница заявки не должна падать из-за этого.
+        """
+        if self.size:
+            return self.size
+
+        if self.file:
+            try:
+                return self.file.size
+            except (OSError, ValueError):
+                return 0
+
+        return 0
+
+
+class WebOrderItemFileComment(models.Model):
+    """
+    Комментарий к файлу макета — диалог клиента и менеджера.
+
+    Отдельная модель, а не поле у файла, потому что комментариев может быть
+    несколько с обеих сторон: клиент просит поправить, менеджер отвечает,
+    клиент прикладывает новую версию и т.д.
+    """
+
+    AUTHOR_CLIENT = WebOrderItemFile.AUTHOR_CLIENT
+    AUTHOR_MANAGER = WebOrderItemFile.AUTHOR_MANAGER
+    AUTHOR_CHOICES = WebOrderItemFile.AUTHOR_CHOICES
+
+    file = models.ForeignKey(
+        WebOrderItemFile,
+        verbose_name='Файл',
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+
+    text = models.TextField(
+        verbose_name='Текст комментария',
+    )
+
+    author_kind = models.CharField(
+        verbose_name='Кто написал',
+        max_length=10,
+        choices=AUTHOR_CHOICES,
+        default=AUTHOR_CLIENT,
+    )
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='Сотрудник',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+
+    is_client_visible = models.BooleanField(
+        verbose_name='Виден клиенту',
+        default=True,
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name='Написан',
+        auto_now_add=True,
+    )
+
+    class Meta:
+        verbose_name = 'Комментарий к файлу'
+        verbose_name_plural = 'Комментарии к файлам'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.author_kind}: {self.text[:40]}'

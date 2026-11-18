@@ -278,6 +278,15 @@ def convert_web_order_to_order(web_order, created_by=None):
                 product.total_price = site_total
                 product.save(update_fields=['total_price'])
 
+            # ============================================================
+            # BEAUTY-PRINT: файлы макетов «переезжают» к изделию
+            # ============================================================
+            # Макет относится к изделию, а не к заявке — после конвертации
+            # менеджер должен видеть его в карточке заказа, рядом с изделием.
+            # Связь с позицией заявки при этом сохраняется: заявка остаётся
+            # историей, заказ — рабочей сущностью.
+            item.files.update(order_product=product)
+
             continue
 
         # Сюда попадаем в двух случаях:
@@ -287,7 +296,9 @@ def convert_web_order_to_order(web_order, created_by=None):
             missing_proschets.append(code)
 
         order_position += 1
-        OrderTovar.objects.create(
+        # Сохраняем объект в переменную: он нужен, чтобы привязать файлы
+        # макетов к созданному товару.
+        tovar = OrderTovar.objects.create(
             order=order,
             # tovar не указываем: позиции нет в справочнике товаров.
             # Поле nullable, а снимок name/article/price хранит всё нужное.
@@ -300,6 +311,10 @@ def convert_web_order_to_order(web_order, created_by=None):
             discount_source=OrderTovar.DISCOUNT_SOURCE_MANUAL,
             position=order_position,
         )
+
+        # BEAUTY-PRINT: файлы макетов «переезжают» к товару
+        # (см. комментарий в ветке изделия выше).
+        item.files.update(order_tovar=tovar)
 
     # --- Доставка отдельной позицией ---
     if delivery_cost > 0:
