@@ -118,3 +118,72 @@ def parse_upload_token(token):
         return None
 
     return payload
+
+# ============================================================================
+# ТОКЕНЫ НА СКАЧИВАНИЕ ФАЙЛОВ (для ЛК клиента)
+# ============================================================================
+# Клиент в личном кабинете на сайте скачивает макет напрямую с ИС.
+# Логина в ИС у него нет, поэтому ссылка подписывается: внутри id файла
+# и срок жизни. Подделать нельзя, живёт 1 час — этого хватает, чтобы
+# клиент нажал «Скачать», но недостаточно для «вечной» ссылки в переписке.
+# ============================================================================
+
+
+def make_download_token(file_id, ttl_seconds=None):
+    """
+    Создаёт подписанный токен на скачивание конкретного файла.
+
+    Аргументы:
+        file_id     — id записи WebOrderItemFile;
+        ttl_seconds — срок жизни (по умолчанию 1 час).
+
+    Возвращает строку токена.
+    """
+    import time as _time
+
+    if not _get_secret():
+        raise ValueError('Не настроен WEB_ORDER_UPLOAD_SECRET (или BUKVA_SENDER_TOKEN)')
+
+    if ttl_seconds is None:
+        ttl_seconds = 3600
+
+    payload = {
+        'fid': int(file_id),
+        'exp': int(_time.time()) + int(ttl_seconds),
+    }
+
+    payload_b64 = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    ).decode('ascii').rstrip('=')
+
+    return f'{payload_b64}.{_sign(payload_b64)}'
+
+
+def parse_download_token(token):
+    """
+    Проверяет токен скачивания.
+
+    Возвращает payload словарём либо None, если токен битый,
+    подпись не совпала или истёк срок.
+    """
+    if not token or '.' not in token:
+        return None
+
+    payload_b64, signature = token.rsplit('.', 1)
+
+    if not hmac.compare_digest(signature, _sign(payload_b64)):
+        return None
+
+    try:
+        padded = payload_b64 + '=' * (-len(payload_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded.encode('ascii')))
+    except (ValueError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict) or not payload.get('fid'):
+        return None
+
+    if int(payload.get('exp', 0)) < int(time.time()):
+        return None
+
+    return payload

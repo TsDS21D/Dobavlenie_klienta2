@@ -1070,8 +1070,29 @@ def api_add_file_comment(request, file_id):
 # СКАЧИВАНИЕ ФАЙЛА МАКЕТА
 # ============================================================================
 
-@login_required(login_url='/login/')
 def api_download_item_file(request, file_id):
+
+    # Доступ двумя способами:
+    #   1) сотрудник ИС — по логину (как раньше);
+    #   2) клиент с сайта — по подписанной ссылке ?token=… (живёт 1 час).
+    # Токен даёт доступ только к этому конкретному файлу.
+    from .upload_tokens import parse_download_token
+
+    token = request.GET.get('token', '')
+
+    if token:
+        payload = parse_download_token(token)
+        if payload is None or int(payload.get('fid', 0)) != int(file_id):
+            return JsonResponse({
+                'success': False,
+                'error': 'Ссылка недействительна или устарела',
+            }, status=403)
+    else:
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path(), '/login/')
+
+    file_obj = get_object_or_404(WebOrderItemFile, pk=file_id)
     """
     GET /web-orders/files/<id>/download/
 
@@ -1479,10 +1500,20 @@ def api_client_files(request):
                 # Только комментарии, видимые клиенту.
                 comments = file_obj.comments.filter(is_client_visible=True).order_by('created_at')
 
+                # Подписанная ссылка на скачивание: клик ведёт прямо в ИС,
+                # токен живёт 1 час и действует только на этот файл.
+                from .upload_tokens import make_download_token
+
+                download_path = '/web-orders/files/%d/download/?token=%s' % (
+                    file_obj.id,
+                    make_download_token(file_obj.id),
+                )
+
                 files_data.append({
                     'id': file_obj.id,
                     'name': file_obj.display_name,
                     'size': file_obj.display_size,
+                    'download_url': request.build_absolute_uri(download_path),
                     'kind': file_obj.get_kind_display(),
                     'created_at': timezone.localtime(file_obj.created_at).strftime('%d.%m.%Y %H:%M'),
                     'comments': [
