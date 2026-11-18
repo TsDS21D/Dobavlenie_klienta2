@@ -338,6 +338,51 @@ class WebOrderItem(models.Model):
         default='',
         help_text='Характеристики товара из корзины Moguta',
     )
+    # ===== СТАТУС МАКЕТА ПОЗИЦИИ =====
+    # Значения те же, что у SiteOrderStatus, чтобы клиент видел одинаковые
+    # формулировки и в карточке заказа, и в ЛК.
+    #
+    # ПОЧЕМУ НА ПОЗИЦИИ, А НЕ НА ЗАЯВКЕ:
+    # в заявке бывает несколько изделий, и макеты у них проверяются
+    # по отдельности. Один общий статус скрывал бы, что половина готова.
+    LAYOUT_NOT_LOADED = 'not_loaded'
+    LAYOUT_CHECKING = 'checking'
+    LAYOUT_CHECKED = 'checked'
+    LAYOUT_ERRORS = 'errors'
+
+    LAYOUT_STATUS_CHOICES = [
+        (LAYOUT_NOT_LOADED, 'Не загружен'),
+        (LAYOUT_CHECKING, 'На проверке'),
+        (LAYOUT_CHECKED, 'Проверен'),
+        (LAYOUT_ERRORS, 'Содержит ошибки'),
+    ]
+
+    layout_status = models.CharField(
+        verbose_name='Статус макета',
+        max_length=20,
+        choices=LAYOUT_STATUS_CHOICES,
+        default=LAYOUT_NOT_LOADED,
+        help_text='Меняется автоматически при загрузке файла клиентом, '
+                  'менеджер может переопределить вручную',
+    )
+
+    def mark_layout_checking(self):
+        """
+        Переводит позицию в статус «на проверке».
+
+        ВЫЗЫВАЕТСЯ ТОЛЬКО ПРИ ЗАГРУЗКЕ ФАЙЛА КЛИЕНТОМ.
+        Любой новый файл от клиента означает «нужно смотреть заново»,
+        поэтому даже статус «проверен» сбрасывается: иначе можно
+        напечатать старый утверждённый макет, пока рядом лежит
+        свежий, ещё не проверенный.
+
+        Файлы, загруженные менеджером, статус не меняют — он сам
+        решает, что с ними делать.
+        """
+        if self.layout_status != self.LAYOUT_CHECKING:
+            self.layout_status = self.LAYOUT_CHECKING
+            self.save(update_fields=['layout_status'])
+
     total_price = models.DecimalField(
         verbose_name='Итоговая цена позиции',
         max_digits=12,

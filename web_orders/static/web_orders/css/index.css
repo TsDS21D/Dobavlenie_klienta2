@@ -930,3 +930,51 @@
     opacity: 0.6;
     cursor: default;
 }
+
+/* ==========================================================================
+   СТАТУС МАКЕТА У ПОЗИЦИИ
+   ========================================================================== */
+
+.web-orders-item-status {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+}
+
+.web-orders-item-status-label {
+    color: #6d7d78;
+}
+
+.web-orders-item-status-select {
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    padding: 0.12rem 0.35rem;
+    font-size: 0.8rem;
+    background: #ffffff;
+    color: #33443f;
+    cursor: pointer;
+}
+
+.web-orders-item-status-select:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Цвет рамки по значению: сразу видно, что требует внимания. */
+.web-orders-item-status-select.is-checked {
+    border-color: #0b8661;
+    color: #0b8661;
+}
+
+.web-orders-item-status-select.is-errors {
+    border-color: #c2453f;
+    color: #c2453f;
+}
+
+.web-orders-item-status-select.is-checking {
+    border-color: #d9a441;
+    color: #a07a1e;
+}

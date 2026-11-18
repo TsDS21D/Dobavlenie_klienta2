@@ -132,6 +132,9 @@ def _attach_pending_files(item, cart_token, file_ids):
         pending.delete()
         attached += 1
 
+        # Клиент загрузил макет — позиция ждёт проверки.
+        item.mark_layout_checking()
+
     return attached
 
 def _to_json(value):
@@ -1519,6 +1522,9 @@ def api_client_files(request):
                     'id': file_obj.id,
                     'name': file_obj.display_name,
                     'size': file_obj.display_size,
+                    # Комментарий, оставленный при загрузке файла
+                    # (клиент или менеджер). Переписка — отдельно в comments.
+                    'comment': file_obj.comment,
                     'download_url': download_path,
                     'kind': file_obj.get_kind_display(),
                     'created_at': timezone.localtime(file_obj.created_at).strftime('%d.%m.%Y %H:%M'),
@@ -1774,6 +1780,10 @@ def _api_site_order_upload_impl(request):
 
     file_obj.save()
 
+    # Правка от клиента — снова «на проверке», даже если макет был
+    # утверждён: файл изменился, проверять заново.
+    item.mark_layout_checking()
+
     from .upload_tokens import make_download_token
 
     download_path = '%s/web-orders/files/%d/download/?token=%s' % (
@@ -1787,6 +1797,7 @@ def _api_site_order_upload_impl(request):
         'id': file_obj.id,
         'name': file_obj.display_name,
         'size': file_obj.display_size,
+        'comment': file_obj.comment,
         'download_url': download_path,
     }, status=201)
 
@@ -1806,3 +1817,52 @@ def api_site_order_upload(request):
         }, status=405))
 
     return _beauty_cors(_api_site_order_upload_impl(request))
+
+# ============================================================================
+# СМЕНА СТАТУСА МАКЕТА У ПОЗИЦИИ (менеджер)
+# ============================================================================
+
+@login_required(login_url='/login/')
+@require_POST
+def api_set_item_layout_status(request, item_id):
+    """
+    POST /web-orders/api/item/<id>/layout-status/
+
+    Принимает:
+        status — код статуса (not_loaded / checking / checked / errors)
+
+    Возвращает:
+        {"success": true, "status": "checked", "status_label": "Проверен"}
+
+    КОГДА МЕНЕДЖЕР ЗДЕСЬ НИЧЕГО НЕ МЕНЯЕТ:
+        автопереключение в «на проверке» делает сама загрузка файла
+        клиентом (см. WebOrderItem.mark_layout_checking). Здесь — ручное
+        решение: утвердить макет или вернуть на правку.
+    """
+    item = get_object_or_404(WebOrderItem, pk=item_id)
+
+    # Позиция доставки макетов не имеет.
+    if not item.code and (item.name or '').lower().startswith('доставка'):
+        return JsonResponse({
+            'success': False,
+            'error': 'У позиции доставки нет макета',
+        }, status=400)
+
+    status = (request.POST.get('status') or '').strip()
+
+    valid_codes = [code for code, _ in WebOrderItem.LAYOUT_STATUS_CHOICES]
+
+    if status not in valid_codes:
+        return JsonResponse({
+            'success': False,
+            'error': 'Недопустимый статус макета',
+        }, status=400)
+
+    item.layout_status = status
+    item.save(update_fields=['layout_status'])
+
+    return JsonResponse({
+        'success': True,
+        'status': item.layout_status,
+        'status_label': item.get_layout_status_display(),
+    })

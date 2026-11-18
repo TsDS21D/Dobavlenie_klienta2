@@ -531,4 +531,75 @@
             closeDeleteConfirm();
         }
     });
+
+    // ========================================================================
+    // СТАТУС МАКЕТА У ПОЗИЦИИ
+    // ========================================================================
+    // Менеджер меняет статус вручную: «проверен» — утвердить,
+    // «содержит ошибки» — вернуть на правку.
+    // Автоматически статус ставит сама загрузка файла клиентом,
+    // здесь — только осознанное решение менеджера.
+
+    // Запоминаем исходное значение, чтобы вернуть его при ошибке.
+    document.querySelectorAll('.web-orders-item-status-select').forEach(function (select) {
+        select.setAttribute('data-saved', select.value);
+        applyStatusStyle(select);
+    });
+
+    function applyStatusStyle(select) {
+        select.classList.remove('is-checked', 'is-errors', 'is-checking');
+
+        if (select.value === 'checked') select.classList.add('is-checked');
+        if (select.value === 'errors') select.classList.add('is-errors');
+        if (select.value === 'checking') select.classList.add('is-checking');
+    }
+
+    document.addEventListener('change', function (event) {
+        var select = event.target.closest('.web-orders-item-status-select');
+        if (!select) return;
+
+        var itemId = select.getAttribute('data-item-id');
+        var status = select.value;
+        var savedValue = select.getAttribute('data-saved') || '';
+
+        select.disabled = true;
+
+        var formData = new FormData();
+        formData.append('status', status);
+
+        fetch('/web-orders/api/item/' + itemId + '/layout-status/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                select.disabled = false;
+
+                if (!data || !data.success) {
+                    // Возвращаем прежнее значение — нельзя оставлять
+                    // в списке статус, который не сохранился.
+                    select.value = savedValue;
+                    applyStatusStyle(select);
+                    window.webOrdersToast(
+                        (data && data.error) ? data.error : 'Не удалось сохранить статус',
+                        'error'
+                    );
+                    return;
+                }
+
+                select.setAttribute('data-saved', data.status);
+                applyStatusStyle(select);
+                window.webOrdersToast('Статус макета: ' + data.status_label, 'success');
+            })
+            .catch(function () {
+                select.disabled = false;
+                select.value = savedValue;
+                applyStatusStyle(select);
+                window.webOrdersToast('Ошибка сети при сохранении статуса', 'error');
+            });
+    });
 })();

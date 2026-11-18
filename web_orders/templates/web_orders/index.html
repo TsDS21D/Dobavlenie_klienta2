@@ -155,6 +155,24 @@
                                             <span class="web-orders-col-price">{{ item.price|floatformat:2 }} ₽</span>
                                             <span class="web-orders-col-sum">{{ item.total_price|floatformat:2 }} ₽</span>
 
+                                            {% comment %} Статус макета позиции. Ставится автоматически
+                                               при загрузке файла клиентом; менеджер может утвердить
+                                               макет или вернуть его на правку. {% endcomment %}
+                                            <div class="web-orders-item-status">
+                                                <span class="web-orders-item-status-label">Макет:</span>
+
+                                                <select class="web-orders-item-status-select"
+                                                        data-item-id="{{ item.id }}">
+                                                    {% for status_code, status_label in item.LAYOUT_STATUS_CHOICES %}
+                                                        <option value="{{ status_code }}"
+                                                                {% if item.layout_status == status_code %}selected{% endif %}>
+                                                            {{ status_label }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
+                                            {% comment %} ===== ФАЙЛЫ МАКЕТОВ ЭТОЙ ПОЗИЦИИ =====
                                             {% comment %} ===== ФАЙЛЫ МАКЕТОВ ЭТОЙ ПОЗИЦИИ =====
                                                Макет относится к конкретному изделию/товару,
                                                поэтому выводим его внутри строки позиции

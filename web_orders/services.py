@@ -27,7 +27,7 @@ from orders.models import Order, OrderTovar
 from orders.services import add_product_to_order
 from calculator.models_list_proschet import Proschet
 
-from .models import WebOrder, SiteOrderStatus
+from .models import WebOrder, WebOrderItem, SiteOrderStatus
 
 
 def _normalize_phone(phone):
@@ -447,6 +447,37 @@ def get_site_status_code(web_order):
     # Остался только STATUS_ACCEPTED.
     return 'processing'
 
+def get_order_layout_status(web_order):
+    """
+    Сводный статус макета по всем позициям заявки.
+
+    ПРАВИЛА (от старшего к младшему):
+        есть «содержит ошибки»  → «содержит ошибки»;
+        все «проверен»          → «проверен»;
+        есть «на проверке»      → «на проверке»;
+        иначе                   → «не загружен».
+
+    Почему ошибки важнее всего: если хоть один макет нельзя печатать,
+    заказ в работу не пойдёт, и клиент должен это видеть.
+
+    Возвращает None, если у заявки нет позиций — тогда вызывающий код
+    решает сам, что показать.
+    """
+    statuses = list(web_order.items.values_list('layout_status', flat=True))
+
+    if not statuses:
+        return None
+
+    if WebOrderItem.LAYOUT_ERRORS in statuses:
+        return WebOrderItem.LAYOUT_ERRORS
+
+    if all(status == WebOrderItem.LAYOUT_CHECKED for status in statuses):
+        return WebOrderItem.LAYOUT_CHECKED
+
+    if WebOrderItem.LAYOUT_CHECKING in statuses:
+        return WebOrderItem.LAYOUT_CHECKING
+
+    return WebOrderItem.LAYOUT_NOT_LOADED
 
 def get_site_status_payload(web_order):
     """
@@ -497,15 +528,26 @@ def get_site_status_payload(web_order):
     site_status = SiteOrderStatus.objects.filter(web_order=web_order).first()
 
     if site_status is not None:
-        layout_code = site_status.layout_status
-        layout_label = site_status.get_layout_status_display()
         pay_link = site_status.pay_link or ''
         invoice_url = site_status.invoice_file.url if site_status.invoice_file else ''
     else:
-        layout_code = SiteOrderStatus.LAYOUT_NOT_LOADED
-        layout_label = 'Не загружен'
         pay_link = ''
         invoice_url = ''
+
+    # Статус макета считаем по ПОЗИЦИЯМ: у каждой позиции свой макет
+    # и своя проверка. Общий статус заявки — производная от них.
+    # Если позиций нет (старая заявка), падаем на значение из
+    # SiteOrderStatus — так поведение не ухудшается.
+    layout_code = get_order_layout_status(web_order)
+
+    if layout_code is None:
+        if site_status is not None:
+            layout_code = site_status.layout_status
+        else:
+            layout_code = SiteOrderStatus.LAYOUT_NOT_LOADED
+
+    LAYOUT_LABELS = dict(WebOrderItem.LAYOUT_STATUS_CHOICES)
+    layout_label = LAYOUT_LABELS.get(layout_code, 'Не загружен')
 
     return {
         'status': status_code,

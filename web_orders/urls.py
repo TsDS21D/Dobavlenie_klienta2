@@ -89,6 +89,15 @@ urlpatterns = [
         name='api_reject_web_order',
     ),
 
+    # POST /web-orders/api/item/<id>/layout-status/
+    # Ручная смена статуса макета менеджером.
+    path(
+        'api/item/<int:item_id>/layout-status/',
+        views.api_set_item_layout_status,
+        name='api_set_item_layout_status',
+    ),
+
+
     # POST /web-orders/api/item/<id>/files/upload/
     # Загрузка файла макета к конкретной позиции заявки
     # (изделию или товару; доставка исключена).
