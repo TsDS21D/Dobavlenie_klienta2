@@ -95,6 +95,23 @@ urlpatterns = [
         name='api_delete_item_file',
     ),
 
+    # POST /web-orders/api/site/upload-token/
+    # Сайт получает короткоживущий токен для прямой загрузки файлов
+    # клиентом (браузер грузит файл сразу в ИС, минуя сайт).
+    path(
+        'api/site/upload-token/',
+        views.api_site_upload_token,
+        name='api_site_upload_token',
+    ),
+
+    # POST /web-orders/api/site/upload/
+    # Прямая загрузка файла клиентом из браузера (защита — X-Upload-Token).
+    path(
+        'api/site/upload/',
+        views.api_site_upload_file,
+        name='api_site_upload_file',
+    ),
+
 
     # POST /web-orders/api/receive/
     # Принимает JSON с данными заказа от Moguta (bukva-a.ru).

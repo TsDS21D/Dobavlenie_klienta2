@@ -740,3 +740,148 @@ class WebOrderItemFileComment(models.Model):
 
     def __str__(self):
         return f'{self.author_kind}: {self.text[:40]}'
+
+# ============================================================================
+# ПРОМЕЖУТОЧНЫЕ ФАЙЛЫ КЛИЕНТА (ДО ОФОРМЛЕНИЯ ЗАКАЗА)
+# ============================================================================
+# Зачем нужны:
+#   Клиент прикладывает макет на сайте ДО оформления заказа. В этот момент
+#   в ИС нет ни заявки, ни позиции — файл некуда прикрепить. Поэтому он
+#   сначала лежит здесь, в «промежуточной» таблице, привязанный к корзине
+#   (cart_token) и к строке корзины (line_uid).
+#
+#   Когда сайт пришлёт заявку, ИС найдёт эти файлы по токену корзины и
+#   перенесёт их в WebOrderItemFile, привязав к нужной позиции.
+#
+# Почему line_uid, а не номер позиции:
+#   клиент может удалить строку корзины, и нумерация сдвинется.
+#   line_uid — уникальный ключ строки, он не меняется (см. models/cart.php).
+#
+# Невостребованные записи (клиент не оформил заказ) удаляются командой
+# очистки по возрасту — иначе брошенные корзины забьют диск.
+
+
+def pending_upload_path(instance, filename):
+    """
+    Куда физически кладём файл до оформления заказа:
+    media/web_orders/pending/ГГГГ/ММ/<uuid><расширение>.
+
+    Имя генерируется, а не берётся из файла: два клиента могут прислать
+    «макет.pdf», а имя от пользователя нельзя пускать в путь.
+    """
+    import os
+    import uuid
+    from django.utils import timezone
+
+    today = timezone.now()
+    ext = os.path.splitext(filename)[1].lower()[:10]
+
+    return f'web_orders/pending/{today:%Y}/{today:%m}/{uuid.uuid4().hex}{ext}'
+
+
+class WebOrderPendingFile(models.Model):
+    """
+    Файл, загруженный клиентом на сайте до оформления заказа.
+
+    Связь с будущей заявкой — через два поля:
+        cart_token — идентификатор корзины (выдаётся при загрузке токена);
+        line_uid   — уникальный ключ строки корзины на сайте.
+    """
+
+    cart_token = models.CharField(
+        verbose_name='Токен корзины',
+        max_length=64,
+        db_index=True,
+        help_text='Идентификатор корзины на сайте, выданный при получении токена загрузки',
+    )
+
+    line_uid = models.CharField(
+        verbose_name='Ключ строки корзины',
+        max_length=64,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='line_uid строки корзины (см. Models_Cart::addToCart на сайте)',
+    )
+
+    file = models.FileField(
+        verbose_name='Файл',
+        upload_to=pending_upload_path,
+        blank=True,
+        null=True,
+    )
+
+    link_url = models.URLField(
+        verbose_name='Ссылка на макет',
+        max_length=1000,
+        blank=True,
+        default='',
+    )
+
+    comment = models.TextField(
+        verbose_name='Комментарий клиента',
+        blank=True,
+        default='',
+    )
+
+    kind = models.CharField(
+        verbose_name='Тип файла',
+        max_length=20,
+        choices=WebOrderItemFile.KIND_CHOICES,
+        default=WebOrderItemFile.KIND_LAYOUT,
+    )
+
+    original_name = models.CharField(
+        verbose_name='Исходное имя файла',
+        max_length=255,
+        blank=True,
+        default='',
+    )
+
+    size = models.PositiveBigIntegerField(
+        verbose_name='Размер, байт',
+        default=0,
+    )
+
+    content_type = models.CharField(
+        verbose_name='MIME-тип',
+        max_length=100,
+        blank=True,
+        default='',
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name='Загружен',
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    class Meta:
+        verbose_name = 'Промежуточный файл клиента'
+        verbose_name_plural = 'Промежуточные файлы клиентов'
+        ordering = ['created_at']
+
+    def __str__(self):
+        name = self.original_name or (self.file.name if self.file else self.link_url)
+        return f'{name} — корзина {self.cart_token[:8]}…'
+
+    @property
+    def display_name(self):
+        """Имя для показа: исходное, иначе имя из хранилища без пути."""
+        if self.original_name:
+            return self.original_name
+        if self.file:
+            return self.file.name.rsplit('/', 1)[-1]
+        return self.link_url
+
+    @property
+    def display_size(self):
+        """Размер: из поля, иначе из хранилища."""
+        if self.size:
+            return self.size
+        if self.file:
+            try:
+                return self.file.size
+            except (OSError, ValueError):
+                return 0
+        return 0

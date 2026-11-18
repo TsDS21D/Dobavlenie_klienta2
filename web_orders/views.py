@@ -65,6 +65,75 @@ def _to_int(value, default=1):
     except (TypeError, ValueError):
         return default
 
+def _attach_pending_files(item, cart_token, file_ids):
+    """
+    Прикрепляет к позиции заявки файлы, загруженные клиентом ДО оформления.
+
+    Аргументы:
+        item       — только что созданная позиция WebOrderItem;
+        cart_token — токен корзины из заявки (обязателен);
+        file_ids   — список ID промежуточных файлов из позиции заявки.
+
+    Возвращает количество прикреплённых файлов.
+
+    ПОЧЕМУ ПРОВЕРЯЕМ cart_token:
+        ID файлов приходят с сайта, но полагаться на них одним нельзя:
+        подставив чужой ID, можно было бы «пришить» чужой макет к своей
+        заявке. Поэтому берём только те промежуточные файлы, что относятся
+        к этой же корзине.
+
+    ПОЧЕМУ НЕ КОПИРУЕМ ФАЙЛ:
+        запись WebOrderItemFile получает то же имя в хранилище
+        (media/web_orders/pending/…). Физическое копирование 500 МБ
+        съело бы диск и время; перенос записи в базе — мгновенный.
+    """
+    from .models import WebOrderPendingFile
+
+    if not cart_token or not file_ids or not isinstance(file_ids, list):
+        return 0
+
+    # Приводим ID к числам, мусор пропускаем.
+    ids = []
+    for raw_id in file_ids:
+        try:
+            ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not ids:
+        return 0
+
+    pending_files = WebOrderPendingFile.objects.filter(
+        id__in=ids,
+        cart_token=cart_token,
+    )
+
+    attached = 0
+
+    for pending in pending_files:
+        file_obj = WebOrderItemFile(
+            item=item,
+            link_url=pending.link_url,
+            comment=pending.comment,
+            kind=pending.kind,
+            # Файл загрузил клиент — так и помечаем.
+            author_kind=WebOrderItemFile.AUTHOR_CLIENT,
+            is_client_visible=True,
+            original_name=pending.original_name,
+            size=pending.size,
+            content_type=pending.content_type,
+        )
+
+        if pending.file:
+            # Переносим ссылку на файл в хранилище, не копируя байты.
+            file_obj.file.name = pending.file.name
+
+        file_obj.save()
+        pending.delete()
+        attached += 1
+
+    return attached
+
 def _to_json(value):
     """
     Проверяет, что значение годится для JSONField.
@@ -300,9 +369,13 @@ def api_receive_order(request):
             if not isinstance(items, list):
                 items = []
 
+            # Токен корзины: по нему находим файлы, загруженные клиентом
+            # до оформления заказа (см. api_site_upload_file).
+            cart_token = (data.get('cart_token') or '').strip()
+
             for item_data in items:
                 # Одна позиция = один товар из корзины Moguta.
-                WebOrderItem.objects.create(
+                item = WebOrderItem.objects.create(
                     web_order=web_order,
                     name=item_data.get('name') or '',
                     # Артикул товара из Moguta. Для товаров веб-калькулятора
@@ -315,6 +388,13 @@ def api_receive_order(request):
                     price=_to_decimal(item_data.get('price')),
                     property=item_data.get('property') or '',
                     total_price=_to_decimal(item_data.get('total_price')),
+                )
+
+                # Файлы, загруженные клиентом заранее, привязываем к позиции.
+                _attach_pending_files(
+                    item,
+                    cart_token,
+                    item_data.get('file_ids'),
                 )
             # --- Статусы для сайта ---
             # Создаём сразу при приёме, а не при конвертации: клиент видит
@@ -1069,3 +1149,176 @@ def api_delete_item_file(request, file_id):
         'success': True,
         'id': file_id,
     })
+
+# ============================================================================
+# ТОКЕН ДЛЯ ПРЯМОЙ ЗАГРУЗКИ ФАЙЛОВ КЛИЕНТОМ
+# ============================================================================
+
+@csrf_exempt
+@require_POST
+def api_site_upload_token(request):
+    """
+    POST /web-orders/api/site/upload-token/
+
+    Вызывается САЙТОМ (серверная часть, не браузером) с заголовком
+    X-Sender-Token. Возвращает подписанный токен, который сайт передаст
+    браузеру для прямой загрузки файлов в ИС.
+
+    Тело JSON:
+        {"cart_token": "a3f9…"}
+
+    Ответ:
+        {"success": true, "token": "…", "expires_at": 1763500000, "ttl_hours": 24}
+    """
+    # Сайт аутентифицируется тем же ключом, что и при отправке заявок.
+    expected_sender_token = getattr(settings, 'BUKVA_SENDER_TOKEN', '')
+
+    if not expected_sender_token:
+        return JsonResponse({
+            'success': False,
+            'error': 'BUKVA_SENDER_TOKEN не настроен на сервере ИС',
+        }, status=500)
+
+    provided = request.headers.get('X-Sender-Token', '')
+    if not hmac.compare_digest(str(provided), str(expected_sender_token)):
+        return JsonResponse({
+            'success': False,
+            'error': 'Неверный или отсутствующий X-Sender-Token',
+        }, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON в теле запроса',
+        }, status=400)
+
+    cart_token = (data.get('cart_token') or '').strip()
+    if not cart_token:
+        return JsonResponse({
+            'success': False,
+            'error': 'Не указан cart_token',
+        }, status=400)
+
+    from .upload_tokens import make_upload_token
+
+    try:
+        token, expires_at = make_upload_token(cart_token)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'token': token,
+        'expires_at': expires_at,
+        'ttl_hours': getattr(settings, 'WEB_ORDER_UPLOAD_TOKEN_TTL_HOURS', 24),
+    })
+
+# ============================================================================
+# ЗАГРУЗКА ФАЙЛА КЛИЕНТОМ (напрямую из браузера, до оформления заказа)
+# ============================================================================
+
+@csrf_exempt
+@require_POST
+def api_site_upload_file(request):
+    """
+    POST /web-orders/api/site/upload/
+
+    Публичный эндпоинт для браузера клиента. CSRF отключён, потому что
+    запрос идёт с чужого домена (bukva-a.ru). Защита — подписанный токен
+    в заголовке X-Upload-Token (его выдаёт api_site_upload_token).
+
+    Принимает multipart/form-data:
+        file      — файл (либо link_url)
+        link_url  — ссылка на макет
+        line_uid  — ключ строки корзины (Models_Cart::addToCart)
+        comment   — комментарий клиента
+        kind      — тип файла (по умолчанию layout)
+
+    Возвращает JSON с данными созданной промежуточной записи.
+
+    ВАЖНО: здесь НЕ создаётся ни заявка, ни позиция — файл ждёт в
+    WebOrderPendingFile и привяжется к позиции, когда сайт пришлёт заявку.
+    """
+    import os
+
+    from .models import WebOrderPendingFile
+    from .upload_tokens import parse_upload_token
+
+    # --- Проверка токена ---
+    payload = parse_upload_token(request.headers.get('X-Upload-Token', ''))
+
+    if payload is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Недействительный или просроченный токен загрузки',
+        }, status=403)
+
+    cart_token = payload['cart_token']
+
+    uploaded = request.FILES.get('file')
+    link_url = (request.POST.get('link_url') or '').strip()
+    line_uid = (request.POST.get('line_uid') or '').strip()[:64]
+    comment = (request.POST.get('comment') or '').strip()
+    kind = request.POST.get('kind') or WebOrderItemFile.KIND_LAYOUT
+
+    if not uploaded and not link_url:
+        return JsonResponse({
+            'success': False,
+            'error': 'Приложите файл или укажите ссылку на макет',
+        }, status=400)
+
+    valid_kinds = [k for k, _ in WebOrderItemFile.KIND_CHOICES]
+    if kind not in valid_kinds:
+        kind = WebOrderItemFile.KIND_LAYOUT
+
+    # Ограничение размера — то же, что у менеджера.
+    max_size = getattr(settings, 'WEB_ORDER_MAX_FILE_SIZE', 512 * 1024 * 1024)
+    if uploaded and uploaded.size > max_size:
+        return JsonResponse({
+            'success': False,
+            'error': 'Файл больше %s МБ' % (max_size // (1024 * 1024)),
+        }, status=413)
+
+    # Ограничение по расширению.
+    allowed_ext = getattr(settings, 'WEB_ORDER_ALLOWED_FILE_EXTENSIONS', [])
+    if uploaded and allowed_ext:
+        ext = os.path.splitext(uploaded.name)[1].lower()
+        if ext not in allowed_ext:
+            return JsonResponse({
+                'success': False,
+                'error': 'Недопустимый тип файла: %s' % ext,
+            }, status=400)
+
+    pending = WebOrderPendingFile(
+        cart_token=cart_token,
+        line_uid=line_uid,
+        link_url=link_url,
+        comment=comment,
+        kind=kind,
+    )
+
+    if uploaded:
+        # Исходное имя и размер — ДО сохранения: дальше Django
+        # переименует файл в uuid.
+        pending.original_name = uploaded.name
+        pending.size = uploaded.size
+        pending.content_type = getattr(uploaded, 'content_type', '') or ''
+        pending.file = uploaded
+
+    pending.save()
+
+    return JsonResponse({
+        'success': True,
+        'id': pending.id,
+        'display_name': pending.display_name,
+        'display_size': pending.display_size,
+        'kind': pending.kind,
+        'kind_display': pending.get_kind_display(),
+        'comment': pending.comment,
+        'line_uid': pending.line_uid,
+    }, status=201)
