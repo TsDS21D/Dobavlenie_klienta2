@@ -46,6 +46,14 @@ urlpatterns = [
         name='api_site_order_upload_token',
     ),
 
+    # POST /web-orders/api/site/customer-type/
+    # Смена типа плательщика с сайта (физ/юр) — чтобы ИС не расходилась с ЛК.
+    path(
+        'api/site/customer-type/',
+        views.api_site_update_customer_type,
+        name='api_site_update_customer_type',
+    ),
+
 
     # POST /web-orders/api/client/files/
     # Макеты и переписка для ЛК клиента (только is_client_visible=True).

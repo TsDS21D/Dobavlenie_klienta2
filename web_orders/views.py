@@ -2027,3 +2027,113 @@ def api_update_site_status(request, order_id):
         if site_status.invoice_file else '',
         'invoice_url': invoice_url,
     })
+
+# ============================================================================
+# ОБНОВЛЕНИЕ ТИПА ПЛАТЕЛЬЩИКА С САЙТА
+# ============================================================================
+
+@csrf_exempt
+def api_site_update_customer_type(request):
+    """
+    POST /web-orders/api/site/customer-type/
+
+    Сайт сообщает ИС, что клиент сменил тип плательщика в личном кабинете
+    («физ. лицо» ↔ «юр. лицо»).
+
+    ЗАЧЕМ:
+        В ЛК на сайте тип плательщика хранится в самом заказе Moguta
+        (yur_info + доп. поле «Реквизиты»). Когда клиент меняет тип,
+        сайт правит только свои данные, а ИС продолжает хранить
+        значение из заявки. Из-за этого ЛК показывал старое значение:
+        приоритет в истории заказов отдан ИС.
+
+        Теперь сайт после сохранения уведомляет ИС, и обе стороны
+        согласованы: менеджер в ИС видит тот же тип, что и клиент.
+
+    ТЕЛО (JSON):
+        {"moguta_order_id": 74, "customer_type": "fiz"}
+        customer_type: 'fiz' | 'yur'
+
+    АВТОРИЗАЦИЯ — как у статусов: X-Beauty-Secret + allowlist IP.
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Метод не поддерживается',
+        }, status=405)
+
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+        }, status=401)
+
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'ip_not_allowed',
+            }, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON',
+        }, status=400)
+
+    try:
+        moguta_order_id = int(data.get('moguta_order_id') or 0)
+    except (TypeError, ValueError):
+        moguta_order_id = 0
+
+    customer_type = (data.get('customer_type') or '').strip()
+
+    if moguta_order_id <= 0:
+        return JsonResponse({
+            'success': False,
+            'error': 'Не указан moguta_order_id',
+        }, status=400)
+
+    if customer_type not in ('fiz', 'yur'):
+        return JsonResponse({
+            'success': False,
+            'error': 'customer_type должен быть fiz или yur',
+        }, status=400)
+
+    order = WebOrder.objects.filter(
+        moguta_order_id=moguta_order_id,
+        is_deleted=False,
+    ).first()
+
+    if order is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    # Меняем только если действительно изменилось — лишняя запись
+    # в базу и сдвиг updated_at ни к чему.
+    if order.customer_type != customer_type:
+        order.customer_type = customer_type
+        order.save(update_fields=['customer_type'])
+
+    return JsonResponse({
+        'success': True,
+        'moguta_order_id': moguta_order_id,
+        'customer_type': order.customer_type,
+    })
