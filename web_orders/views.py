@@ -1866,3 +1866,164 @@ def api_set_item_layout_status(request, item_id):
         'status': item.layout_status,
         'status_label': item.get_layout_status_display(),
     })
+
+
+# ============================================================================
+# СКАЧИВАНИЕ СЧЁТА
+# ============================================================================
+
+def api_download_invoice(request, status_id):
+    """
+    GET /web-orders/invoices/<id>/download/?token=…
+
+    Отдаёт PDF счёта с исходным именем.
+
+    Доступ:
+        • сотрудник ИС — по логину;
+        • клиент с сайта — по подписанной ссылке (живёт 1 час).
+
+    ЗАЧЕМ НЕ ПРЯМАЯ ССЫЛКА НА /media/:
+        в счёте реквизиты клиента и суммы. Прямая ссылка доступна любому,
+        кто её узнал, а nginx отдаёт такие файлы без всякой проверки.
+    """
+    from .upload_tokens import parse_invoice_token
+
+    token = request.GET.get('token', '')
+
+    if token:
+        payload = parse_invoice_token(token)
+        if payload is None or int(payload.get('inv', 0)) != int(status_id):
+            return JsonResponse({
+                'success': False,
+                'error': 'Ссылка недействительна или устарела',
+            }, status=403)
+    else:
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path(), '/login/')
+
+    site_status = get_object_or_404(SiteOrderStatus, pk=status_id)
+
+    if not site_status.invoice_file:
+        return JsonResponse({
+            'success': False,
+            'error': 'Счёт не загружен',
+        }, status=404)
+
+    try:
+        site_status.invoice_file.open('rb')
+    except (FileNotFoundError, OSError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Файл счёта не найден на диске',
+        }, status=404)
+
+    import os
+
+    return FileResponse(
+        site_status.invoice_file,
+        as_attachment=True,
+        filename=os.path.basename(site_status.invoice_file.name) or 'invoice.pdf',
+    )
+
+# ============================================================================
+# ССЫЛКА НА ОПЛАТУ И СЧЁТ: СОХРАНЕНИЕ ИЗ КАРТОЧКИ ЗАЯВКИ
+# ============================================================================
+
+@login_required(login_url='/login/')
+@require_POST
+def api_update_site_status(request, order_id):
+    """
+    POST /web-orders/api/order/<id>/site-status/
+
+    Менеджер в карточке заявки заполняет то, что клиент видит в ЛК:
+        pay_link      — ссылка на оплату (ЮKassa) для физлица;
+        invoice_file  — PDF счёта для юрлица.
+
+    Поля необязательные: можно сохранить только ссылку, только файл
+    или оба. Пустое значение pay_link очищает ссылку.
+
+    Возвращает JSON:
+        {"success": true,
+         "pay_link": "https://…",
+         "invoice_name": "Счёт 1044.pdf",
+         "invoice_url": "https://beauty-print.ru/web-orders/invoices/…/download/?token=…"}
+    """
+    import os
+
+    from .upload_tokens import make_invoice_token
+
+    order = get_object_or_404(WebOrder, pk=order_id)
+
+    site_status, _created = SiteOrderStatus.objects.get_or_create(
+        web_order=order,
+    )
+
+    # ===== Ссылка на оплату =====
+    # Ключ проверяем через 'in', а не через .get(): пустая строка —
+    # это осознанная очистка, а отсутствие ключа — «не трогать».
+    if 'pay_link' in request.POST:
+        pay_link = (request.POST.get('pay_link') or '').strip()
+
+        # Простейшая защита от мусора: ссылка либо пустая, либо http(s).
+        if pay_link and not pay_link.lower().startswith(('http://', 'https://')):
+            return JsonResponse({
+                'success': False,
+                'error': 'Ссылка на оплату должна начинаться с http:// или https://',
+            }, status=400)
+
+        if len(pay_link) > 500:
+            return JsonResponse({
+                'success': False,
+                'error': 'Ссылка длиннее 500 символов',
+            }, status=400)
+
+        site_status.pay_link = pay_link
+
+    # ===== Счёт (PDF) =====
+    uploaded = request.FILES.get('invoice_file')
+
+    if uploaded is not None:
+        ext = os.path.splitext(uploaded.name)[1].lower()
+
+        if ext != '.pdf':
+            return JsonResponse({
+                'success': False,
+                'error': 'Счёт должен быть PDF',
+            }, status=400)
+
+        # Счёт — это несколько страниц текста, 20 МБ с запасом хватает.
+        max_size = 20 * 1024 * 1024
+        if uploaded.size > max_size:
+            return JsonResponse({
+                'success': False,
+                'error': 'Файл счёта больше 20 МБ',
+            }, status=400)
+
+        # Старый файл удаляем, чтобы не копить копии счетов.
+        if site_status.invoice_file:
+            try:
+                site_status.invoice_file.delete(save=False)
+            except (OSError, ValueError):
+                pass
+
+        site_status.invoice_file = uploaded
+
+    site_status.save()
+
+    invoice_url = ''
+
+    if site_status.invoice_file:
+        invoice_url = '%s/web-orders/invoices/%d/download/?token=%s' % (
+            getattr(settings, 'WEB_ORDER_PUBLIC_BASE_URL', 'https://beauty-print.ru'),
+            site_status.id,
+            make_invoice_token(site_status.id),
+        )
+
+    return JsonResponse({
+        'success': True,
+        'pay_link': site_status.pay_link,
+        'invoice_name': os.path.basename(site_status.invoice_file.name)
+        if site_status.invoice_file else '',
+        'invoice_url': invoice_url,
+    })

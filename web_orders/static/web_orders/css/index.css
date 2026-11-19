@@ -978,3 +978,113 @@
     border-color: #d9a441;
     color: #a07a1e;
 }
+
+/* ==========================================================================
+   ОПЛАТА И СЧЁТ ДЛЯ КЛИЕНТА
+   ========================================================================== */
+
+.web-orders-billing {
+    grid-column: 1 / -1;
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px dashed #dcebe4;
+    border-radius: 6px;
+    background: #fbfdfc;
+}
+
+.web-orders-billing-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6d7d78;
+    margin-bottom: 0.45rem;
+}
+
+.web-orders-billing-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.web-orders-billing-label {
+    /* 150px: влезает самое длинное «Ссылка на оплату», и все поля
+       начинаются на одной вертикали. */
+    width: 150px;
+    color: #6d7d78;
+    flex: 0 0 auto;
+}
+
+.web-orders-billing-paylink {
+    flex: 1 1 260px;
+    min-width: 200px;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    padding: 0.22rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+.web-orders-billing-invoice {
+    font-size: 0.78rem;
+}
+
+.web-orders-billing-invoice-name {
+    font-size: 0.78rem;
+    color: #6d7d78;
+}
+
+.web-orders-billing-invoice-link {
+    color: #0b8661;
+    text-decoration: none;
+    border-bottom: 1px dashed currentColor;
+}
+
+.web-orders-billing-invoice-link:hover {
+    border-bottom-style: solid;
+}
+
+.web-orders-billing-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+.web-orders-billing-save {
+    padding: 0.28rem 0.8rem;
+    border: 1px solid #0b8661;
+    border-radius: 4px;
+    background: #0b8661;
+    color: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.web-orders-billing-save:hover {
+    background: #0a6e51;
+}
+
+.web-orders-billing-save:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.web-orders-billing-status {
+    font-size: 0.78rem;
+}
+
+.web-orders-billing-status.is-ok {
+    color: #0b8661;
+}
+
+.web-orders-billing-status.is-error {
+    color: #c2453f;
+}
+
+/* Подсказка рядом с полем выбора файла (формат, ограничение). */
+.web-orders-billing-hint {
+    font-size: 0.74rem;
+    color: #9aa8a3;
+}

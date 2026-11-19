@@ -89,6 +89,15 @@ urlpatterns = [
         name='api_reject_web_order',
     ),
 
+    # POST /web-orders/api/order/<id>/site-status/
+    # Ссылка на оплату и PDF счёта из карточки заявки.
+    path(
+        'api/order/<int:order_id>/site-status/',
+        views.api_update_site_status,
+        name='api_update_site_status',
+    ),
+
+
     # POST /web-orders/api/item/<id>/layout-status/
     # Ручная смена статуса макета менеджером.
     path(
@@ -111,6 +120,15 @@ urlpatterns = [
         views.api_add_file_comment,
         name='api_add_file_comment',
     ),
+
+    # GET /web-orders/invoices/<id>/download/ — счёт по подписанной ссылке
+    # (или по логину для сотрудника).
+    path(
+        'invoices/<int:status_id>/download/',
+        views.api_download_invoice,
+        name='api_download_invoice',
+    ),
+
 
     path(
         'files/<int:file_id>/download/',

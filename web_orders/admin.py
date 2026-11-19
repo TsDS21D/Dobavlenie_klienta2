@@ -11,6 +11,7 @@ from django.contrib import admin
 from .models import (
     WebOrder,
     WebOrderItem,
+    SiteOrderStatus,
     WebOrderItemFile,
     WebOrderItemFileComment,
 )
@@ -195,3 +196,66 @@ class WebOrderItemFileCommentAdmin(admin.ModelAdmin):
     list_filter = ('author_kind',)
     search_fields = ('text',)
     readonly_fields = ('created_at',)
+
+@admin.register(SiteOrderStatus)
+class SiteOrderStatusAdmin(admin.ModelAdmin):
+    """
+    Статусы для сайта: ссылка на оплату и счёт (PDF).
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ АДМИНКА:
+    до этого поля pay_link и invoice_file можно было заполнить только
+    через manage.py shell — менеджер ссылку на оплату вставить не мог,
+    а счёт загрузить тем более. Клиент в ЛК видел «Счёт скоро появится»,
+    хотя счёт уже был выставлен.
+
+    ГДЕ ЭТО В ИНТЕРФЕЙСЕ:
+    заявка → «Статусы для сайта» → нужная запись. Искать удобно по номеру
+    заявки в списке.
+    """
+    list_display = (
+        'id',
+        'web_order',
+        'layout_status',
+        'has_pay_link',
+        'has_invoice',
+        'updated_at',
+    )
+    list_filter = ('layout_status',)
+    search_fields = (
+        'web_order__moguta_order_number',
+        'web_order__fio',
+    )
+    list_select_related = ('web_order',)
+
+    # updated_at — auto_now, руками не правится.
+    readonly_fields = ('updated_at',)
+
+    fieldsets = (
+        ('Заявка', {
+            'fields': ('web_order',),
+        }),
+        ('Оплата', {
+            'fields': ('pay_link', 'invoice_file'),
+            'description': 'Ссылка на оплату (ЮKassa) — для физлица. '
+                           'PDF счёта — для юрлица; клиент скачивает его '
+                           'из личного кабинета на сайте.',
+        }),
+        ('Макет', {
+            'fields': ('layout_status',),
+            'description': 'Используется только для старых заявок без позиций. '
+                           'У новых статус макета живёт у каждой позиции.',
+        }),
+        ('Служебное', {
+            'fields': ('updated_at',),
+        }),
+    )
+
+    @admin.display(description='Ссылка на оплату', boolean=True)
+    def has_pay_link(self, obj):
+        """Есть ли ссылка на оплату — видно в списке без открытия карточки."""
+        return bool((obj.pay_link or '').strip())
+
+    @admin.display(description='Счёт', boolean=True)
+    def has_invoice(self, obj):
+        """Загружен ли PDF счёта."""
+        return bool(obj.invoice_file)

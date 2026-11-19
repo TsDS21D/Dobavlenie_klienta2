@@ -499,6 +499,38 @@ class SiteOrderStatus(models.Model):
         """Строковое представление: «Статусы заявки M-01060»."""
         number = self.web_order.moguta_order_number or self.web_order.id
         return 'Статусы заявки %s' % number    
+    @property
+    def invoice_display_name(self):
+        """
+        Имя счёта без пути: «Счёт 1044.pdf».
+
+        В шаблоне invoice_file.name показывает «web_orders/invoices/…pdf» —
+        это технический путь, а менеджеру нужно человеческое имя.
+        """
+        if not self.invoice_file:
+            return ''
+        return self.invoice_file.name.rsplit('/', 1)[-1]
+
+    @property
+    def invoice_download_url(self):
+        """
+        Подписанная ссылка на скачивание счёта.
+
+        Живёт 1 час и действует только на этот счёт. Нужна потому, что
+        иначе ссылка ведёт на /media/, где файл открыт любому, кто знает путь.
+        """
+        if not self.invoice_file:
+            return ''
+
+        from django.conf import settings
+
+        from .upload_tokens import make_invoice_token
+
+        return '%s/web-orders/invoices/%d/download/?token=%s' % (
+            getattr(settings, 'WEB_ORDER_PUBLIC_BASE_URL', 'https://beauty-print.ru'),
+            self.id,
+            make_invoice_token(self.id),
+        )
 
 # ============================================================================
 # ФАЙЛЫ МАКЕТОВ, ПРИВЯЗАННЫЕ К ПОЗИЦИИ ЗАЯВКИ

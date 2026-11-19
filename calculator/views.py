@@ -862,6 +862,61 @@ def add_print_component(request):
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Ошибка при добавлении компонента: {str(e)}'}, status=500)
 
+def _recalculate_component_dependents(component):
+    """
+    Пересчитывает всё, что зависит от количества листов компонента.
+
+    ЗАЧЕМ: при смене режима печати (односторонняя ↔ двусторонняя)
+    количество физических листов у многостраничной печати меняется
+    (при дуплексе на лист влезает вдвое больше страниц). От листов
+    зависят:
+        • цена за лист (ступень интерполяции по тиражам);
+        • стоимость доп. работ;
+        • стоимость ламинации.
+
+    Без этого цена оставалась посчитанной по старому режиму, и
+    «правильной» она становилась только после ручного «Пересчитать».
+
+    Порядок важен: сначала листы, потом всё, что от них считается.
+    """
+    from vichisliniya_listov.multipage_models import VichisliniyaMultipageModel
+    from calculator.models_lamination import Laminate
+
+    # 0. Фиксируем КОМПОНЕНТ в БД до любого пересчёта.
+    #
+    # ПОЧЕМУ ЭТО КРИТИЧНО:
+    # multipage.calculate_sheet_count() берёт режим печати не из памяти,
+    # а из связанного компонента, прочитанного из базы. Пока новый режим
+    # не сохранён, расчёт листов идёт по СТАРОМУ значению — отсюда и
+    # «цена не меняется, пока не нажмёшь Пересчитать».
+    component.save()
+    component.refresh_from_db()
+
+    # 1. Листы многостраничной печати — пересчитываются внутри save()
+    #    по актуальному режиму печати компонента.
+    multipage = VichisliniyaMultipageModel.objects.filter(
+        print_component=component
+    ).first()
+
+    if multipage is not None and multipage.is_active:
+        # Явно подставляем наш (уже сохранённый) компонент, чтобы
+        # calculate_sheet_count() не взял из кеша старую версию.
+        multipage.print_component = component
+        multipage.save()
+
+    # 2. Цена за лист и стоимость печати компонента.
+    component.recalculate_price()
+
+    # 3. Дополнительные работы (их цена считается от листов).
+    for work in component.additional_works.filter(is_deleted=False):
+        work.save()
+
+    # 4. Ламинация (цена тоже за лист).
+    lamination = Laminate.objects.filter(print_component=component).first()
+
+    if lamination is not None and lamination.is_enabled:
+        lamination.recalculate_price(component.get_sheet_count())
+        lamination.save()
 
 @login_required
 @require_POST
@@ -994,7 +1049,17 @@ def update_print_component(request):
         elif field_name == 'printing_mode':
             if field_value not in ['single', 'duplex']:
                 return JsonResponse({'success': False, 'message': 'Некорректное значение режима печати'}, status=400)
+
+            # Режим меняет количество листов у многостраничной печати,
+            # а от листов зависят цена за лист, работы и ламинация.
+            # Без этого цена оставалась от старого режима до ручного
+            # «Пересчитать».
+            mode_changed = (component.printing_mode != field_value)
+
             component.printing_mode = field_value
+
+            if mode_changed:
+                _recalculate_component_dependents(component)
         else:
             return JsonResponse({'success': False, 'message': f'Поле "{field_name}" не поддерживается'}, status=400)
 

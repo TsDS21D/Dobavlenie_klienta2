@@ -612,7 +612,14 @@ class PrintComponent(models.Model):
             else:
                 try:
                     old_component = PrintComponent.objects.get(pk=self.pk)
-                    if old_component.printer != self.printer or old_component.print_type != self.print_type:
+                    # Режим печати тоже влияет на цену за лист: при дуплексе
+                    # листов вдвое меньше, значит и ступень интерполяции другая.
+                    # Раньше здесь учитывались только принтер и тип печати,
+                    # поэтому правка режима (например, через админку) давала
+                    # цену по старым листам.
+                    if (old_component.printer != self.printer
+                            or old_component.print_type != self.print_type
+                            or old_component.printing_mode != self.printing_mode):
                         should_calculate_price = True
                 except PrintComponent.DoesNotExist:
                     should_calculate_price = True

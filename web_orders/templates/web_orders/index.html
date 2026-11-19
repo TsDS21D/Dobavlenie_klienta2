@@ -364,6 +364,55 @@
 
                                 </div>
 
+                                {% comment %} ===== ОПЛАТА И СЧЁТ ДЛЯ КЛИЕНТА =====
+                                   Это то, что клиент видит в личном кабинете на сайте:
+                                   ссылка на оплату (физлицо) и PDF счёта (юрлицо).
+                                   Раньше поля можно было заполнить только через shell.
+                                {% endcomment %}
+                                <div class="web-orders-billing" data-order-id="{{ order.id }}">
+                                    <div class="web-orders-billing-title">Оплата и счёт для клиента</div>
+
+                                    <div class="web-orders-billing-row">
+                                        <span class="web-orders-billing-label">Ссылка на оплату</span>
+                                        <input type="text"
+                                               class="web-orders-billing-paylink"
+                                               value="{{ order.site_status.pay_link|default:'' }}"
+                                               placeholder="https://…">
+                                    </div>
+
+                                    {% comment %} Выбор нового файла: только поле загрузки,
+                                       без состояния — иначе рядом с выбранным файлом
+                                       висит «не загружен» и читается как противоречие. {% endcomment %}
+                                    <div class="web-orders-billing-row">
+                                        <span class="web-orders-billing-label">Счёт (PDF)</span>
+                                        <input type="file"
+                                               class="web-orders-billing-invoice"
+                                               accept=".pdf">
+                                        <span class="web-orders-billing-hint">PDF, до 20 МБ</span>
+                                    </div>
+
+                                    {% comment %} Текущий счёт — то, что уже лежит в ИС
+                                       и что видит клиент. {% endcomment %}
+                                    <div class="web-orders-billing-row">
+                                        <span class="web-orders-billing-label">Текущий счёт</span>
+                                        <span class="web-orders-billing-invoice-name">
+                                            {% if order.site_status.invoice_file %}
+                                                <a class="web-orders-billing-invoice-link"
+                                                   href="{{ order.site_status.invoice_download_url }}"
+                                                   target="_blank"
+                                                   rel="noopener">{{ order.site_status.invoice_display_name }}</a>
+                                            {% else %}
+                                                не загружен
+                                            {% endif %}
+                                        </span>
+                                    </div>
+
+                                    <div class="web-orders-billing-actions">
+                                        <button type="button" class="web-orders-billing-save">Сохранить</button>
+                                        <span class="web-orders-billing-status"></span>
+                                    </div>
+                                </div>
+
                                 {% comment %} ===== ДОП. ПОЛЯ MOGUTA ===== {% endcomment %}
                                 {% comment %} В базе это словарь с ключами-строками: {"3": "...", ...}.
                                    Обращаться к нему по номеру (order.op_fields.3) в шаблоне

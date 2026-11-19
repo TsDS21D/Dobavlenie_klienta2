@@ -507,4 +507,88 @@
     // Отдаём функцию уведомлений наружу: её использует upload.js.
     // Стили и поведение те же, что у уведомлений от WebSocket.
     window.webOrdersToast = showToast;
+
+    // ========================================================================
+    // ОПЛАТА И СЧЁТ ДЛЯ КЛИЕНТА
+    // ========================================================================
+    // Менеджер заполняет то, что клиент видит в ЛК сайта:
+    // ссылку на оплату (ЮKassa) и PDF счёта.
+    // Отправляем одним запросом: пустое поле ссылки — это осознанная
+    // очистка, поэтому pay_link передаём всегда, а файл — только если выбран.
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('.web-orders-billing-save');
+        if (!button) return;
+
+        var block = button.closest('.web-orders-billing');
+        if (!block) return;
+
+        var orderId = block.getAttribute('data-order-id');
+        if (!orderId) return;
+
+        var payLinkInput = block.querySelector('.web-orders-billing-paylink');
+        var invoiceInput = block.querySelector('.web-orders-billing-invoice');
+        var status = block.querySelector('.web-orders-billing-status');
+        var currentCell = block.querySelector('.web-orders-billing-invoice-name');
+
+        var formData = new FormData();
+        formData.append('pay_link', payLinkInput ? payLinkInput.value.trim() : '');
+
+        if (invoiceInput && invoiceInput.files && invoiceInput.files[0]) {
+            formData.append('invoice_file', invoiceInput.files[0]);
+        }
+
+        button.disabled = true;
+        status.className = 'web-orders-billing-status';
+        status.textContent = 'Сохранение…';
+
+        fetch('/web-orders/api/order/' + orderId + '/site-status/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                button.disabled = false;
+
+                if (!data || !data.success) {
+                    status.className = 'web-orders-billing-status is-error';
+                    status.textContent = (data && data.error) ? data.error : 'Не удалось сохранить';
+                    window.webOrdersToast(status.textContent, 'error');
+                    return;
+                }
+
+                status.className = 'web-orders-billing-status is-ok';
+                status.textContent = 'Сохранено';
+                window.setTimeout(function () { status.textContent = ''; }, 2000);
+
+                // Показываем актуальный счёт без перезагрузки страницы.
+                if (currentCell && data.invoice_url) {
+                    currentCell.textContent = '';
+
+                    var link = document.createElement('a');
+                    link.className = 'web-orders-billing-invoice-link';
+                    link.href = data.invoice_url;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.textContent = data.invoice_name || 'счёт';
+                    currentCell.appendChild(link);
+                } else if (currentCell && !data.invoice_url) {
+                    // Файл не загружали и его нет — так и пишем.
+                    currentCell.textContent = 'не загружен';
+                }
+
+                if (invoiceInput) invoiceInput.value = '';
+
+                window.webOrdersToast('Оплата и счёт сохранены', 'success');
+            })
+            .catch(function () {
+                button.disabled = false;
+                status.className = 'web-orders-billing-status is-error';
+                status.textContent = 'Ошибка сети';
+                window.webOrdersToast('Ошибка сети при сохранении', 'error');
+            });
+    });
 })();

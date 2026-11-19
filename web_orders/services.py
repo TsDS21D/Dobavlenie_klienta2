@@ -28,7 +28,7 @@ from orders.services import add_product_to_order
 from calculator.models_list_proschet import Proschet
 
 from .models import WebOrder, WebOrderItem, SiteOrderStatus
-
+from django.conf import settings
 
 def _normalize_phone(phone):
     """
@@ -529,7 +529,17 @@ def get_site_status_payload(web_order):
 
     if site_status is not None:
         pay_link = site_status.pay_link or ''
-        invoice_url = site_status.invoice_file.url if site_status.invoice_file else ''
+        # Вместо прямой ссылки на /media/ — подписанная, с ограниченным
+        # сроком. Прежняя ссылка была относительной («/media/…»), поэтому
+        # на домене сайта она вообще не работала, а файл при этом был
+        # открыт по прямому адресу на ИС.
+        from .upload_tokens import make_invoice_token
+
+        invoice_url = '%s/web-orders/invoices/%d/download/?token=%s' % (
+            getattr(settings, 'WEB_ORDER_PUBLIC_BASE_URL', 'https://beauty-print.ru'),
+            site_status.id,
+            make_invoice_token(site_status.id),
+        ) if site_status.invoice_file else ''
     else:
         pay_link = ''
         invoice_url = ''
