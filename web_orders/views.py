@@ -1581,6 +1581,10 @@ def api_client_files(request):
             items_data.append({
                 'item_id': item.id,
                 'name': item.name or 'Позиция',
+                # Ключ строки корзины: по нему ЛК сопоставляет позицию
+                # заказа Moguta с позицией в ИС. Пустая строка у старых
+                # позиций — для них ЛК использует порядок.
+                'line_uid': item.line_uid or '',
                 'upload_token': item_upload_token,
                 'upload_expires_at': item_upload_expires,
                 'files': files_data,
