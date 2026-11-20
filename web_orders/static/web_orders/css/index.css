@@ -236,13 +236,6 @@
     color: var(--brand-green);
 }
 
-/* Готов к выдаче — голубой: работа сделана, ждём клиента. */
-.web-orders-card-site--ready {
-    background: #eaf3f9;
-    border-color: #d3ecfd;
-    color: #2a6fc9;
-}
-
 /* В доставке — сине-фиолетовый. */
 .web-orders-card-site--delivering {
     background: #eef1fb;
