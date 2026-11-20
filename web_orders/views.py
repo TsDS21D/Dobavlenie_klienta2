@@ -65,7 +65,7 @@ def _to_int(value, default=1):
     except (TypeError, ValueError):
         return default
 
-def _attach_pending_files(item, cart_token, file_ids):
+def _attach_pending_files(item, cart_token, file_ids, line_uid=''):
     """
     Прикрепляет к позиции заявки файлы, загруженные клиентом ДО оформления.
 
@@ -89,24 +89,41 @@ def _attach_pending_files(item, cart_token, file_ids):
     """
     from .models import WebOrderPendingFile
 
-    if not cart_token or not file_ids or not isinstance(file_ids, list):
+    if not cart_token:
         return 0
 
-    # Приводим ID к числам, мусор пропускаем.
-    ids = []
-    for raw_id in file_ids:
-        try:
-            ids.append(int(raw_id))
-        except (TypeError, ValueError):
-            continue
-
-    if not ids:
+    # Без ключа нужен хотя бы список id, иначе привязывать нечего.
+    if not line_uid and (not file_ids or not isinstance(file_ids, list)):
         return 0
 
-    pending_files = WebOrderPendingFile.objects.filter(
-        id__in=ids,
-        cart_token=cart_token,
-    )
+    # ===== Два способа выбрать файлы =====
+    # 1) По line_uid — основной: ключ строки корзины однозначно указывает
+    #    на позицию, даже если состав заказа потом менялся.
+    # 2) По списку id — запасной, для случаев, когда ключа нет
+    #    (старые заказы, клиент загрузил файл до появления ключа).
+    line_uid = (line_uid or '').strip()[:64]
+
+    if line_uid:
+        pending_files = WebOrderPendingFile.objects.filter(
+            cart_token=cart_token,
+            line_uid=line_uid,
+        )
+    else:
+        # Приводим ID к числам, мусор пропускаем.
+        ids = []
+        for raw_id in file_ids or []:
+            try:
+                ids.append(int(raw_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not ids:
+            return 0
+
+        pending_files = WebOrderPendingFile.objects.filter(
+            id__in=ids,
+            cart_token=cart_token,
+        )
 
     attached = 0
 
@@ -387,6 +404,10 @@ def api_receive_order(request):
                     # будет их собственный артикул (CN1_107 и подобные),
                     # и такая позиция станет строкой OrderTovar.
                     code=item_data.get('code') or '',
+                    # Ключ строки корзины: устойчивая привязка файлов к позиции.
+                    # Пустая строка — у старых заявок ключа нет, для них
+                    # остаётся сопоставление по порядку.
+                    line_uid=(item_data.get('line_uid') or '')[:64],
                     count=_to_int(item_data.get('count'), default=1),
                     price=_to_decimal(item_data.get('price')),
                     property=item_data.get('property') or '',
@@ -394,10 +415,13 @@ def api_receive_order(request):
                 )
 
                 # Файлы, загруженные клиентом заранее, привязываем к позиции.
+                # line_uid передаём, чтобы привязка шла по устойчивому ключу,
+                # а не по номеру позиции.
                 _attach_pending_files(
                     item,
                     cart_token,
                     item_data.get('file_ids'),
+                    item_data.get('line_uid'),
                 )
             # --- Статусы для сайта ---
             # Создаём сразу при приёме, а не при конвертации: клиент видит
