@@ -170,7 +170,7 @@ def _to_json(value):
 
 
 
-def _send_web_order_event(event_type, web_order, request):
+def _send_web_order_event(event_type, web_order, request, extra=None):
     """
     Рассылает событие об изменении заявки во все открытые вкладки /web-orders/.
 
@@ -178,7 +178,7 @@ def _send_web_order_event(event_type, web_order, request):
     Событие получает WebOrdersConsumer (web_orders/consumers.py) и
     пересылает всем подписанным вкладкам.
 
-    event_type: 'created' | 'updated' | 'converted'
+    event_type: 'created' | 'updated' | 'converted' | 'file_added'
 
     ПРО actor_tab_id:
     Session_key в Django общий на все вкладки браузера, поэтому по нему
@@ -200,16 +200,22 @@ def _send_web_order_event(event_type, web_order, request):
         return
 
     try:
+        payload = {
+            'type': 'web_order_event',   # метод-обработчик в консьюмере
+            'event': event_type,
+            'web_order_id': web_order.id,
+            'number': web_order.moguta_order_number or '',
+            'actor_tab_id': request.headers.get('X-Tab-Id', ''),
+        }
+
+        # Дополнительные поля события (например, имя файла при загрузке
+        # клиентом). Без них клиентский код не знает, что именно пришло.
+        if extra:
+            payload.update(extra)
+
         async_to_sync(channel_layer.group_send)(
-            # Имя группы — то же, что в WebOrdersConsumer.connect()
             'web_orders_list',
-            {
-                'type': 'web_order_event',   # метод-обработчик в консьюмере
-                'event': event_type,
-                'web_order_id': web_order.id,
-                'number': web_order.moguta_order_number or '',
-                'actor_tab_id': request.headers.get('X-Tab-Id', ''),
-            },
+            payload,
         )
     except Exception:
         # Redis недоступен, соединение оборвалось и т.п. Не роняем
@@ -1811,6 +1817,17 @@ def _api_site_order_upload_impl(request):
     # Правка от клиента — снова «на проверке», даже если макет был
     # утверждён: файл изменился, проверять заново.
     item.mark_layout_checking()
+    # Сообщаем всем открытым вкладкам /web-orders/, что клиент приложил
+    # правку. Менеджер узнаёт об этом сразу, а не когда сам откроет заявку.
+    _send_web_order_event(
+        'file_added',
+        order,
+        request,
+        {
+            'item_id': item.id,
+            'file_name': file_obj.display_name,
+        },
+    )
 
     from .upload_tokens import make_download_token
 

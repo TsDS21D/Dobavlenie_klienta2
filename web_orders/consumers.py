@@ -84,4 +84,7 @@ class WebOrdersConsumer(AsyncWebsocketConsumer):
             'web_order_id': event.get('web_order_id'),
             'number': event.get('number', ''),
             'actor_tab_id': event.get('actor_tab_id', ''),
+            # Поля события «клиент приложил макет».
+            'item_id': event.get('item_id'),
+            'file_name': event.get('file_name', ''),
         }))

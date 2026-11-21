@@ -421,6 +421,12 @@
             text = 'Новая заявка с сайта' + number;
         } else if (payload.event === 'converted') {
             text = 'Заявка' + number + ' конвертирована в заказ';
+        } else if (payload.event === 'file_added') {
+            // Клиент приложил макет из личного кабинета: менеджеру важно
+            // узнать об этом сразу, иначе он начнёт печатать старый файл.
+            text = 'Клиент приложил макет'
+                + (payload.file_name ? ' «' + payload.file_name + '»' : '')
+                + ' к заявке' + number;
         } else {
             text = 'Заявка' + number + ' изменена';
         }
