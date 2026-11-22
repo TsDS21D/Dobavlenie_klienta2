@@ -147,7 +147,14 @@
     grid-template-columns: 90px 115px 1fr auto auto auto auto 18px;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.6rem 0.8rem;
+
+    /* Справа резервируем место под крестик удаления: он абсолютный
+       и в сетку не входит. Иначе 9-й элемент grid выносило во вторую
+       строку, и крестик «прыгал» в зависимости от наличия метки
+       «Калькулятор». */
+    position: relative;
+    padding: 0.6rem 2.2rem 0.6rem 0.8rem;
+
     cursor: pointer;
     /* Убираем стандартный маркер <summary> во всех браузерах. */
     list-style: none;
@@ -452,13 +459,18 @@
    клик не раскрывает карточку — preventDefault в обработчике.
    ============================================================================ */
 .web-orders-card-delete {
-    flex: 0 0 auto;
+    /* Абсолютно, а не в потоке grid: иначе крестик занимает девятую
+       колонку, которой в шаблоне нет, и переносится на вторую строку. */
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 20px;
     height: 20px;
-    margin-left: 8px;
     padding: 0;
     border: 1px solid transparent;
     border-radius: 4px;
@@ -467,6 +479,7 @@
     font-size: 1.1rem;
     line-height: 1;
     cursor: pointer;
+    z-index: 2;
     transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
