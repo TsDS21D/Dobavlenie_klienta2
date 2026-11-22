@@ -191,9 +191,14 @@ def order_delivery_cost(order):
     return tovar.price or Decimal('0.00')
 
 
-def notify_site_delivery(order):
+def notify_site_delivery(web_order, delivery_cost, approved=False):
     """
-    Передаёт на сайт актуальную доставку заказа: стоимость или её отмену.
+    Передаёт на сайт актуальную доставку заказа: стоимость, отмену и признак
+    подтверждения.
+
+    approved=True  — менеджер подтвердил цену: в ЛК клиента цена показывается
+                     обычным цветом, без пометки «(предварительно…)»;
+    approved=False — цена не подтверждена, в ЛК остаётся пометка.
 
     ЗАЧЕМ: менеджер может изменить цену доставки или убрать её в /orders/.
     Без этого вызова в личном кабинете клиента останутся старые данные,
@@ -215,8 +220,6 @@ def notify_site_delivery(order):
 
     from django.conf import settings as _settings
 
-    web_order = getattr(order, 'web_order', None)
-
     if web_order is None:
         # Заказ создан вручную — на сайте его нет, синхронизировать нечего.
         return False, 'no_web_order'
@@ -233,7 +236,10 @@ def notify_site_delivery(order):
 
     payload = _json.dumps({
         'moguta_order_id': web_order.moguta_order_id or 0,
-        'delivery_cost': str(order_delivery_cost(order)),
+        'delivery_cost': str(delivery_cost),
+        # Флаг «Доставка согласована»: именно он убирает в ЛК пометку
+        # «(предварительно, если доставка в пределах МКАД)».
+        'delivery_approved': bool(approved),
     }).encode('utf-8')
 
     request = urllib.request.Request(

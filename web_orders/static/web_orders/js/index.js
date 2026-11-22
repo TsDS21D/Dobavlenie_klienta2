@@ -371,6 +371,97 @@
         });
     });
 
+    /* ------------------------------------------------------------
+       ПОДТВЕРЖДЕНИЕ СТОИМОСТИ ДОСТАВКИ
+
+       Менеджер либо соглашается с ценой, пришедшей с сайта, либо правит
+       её и жмёт «Подтвердить». После этого на сайт уходит цена и флаг
+       «Доставка согласована» — в ЛК клиента пропадает пометка
+       «(предварительно, если доставка в пределах МКАД)».
+       ------------------------------------------------------------ */
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('.web-orders-btn--confirm-delivery');
+        if (!button || button.disabled) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var card = button.closest('.web-orders-card');
+        if (!card) {
+            return;
+        }
+
+        var row = button.closest('.web-orders-delivery');
+        var input = row ? row.querySelector('.web-orders-delivery-cost') : null;
+        var endpoint = button.getAttribute('data-url');
+        var cost = input ? input.value : '';
+
+        if (!endpoint) {
+            return;
+        }
+
+        button.disabled = true;
+        var oldText = button.textContent;
+        button.textContent = 'Сохраняем…';
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+                'X-Tab-Id': (window.getTabId ? window.getTabId() : '')
+            },
+            body: JSON.stringify({ delivery_cost: cost })
+        })
+            .then(function (response) {
+                return response.json()
+                    .catch(function () { return {}; })
+                    .then(function (data) {
+                        return { ok: response.ok, status: response.status, data: data };
+                    });
+            })
+            .then(function (result) {
+                button.disabled = false;
+                button.textContent = oldText;
+
+                if (!result.ok || !result.data.success) {
+                    showToast(
+                        (result.data && result.data.error) || 'Не удалось подтвердить доставку',
+                        'error'
+                    );
+                    return;
+                }
+
+                if (input) {
+                    input.value = result.data.delivery_cost;
+                }
+
+                showToast(
+                    'Доставка подтверждена: ' + result.data.delivery_cost + ' ₽',
+                    'success'
+                );
+
+                // Своя вкладка событие игнорирует (X-Tab-Id), поэтому список
+                // перерисовываем сами — как после любого действия.
+                var openCardIds = Array.prototype.map.call(
+                    document.querySelectorAll('.web-orders-card[open]'),
+                    function (el) { return el.getAttribute('data-order-id'); }
+                );
+
+                refreshSection(openCardIds).catch(function (err) {
+                    console.error(err);
+                });
+            })
+            .catch(function (err) {
+                button.disabled = false;
+                button.textContent = oldText;
+                console.error(err);
+                showToast('Ошибка сети при подтверждении доставки', 'error');
+            });
+    });
+
     /* ============================================================
        WEBSOCKET + ИКОНКА ВКЛАДКИ
        ============================================================

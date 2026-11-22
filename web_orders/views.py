@@ -899,6 +899,97 @@ def api_convert_web_order(request, order_id):
         'order_number': order.number,
     })
 
+@login_required
+@require_POST
+def api_confirm_delivery(request, order_id):
+    """
+    POST /web-orders/api/order/<id>/confirm-delivery/
+
+    Менеджер подтверждает стоимость доставки в заявке.
+
+    КАК РАБОТАЕТ:
+        1. цена приходит из поля в карточке (можно изменить перед нажатием);
+        2. обновляем заявку и связанный заказ (позиция «Доставка»);
+        3. отправляем на сайт цену + флаг «Доставка согласована» — именно он
+           убирает в ЛК клиента пометку «(предварительно, если доставка
+           в пределах МКАД)» и делает цену обычной;
+        4. оповещаем открытые вкладки /web-orders/ и /orders/.
+
+    ПОСЛЕ КОНВЕРТАЦИИ доставку меняют в /orders/ — здесь вернём 409.
+    """
+    web_order = get_object_or_404(WebOrder, pk=order_id)
+
+    if web_order.is_deleted:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка удалена — подтвердить доставку нельзя',
+        }, status=409)
+
+    if web_order.status == WebOrder.STATUS_CONVERTED:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка уже конвертирована — доставку меняйте в заказе',
+        }, status=409)
+
+    try:
+        data = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON',
+        }, status=400)
+
+    raw_cost = data.get('delivery_cost')
+
+    if raw_cost is None or str(raw_cost).strip() == '':
+        cost = web_order.delivery_cost or Decimal('0.00')
+    else:
+        try:
+            cost = Decimal(str(raw_cost)).quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'error': 'Некорректная стоимость доставки',
+            }, status=400)
+
+    if cost < 0:
+        return JsonResponse({
+            'success': False,
+            'error': 'Стоимость доставки не может быть отрицательной',
+        }, status=400)
+
+    from .services import apply_site_delivery_update, notify_site_delivery
+
+    web_order, order = apply_site_delivery_update(
+        web_order,
+        delivery_name=web_order.delivery_name,
+        delivery_cost=cost,
+    )
+
+    # Сайт: цена + «Доставка согласована».
+    site_ok, site_info = notify_site_delivery(
+        web_order,
+        web_order.delivery_cost,
+        approved=True,
+    )
+
+    _send_web_order_event('delivery_updated', web_order, request)
+
+    if order is not None:
+        from orders.views import _send_order_event
+
+        _send_order_event('delivery_updated', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'delivery_cost': str(web_order.delivery_cost),
+        'order_id': order.id if order is not None else None,
+        'site_sync': site_ok,
+        'site_info': site_info,
+    })
+
+
+
 @csrf_exempt
 @require_POST
 def api_site_update_delivery(request):

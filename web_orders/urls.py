@@ -46,6 +46,15 @@ urlpatterns = [
         name='api_site_order_upload_token',
     ),
 
+    # POST /web-orders/api/order/<id>/confirm-delivery/
+    # Менеджер подтверждает цену доставки: клиент видит её без пометки.
+    path(
+        'api/order/<int:order_id>/confirm-delivery/',
+        views.api_confirm_delivery,
+        name='api_confirm_delivery',
+    ),
+
+
     # POST /web-orders/api/site/update-delivery/
     # Изменение доставки клиентом в ЛК сайта — чтобы /orders/ видел правку.
     path(

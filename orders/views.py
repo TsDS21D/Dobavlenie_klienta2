@@ -2506,7 +2506,13 @@ def api_update_order_tovar(request, tovar_id):
 
         from web_orders.services import notify_site_delivery
 
-        notify_site_delivery(order)
+        # Цену поставил менеджер — считаем её подтверждённой: в ЛК клиента
+        # она сразу показывается без пометки «(предварительно…)».
+        notify_site_delivery(
+            order.web_order,
+            order_tovar.price,
+            approved=True,
+        )
 
     return JsonResponse({
         'success': True,
@@ -2545,7 +2551,12 @@ def api_delete_order_tovar(request, tovar_id):
 
         from web_orders.services import notify_site_delivery
 
-        notify_site_delivery(order)
+        # Доставки больше нет: цена 0 и флаг подтверждения снимаем.
+        notify_site_delivery(
+            order.web_order,
+            Decimal('0.00'),
+            approved=False,
+        )
 
     _send_order_event('updated', order, request)
 

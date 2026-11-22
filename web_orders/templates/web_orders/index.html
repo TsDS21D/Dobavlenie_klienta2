@@ -328,11 +328,53 @@
                                         <span class="web-orders-meta-label">Доставка</span>
                                         <span class="web-orders-meta-value">
                                             {{ order.delivery_name|default:"—" }}
-                                            {% comment %} Стоимость показываем только если она не ноль:
-                                               при самовывозе 0 ₽ — лишний шум. {% endcomment %}
-                                            {% if order.delivery_cost %} — {{ order.delivery_cost|floatformat:2 }} ₽{% endif %}
                                         </span>
                                     </div>
+
+                                    {% comment %} Цена доставки: до конвертации менеджер её
+                                       подтверждает (или меняет и подтверждает). Именно это снимает
+                                       в ЛК клиента пометку «(предварительно, если доставка
+                                       в пределах МКАД)». После конвертации — только чтение,
+                                       правки делаются в /orders/. {% endcomment %}
+                                    <div class="web-orders-meta-row">
+                                        <span class="web-orders-meta-label">Стоимость доставки</span>
+                                        <span class="web-orders-meta-value web-orders-delivery">
+                                            {% if order.status == 'converted' %}
+                                                {% if order.delivery_cost %}
+                                                    {{ order.delivery_cost|floatformat:2 }} ₽
+                                                {% else %}
+                                                    бесплатно
+                                                {% endif %}
+                                            {% else %}
+                                                <input type="number"
+                                                       min="0"
+                                                       step="0.01"
+                                                       class="web-orders-delivery-cost"
+                                                       value="{{ order.delivery_cost|floatformat:2 }}"
+                                                       aria-label="Стоимость доставки">
+                                                <span class="web-orders-delivery-currency">₽</span>
+                                                <button type="button"
+                                                        class="web-orders-btn web-orders-btn--confirm-delivery"
+                                                        data-url="{% url 'api_confirm_delivery' order.id %}">
+                                                    Подтвердить
+                                                </button>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+
+                                    {% if order.address %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Адрес доставки</span>
+                                            <span class="web-orders-meta-value">{{ order.address|linebreaksbr }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if order.phone %}
+                                        <div class="web-orders-meta-row">
+                                            <span class="web-orders-meta-label">Телефон для доставки</span>
+                                            <span class="web-orders-meta-value">{{ order.phone }}</span>
+                                        </div>
+                                    {% endif %}
 
                                     <div class="web-orders-meta-row">
                                         <span class="web-orders-meta-label">Оплата</span>
