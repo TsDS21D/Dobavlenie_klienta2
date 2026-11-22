@@ -327,8 +327,6 @@
                                     {% comment %} Блок доставки оформлен так же, как «Оплата и счёт для клиента».
                                        Внутри: способ, стоимость (с подтверждением), адрес и телефон. {% endcomment %}
                                     <div class="web-orders-delivery-block">
-                                        <div class="web-orders-delivery-title">Доставка</div>
-
                                         <div class="web-orders-billing-row">
                                             <span class="web-orders-billing-label">Способ получения</span>
                                             <span class="web-orders-meta-value">
@@ -424,24 +422,40 @@
                                 <div class="web-orders-billing" data-order-id="{{ order.id }}">
                                     <div class="web-orders-billing-title">Оплата и счёт для клиента</div>
 
+                                    {% comment %} Кто плательщик и как платит: физическое лицо —
+                                       картой по ссылке, юридическое — по счёту. От этого
+                                       зависит, какое поле показываем ниже. {% endcomment %}
                                     <div class="web-orders-billing-row">
-                                        <span class="web-orders-billing-label">Ссылка на оплату</span>
-                                        <input type="text"
-                                               class="web-orders-billing-paylink"
-                                               value="{{ order.site_status.pay_link|default:'' }}"
-                                               placeholder="https://…">
+                                        <span class="web-orders-billing-label">Оплата</span>
+                                        <span class="web-orders-meta-value">
+                                            {% if order.customer_type == 'yur' %}юридическое лицо{% else %}физическое лицо{% endif %}
+                                            · {{ order.payment_name|default:"—" }}
+                                        </span>
                                     </div>
 
-                                    {% comment %} Выбор нового файла: только поле загрузки,
-                                       без состояния — иначе рядом с выбранным файлом
-                                       висит «не загружен» и читается как противоречие. {% endcomment %}
-                                    <div class="web-orders-billing-row">
-                                        <span class="web-orders-billing-label">Счёт (PDF)</span>
-                                        <input type="file"
-                                               class="web-orders-billing-invoice"
-                                               accept=".pdf">
-                                        <span class="web-orders-billing-hint">PDF, до 20 МБ</span>
-                                    </div>
+                                    {% if order.customer_type == 'yur' %}
+                                        {% comment %} Юрлицу ссылка не нужна — платит по счёту. {% endcomment %}
+                                    {% else %}
+                                        <div class="web-orders-billing-row">
+                                            <span class="web-orders-billing-label">Ссылка на оплату</span>
+                                            <input type="text"
+                                                   class="web-orders-billing-paylink"
+                                                   value="{{ order.site_status.pay_link|default:'' }}"
+                                                   placeholder="https://…">
+                                        </div>
+                                    {% endif %}
+
+                                    {% comment %} Счёт грузим только для юрлица: физлицу
+                                       отправляется ссылка на оплату. {% endcomment %}
+                                    {% if order.customer_type == 'yur' %}
+                                        <div class="web-orders-billing-row">
+                                            <span class="web-orders-billing-label">Счёт (PDF)</span>
+                                            <input type="file"
+                                                   class="web-orders-billing-invoice"
+                                                   accept=".pdf">
+                                            <span class="web-orders-billing-hint">PDF, до 20 МБ</span>
+                                        </div>
+                                    {% endif %}
 
                                     {% comment %} Текущий счёт — то, что уже лежит в ИС
                                        и что видит клиент. {% endcomment %}

@@ -931,7 +931,12 @@
         var currentCell = block.querySelector('.web-orders-billing-invoice-name');
 
         var formData = new FormData();
-        formData.append('pay_link', payLinkInput ? payLinkInput.value.trim() : '');
+
+        // Ссылку отправляем только если поле вообще есть на странице:
+        // у юрлица его нет, и пустое значение стёрло бы сохранённую ссылку.
+        if (payLinkInput) {
+            formData.append('pay_link', payLinkInput.value.trim());
+        }
 
         if (invoiceInput && invoiceInput.files && invoiceInput.files[0]) {
             formData.append('invoice_file', invoiceInput.files[0]);
