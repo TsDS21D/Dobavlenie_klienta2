@@ -229,9 +229,9 @@ select.list-orders-search {
 }
 /* Добавляем цветной маркер перед заголовком */
 .list-orders-group-title::before {
-    /* 📦 (U+1F4E6) записан кодом, а не символом: сырой эмодзи ломался
-       при сохранении файла в другой кодировке и превращался в «ðŸ"». */
-    content: "\1F4E6";
+    /* Пустой content: сам кружок рисуется размерами и фоном ниже.
+       Эмодзи здесь быть не должно — это цветной маркер статуса. */
+    content: "";
     display: inline-block;
     width: 8px;
     height: 8px;
@@ -1966,7 +1966,9 @@ select.list-orders-payment-select {
 
 /* Иконка перед заголовком (можно убрать, если не нужна) */
 .orders-delivery-today-title::before {
-    content: "📦"; 
+    /* 📦 записан кодом U+1F4E6: сырой эмодзи ломался при сохранении
+       файла в другой кодировке и превращался в «ðŸ"». */
+    content: "\1F4E6";
     font-size: 1rem;
 }
 
@@ -3097,10 +3099,14 @@ select.list-orders-payment-select {
    поэтому нужен визуальный признак.
    ============================================================================ */
 .list-orders-source-globe {
-    display: inline-block;
+    /* inline-flex + центрирование: SVG не имеет базовой линии,
+       поэтому без этого значок «прыгает» относительно номера. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     margin-left: 6px;
     color: #2a6fc9;
-    line-height: 0;
+    line-height: 1;
     vertical-align: middle;
 }
 
