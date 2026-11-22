@@ -259,6 +259,50 @@ def notify_site_delivery(web_order, delivery_cost, approved=False):
     except Exception as error:  # noqa: BLE001 — сеть сайта, любая ошибка не критична
         return False, str(error)
 
+def attach_file_to_order(file_obj):
+    """
+    Привязывает файл заявки к изделию или товару в связанном заказе.
+
+    ЗАЧЕМ: при конвертации файлы «переезжают» к изделию/товару. Но если
+    макет приложили УЖЕ ПОСЛЕ конвертации, а до этого файлов не было,
+    связь наследовать не у чего — и в карточке /orders/ файл не появится.
+
+    КАК ИЩЕМ:
+        • код позиции PR-NN  → изделие Product с просчётом PR-NN;
+        • любой другой код   → строка OrderTovar с этим артикулом.
+
+    Ничего не делает, если заявка ещё не сконвертирована или код не найден.
+    """
+    item = file_obj.item
+    web_order = getattr(item, 'web_order', None)
+
+    if web_order is None:
+        return
+
+    order = getattr(web_order, 'order', None)
+
+    if order is None:
+        # Заказ ещё не создан — файл подхватится при конвертации.
+        return
+
+    code = (item.code or '').strip()
+
+    if not code:
+        return
+
+    if code.upper().startswith('PR-'):
+        product = order.products.filter(source_proschet__number=code).first()
+
+        if product is not None:
+            file_obj.order_product = product
+            return
+
+    tovar = order.tovary.filter(article=code, is_deleted=False).first()
+
+    if tovar is not None:
+        file_obj.order_tovar = tovar
+
+
 
 def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, address='', phone='', confirmed=False):
     """

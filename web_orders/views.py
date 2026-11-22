@@ -1352,6 +1352,13 @@ def api_upload_item_file(request, item_id):
         file_obj.order_product = sibling_file.order_product
         file_obj.order_tovar = sibling_file.order_tovar
 
+    # Наследовать нечего — значит файлов у позиции ещё не было (макет
+    # приложен впервые уже после конвертации). Ищем изделие/товар по коду.
+    if file_obj.order_product is None and file_obj.order_tovar is None:
+        from .services import attach_file_to_order
+
+        attach_file_to_order(file_obj)
+
     file_obj.save()
 
     return JsonResponse({
@@ -2282,6 +2289,13 @@ def _api_site_order_upload_impl(request):
     if sibling_file is not None:
         file_obj.order_product = sibling_file.order_product
         file_obj.order_tovar = sibling_file.order_tovar
+
+    # Наследовать нечего — значит файлов у позиции ещё не было (макет
+    # приложен впервые уже после конвертации). Ищем изделие/товар по коду.
+    if file_obj.order_product is None and file_obj.order_tovar is None:
+        from .services import attach_file_to_order
+
+        attach_file_to_order(file_obj)
 
     file_obj.save()
 
