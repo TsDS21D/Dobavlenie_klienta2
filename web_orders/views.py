@@ -964,6 +964,7 @@ def api_confirm_delivery(request, order_id):
         web_order,
         delivery_name=web_order.delivery_name,
         delivery_cost=cost,
+        confirmed=True,
     )
 
     # Сайт: цена + «Доставка согласована».

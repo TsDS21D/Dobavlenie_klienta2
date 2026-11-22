@@ -355,9 +355,15 @@
                                                 <span class="web-orders-delivery-currency">₽</span>
                                                 <button type="button"
                                                         class="web-orders-btn web-orders-btn--confirm-delivery"
-                                                        data-url="{% url 'web_orders:api_confirm_delivery' order.id %}">
-                                                    Подтвердить
+                                                        data-url="{% url 'web_orders:api_confirm_delivery' order.id %}"
+                                                        data-confirmed-value="{{ order.delivery_cost|stringformat:'0.2f' }}"
+                                                        {% if order.delivery_confirmed %}disabled{% endif %}>
+                                                    {% if order.delivery_confirmed %}Подтверждено{% else %}Подтвердить{% endif %}
                                                 </button>
+                                                <span class="web-orders-delivery-status"
+                                                      {% if not order.delivery_confirmed %}hidden{% endif %}>
+                                                    цена подтверждена
+                                                </span>
                                             {% endif %}
                                         </span>
                                     </div>

@@ -260,7 +260,7 @@ def notify_site_delivery(web_order, delivery_cost, approved=False):
         return False, str(error)
 
 
-def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, address='', phone=''):
+def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, address='', phone='', confirmed=False):
     """
     Применяет к заявке и связанному заказу новые данные доставки с сайта.
 
@@ -287,6 +287,11 @@ def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, add
     # --- Заявка ---
     web_order.delivery_name = (delivery_name or '')[:255]
     web_order.delivery_cost = cost
+
+    # Кто менял доставку, тот и определяет статус подтверждения:
+    # клиент с сайта — цена снова «предварительная»,
+    # менеджер — цена подтверждена.
+    web_order.delivery_confirmed = bool(confirmed)
 
     if address:
         web_order.address = address

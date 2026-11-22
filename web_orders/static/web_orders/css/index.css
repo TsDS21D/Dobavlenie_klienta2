@@ -1337,3 +1337,13 @@
     border-color: var(--brand-green);
     color: #fff;
 }
+
+/* Отметка «цена подтверждена» рядом с кнопкой. */
+.web-orders-delivery-status {
+    font-size: 0.76rem;
+    color: var(--brand-green);
+}
+
+.web-orders-delivery-status[hidden] {
+    display: none;
+}

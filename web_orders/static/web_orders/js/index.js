@@ -371,6 +371,49 @@
         });
     });
 
+    /* Кнопка «Подтверждено» серая и неактивная; как только менеджер
+       меняет цену в поле — снова становится активной «Подтвердить». */
+    function updateDeliveryButtonState(row) {
+        if (!row) {
+            return;
+        }
+
+        var input = row.querySelector('.web-orders-delivery-cost');
+        var button = row.querySelector('.web-orders-btn--confirm-delivery');
+        var status = row.parentNode
+            ? row.parentNode.querySelector('.web-orders-delivery-status')
+            : null;
+
+        if (!input || !button) {
+            return;
+        }
+
+        var confirmedValue = button.getAttribute('data-confirmed-value') || '';
+        var current = String(input.value || '').replace(',', '.');
+
+        var same = false;
+
+        if (confirmedValue !== '' && current !== '') {
+            same = parseFloat(current) === parseFloat(confirmedValue);
+        }
+
+        button.disabled = same;
+        button.textContent = same ? 'Подтверждено' : 'Подтвердить';
+
+        if (status) {
+            status.hidden = !same;
+        }
+    }
+
+    document.addEventListener('input', function (event) {
+        var input = event.target.closest('.web-orders-delivery-cost');
+        if (!input) {
+            return;
+        }
+
+        updateDeliveryButtonState(input.closest('.web-orders-delivery'));
+    });
+
     /* ------------------------------------------------------------
        ПОДТВЕРЖДЕНИЕ СТОИМОСТИ ДОСТАВКИ
 
@@ -437,6 +480,11 @@
                 if (input) {
                     input.value = result.data.delivery_cost;
                 }
+
+                // Запоминаем подтверждённое значение: пока цена не изменится,
+                // кнопка остаётся серой.
+                button.setAttribute('data-confirmed-value', result.data.delivery_cost);
+                updateDeliveryButtonState(row);
 
                 showToast(
                     'Доставка подтверждена: ' + result.data.delivery_cost + ' ₽',

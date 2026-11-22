@@ -131,6 +131,16 @@ class WebOrder(models.Model):
         blank=True,
         default='',
     )
+    # Подтверждена ли стоимость доставки менеджером.
+    # False — в ЛК клиента цена показывается с пометкой «(предварительно,
+    #         если доставка в пределах МКАД)»;
+    # True  — цена обычная, кнопка «Подтвердить» в карточке неактивна.
+    # При изменении доставки самим клиентом флаг сбрасывается.
+    delivery_confirmed = models.BooleanField(
+        verbose_name='Доставка подтверждена',
+        default=False,
+    )
+
     delivery_cost = models.DecimalField(
         verbose_name='Стоимость доставки',
         max_digits=10,

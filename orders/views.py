@@ -2504,6 +2504,11 @@ def api_update_order_tovar(request, tovar_id):
         order.is_delivery = order_tovar.price > 0
         order.save(update_fields=['is_delivery'])
 
+        # Менеджер поставил цену вручную — она же и подтверждена.
+        if order.web_order is not None:
+            order.web_order.delivery_confirmed = order_tovar.price > 0
+            order.web_order.save(update_fields=['delivery_confirmed'])
+
         from web_orders.services import notify_site_delivery
 
         # Цену поставил менеджер — считаем её подтверждённой: в ЛК клиента
