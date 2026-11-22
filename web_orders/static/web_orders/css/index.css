@@ -1218,11 +1218,12 @@
     color: #7a4441;
 }
 
-/* Изменение и прочее — нейтральная. */
+/* Изменение и прочее — голубая, как на /orders/ (proschety-toast-updated).
+   Раньше была почти белой и выглядела «без стилей». */
 .web-orders-bottom-toast--updated {
-    background: rgba(244, 246, 245, 0.96);
-    border: 1px solid rgba(120, 140, 133, 0.35);
-    color: #33443f;
+    background: rgba(220, 235, 248, 0.92);
+    border: 1px solid rgba(80, 140, 200, 0.45);
+    color: #1a5fa8;
 }
 
 /* Новый макет от клиента — синяя (работа пришла, надо смотреть). */
