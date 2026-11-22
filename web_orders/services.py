@@ -224,10 +224,27 @@ def convert_web_order_to_order(web_order, created_by=None):
     delivery_cost = web_order.delivery_cost or Decimal('0.00')
 
     # --- Создаём заказ ---
-    # number сгенерируется автоматически в Order.save() (ORD-N).
+    # ===== НОМЕР ЗАКАЗА =====
+    # Номер уже выдан единым нумератором ИС и хранится в заявке
+    # (moguta_order_number). Берём именно его: клиент, сайт, письма и ИС
+    # должны показывать один и тот же номер.
+    #
+    # Если номер занят другим заказом (после ручных правок или повторной
+    # конвертации), оставляем пустую строку — Order.save() выдаст новый
+    # из последовательности. Дубль в базе был бы хуже дыры в нумерации.
+    order_number = (web_order.moguta_order_number or '').strip()
+
+    if order_number and Order.objects.filter(number=order_number).exists():
+        order_number = ''
+
     # created_at оставляем «сейчас»: для системы заказ создан в момент
     # конвертации. Дата оформления на сайте уходит в комментарий.
     order = Order.objects.create(
+        number=order_number,
+        # Источник и связь с заявкой: по ним в списке заказов видно,
+        # что заказ пришёл с сайта, и можно перейти к заявке.
+        source=Order.SOURCE_SITE,
+        web_order=web_order,
         client=client,
         contact_person=contact,
         legal_entity=legal_entity,
