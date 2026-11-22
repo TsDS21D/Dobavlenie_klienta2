@@ -107,11 +107,13 @@
                                    веб-калькулятора и её можно связать с просчётом.
                                    Флаг выставит представление (следующий шаг);
                                    пока атрибута нет — блок просто не рендерится. {% endcomment %}
-                                {% if order.has_pr_item %}
-                                    <span class="web-orders-card-calc" title="Есть позиция из веб-калькулятора (PR-NN)">
-                                        Калькулятор
-                                    </span>
-                                {% endif %}
+                                {% comment %} Ячейка «Калькулятор» присутствует всегда, даже если метки нет:
+                                   иначе grid сдвигает остальные ячейки влево, и колонки
+                                   в разных карточках перестают совпадать. Пустая ячейка
+                                   не рисуется (стиль :empty ниже). {% endcomment %}
+                                <span class="web-orders-card-calc"
+                                      {% if order.has_pr_item %}title="Есть позиция из веб-калькулятора (PR-NN)"{% endif %}
+                                >{% if order.has_pr_item %}Калькулятор{% endif %}</span>
 
                                 {% comment %} Статус, который клиент видит в ЛК сайта. Вычисляется в services.get_site_status_code, а не хранится в базе — поэтому не может разойтись с реальностью. Класс с кодом статуса нужен для цвета. {% endcomment %}
                                 <span class="web-orders-card-site web-orders-card-site--{{ order.site_status_info.status }}"

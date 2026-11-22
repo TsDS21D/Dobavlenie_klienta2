@@ -144,7 +144,11 @@
     display: grid;
     /* Колонки: номер · дата · клиент · плательщик · калькулятор ·
        статус на сайте · сумма · стрелка. */
-    grid-template-columns: 90px 115px 1fr auto auto auto auto 18px;
+    /* Ширины фиксированные, а не auto: иначе колонки подстраиваются под текст
+       («Физ. лицо» / «Юр. лицо», «В работе» / «В обработке») и в разных
+       карточках стоят на разной высоте — столбцы «прыгают».
+       Последняя колонка 18px — стрелка, крестик удаления стоит абсолютно. */
+    grid-template-columns: 90px 110px 1fr 92px 92px 118px 100px 18px;
     align-items: center;
     gap: 0.8rem;
 
@@ -159,6 +163,37 @@
     /* Убираем стандартный маркер <summary> во всех браузерах. */
     list-style: none;
     user-select: none;             /* чтобы клик не выделял текст */
+}
+
+/* Плашки не должны растягиваться на всю колонку: при фиксированной ширине
+   grid по умолчанию растягивает элемент, и «пилюля» превращается в полосу. */
+.web-orders-card-type,
+.web-orders-card-calc,
+.web-orders-card-site {
+    justify-self: start;
+}
+
+/* Числовые колонки прижимаем к своим краям — так суммы читаются столбиком. */
+.web-orders-card-number,
+.web-orders-card-date {
+    justify-self: start;
+}
+
+.web-orders-card-sum {
+    justify-self: end;
+    text-align: right;
+}
+
+.web-orders-card-arrow {
+    justify-self: end;
+}
+
+/* Пустая ячейка «Калькулятор» не рисует плашку, но место занимает —
+   поэтому колонки во всех карточках совпадают. */
+.web-orders-card-calc:empty {
+    padding: 0;
+    border: 0;
+    background: none;
 }
 
 /* Safari/Chrome: убрать системный треугольник. */
