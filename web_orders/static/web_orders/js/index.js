@@ -68,11 +68,9 @@
         delete: {
             url: '/web-orders/api/delete/',
             cssClass: 'web-orders-btn--delete',
-            // Удаление необратимо из интерфейса: восстановить заявку можно
-            // только в админке Django. Поэтому спрашиваем подтверждение
-            // и прямо говорим, что увидит клиент.
-            confirmText: 'Удалить заявку? Связанный заказ тоже будет удалён, '
-                + 'а клиент увидит статус «Отменён».',
+            // Подтверждение — своя модалка (разметка в шаблоне), а не
+            // window.confirm: браузерный диалог выбивается из оформления ИС.
+            confirmModalId: 'web-orders-delete-confirm',
             successText: 'Заявка удалена'
         }
     };
@@ -189,6 +187,63 @@
     }
 
     /* ------------------------------------------------------------
+       ПОДТВЕРЖДЕНИЕ ЧЕРЕЗ МОДАЛКУ.
+
+       window.confirm нельзя стилизовать, он выбивается из оформления ИС.
+       Поэтому показываем свою модалку и ждём ответа кнопки:
+       data-confirm="yes" — подтвердили, "no" — отказались.
+
+       Возвращает Promise<boolean>: обработчик действия ждёт ответа,
+       прежде чем отправлять запрос.
+       ------------------------------------------------------------ */
+    function askConfirm(modalId) {
+        return new Promise(function (resolve) {
+            var overlay = document.getElementById(modalId);
+
+            // Модалки нет (старый шаблон из кэша) — не ломаем удаление,
+            // спрашиваем по-старому.
+            if (!overlay) {
+                resolve(window.confirm('Удалить заявку?'));
+                return;
+            }
+
+            overlay.style.display = 'flex';
+
+            function finish(answer) {
+                overlay.style.display = 'none';
+                overlay.removeEventListener('click', onClick);
+                document.removeEventListener('keydown', onKey);
+                resolve(answer);
+            }
+
+            function onClick(event) {
+                // Клик по фону — отмена, как в модалке удаления файла.
+                if (event.target === overlay) {
+                    finish(false);
+                    return;
+                }
+
+                var btn = event.target.closest('[data-confirm]');
+                if (!btn) {
+                    return;
+                }
+
+                finish(btn.getAttribute('data-confirm') === 'yes');
+            }
+
+            function onKey(event) {
+                if (event.key === 'Escape') {
+                    finish(false);
+                }
+            }
+
+            overlay.addEventListener('click', onClick);
+            document.addEventListener('keydown', onKey);
+        });
+    }
+
+
+    /* ------------------------------------------------------------
        Выполнение действия над заявкой.
 
        button — нажатая кнопка;
@@ -201,7 +256,7 @@
          4. при успехе — тост, перерисовка, разблокировка;
          5. при ошибке — красный тост с текстом от сервера.
        ------------------------------------------------------------ */
-    function runAction(button, action) {
+    async function runAction(button, action) {
         var card = button.closest('.web-orders-card');
         if (!card) {
             return;
@@ -209,9 +264,14 @@
 
         var orderId = card.getAttribute('data-order-id');
 
-        // ВРЕМЕННО: нативный confirm. Позже заменим на модалку в стиле
-        // CRM (как розовая модалка удаления в истории заказов на сайте).
-        if (action.confirmText && !window.confirm(action.confirmText)) {
+        // Подтверждение: своя модалка, если она указана в действии.
+        // Асинхронно — ждём ответа, и только потом идём в API.
+        if (action.confirmModalId) {
+            var confirmed = await askConfirm(action.confirmModalId);
+            if (!confirmed) {
+                return;
+            }
+        } else if (action.confirmText && !window.confirm(action.confirmText)) {
             return;
         }
 
@@ -228,7 +288,10 @@
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                // Своя вкладка: сервер положит этот id в событие, и клиент
+                // не будет показывать тост о собственном действии.
+                'X-Tab-Id': (window.getTabId ? window.getTabId() : '')
             },
             // Пустое тело: комментарий менеджера пока не спрашиваем.
             // Оба представления спокойно относятся к пустому телу.
@@ -300,7 +363,12 @@
         // preventDefault — на случай, если кнопка когда-нибудь окажется
         // внутри формы и попытается её отправить.
         event.preventDefault();
-        runAction(button, ACTIONS[actionKey]);
+        runAction(button, ACTIONS[actionKey]).catch(function (err) {
+            // runAction стал асинхронным (ждёт подтверждения в модалке).
+            // Без этого catch любая ошибка внутри осталась бы незамеченной.
+            console.error(err);
+            showToast('Не удалось выполнить действие', 'error');
+        });
     });
 
     /* ============================================================

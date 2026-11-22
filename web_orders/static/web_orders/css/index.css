@@ -444,16 +444,36 @@
     color: #c0392b;
 }
 
-/* Удаление — та же красная гамма, но с рамкой: действие необратимо
-   из интерфейса, поэтому визуально отличается от «Отклонить». */
-.web-orders-btn--delete {
-    background: #fff;
-    border-color: #e6b8b8;
-    color: #c0392b;
+/* ============================================================================
+   КРЕСТИК УДАЛЕНИЯ В ШАПКЕ КАРТОЧКИ
+   ============================================================================
+   Повторяет кнопку удаления в списке заказов (list-orders-btn-delete):
+   неприметный серый крестик, краснеет при наведении. Стоит в шапке карточки,
+   клик не раскрывает карточку — preventDefault в обработчике.
+   ============================================================================ */
+.web-orders-card-delete {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 8px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #bbb;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.web-orders-btn--delete:hover:not(:disabled) {
+.web-orders-card-delete:hover:not(:disabled) {
+    color: #c0392b;
     background: #fdf1f1;
+    border-color: #f7d5d5;
 }
 
 .web-orders-btn:hover:not(:disabled) {

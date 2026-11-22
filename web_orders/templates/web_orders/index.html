@@ -126,6 +126,14 @@
                                 {% comment %} Стрелочка. Рисуется в CSS, поворачивается при раскрытии. {% endcomment %}
                                 <span class="web-orders-card-arrow" aria-hidden="true"></span>
 
+                                {% comment %} Удаление — крестик, как в /orders/. Клик по нему
+                                   не должен раскрывать карточку: preventDefault стоит
+                                   в обработчике клика (index.js). {% endcomment %}
+                                <button type="button"
+                                        class="web-orders-btn web-orders-btn--delete web-orders-card-delete"
+                                        data-order-id="{{ order.id }}"
+                                        title="Удалить заявку">×</button>
+
                             </summary>
 
                             {% comment %} ---------- РАСКРЫТАЯ ЧАСТЬ ---------- {% endcomment %}
@@ -469,13 +477,6 @@
 
                                     {% endif %}
 
-                                    {% comment %} Удаление доступно для любой заявки: и для новой, и для
-                                       отклонённой, и для конвертированной — во всех случаях менеджеру
-                                       может понадобиться убрать заявку вместе с заказом. Для
-                                       оплаченного заказа сервер откажет (см. api_delete_web_order). {% endcomment %}
-                                    <button type="button"
-                                            class="web-orders-btn web-orders-btn--delete">Удалить</button>
-
                                     {% comment %} Подпись «получена …» показываем всегда — она не зависит от статуса. {% endcomment %}
                                     <span class="web-orders-created">
                                         получена {{ order.created_at|date:"d.m.Y H:i" }}
@@ -502,6 +503,28 @@
             <div class="web-orders-confirm-title">Удалить файл?</div>
             <div class="web-orders-confirm-text">
                 Файл будет удалён с сервера. Восстановить его не получится.
+            </div>
+            <div class="web-orders-confirm-actions">
+                <button type="button"
+                        class="web-orders-confirm-btn web-orders-confirm-btn--no"
+                        data-confirm="no">Отмена</button>
+                <button type="button"
+                        class="web-orders-confirm-btn web-orders-confirm-btn--yes"
+                        data-confirm="yes">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    {% comment %} Подтверждение удаления ЗАЯВКИ. Отдельная модалка, потому что
+       текст другой: удаляется не файл, а заявка вместе с заказом, и клиент
+       получит статус «Отменён». {% endcomment %}
+    <div class="web-orders-confirm-overlay" id="web-orders-delete-confirm" style="display: none;">
+        <div class="web-orders-confirm">
+            <div class="web-orders-confirm-title">Удалить заявку?</div>
+            <div class="web-orders-confirm-text">
+                Заявка исчезнет из списка, связанный заказ тоже будет удалён,
+                а клиент увидит статус «Отменён».<br>
+                Восстановить можно только через админку.
             </div>
             <div class="web-orders-confirm-actions">
                 <button type="button"

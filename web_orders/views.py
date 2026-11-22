@@ -803,6 +803,14 @@ def api_delete_web_order(request, order_id):
 
     _send_web_order_event('deleted', web_order, request)
 
+    # И событие для открытых вкладок /orders/: страница заказов слушает
+    # другую группу ('orders_list'), поэтому ей нужно отдельное уведомление.
+    # Без него менеджер видит удалённый заказ до перезагрузки страницы.
+    if linked_order is not None:
+        from orders.views import _send_order_event
+
+        _send_order_event('deleted', linked_order, request)
+
     return JsonResponse({
         'success': True,
         'order_deleted': linked_order is not None,
