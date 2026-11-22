@@ -355,7 +355,7 @@
                                                 <span class="web-orders-delivery-currency">₽</span>
                                                 <button type="button"
                                                         class="web-orders-btn web-orders-btn--confirm-delivery"
-                                                        data-url="{% url 'api_confirm_delivery' order.id %}">
+                                                        data-url="{% url 'web_orders:api_confirm_delivery' order.id %}">
                                                     Подтвердить
                                                 </button>
                                             {% endif %}
@@ -397,13 +397,6 @@
                                             {% comment %} linebreaksbr — чтобы текст из 1С/Контура
                                                сохранял переводы строк. {% endcomment %}
                                             <span class="web-orders-meta-value web-orders-meta-value--multiline">{{ order.requisites|linebreaksbr }}</span>
-                                        </div>
-                                    {% endif %}
-
-                                    {% if order.address %}
-                                        <div class="web-orders-meta-row">
-                                            <span class="web-orders-meta-label">Адрес</span>
-                                            <span class="web-orders-meta-value">{{ order.address|linebreaksbr }}</span>
                                         </div>
                                     {% endif %}
 
