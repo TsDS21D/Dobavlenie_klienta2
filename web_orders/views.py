@@ -895,6 +895,130 @@ def api_convert_web_order(request, order_id):
         'order_number': order.number,
     })
 
+@csrf_exempt
+@require_POST
+def api_site_update_delivery(request):
+    """
+    POST /web-orders/api/site/update-delivery/
+
+    Сайт сообщает ИС, что клиент в личном кабинете изменил доставку
+    (добавил, сменил способ или отменил). Без этого вызова ИС видела
+    только доставку, скопированную при конвертации, и в /orders/ оставалось
+    «Без доставки», хотя на сайте доставка уже стоит.
+
+    АВТОРИЗАЦИЯ — как у остальных серверных вызовов сайта:
+        1. заголовок X-Beauty-Secret сравнивается с BUKVA_API_SECRET;
+        2. если задан BUKVA_ALLOWED_IPS — проверяем IP клиента.
+
+    ТЕЛО (JSON):
+        {
+            "moguta_order_id": 2121,
+            "order_number": "10011",
+            "delivery_name": "Доставка курьером",
+            "delivery_cost": 500,
+            "address": "...",     (необязательно)
+            "phone": "..."        (необязательно)
+        }
+
+    ОТВЕТ:
+        {"success": true, "order_number": "10011", "delivery_cost": "500.00"}
+    """
+    # ===== Ключ =====
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+            'message': 'Секретный ключ BUKVA_API_SECRET не задан в настройках',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+            'message': 'Неверный секретный ключ',
+        }, status=401)
+
+    # ===== IP =====
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'forbidden',
+                'message': 'IP %s не разрешён' % client_ip,
+            }, status=403)
+
+    # ===== Тело =====
+    try:
+        payload = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'bad_request',
+            'message': 'Тело запроса должно быть JSON',
+        }, status=400)
+
+    moguta_order_id = payload.get('moguta_order_id')
+    order_number = str(payload.get('order_number') or '').strip()
+
+    # Ищем заявку: сначала по ID заказа сайта (надёжнее), затем по номеру.
+    web_order = None
+
+    if moguta_order_id:
+        try:
+            web_order = WebOrder.objects.filter(
+                moguta_order_id=int(moguta_order_id)
+            ).first()
+        except (TypeError, ValueError):
+            web_order = None
+
+    if web_order is None and order_number:
+        web_order = WebOrder.objects.filter(
+            moguta_order_number=order_number
+        ).first()
+
+    if web_order is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'not_found',
+            'message': 'Заявка с таким заказом сайта не найдена',
+        }, status=404)
+
+    # ===== Применяем =====
+    from .services import apply_site_delivery_update
+
+    web_order, order = apply_site_delivery_update(
+        web_order,
+        delivery_name=payload.get('delivery_name') or '',
+        delivery_cost=payload.get('delivery_cost') or 0,
+        address=payload.get('address') or '',
+        phone=payload.get('phone') or '',
+    )
+
+    # ===== Оповещаем открытые вкладки =====
+    _send_web_order_event('updated', web_order, request)
+
+    if order is not None:
+        from orders.views import _send_order_event
+
+        _send_order_event('updated', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'web_order_id': web_order.id,
+        'order_number': web_order.moguta_order_number or '',
+        'order_id': order.id if order is not None else None,
+        'delivery_cost': str(web_order.delivery_cost),
+    })
+
 
 
 @csrf_exempt

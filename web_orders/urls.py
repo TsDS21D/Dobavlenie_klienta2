@@ -46,6 +46,15 @@ urlpatterns = [
         name='api_site_order_upload_token',
     ),
 
+    # POST /web-orders/api/site/update-delivery/
+    # Изменение доставки клиентом в ЛК сайта — чтобы /orders/ видел правку.
+    path(
+        'api/site/update-delivery/',
+        views.api_site_update_delivery,
+        name='api_site_update_delivery',
+    ),
+
+
     # POST /web-orders/api/site/next-order-number/
     # Сайт просит номер заказа до создания заказа в Moguta.
     path(

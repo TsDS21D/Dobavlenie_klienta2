@@ -174,6 +174,89 @@ def resolve_client_for_web_order(web_order):
 
     return client, contact, legal_entity, True
 
+def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, address='', phone=''):
+    """
+    Применяет к заявке и связанному заказу новые данные доставки с сайта.
+
+    ВЫЗЫВАЕТСЯ из api_site_update_delivery, когда клиент в личном кабинете
+    bukva-a.ru добавляет, меняет или отменяет доставку. До этого ИС знала
+    о доставке только то, что пришло при конвертации, и изменения клиента
+    в /orders/ не были видны.
+
+    ЧТО ОБНОВЛЯЕМ:
+        • заявка — способ доставки, стоимость, адрес, телефон;
+        • заказ   — флаг is_delivery, адрес и телефон доставки;
+        • позиция «Доставка» в заказе — создаём, меняем цену или удаляем.
+
+    ВОЗВРАЩАЕТ:
+        (web_order, order или None) — заказа может ещё не быть, если заявку
+        не успели конвертировать.
+    """
+    from decimal import Decimal
+
+    from orders.models import OrderTovar
+
+    cost = Decimal(str(delivery_cost or '0')).quantize(Decimal('0.01'))
+
+    # --- Заявка ---
+    web_order.delivery_name = (delivery_name or '')[:255]
+    web_order.delivery_cost = cost
+
+    if address:
+        web_order.address = address
+
+    if phone:
+        web_order.phone = phone
+
+    web_order.save()
+
+    # --- Связанный заказ (может отсутствовать) ---
+    order = getattr(web_order, 'order', None)
+
+    if order is None:
+        return web_order, None
+
+    order.is_delivery = bool(cost > 0)
+
+    if address:
+        order.delivery_address = address
+
+    if phone:
+        order.delivery_phone = phone
+
+    order.save()
+
+    # --- Позиция «Доставка» в заказе ---
+    # Итог заказа считается на лету (Order.total_price), поэтому достаточно
+    # добавить/изменить/удалить позицию — пересчитывать ничего не нужно.
+    delivery_tovar = order.tovary.filter(name='Доставка').first()
+
+    if cost > 0:
+        if delivery_tovar is not None:
+            delivery_tovar.price = cost
+            delivery_tovar.quantity = 1
+            delivery_tovar.discount = Decimal('0.00')
+            delivery_tovar.save()
+        else:
+            from django.db.models import Max
+
+            max_position = order.tovary.aggregate(m=Max('position'))['m'] or 0
+
+            OrderTovar.objects.create(
+                order=order,
+                name='Доставка',
+                article='',
+                quantity=1,
+                price=cost,
+                discount=Decimal('0.00'),
+                discount_source=OrderTovar.DISCOUNT_SOURCE_MANUAL,
+                position=max_position + 1,
+            )
+    elif delivery_tovar is not None:
+        # Клиент отменил доставку — убираем позицию, иначе итог останется завышенным.
+        delivery_tovar.delete()
+
+    return web_order, order
 
 
 @transaction.atomic
