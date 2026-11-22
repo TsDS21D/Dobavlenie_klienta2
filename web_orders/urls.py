@@ -46,6 +46,15 @@ urlpatterns = [
         name='api_site_order_upload_token',
     ),
 
+    # POST /web-orders/api/site/next-order-number/
+    # Сайт просит номер заказа до создания заказа в Moguta.
+    path(
+        'api/site/next-order-number/',
+        views.api_site_next_order_number,
+        name='api_site_next_order_number',
+    ),
+
+
     # POST /web-orders/api/site/customer-type/
     # Смена типа плательщика с сайта (физ/юр) — чтобы ИС не расходилась с ЛК.
     path(

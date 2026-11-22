@@ -89,6 +89,80 @@ def default_ready_datetime():
     return next_day.replace(hour=15, minute=0, second=0, microsecond=0)
 
 # ============================================================================
+# НУМЕРАЦИЯ ЗАКАЗОВ: ЕДИНЫЙ ИСТОЧНИК
+# ============================================================================
+# Номера выдаёт последовательность PostgreSQL orders_number_seq (создаётся
+# миграцией, начинается с 10001). Начинается не с единицы намеренно: старые
+# заказы уже имеют номера ORD-N и M-0NNNN, и новые не должны с ними
+# пересекаться ни по значению, ни визуально.
+#
+# ПОЧЕМУ НЕ «МАКСИМУМ + 1», КАК БЫЛО РАНЬШЕ:
+#   старый способ перебирал все номера ORD-N, находил максимум и прибавлял
+#   единицу. При двух одновременных созданиях (менеджер в ИС и сайт) оба
+#   запроса видят один и тот же максимум и берут один номер. unique=True
+#   спасает от дубля в базе, но один из заказов падает с IntegrityError.
+#   nextval() — атомарная операция СУБД: одному и тому же числу она не может
+#   достаться двум запросам.
+#
+# ДЫРЫ ДОПУСТИМЫ: номер, выданный сайту, «сгорает», если клиент не завершил
+# оформление. Для заказов это нормально; номера счетов ведутся отдельно.
+
+def allocate_order_number():
+    """
+    Выдаёт следующий номер заказа из последовательности.
+
+    Возвращает строку без префикса: '10001', '10002', ...
+
+    Для не-PostgreSQL (локальные тесты на SQLite) работает запасной способ,
+    чтобы тесты не требовали существования последовательности.
+    """
+    from django.db import connection
+
+    if connection.vendor == 'postgresql':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT nextval('orders_number_seq')")
+                return str(cursor.fetchone()[0])
+        except Exception:
+            # Последовательности нет (например, база восстановлена из дампа
+            # без объектов) — не роняем создание заказа, идём запасным путём.
+            pass
+
+    return _allocate_legacy_order_number()
+
+
+def _allocate_legacy_order_number():
+    """
+    Запасной способ: ORD-N по максимуму существующих номеров.
+
+    Используется только если последовательность недоступна. От гонок
+    не защищает, поэтому основной путь — allocate_order_number().
+    """
+    try:
+        existing = Order.objects.filter(
+            number__startswith='ORD-'
+        ).exclude(
+            number__exact=''
+        ).exclude(
+            number__isnull=True
+        ).values_list('number', flat=True)
+
+        max_num = 0
+        for num_str in existing:
+            try:
+                num_part = num_str.split('-')[1]
+                current_num = int(num_part)
+                if current_num > max_num:
+                    max_num = current_num
+            except (ValueError, IndexError, AttributeError):
+                continue
+
+        return f"ORD-{max_num + 1}"
+    except Exception:
+        return f"ORD-{Order.objects.count() + 1}"
+
+
+# ============================================================================
 # МОДЕЛЬ 1: ЗАКАЗ (ORDER)
 # ============================================================================
 
@@ -97,6 +171,18 @@ class Order(models.Model):
     Заказ — объединяющая сущность. Содержит одно или несколько изделий
     одного клиента. Клиент обязателен.
     """
+    # ===== ИСТОЧНИК ЗАКАЗА =====
+    # Нужен, чтобы в списке заказов отличать заказы с сайта от созданных
+    # вручную и фильтровать по этому признаку.
+    SOURCE_SITE = 'site'        # создан из заявки сайта
+    SOURCE_MANUAL = 'manual'    # создан менеджером в ИС
+    SOURCE_IMPORT = 'import'    # загружен импортом (резерв)
+
+    SOURCE_CHOICES = [
+        (SOURCE_SITE, 'Сайт'),
+        (SOURCE_MANUAL, 'Вручную'),
+        (SOURCE_IMPORT, 'Импорт'),
+    ]
 
     # Номер заказа (автоматически генерируется в формате ORD-1, ORD-2...).
     number = models.CharField(
@@ -105,6 +191,31 @@ class Order(models.Model):
         unique=True,                                     # Номер должен быть уникальным
         blank=True,                                      # В форме можно оставить пустым — заполнится в save()
         help_text='Автоматически генерируется в формате ORD-1, ORD-2 и т.д.'
+    )
+
+
+    # Источник заказа: с сайта или создан вручную. Индексируется —
+    # по нему фильтруется список заказов.
+    source = models.CharField(
+        verbose_name='Источник заказа',
+        max_length=10,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_MANUAL,
+        db_index=True,
+        help_text='site — оформлен на сайте, manual — создан в ИС вручную',
+    )
+
+    # Связь с заявкой сайта. Заполняется при конвертации заявки.
+    # OneToOne: один заказ создаётся из одной заявки.
+    # SET_NULL: удалили заявку — заказ остаётся, просто теряет ссылку.
+    web_order = models.OneToOneField(
+        'web_orders.WebOrder',
+        verbose_name='Заявка с сайта',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order',
+        help_text='Заполняется, если заказ создан из заявки сайта',
     )
 
     # Клиент — НЕобязательный FK на модель baza_klientov.Client.
@@ -405,32 +516,11 @@ class Order(models.Model):
         Генерирует номер ORD-N, если поле number пустое.
         Фиксирует время выдачи при смене статуса.
         """
-        # Если номер не задан (пустая строка или None) — сгенерировать.
+        # Если номер не задан (пустая строка или None) — выдать новый.
+        # Источник номера — последовательность, а не «максимум + 1»:
+        # см. пояснение в allocate_order_number().
         if not self.number or self.number.strip() == '':
-            try:
-                # Находим все существующие номера, начинающиеся с "ORD-".
-                existing = Order.objects.filter(
-                    number__startswith='ORD-'
-                ).exclude(
-                    number__exact=''
-                ).exclude(
-                    number__isnull=True
-                ).values_list('number', flat=True)
-
-                # Ищем максимальное число среди номеров.
-                max_num = 0
-                for num_str in existing:
-                    try:
-                        num_part = num_str.split('-')[1]
-                        current_num = int(num_part)
-                        if current_num > max_num:
-                            max_num = current_num
-                    except (ValueError, IndexError, AttributeError):
-                        continue
-
-                self.number = f"ORD-{max_num + 1}"
-            except Exception:
-                self.number = f"ORD-{Order.objects.count() + 1}"
+            self.number = allocate_order_number()
 
         # --- ЛОГИКА ДАТЫ ВЫДАЧИ ---
         if self.status == self.STATUS_COMPLETED:

@@ -24,6 +24,7 @@ from .models import (
     SiteOrderStatus,
     WebOrderItemFile,
     WebOrderItemFileComment,
+    OrderNumberAllocation,
 )
 from .services import convert_web_order_to_order, get_site_status_payload
 
@@ -1602,6 +1603,122 @@ def api_client_files(request):
         'success': True,
         'orders': result,
     })    
+
+# ============================================================================
+# ВЫДАЧА НОМЕРА ЗАКАЗА ДЛЯ САЙТА
+# ============================================================================
+
+@csrf_exempt
+def api_site_next_order_number(request):
+    """
+    POST /web-orders/api/site/next-order-number/
+
+    Сайт просит номер перед созданием заказа в Moguta. Номер выдаёт ИС —
+    единственный источник: и сайт, и ручные заказы в ИС берут номера
+    из одной последовательности (orders_number_seq), поэтому пересечений
+    быть не может.
+
+    ТЕЛО (JSON):
+        {"cart_token": "72ef8e9565cf615116b97a174b61e55c"}
+
+    ОТВЕТ:
+        {"success": true, "number": "10001"}
+
+    ИДЕМПОТЕНТНОСТЬ:
+        повторный запрос с тем же cart_token возвращает тот же номер.
+        Это защищает от двух номеров, когда ответ потерялся по сети.
+
+    ДЫРЫ ДОПУСТИМЫ:
+        номер не возвращается в оборот, если заказ так и не создан.
+        Так решено: номера заказов не обязаны идти без пропусков.
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Метод не поддерживается',
+        }, status=405)
+
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+        }, status=401)
+
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'ip_not_allowed',
+            }, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON',
+        }, status=400)
+
+    cart_token = (data.get('cart_token') or '').strip()[:64]
+
+    if not cart_token:
+        return JsonResponse({
+            'success': False,
+            'error': 'Не указан cart_token',
+        }, status=400)
+
+    # ===== Идемпотентность =====
+    # Уже выдавали номер этой корзине — возвращаем его же.
+    existing = OrderNumberAllocation.objects.filter(cart_token=cart_token).first()
+    if existing is not None:
+        return JsonResponse({
+            'success': True,
+            'number': existing.number,
+            'reused': True,
+        })
+
+    from orders.models import allocate_order_number
+
+    number = allocate_order_number()
+
+    try:
+        OrderNumberAllocation.objects.create(
+            cart_token=cart_token,
+            number=number,
+        )
+    except IntegrityError:
+        # Параллельный запрос успел первым — отдаём его номер.
+        # Наш только что выданный номер остаётся «сгоревшим», это нормально.
+        existing = OrderNumberAllocation.objects.filter(cart_token=cart_token).first()
+        if existing is not None:
+            return JsonResponse({
+                'success': True,
+                'number': existing.number,
+                'reused': True,
+            })
+        return JsonResponse({
+            'success': False,
+            'error': 'Не удалось выдать номер',
+        }, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'number': number,
+        'reused': False,
+    })
 
 # ============================================================================
 # ТОКЕН НА ЗАГРУЗКУ ПРАВКИ К ЗАКАЗУ (для ЛК клиента)
