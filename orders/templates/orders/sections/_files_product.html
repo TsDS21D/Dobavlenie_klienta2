@@ -4,7 +4,8 @@
     <div class="list-orders-product-files">
         {% for f in product.layout_files.all %}
             <div class="list-orders-file">
-                <span class="list-orders-file-kind">{{ f.get_kind_display }}</span>
+                <span class="list-orders-file-kind"
+                      data-layout-status="{{ f.item.layout_status|default:'' }}">{{ f.get_kind_display }}</span>
 
                 {% comment %} Статус макета позиции: меняется вручную, ставим один раз
                    на позицию (у нескольких файлов это одно и то же поле). {% endcomment %}

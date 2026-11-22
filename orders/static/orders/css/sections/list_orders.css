@@ -3258,3 +3258,29 @@ select.list-orders-payment-select {
     font-size: 0.76rem;
     color: #6d7d78;
 }
+
+/* Цвет плашки «МАКЕТ» повторяет статус макета позиции:
+   серый — не загружен, жёлтый — на проверке, зелёный — проверен, красный — ошибки. */
+.list-orders-file-kind[data-layout-status="not_loaded"] {
+    background: #f2f8f5;
+    border-color: #dcebe4;
+    color: #5c6f68;
+}
+
+.list-orders-file-kind[data-layout-status="checking"] {
+    background: #fdf6e9;
+    border-color: #f2ddb4;
+    color: #a8700f;
+}
+
+.list-orders-file-kind[data-layout-status="checked"] {
+    background: #e6f4ec;
+    border-color: #bfe3d0;
+    color: #0a6e51;
+}
+
+.list-orders-file-kind[data-layout-status="errors"] {
+    background: #fdecec;
+    border-color: #f5c6c6;
+    color: #a03a35;
+}

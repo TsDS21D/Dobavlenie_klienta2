@@ -1046,6 +1046,15 @@ JavaScript секции «Список заказов» страницы /orders
                     return;
                 }
 
+                // Перекрашиваем плашку «МАКЕТ» сразу, не дожидаясь перерисовки.
+                const badge = select.parentNode
+                    ? select.parentNode.querySelector('.list-orders-file-kind')
+                    : null;
+
+                if (badge) {
+                    badge.setAttribute('data-layout-status', result.data.status);
+                }
+
                 showNotification('Статус макета: ' + result.data.status_label, 'success');
             })
             .catch(function (err) {
