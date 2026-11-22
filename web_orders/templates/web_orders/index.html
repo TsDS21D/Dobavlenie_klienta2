@@ -350,7 +350,7 @@
                                                        min="0"
                                                        step="0.01"
                                                        class="web-orders-delivery-cost"
-                                                       value="{{ order.delivery_cost|floatformat:2 }}"
+                                                       value="{{ order.delivery_cost|stringformat:'0.2f' }}"
                                                        aria-label="Стоимость доставки">
                                                 <span class="web-orders-delivery-currency">₽</span>
                                                 <button type="button"
