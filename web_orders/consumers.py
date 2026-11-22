@@ -84,6 +84,9 @@ class WebOrdersConsumer(AsyncWebsocketConsumer):
             'web_order_id': event.get('web_order_id'),
             'number': event.get('number', ''),
             'actor_tab_id': event.get('actor_tab_id', ''),
+            # Кто выполнил действие: имя менеджера из базы или пустая строка
+            # для действий сайта (тогда клиент подставит «Клиент» / «Сайт»).
+            'actor_username': event.get('actor_username', ''),
             # Поля события «клиент приложил макет».
             'item_id': event.get('item_id'),
             'file_name': event.get('file_name', ''),

@@ -1161,3 +1161,119 @@
     font-size: 0.74rem;
     color: #9aa8a3;
 }
+
+/* ============================================================================
+   НИЖНИЕ «ВИСЯЩИЕ» УВЕДОМЛЕНИЯ О ЧУЖИХ ДЕЙСТВИЯХ
+   ============================================================================
+   Повторяют поведение /orders/ (proschety-toast): появляются слева внизу
+   на события WebSocket, не исчезают сами, закрываются крестиком или
+   обновлением страницы. У каждого есть кнопка «Обновить данные».
+   ============================================================================ */
+.web-orders-bottom-toasts {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 1300;
+    width: 270px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.4rem;
+    pointer-events: none;
+}
+
+.web-orders-bottom-toast {
+    pointer-events: auto;
+    position: relative;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem 0.5rem 0.7rem;
+    backdrop-filter: blur(3px);
+    font-size: 0.78rem;
+    line-height: 1.3;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Создание — зелёная гамма. */
+.web-orders-bottom-toast--created {
+    background: rgba(228, 244, 236, 0.94);
+    border: 1px solid rgba(11, 134, 97, 0.45);
+    color: #0a6e51;
+}
+
+/* Удаление — красная. */
+.web-orders-bottom-toast--deleted {
+    background: rgba(244, 228, 227, 0.94);
+    border: 1px solid rgba(170, 100, 97, 0.45);
+    color: #7a4441;
+}
+
+/* Изменение и прочее — нейтральная. */
+.web-orders-bottom-toast--updated {
+    background: rgba(244, 246, 245, 0.96);
+    border: 1px solid rgba(120, 140, 133, 0.35);
+    color: #33443f;
+}
+
+/* Новый макет от клиента — синяя (работа пришла, надо смотреть). */
+.web-orders-bottom-toast--file {
+    background: rgba(234, 243, 249, 0.96);
+    border: 1px solid rgba(60, 120, 180, 0.35);
+    color: #2a6fc9;
+}
+
+.web-orders-bottom-toast-actor {
+    font-weight: 700;
+}
+
+.web-orders-bottom-toast-number {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.web-orders-bottom-toast-file {
+    font-style: italic;
+    word-break: break-all;
+}
+
+/* Крестик закрытия. */
+.web-orders-bottom-toast-close {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.web-orders-bottom-toast-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* Кнопка «Обновить данные». */
+.web-orders-bottom-toast-refresh {
+    display: block;
+    margin-top: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.web-orders-bottom-toast-refresh:disabled {
+    opacity: 0.6;
+    cursor: default;
+    text-decoration: none;
+}

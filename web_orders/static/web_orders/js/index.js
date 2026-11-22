@@ -480,6 +480,128 @@
         );
     }
 
+    /* ------------------------------------------------------------
+       НИЖНЕЕ «ВИСЯЩЕЕ» УВЕДОМЛЕНИЕ О ЧУЖОМ ДЕЙСТВИИ.
+
+       В отличие от showToast (верхний угол, исчезает сам), оно:
+         • живёт до закрытия крестиком или перезагрузки страницы;
+         • содержит имя инициатора и кнопку «Обновить данные».
+
+       Текст собираем здесь, а не на сервере: сервер отдаёт факты
+       (событие, номер, имя, файл), а формулировки — дело интерфейса.
+       ------------------------------------------------------------ */
+    function showPersistentToast(payload) {
+        var container = document.getElementById('web-orders-bottom-toasts');
+        if (!container) {
+            // Шаблон не обновлён — не ломаем страницу, показываем обычный тост.
+            showToast('Есть изменения в заявках', 'success');
+            return;
+        }
+
+        // Кто выполнил: имя менеджера из профиля Django, а если действие
+        // пришло с сайта — «Клиент» (макет) или «Сайт» (заявка).
+        var actor = payload.actor_username || '';
+        if (!actor) {
+            actor = (payload.event === 'file_added') ? 'Клиент' : 'Сайт';
+        }
+
+        var number = payload.number || '';
+        var action = '';
+        var kind = 'updated';
+
+        if (payload.event === 'created') {
+            action = 'создал(а) заявку';
+            kind = 'created';
+        } else if (payload.event === 'converted') {
+            action = 'конвертировал(а) заявку';
+        } else if (payload.event === 'deleted') {
+            action = 'удалил(а) заявку';
+            kind = 'deleted';
+        } else if (payload.event === 'file_added') {
+            action = 'приложил макет';
+            kind = 'file';
+        } else {
+            action = 'изменил(а) заявку';
+        }
+
+        // Одинаковые уведомления не дублируем (бывает при переподключении сокета).
+        var key = [payload.event, number, payload.file_name || ''].join('|');
+        if (container.querySelector('[data-toast-key="' + key + '"]')) {
+            return;
+        }
+
+        var toast = document.createElement('div');
+        toast.className = 'web-orders-bottom-toast web-orders-bottom-toast--' + kind;
+        toast.setAttribute('data-toast-key', key);
+
+        var actorSpan = document.createElement('span');
+        actorSpan.className = 'web-orders-bottom-toast-actor';
+        actorSpan.textContent = actor;
+        toast.appendChild(actorSpan);
+
+        toast.appendChild(document.createTextNode(' ' + action));
+
+        if (payload.event === 'file_added' && payload.file_name) {
+            var fileSpan = document.createElement('span');
+            fileSpan.className = 'web-orders-bottom-toast-file';
+            fileSpan.textContent = ' «' + payload.file_name + '»';
+            toast.appendChild(fileSpan);
+        }
+
+        if (number) {
+            toast.appendChild(document.createTextNode(' '));
+            var numberSpan = document.createElement('span');
+            numberSpan.className = 'web-orders-bottom-toast-number';
+            numberSpan.textContent = number;
+            toast.appendChild(numberSpan);
+        }
+
+        // Крестик.
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'web-orders-bottom-toast-close';
+        closeBtn.title = 'Закрыть';
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', function (event) {
+            event.stopPropagation();
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        });
+        toast.appendChild(closeBtn);
+
+        // Обновление списка прямо из уведомления.
+        var refreshBtn = document.createElement('button');
+        refreshBtn.type = 'button';
+        refreshBtn.className = 'web-orders-bottom-toast-refresh';
+        refreshBtn.textContent = 'Обновить данные';
+        refreshBtn.addEventListener('click', function (event) {
+            event.stopPropagation();
+            refreshBtn.disabled = true;
+
+            var openCardIds = Array.prototype.map.call(
+                document.querySelectorAll('.web-orders-card[open]'),
+                function (el) { return el.getAttribute('data-order-id'); }
+            );
+
+            refreshSection(openCardIds)
+                .then(function () {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                })
+                .catch(function (err) {
+                    console.error(err);
+                    refreshBtn.disabled = false;
+                    showToast('Не удалось обновить список', 'error');
+                });
+        });
+        toast.appendChild(refreshBtn);
+
+        container.appendChild(toast);
+    }
+
+
     /**
      * Реакция на событие от другого пользователя/вкладки.
      */
@@ -492,26 +614,9 @@
             return;
         }
 
-        var number = payload.number ? (' ' + payload.number) : '';
-        var text;
-
-        if (payload.event === 'created') {
-            text = 'Новая заявка с сайта' + number;
-        } else if (payload.event === 'converted') {
-            text = 'Заявка' + number + ' конвертирована в заказ';
-        } else if (payload.event === 'deleted') {
-            text = 'Заявка' + number + ' удалена';
-        } else if (payload.event === 'file_added') {
-            // Клиент приложил макет из личного кабинета: менеджеру важно
-            // узнать об этом сразу, иначе он начнёт печатать старый файл.
-            text = 'Клиент приложил макет'
-                + (payload.file_name ? ' «' + payload.file_name + '»' : '')
-                + ' к заявке' + number;
-        } else {
-            text = 'Заявка' + number + ' изменена';
-        }
-
-        showToast(text, 'success');
+        // Чужое действие: показываем «висящее» уведомление внизу слева.
+        // Оно не исчезнет само — менеджер закроет его сам или обновит страницу.
+        showPersistentToast(payload);
 
         // Раскрытые карточки запоминаем, чтобы не схлопнуть их после
         // перерисовки — менеджер мог читать состав заявки.

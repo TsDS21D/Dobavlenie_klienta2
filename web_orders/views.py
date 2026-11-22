@@ -201,12 +201,22 @@ def _send_web_order_event(event_type, web_order, request, extra=None):
         return
 
     try:
+        # Имя того, кто выполнил действие, — для текста уведомления
+        # («Дима удалил заявку 10008»). Берём из профиля Django:
+        # сначала имя и фамилия, затем логин. Если действие пришло
+        # не от пользователя (запрос с сайта или из API) — пусто,
+        # и клиент подставит «Клиент» или «Сайт».
+        actor_username = ''
+        if getattr(request, 'user', None) and request.user.is_authenticated:
+            actor_username = request.user.get_full_name() or request.user.username
+
         payload = {
             'type': 'web_order_event',   # метод-обработчик в консьюмере
             'event': event_type,
             'web_order_id': web_order.id,
             'number': web_order.moguta_order_number or '',
             'actor_tab_id': request.headers.get('X-Tab-Id', ''),
+            'actor_username': actor_username,
         }
 
         # Дополнительные поля события (например, имя файла при загрузке

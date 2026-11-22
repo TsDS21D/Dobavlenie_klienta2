@@ -540,6 +540,11 @@
     </div>
 
 </section>
+
+{% comment %} Контейнер «висящих» уведомлений о чужих действиях (левый нижний угол).
+   Лежит вне #web-orders-page, чтобы не пропадать при AJAX-перерисовке списка.
+   Закрываются крестиком или обновлением страницы — как на /orders/. {% endcomment %}
+<div class="web-orders-bottom-toasts" id="web-orders-bottom-toasts"></div>
 {% endblock %}
 
 {% block extra_js %}
