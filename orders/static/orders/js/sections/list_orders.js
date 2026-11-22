@@ -1002,6 +1002,153 @@ JavaScript секции «Список заказов» страницы /orders
     }
 
     // ========================================================================
+    // 7.5. СТАТУС МАКЕТА ПОЗИЦИИ (менеджер).
+    // ========================================================================
+    //
+    // Раньше статус менялся только в /web-orders/. Теперь то же поле
+    // доступно в карточке заказа — рядом с файлами макета.
+
+    document.addEventListener('change', function (event) {
+        const select = event.target.closest('.list-orders-file-layout-status');
+        if (!select) return;
+
+        const itemId = select.dataset.itemId;
+        if (!itemId) return;
+
+        select.disabled = true;
+
+        const body = new FormData();
+        body.append('status', select.value);
+
+        fetch('/web-orders/api/item/' + itemId + '/layout-status/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Tab-Id': (window.getTabId ? window.getTabId() : '')
+            },
+            body: body
+        })
+            .then(function (response) {
+                return response.json()
+                    .catch(function () { return {}; })
+                    .then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+            })
+            .then(function (result) {
+                select.disabled = false;
+
+                if (!result.ok || !result.data.success) {
+                    showNotification(
+                        (result.data && result.data.error) || 'Не удалось изменить статус макета',
+                        'error'
+                    );
+                    return;
+                }
+
+                showNotification('Статус макета: ' + result.data.status_label, 'success');
+            })
+            .catch(function (err) {
+                select.disabled = false;
+                console.error(err);
+                showNotification('Ошибка сети при смене статуса макета', 'error');
+            });
+    });
+
+    // ========================================================================
+    // 7.6. ОПЛАТА И СЧЁТ В КАРТОЧКЕ ЗАКАЗА (только заказы с сайта).
+    // ========================================================================
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('.list-orders-billing-save');
+        if (!button) return;
+
+        const block = button.closest('.list-orders-billing');
+        if (!block) return;
+
+        const webOrderId = block.dataset.webOrderId;
+        if (!webOrderId) return;
+
+        const payLinkInput = block.querySelector('.list-orders-billing-paylink');
+        const invoiceInput = block.querySelector('.list-orders-billing-invoice');
+        const status = block.querySelector('.list-orders-billing-status');
+        const currentCell = block.querySelector('.list-orders-billing-invoice-name');
+
+        const formData = new FormData();
+
+        // Ссылку отправляем только если поле есть: у юрлица его нет,
+        // и пустое значение стёрло бы сохранённую ссылку.
+        if (payLinkInput) {
+            formData.append('pay_link', payLinkInput.value.trim());
+        }
+
+        if (invoiceInput && invoiceInput.files && invoiceInput.files[0]) {
+            formData.append('invoice_file', invoiceInput.files[0]);
+        }
+
+        button.disabled = true;
+        if (status) status.textContent = 'Сохранение…';
+
+        fetch('/web-orders/api/order/' + webOrderId + '/site-status/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+            .then(function (response) {
+                return response.json()
+                    .catch(function () { return {}; })
+                    .then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+            })
+            .then(function (result) {
+                button.disabled = false;
+
+                if (!result.ok || !result.data.success) {
+                    if (status) {
+                        status.textContent = (result.data && result.data.error)
+                            || 'Не удалось сохранить';
+                    }
+                    return;
+                }
+
+                if (status) status.textContent = 'Сохранено';
+
+                // Обновляем строку «Текущий счёт» без перезагрузки страницы.
+                if (currentCell) {
+                    if (result.data.invoice_url) {
+                        const link = document.createElement('a');
+                        link.className = 'list-orders-billing-invoice-link';
+                        link.href = result.data.invoice_url;
+                        link.target = '_blank';
+                        link.rel = 'noopener';
+                        link.textContent = result.data.invoice_name || 'счёт';
+
+                        currentCell.innerHTML = '';
+                        currentCell.appendChild(link);
+                    } else {
+                        currentCell.textContent = 'не загружен';
+                    }
+                }
+
+                if (invoiceInput) {
+                    invoiceInput.value = '';
+                }
+
+                showNotification('Оплата и счёт сохранены', 'success');
+            })
+            .catch(function (err) {
+                button.disabled = false;
+                console.error(err);
+                if (status) status.textContent = 'Ошибка сети';
+            });
+    });
+
+
+    // ========================================================================
     // 8. УДАЛЕНИЕ ЗАКАЗА.
     // ========================================================================
 

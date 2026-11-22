@@ -381,24 +381,6 @@
                                         {% endif %}
                                     </div>
 
-                                    {% comment %} Название компании — только для юрлица: у физлица поле пустое, и строки не будет. {% endcomment %}
-                                    {% if order.company_name %}
-                                        <div class="web-orders-meta-row">
-                                            <span class="web-orders-meta-label">Компания</span>
-                                            <span class="web-orders-meta-value">{{ order.company_name }}</span>
-                                        </div>
-                                    {% endif %}
-
-                                    {% comment %} Реквизиты и адрес показываем только если заполнены:
-                                       у физлица и при самовывозе их просто нет. {% endcomment %}
-                                    {% if order.requisites %}
-                                        <div class="web-orders-meta-row">
-                                            <span class="web-orders-meta-label">Реквизиты</span>
-                                            {% comment %} linebreaksbr — чтобы текст из 1С/Контура
-                                               сохранял переводы строк. {% endcomment %}
-                                            <span class="web-orders-meta-value web-orders-meta-value--multiline">{{ order.requisites|linebreaksbr }}</span>
-                                        </div>
-                                    {% endif %}
 
                                     {% if order.comment %}
                                         <div class="web-orders-meta-row">

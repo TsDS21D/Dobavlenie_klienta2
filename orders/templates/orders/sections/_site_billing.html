@@ -1,0 +1,88 @@
+{% comment %}
+    Блок «Оплата и счёт для клиента» в карточке заказа.
+
+    Показывается ТОЛЬКО для заказов с сайта (source == 'site'): у заказов,
+    созданных вручную, нет ни заявки, ни её платёжных полей.
+
+    Данные берутся из связанной заявки: order.web_order (тип плательщика,
+    способ оплаты, компания, реквизиты) и order.web_order.site_status
+    (ссылка на оплату и файл счёта).
+
+    Оформление повторяет блок в /web-orders/, чтобы менеджер видел
+    одинаковую картину на обеих страницах.
+{% endcomment %}
+{% if order.source == 'site' and order.web_order %}
+    {% with ws=order.web_order st=order.web_order.site_status %}
+        <div class="list-orders-billing"
+             data-web-order-id="{{ ws.id }}"
+             data-order-id="{{ order.id }}">
+
+            <div class="list-orders-billing-title">Оплата и счёт для клиента</div>
+
+            <div class="list-orders-billing-row">
+                <span class="list-orders-billing-label">Оплата</span>
+                <span class="list-orders-billing-chips">
+                    <span class="list-orders-chip list-orders-chip--type">
+                        {% if ws.customer_type == 'yur' %}юридическое лицо{% else %}физическое лицо{% endif %}
+                    </span>
+                    <span class="list-orders-chip list-orders-chip--method">
+                        {{ ws.payment_name|default:"способ не выбран" }}
+                    </span>
+                </span>
+            </div>
+
+            {% if ws.customer_type == 'yur' %}
+                {% comment %} Юрлицу — компания, реквизиты и счёт; ссылка не нужна. {% endcomment %}
+                {% if ws.company_name %}
+                    <div class="list-orders-billing-row">
+                        <span class="list-orders-billing-label">Компания</span>
+                        <span class="list-orders-billing-value">{{ ws.company_name }}</span>
+                    </div>
+                {% endif %}
+
+                {% if ws.requisites %}
+                    <div class="list-orders-billing-row">
+                        <span class="list-orders-billing-label">Реквизиты</span>
+                        <span class="list-orders-billing-value list-orders-billing-value--multiline">{{ ws.requisites|linebreaksbr }}</span>
+                    </div>
+                {% endif %}
+
+                <div class="list-orders-billing-row">
+                    <span class="list-orders-billing-label">Счёт (PDF)</span>
+                    <input type="file"
+                           class="list-orders-billing-invoice"
+                           accept=".pdf">
+                    <span class="list-orders-billing-hint">PDF, до 20 МБ</span>
+                </div>
+            {% else %}
+                {% comment %} Физлицу — ссылка на оплату. {% endcomment %}
+                <div class="list-orders-billing-row">
+                    <span class="list-orders-billing-label">Ссылка на оплату</span>
+                    <input type="text"
+                           class="list-orders-billing-paylink"
+                           value="{{ st.pay_link|default:'' }}"
+                           placeholder="https://…">
+                </div>
+            {% endif %}
+
+            <div class="list-orders-billing-row">
+                <span class="list-orders-billing-label">Текущий счёт</span>
+                <span class="list-orders-billing-invoice-name">
+                    {% if st.invoice_file %}
+                        <a class="list-orders-billing-invoice-link"
+                           href="{{ st.invoice_download_url }}"
+                           target="_blank"
+                           rel="noopener">{{ st.invoice_display_name }}</a>
+                    {% else %}
+                        не загружен
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="list-orders-billing-actions">
+                <button type="button" class="list-orders-billing-save">Сохранить</button>
+                <span class="list-orders-billing-status"></span>
+            </div>
+        </div>
+    {% endwith %}
+{% endif %}

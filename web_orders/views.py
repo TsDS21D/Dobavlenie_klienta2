@@ -2391,6 +2391,17 @@ def api_set_item_layout_status(request, item_id):
     item.layout_status = status
     item.save(update_fields=['layout_status'])
 
+    # Оповещаем открытые вкладки: в /web-orders/ статус макета тоже виден,
+    # а в /orders/ карточка перерисуется без F5.
+    _send_web_order_event('updated', item.web_order, request)
+
+    linked_order = getattr(item.web_order, 'order', None)
+
+    if linked_order is not None:
+        from orders.views import _send_order_event
+
+        _send_order_event('updated', linked_order, request)
+
     return JsonResponse({
         'success': True,
         'status': item.layout_status,
@@ -2549,6 +2560,19 @@ def api_update_site_status(request, order_id):
             site_status.id,
             make_invoice_token(site_status.id),
         )
+
+    # Оповещаем открытые вкладки: ссылка/счёт изменились, карточки в
+    # /web-orders/ и /orders/ должны обновиться без F5.
+    # Здесь заявка называется order (см. начало функции), поэтому
+    # события отправляем от неё, а связанный заказ берём по обратной связи.
+    _send_web_order_event('updated', order, request)
+
+    linked_order = getattr(order, 'order', None)
+
+    if linked_order is not None:
+        from orders.views import _send_order_event
+
+        _send_order_event('updated', linked_order, request)
 
     return JsonResponse({
         'success': True,

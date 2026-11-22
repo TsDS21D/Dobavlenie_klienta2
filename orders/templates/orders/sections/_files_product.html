@@ -5,6 +5,19 @@
         {% for f in product.layout_files.all %}
             <div class="list-orders-file">
                 <span class="list-orders-file-kind">{{ f.get_kind_display }}</span>
+
+                {% comment %} Статус макета позиции: меняется вручную, ставим один раз
+                   на позицию (у нескольких файлов это одно и то же поле). {% endcomment %}
+                {% if f.item and forloop.first %}
+                    <select class="list-orders-file-layout-status"
+                            data-item-id="{{ f.item.id }}"
+                            title="Статус макета позиции">
+                        {% for code, label in f.item.LAYOUT_STATUS_CHOICES %}
+                            <option value="{{ code }}"
+                                    {% if f.item.layout_status == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
                 {% if f.file %}
                     <a class="list-orders-file-name"
                        href="{% url 'web_orders:api_download_item_file' f.id %}"

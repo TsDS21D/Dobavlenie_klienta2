@@ -24,7 +24,17 @@ orders/templates/orders/sections/_order_rows.html
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
                  data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-globe" title="Заказ оформлен на сайте">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                     stroke="currentColor" stroke-width="2"
+                                                     stroke-linecap="round" stroke-linejoin="round"
+                                                     aria-hidden="true">
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M3 12h18"></path>
+                                                    <path d="M12 3c2.6 2.7 2.6 15.3 0 18"></path>
+                                                    <path d="M12 3c-2.6 2.7-2.6 15.3 0 18"></path>
+                                                </svg>
+                                            </span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -319,6 +329,8 @@ orders/templates/orders/sections/_order_rows.html
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
+                    {% include 'orders/sections/_site_billing.html' %}
+
                     <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
@@ -395,7 +407,17 @@ orders/templates/orders/sections/_order_rows.html
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
                  data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-globe" title="Заказ оформлен на сайте">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                     stroke="currentColor" stroke-width="2"
+                                                     stroke-linecap="round" stroke-linejoin="round"
+                                                     aria-hidden="true">
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M3 12h18"></path>
+                                                    <path d="M12 3c2.6 2.7 2.6 15.3 0 18"></path>
+                                                    <path d="M12 3c-2.6 2.7-2.6 15.3 0 18"></path>
+                                                </svg>
+                                            </span>{% endif %}</div>
 
                  <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -689,6 +711,8 @@ orders/templates/orders/sections/_order_rows.html
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
+                    {% include 'orders/sections/_site_billing.html' %}
+
                     <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
@@ -765,7 +789,17 @@ orders/templates/orders/sections/_order_rows.html
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
                  data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-globe" title="Заказ оформлен на сайте">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                     stroke="currentColor" stroke-width="2"
+                                                     stroke-linecap="round" stroke-linejoin="round"
+                                                     aria-hidden="true">
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M3 12h18"></path>
+                                                    <path d="M12 3c2.6 2.7 2.6 15.3 0 18"></path>
+                                                    <path d="M12 3c-2.6 2.7-2.6 15.3 0 18"></path>
+                                                </svg>
+                                            </span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -1059,6 +1093,8 @@ orders/templates/orders/sections/_order_rows.html
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
 
+                    {% include 'orders/sections/_site_billing.html' %}
+
                     <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">
@@ -1136,7 +1172,17 @@ orders/templates/orders/sections/_order_rows.html
                  data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
                  data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-globe" title="Заказ оформлен на сайте">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                     stroke="currentColor" stroke-width="2"
+                                                     stroke-linecap="round" stroke-linejoin="round"
+                                                     aria-hidden="true">
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M3 12h18"></path>
+                                                    <path d="M12 3c2.6 2.7 2.6 15.3 0 18"></path>
+                                                    <path d="M12 3c-2.6 2.7-2.6 15.3 0 18"></path>
+                                                </svg>
+                                            </span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -1432,6 +1478,9 @@ orders/templates/orders/sections/_order_rows.html
 
                         <a href="{% url 'orders:order_detail' order.id %}" class="list-orders-btn-open">Открыть карточку заказа →</a>
                     </div>
+
+                    {% include 'orders/sections/_site_billing.html' %}
+                    
                     <!-- БЛОК ДОБАВЛЕНИЯ ИЗДЕЛИЯ (АККОРДЕОН) -->
                     <div class="list-orders-add-product-section">
                         <button type="button" class="list-orders-toggle-add-product" title="Добавить изделие">

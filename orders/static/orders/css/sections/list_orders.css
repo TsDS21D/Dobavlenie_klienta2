@@ -229,7 +229,9 @@ select.list-orders-search {
 }
 /* Добавляем цветной маркер перед заголовком */
 .list-orders-group-title::before {
-    content: "";
+    /* 📦 (U+1F4E6) записан кодом, а не символом: сырой эмодзи ломался
+       при сохранении файла в другой кодировке и превращался в «ðŸ"». */
+    content: "\1F4E6";
     display: inline-block;
     width: 8px;
     height: 8px;
@@ -3094,17 +3096,159 @@ select.list-orders-payment-select {
    Следствие единой нумерации: по номеру отличить нельзя — цифры одинаковые,
    поэтому нужен визуальный признак.
    ============================================================================ */
-.list-orders-source-badge {
+.list-orders-source-globe {
     display: inline-block;
     margin-left: 6px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: #eaf3f9;
-    border: 1px solid #cfe3f2;
     color: #2a6fc9;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    line-height: 0;
     vertical-align: middle;
+}
+
+.list-orders-source-globe svg {
+    display: block;
+}
+
+.list-orders-source-globe:hover {
+    color: #1c56a0;
+}
+
+/* Статус макета позиции в строке файла. */
+.list-orders-file-layout-status {
+    margin-left: 6px;
+    padding: 1px 4px;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    background: #fff;
+    color: #33443f;
+    font-size: 0.72rem;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.list-orders-file-layout-status:focus {
+    outline: none;
+    border-color: #0b8661;
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
+}
+
+.list-orders-file-layout-status:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* ===== БЛОК «ОПЛАТА И СЧЁТ» В КАРТОЧКЕ ЗАКАЗА =====
+   Показывается только у заказов с сайта. Оформление повторяет
+   аналогичный блок в /web-orders/, чтобы картина была одинаковой. */
+
+.list-orders-billing {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px dashed #dcebe4;
+    border-radius: 6px;
+    background: #fbfdfc;
+}
+
+.list-orders-billing-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6d7d78;
+    margin-bottom: 0.45rem;
+}
+
+.list-orders-billing-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.list-orders-billing-label {
+    width: 150px;
+    color: #6d7d78;
+    flex: 0 0 auto;
+}
+
+.list-orders-billing-value {
+    color: #33443f;
+}
+
+.list-orders-billing-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.list-orders-chip {
+    display: inline-block;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.list-orders-chip--type {
+    background: #f2f8f5;
+    border: 1px solid #dcebe4;
+    color: #5c6f68;
+}
+
+.list-orders-chip--method {
+    background: #eef7f3;
+    border: 1px solid #cbe9cd;
+    color: #0b8661;
+    font-weight: 600;
+}
+
+.list-orders-billing-paylink {
+    flex: 1 1 260px;
+    min-width: 200px;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    padding: 0.22rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+.list-orders-billing-invoice {
+    font-size: 0.78rem;
+}
+
+.list-orders-billing-hint {
+    color: #8aa39a;
+    font-size: 0.74rem;
+}
+
+.list-orders-billing-invoice-link {
+    color: #0b8661;
+}
+
+.list-orders-billing-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.list-orders-billing-save {
+    padding: 0.3rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    background: #0b8661;
+    color: #fff;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.list-orders-billing-save:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.list-orders-billing-status {
+    font-size: 0.76rem;
+    color: #6d7d78;
 }
