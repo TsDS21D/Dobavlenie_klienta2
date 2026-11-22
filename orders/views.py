@@ -1280,7 +1280,7 @@ def api_delete_order(request, order_id):
 # ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ОТПРАВКА WEBSOCKET-СОБЫТИЯ
 # ============================================================================
 
-def _send_order_event(event_type, order, request):
+def _send_order_event(event_type, order, request, actor_name=None):
     """
     Отправляет событие в WebSocket-группу 'orders_list' (см. orders/consumers.py).
     Это заставит все открытые вкладки /orders/ перерисовать таблицу или показать тост.
@@ -1306,6 +1306,11 @@ def _send_order_event(event_type, order, request):
     actor_username = ''
     if request.user and request.user.is_authenticated:
         actor_username = request.user.get_full_name() or request.user.username
+
+    # Действие пришло не от человека (например, от сайта): используем имя,
+    # которое передал вызывающий код. Иначе в уведомлении было бы «Кто-то».
+    if actor_name:
+        actor_username = actor_name
 
     # Уникальный идентификатор вкладки, инициировавшей действие.
     # Отсутствует в заголовках — значит запрос пришёл не из нашего JS-клиента

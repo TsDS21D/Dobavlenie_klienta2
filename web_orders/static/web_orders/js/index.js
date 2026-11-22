@@ -517,6 +517,9 @@
         } else if (payload.event === 'deleted') {
             action = 'удалил(а) заявку';
             kind = 'deleted';
+        } else if (payload.event === 'delivery_updated') {
+            // Клиент поменял доставку в личном кабинете сайта.
+            action = 'изменил(а) доставку заявки';
         } else if (payload.event === 'file_added') {
             action = 'приложил макет';
             kind = 'file';

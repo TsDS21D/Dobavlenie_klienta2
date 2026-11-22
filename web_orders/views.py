@@ -171,7 +171,7 @@ def _to_json(value):
 
 
 
-def _send_web_order_event(event_type, web_order, request, extra=None):
+def _send_web_order_event(event_type, web_order, request, extra=None, actor_name=None):
     """
     Рассылает событие об изменении заявки во все открытые вкладки /web-orders/.
 
@@ -209,6 +209,10 @@ def _send_web_order_event(event_type, web_order, request, extra=None):
         actor_username = ''
         if getattr(request, 'user', None) and request.user.is_authenticated:
             actor_username = request.user.get_full_name() or request.user.username
+
+        # Действие клиента с сайта: имя передаёт вызывающий код.
+        if actor_name:
+            actor_username = actor_name
 
         payload = {
             'type': 'web_order_event',   # метод-обработчик в консьюмере
@@ -1004,12 +1008,25 @@ def api_site_update_delivery(request):
     )
 
     # ===== Оповещаем открытые вкладки =====
-    _send_web_order_event('updated', web_order, request)
+    # Тип события отдельный: в уведомлении будет «изменил доставку»,
+    # а не общее «изменил заказ». Имя — «Клиент»: запрос идёт с сайта,
+    # авторизации Django у него нет.
+    _send_web_order_event(
+        'delivery_updated',
+        web_order,
+        request,
+        actor_name='Клиент',
+    )
 
     if order is not None:
         from orders.views import _send_order_event
 
-        _send_order_event('updated', order, request)
+        _send_order_event(
+            'delivery_updated',
+            order,
+            request,
+            actor_name='Клиент',
+        )
 
     return JsonResponse({
         'success': True,

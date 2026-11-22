@@ -1415,6 +1415,11 @@ JavaScript секции «Список заказов» страницы /orders
             action = 'изменил заказ';
             modifierClass = 'proschety-toast-updated';
         }
+        if (data.event === 'delivery_updated') {
+            // Клиент поменял доставку в личном кабинете сайта.
+            action = 'изменил доставку заказа';
+            modifierClass = 'proschety-toast-updated';
+        }
 
         const who = data.actor_username || 'Кто-то';
         const number = data.order_number || '';
