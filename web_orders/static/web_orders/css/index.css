@@ -1332,10 +1332,19 @@
     color: var(--brand-muted);
 }
 
+/* Размер и вид — как у кнопки «Загрузить» в блоке макетов. */
 .web-orders-btn--confirm-delivery {
-    background: var(--brand-green);
-    border-color: var(--brand-green);
+    padding: 0.3rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--brand-green, #0b8661);
     color: #fff;
+    font-size: 0.78rem;
+}
+
+.web-orders-btn--confirm-delivery:disabled {
+    opacity: 0.55;
+    cursor: default;
 }
 
 /* Отметка «цена подтверждена» рядом с кнопкой. */

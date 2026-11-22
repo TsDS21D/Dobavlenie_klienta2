@@ -477,8 +477,11 @@
                                 {% if order.op_fields %}
                                     <div class="web-orders-opfields">
                                         <div class="web-orders-opfields-title">Доп. поля сайта</div>
+                                        {% comment %} Пункт 8 («Доставка согласована») не показываем:
+                                           подтверждение доставки теперь живёт в ИС, а значение
+                                           из доп. полей Moguta устарело и вводит в заблуждение. {% endcomment %}
                                         {% for key, value in order.op_fields.items %}
-                                            {% if value %}
+                                            {% if value and key != '8' %}
                                                 <div class="web-orders-meta-row">
                                                     <span class="web-orders-meta-label">
                                                         {% if key == '2' %}Реквизиты
