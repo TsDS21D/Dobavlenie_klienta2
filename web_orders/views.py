@@ -1386,12 +1386,32 @@ def api_site_upload_token(request):
 # сначала шлёт предварительный OPTIONS и требует явного разрешения.
 # Без этих заголовков Chrome блокирует запрос с ошибкой CORS.
 
-BEAUTY_UPLOAD_ALLOWED_ORIGIN = 'https://bukva-a.ru'
+# Разрешённые источники для загрузки файлов из браузера.
+#
+# ПОЧЕМУ ДВА АДРЕСА: сайт открывается и как bukva-a.ru, и как
+# www.bukva-a.ru. Для браузера это РАЗНЫЕ origin, поэтому при одном
+# значении запросы со «www» блокировались CORS и падали с
+# net::ERR_FAILED — то есть загрузка макета не работала.
+BEAUTY_UPLOAD_ALLOWED_ORIGINS = (
+    'https://bukva-a.ru',
+    'https://www.bukva-a.ru',
+)
 
 
-def _beauty_cors(response):
-    """Проставляет CORS-заголовки для эндпоинта загрузки файлов."""
-    response['Access-Control-Allow-Origin'] = BEAUTY_UPLOAD_ALLOWED_ORIGIN
+def _beauty_cors(request, response):
+    """
+    Проставляет CORS-заголовки для эндпоинтов загрузки файлов.
+
+    Origin отражаем ровно тем адресом, с которого пришёл запрос, но только
+    если он в списке разрешённых. Не из браузера (curl, серверная проверка)
+    — отдаём основной домен, поведение прежнее.
+    """
+    origin = request.headers.get('Origin', '')
+
+    response['Access-Control-Allow-Origin'] = (
+        origin if origin in BEAUTY_UPLOAD_ALLOWED_ORIGINS
+        else BEAUTY_UPLOAD_ALLOWED_ORIGINS[0]
+    )
     response['Access-Control-Allow-Headers'] = 'X-Upload-Token, Content-Type'
     response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
     response['Access-Control-Max-Age'] = '86400'
@@ -1507,15 +1527,15 @@ def api_site_upload_file(request):
     (CORS preflight) и проставляет заголовки разрешения на все ответы.
     """
     if request.method == 'OPTIONS':
-        return _beauty_cors(HttpResponse(status=204))
+        return _beauty_cors(request, HttpResponse(status=204))
 
     if request.method != 'POST':
-        return _beauty_cors(JsonResponse({
+        return _beauty_cors(request, JsonResponse({
             'success': False,
             'error': 'Метод не поддерживается',
         }, status=405))
 
-    return _beauty_cors(_api_site_upload_file_impl(request))
+    return _beauty_cors(request, _api_site_upload_file_impl(request))
 
 # ============================================================================
 # ФАЙЛЫ МАКЕТОВ ДЛЯ ЛИЧНОГО КАБИНЕТА КЛИЕНТА
@@ -2071,15 +2091,15 @@ def api_site_order_upload(request):
     Публичная обёртка: CORS-preflight и заголовки разрешения.
     """
     if request.method == 'OPTIONS':
-        return _beauty_cors(HttpResponse(status=204))
+        return _beauty_cors(request, HttpResponse(status=204))
 
     if request.method != 'POST':
-        return _beauty_cors(JsonResponse({
+        return _beauty_cors(request, JsonResponse({
             'success': False,
             'error': 'Метод не поддерживается',
         }, status=405))
 
-    return _beauty_cors(_api_site_order_upload_impl(request))
+    return _beauty_cors(request, _api_site_order_upload_impl(request))
 
 # ============================================================================
 # СМЕНА СТАТУСА МАКЕТА У ПОЗИЦИИ (менеджер)
