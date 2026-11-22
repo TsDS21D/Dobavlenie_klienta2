@@ -21,9 +21,10 @@ orders/templates/orders/sections/_order_rows.html
                  data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
-                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                 data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -391,9 +392,10 @@ orders/templates/orders/sections/_order_rows.html
                  data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
-                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                 data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
 
                  <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -760,9 +762,10 @@ orders/templates/orders/sections/_order_rows.html
                  data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
-                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                 data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"
@@ -1130,9 +1133,10 @@ orders/templates/orders/sections/_order_rows.html
                  data-strict-time="{{ order.is_strict_time|yesno:'true,false' }}"
                  data-ready-datetime="{{ order.ready_datetime|date:'Y-m-d\TH:i' }}"
                  data-comment="{{ order.comment|default:'' }}"
-                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}">
+                 data-client-id="{% if order.client %}{{ order.client.id }}{% endif %}"
+                 data-source="{{ order.source }}">
 
-                <div class="list-orders-card-number">{{ order.number }}</div>
+                <div class="list-orders-card-number">{{ order.number }}{% if order.source == 'site' %}<span class="list-orders-source-badge" title="Заказ оформлен на сайте">Сайт</span>{% endif %}</div>
 
                 <div class="list-orders-card-client editable-cell"
                      data-field="client"

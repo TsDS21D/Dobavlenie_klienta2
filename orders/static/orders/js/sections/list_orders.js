@@ -25,6 +25,7 @@ JavaScript секции «Список заказов» страницы /orders
     let inputAll        = null;   // общий поиск
     let inputClient     = null;   // поиск по клиенту
     let selectStatus    = null;   // фильтр по статусу
+    let selectSource    = null;   // фильтр по источнику (с сайта / вручную)
     let tableBody       = null;   // tbody таблицы заказов
     let noResultsBlock  = null;   // сообщение «Ничего не найдено»
 
@@ -124,12 +125,14 @@ JavaScript секции «Список заказов» страницы /orders
         inputAll       = document.getElementById('list-orders-search-input');
         inputClient    = document.getElementById('list-orders-search-client');
         selectStatus   = document.getElementById('list-orders-search-status');
+        selectSource   = document.getElementById('list-orders-search-source');
         tableBody      = document.getElementById('list-orders-table-body');
         noResultsBlock = document.getElementById('list-orders-no-results');
 
         if (inputAll)     inputAll.addEventListener('input',  handleSearch);
         if (inputClient)  inputClient.addEventListener('input', handleSearch);
         if (selectStatus) selectStatus.addEventListener('change', handleSearch);
+        if (selectSource) selectSource.addEventListener('change', handleSearch);
 
         // Делегирование: dblclick — редактирование, click — удаление/переход.
         document.addEventListener('dblclick', handleEditableCellDblClick);
@@ -360,6 +363,7 @@ JavaScript секции «Список заказов» страницы /orders
         const qAll    = inputAll    ? (inputAll.value    || '').trim().toLowerCase() : '';
         const qClient = inputClient ? (inputClient.value || '').trim().toLowerCase() : '';
         const qStatus = selectStatus ? (selectStatus.value || '') : '';
+        const qSource = selectSource ? (selectSource.value || '') : '';
 
         // Теперь ищем карточки, а не строки таблицы
         const cards = tableBody.querySelectorAll('.list-orders-card');
@@ -370,12 +374,14 @@ JavaScript секции «Список заказов» страницы /orders
             const clientCell = card.querySelector('.list-orders-card-client');
             const clientText = clientCell ? clientCell.textContent.toLowerCase() : '';
             const rowStatus  = card.dataset.status || '';
+            const rowSource  = card.dataset.source || '';
 
             const passAll    = !qAll    || fullText.indexOf(qAll)       !== -1;
             const passClient = !qClient || clientText.indexOf(qClient) !== -1;
             const passStatus = !qStatus || rowStatus === qStatus;
+            const passSource = !qSource || rowSource === qSource;
 
-            if (passAll && passClient && passStatus) {
+            if (passAll && passClient && passStatus && passSource) {
                 card.style.display = '';
                 visibleCount++;
             } else {

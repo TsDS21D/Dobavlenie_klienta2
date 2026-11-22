@@ -3086,3 +3086,25 @@ select.list-orders-payment-select {
     color: #33443f;
     white-space: pre-wrap;
 }
+
+/* ============================================================================
+   ЗНАЧОК «САЙТ» У НОМЕРА ЗАКАЗА
+   ============================================================================
+   Показывает, что заказ пришёл из заявки с сайта, а не создан вручную.
+   Следствие единой нумерации: по номеру отличить нельзя — цифры одинаковые,
+   поэтому нужен визуальный признак.
+   ============================================================================ */
+.list-orders-source-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #eaf3f9;
+    border: 1px solid #cfe3f2;
+    color: #2a6fc9;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    vertical-align: middle;
+}
