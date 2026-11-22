@@ -381,11 +381,6 @@
                                         {% endif %}
                                     </div>
 
-                                    <div class="web-orders-meta-row">
-                                        <span class="web-orders-meta-label">Оплата</span>
-                                        <span class="web-orders-meta-value">{{ order.payment_name|default:"—" }}</span>
-                                    </div>
-
                                     {% comment %} Название компании — только для юрлица: у физлица поле пустое, и строки не будет. {% endcomment %}
                                     {% if order.company_name %}
                                         <div class="web-orders-meta-row">
@@ -427,11 +422,33 @@
                                        зависит, какое поле показываем ниже. {% endcomment %}
                                     <div class="web-orders-billing-row">
                                         <span class="web-orders-billing-label">Оплата</span>
-                                        <span class="web-orders-meta-value">
-                                            {% if order.customer_type == 'yur' %}юридическое лицо{% else %}физическое лицо{% endif %}
-                                            · {{ order.payment_name|default:"—" }}
+                                        <span class="web-orders-pay-chips">
+                                            <span class="web-orders-chip web-orders-chip--type">
+                                                {% if order.customer_type == 'yur' %}юридическое лицо{% else %}физическое лицо{% endif %}
+                                            </span>
+                                            <span class="web-orders-chip web-orders-chip--method">
+                                                {{ order.payment_name|default:"способ не выбран" }}
+                                            </span>
                                         </span>
                                     </div>
+
+                                    {% comment %} Юрлицу показываем компанию и реквизиты прямо
+                                       в блоке оплаты — они нужны для счёта. {% endcomment %}
+                                    {% if order.customer_type == 'yur' %}
+                                        {% if order.company_name %}
+                                            <div class="web-orders-billing-row">
+                                                <span class="web-orders-billing-label">Компания</span>
+                                                <span class="web-orders-meta-value">{{ order.company_name }}</span>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if order.requisites %}
+                                            <div class="web-orders-billing-row">
+                                                <span class="web-orders-billing-label">Реквизиты</span>
+                                                <span class="web-orders-meta-value web-orders-meta-value--multiline">{{ order.requisites|linebreaksbr }}</span>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
 
                                     {% if order.customer_type == 'yur' %}
                                         {% comment %} Юрлицу ссылка не нужна — платит по счёту. {% endcomment %}

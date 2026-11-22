@@ -1374,3 +1374,35 @@
     color: #6d7d78;
     margin-bottom: 0.45rem;
 }
+
+/* Плашки «физическое/юридическое лицо» и «способ оплаты». */
+.web-orders-pay-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.web-orders-chip {
+    display: inline-block;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* Тип плательщика — нейтральная серо-зелёная. */
+.web-orders-chip--type {
+    background: #f2f8f5;
+    border: 1px solid #dcebe4;
+    color: #5c6f68;
+}
+
+/* Способ оплаты — фирменная зелёная. */
+.web-orders-chip--method {
+    background: #eef7f3;
+    border: 1px solid #cbe9cd;
+    color: #0b8661;
+    font-weight: 600;
+}

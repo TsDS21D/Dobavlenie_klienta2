@@ -2642,14 +2642,40 @@ def api_site_update_customer_type(request):
             'error': 'Заявка не найдена',
         }, status=404)
 
+    # Способ оплаты приходит вместе с типом плательщика: клиент в ЛК
+    # выбирает и то, и другое, и без этого в карточке заявки оставалось
+    # старое «Оплата картой по ссылке», хотя он выбрал «Оплата по счёту».
+    payment_name = (data.get('payment_name') or '').strip()
+
+    changed = False
+
     # Меняем только если действительно изменилось — лишняя запись
     # в базу и сдвиг updated_at ни к чему.
     if order.customer_type != customer_type:
         order.customer_type = customer_type
-        order.save(update_fields=['customer_type'])
+        changed = True
+
+    if payment_name and order.payment_name != payment_name[:255]:
+        order.payment_name = payment_name[:255]
+        changed = True
+
+    if changed:
+        order.save()
+
+        # Оповещаем открытые вкладки: в /web-orders/ карточка обновится,
+        # а в /orders/ появится плашка «Клиент изменил заказ N».
+        _send_web_order_event('updated', order, request, actor_name='Клиент')
+
+        linked_order = getattr(order, 'order', None)
+
+        if linked_order is not None:
+            from orders.views import _send_order_event
+
+            _send_order_event('updated', linked_order, request, actor_name='Клиент')
 
     return JsonResponse({
         'success': True,
         'moguta_order_id': moguta_order_id,
         'customer_type': order.customer_type,
+        'payment_name': order.payment_name,
     })
