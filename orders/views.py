@@ -2493,6 +2493,16 @@ def api_update_order_tovar(request, tovar_id):
     order_tovar.save()
     _send_order_event('updated', order, request)
 
+    # Позиция «Доставка»: сообщаем сайту, иначе в ЛК клиента останется
+    # старая цена доставки, хотя в ИС она уже другая.
+    if order_tovar.name == 'Доставка':
+        order.is_delivery = order_tovar.price > 0
+        order.save(update_fields=['is_delivery'])
+
+        from web_orders.services import notify_site_delivery
+
+        notify_site_delivery(order)
+
     return JsonResponse({
         'success': True,
         'tovar': {
@@ -2521,6 +2531,16 @@ def api_delete_order_tovar(request, tovar_id):
 
     order_tovar.is_deleted = True
     order_tovar.save(update_fields=['is_deleted'])
+
+    # Убрали «Доставку» — значит доставки в заказе больше нет.
+    # Об этом надо сказать сайту, иначе в ЛК клиента она останется.
+    if order_tovar.name == 'Доставка':
+        order.is_delivery = False
+        order.save(update_fields=['is_delivery'])
+
+        from web_orders.services import notify_site_delivery
+
+        notify_site_delivery(order)
 
     _send_order_event('updated', order, request)
 

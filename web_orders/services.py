@@ -174,6 +174,86 @@ def resolve_client_for_web_order(web_order):
 
     return client, contact, legal_entity, True
 
+def order_delivery_cost(order):
+    """
+    Возвращает текущую стоимость доставки заказа ИС.
+
+    Доставка хранится отдельной позицией «Доставка» (см. конвертацию),
+    поэтому берём её цену. Нет позиции — значит доставки нет.
+    """
+    from decimal import Decimal
+
+    tovar = order.tovary.filter(name='Доставка', is_deleted=False).first()
+
+    if tovar is None:
+        return Decimal('0.00')
+
+    return tovar.price or Decimal('0.00')
+
+
+def notify_site_delivery(order):
+    """
+    Передаёт на сайт актуальную доставку заказа: стоимость или её отмену.
+
+    ЗАЧЕМ: менеджер может изменить цену доставки или убрать её в /orders/.
+    Без этого вызова в личном кабинете клиента останутся старые данные,
+    хотя в ИС они уже другие.
+
+    ВЫЗЫВАЕТСЯ из:
+        • api_update_order_tovar — изменили цену позиции «Доставка»;
+        • api_delete_order_tovar — удалили позицию «Доставка».
+
+    ОШИБКА СЕТИ НЕ ЛОМАЕТ РАБОТУ: изменение уже сохранено в ИС, а сайт
+    получит данные при следующем изменении. Поэтому возвращаем признак
+    успеха, а не бросаем исключение.
+
+    ВОЗВРАЩАЕТ: (ok: bool, info: str) — для логов.
+    """
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    from django.conf import settings as _settings
+
+    web_order = getattr(order, 'web_order', None)
+
+    if web_order is None:
+        # Заказ создан вручную — на сайте его нет, синхронизировать нечего.
+        return False, 'no_web_order'
+
+    site_url = getattr(
+        _settings,
+        'BUKVA_SITE_DELIVERY_URL',
+        'https://bukva-a.ru/personal',
+    )
+    secret = getattr(_settings, 'BUKVA_API_SECRET', '')
+
+    if not site_url or not secret:
+        return False, 'not_configured'
+
+    payload = _json.dumps({
+        'moguta_order_id': web_order.moguta_order_id or 0,
+        'delivery_cost': str(order_delivery_cost(order)),
+    }).encode('utf-8')
+
+    request = urllib.request.Request(
+        site_url,
+        data=payload,
+        headers={
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Beauty-Secret': secret,
+        },
+        method='POST',
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            body = response.read().decode('utf-8', 'replace')
+            return True, body[:300]
+    except Exception as error:  # noqa: BLE001 — сеть сайта, любая ошибка не критична
+        return False, str(error)
+
+
 def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, address='', phone=''):
     """
     Применяет к заявке и связанному заказу новые данные доставки с сайта.
@@ -229,7 +309,7 @@ def apply_site_delivery_update(web_order, delivery_name='', delivery_cost=0, add
     # --- Позиция «Доставка» в заказе ---
     # Итог заказа считается на лету (Order.total_price), поэтому достаточно
     # добавить/изменить/удалить позицию — пересчитывать ничего не нужно.
-    delivery_tovar = order.tovary.filter(name='Доставка').first()
+    delivery_tovar = order.tovary.filter(name='Доставка', is_deleted=False).first()
 
     if cost > 0:
         if delivery_tovar is not None:
