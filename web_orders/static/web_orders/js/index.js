@@ -566,11 +566,12 @@
             event.stopPropagation();
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
+                layoutBottomToasts();
             }
         });
         toast.appendChild(closeBtn);
 
-        // Обновление списка прямо из уведомления.
+        // Кнопка «Обновить данные».
         var refreshBtn = document.createElement('button');
         refreshBtn.type = 'button';
         refreshBtn.className = 'web-orders-bottom-toast-refresh';
@@ -586,9 +587,9 @@
 
             refreshSection(openCardIds)
                 .then(function () {
-                    if (toast.parentNode) {
-                        toast.parentNode.removeChild(toast);
-                    }
+                    // Закрываем ВСЕ плашки: список перерисован по свежим данным,
+                    // остальные уведомления описывают то же самое.
+                    container.innerHTML = '';
                 })
                 .catch(function (err) {
                     console.error(err);
@@ -598,7 +599,73 @@
         });
         toast.appendChild(refreshBtn);
 
-        container.appendChild(toast);
+        // Клик по плашке поднимает её над стопкой (как в /orders/).
+        toast.addEventListener('click', function () {
+            if (toast.classList.contains('web-orders-bottom-toast--raised')) {
+                toast.classList.remove('web-orders-bottom-toast--raised');
+                layoutBottomToasts();
+            } else {
+                container.querySelectorAll('.web-orders-bottom-toast--raised')
+                    .forEach(function (t) {
+                        t.classList.remove('web-orders-bottom-toast--raised');
+                    });
+
+                toast.classList.add('web-orders-bottom-toast--raised');
+                layoutBottomToasts();
+            }
+        });
+
+        // Новая плашка — в начало контейнера, чтобы оказаться на виду.
+        container.insertBefore(toast, container.firstChild);
+        layoutBottomToasts();
+    }
+
+    /* ------------------------------------------------------------
+       Раскладка стопки: плашки накладываются друг на друга,
+       каждая следующая сдвинута вниз на половину высоты предыдущей.
+       Кнопка «Обновить данные» видна только у самой свежей (первой в DOM).
+       ------------------------------------------------------------ */
+    function layoutBottomToasts() {
+        var container = document.getElementById('web-orders-bottom-toasts');
+        if (!container) {
+            return;
+        }
+
+        var toasts = Array.prototype.slice.call(
+            container.querySelectorAll('.web-orders-bottom-toast')
+        );
+
+        toasts.forEach(function (toast, index) {
+            var btn = toast.querySelector('.web-orders-bottom-toast-refresh');
+            if (!btn) {
+                return;
+            }
+            btn.hidden = (index !== 0);
+        });
+
+        var offset = 0;
+        var z = 1000;
+
+        for (var i = toasts.length - 1; i >= 0; i--) {
+            var toast = toasts[i];
+            var height = toast.offsetHeight || 50;
+
+            var isRaised = toast.classList.contains('web-orders-bottom-toast--raised');
+
+            var top = -(offset + height);
+            var toastZ = z;
+
+            if (isRaised) {
+                top -= 12;
+                toastZ = 9000;
+            }
+
+            toast.style.top = top + 'px';
+            toast.style.zIndex = String(toastZ);
+
+            offset += height / 2;
+            z += 1;
+        }
     }
 
 
