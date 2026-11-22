@@ -739,6 +739,76 @@ def api_restore_web_order(request, order_id):
     })
 
 
+# ============================================================================
+# УДАЛЕНИЕ ЗАЯВКИ
+# ============================================================================
+
+@login_required
+@require_POST
+def api_delete_web_order(request, order_id):
+    """
+    Удаление заявки — POST /web-orders/api/delete/<id>/.
+
+    ЗАЧЕМ: заявку с сайта нужно уметь убрать целиком (спам, тест, дубль,
+    клиент отказался). Отклонение для этого не подходит: отклонённая заявка
+    остаётся в списке, а менеджеру нужно, чтобы её не было вовсе.
+
+    ЧТО ДЕЛАЕМ:
+        1. Мягко удаляем заявку (is_deleted=True) — она исчезает из /web-orders/.
+        2. Если заявка была сконвертирована, мягко удаляем и заказ
+           (is_deleted=True) — он исчезает из /orders/.
+        3. Клиент в личном кабинете видит «Отменён»: статусы для удалённых
+           заявок ИС отдаёт как «cancelled» (см. get_site_status_code).
+
+    ОГРАНИЧЕНИЕ: оплаченный заказ удалять нельзя. Деньги уже получены,
+    такой заказ — часть бухгалтерии, его снимают вручную, а не кнопкой.
+
+    ОТВЕТ:
+        успех: {"success": true, "order_deleted": true}
+        ошибки: 404 — не найдена, 409 — заказ оплачен
+    """
+    try:
+        web_order = WebOrder.objects.get(pk=order_id, is_deleted=False)
+    except WebOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    # --- Связанный заказ (если заявку конвертировали) ---
+    linked_order = None
+
+    if web_order.converted_order_id:
+        from orders.models import Order
+
+        linked_order = Order.objects.filter(pk=web_order.converted_order_id).first()
+
+    # --- Оплаченный заказ не удаляем ---
+    if linked_order is not None and linked_order.is_paid:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заказ уже оплачен — удалить нельзя',
+        }, status=409)
+
+    # --- Удаляем заявку и заказ одной транзакцией ---
+    # Если что-то упадёт, не останется «полуудалённого» состояния:
+    # заявка скрыта, а заказ ещё висит в производстве.
+    with transaction.atomic():
+        if linked_order is not None and not linked_order.is_deleted:
+            linked_order.is_deleted = True
+            linked_order.save(update_fields=['is_deleted'])
+
+        web_order.is_deleted = True
+        web_order.save(update_fields=['is_deleted', 'updated_at'])
+
+    _send_web_order_event('deleted', web_order, request)
+
+    return JsonResponse({
+        'success': True,
+        'order_deleted': linked_order is not None,
+    })
+
+
 @login_required
 @require_POST
 def api_convert_web_order(request, order_id):
@@ -884,9 +954,15 @@ def api_site_statuses(request):
     # ===== Шаг 4. Собираем ответ =====
     # prefetch_related('items') не нужен для статусов, но пригодится,
     # если позже понадобится состав. Сейчас ограничились быстрым выбором.
+    # Удалённые заявки тоже берём: клиент должен увидеть «Отменён», а не
+    # локальный статус Moguta. Иначе после удаления заказа в ИС в личном
+    # кабинете остаётся прежний статус («В обработке»), будто ничего
+    # не произошло.
+    #
+    # Файлы и макеты по удалённым заявкам при этом не отдаются —
+    # это отдельный эндпоинт client/files, там фильтр is_deleted остаётся.
     web_orders = WebOrder.objects.filter(
         moguta_order_id__in=ids,
-        is_deleted=False,
     )
 
     statuses = {}

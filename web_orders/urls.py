@@ -91,6 +91,15 @@ urlpatterns = [
         views.api_restore_web_order,
         name='api_restore_web_order',
     ),
+    # POST /web-orders/api/delete/<id>/
+    # Удалить заявку (и связанный заказ, если он есть).
+    # Вызывается кнопкой «Удалить» в карточке заявки.
+    # Ответ — JSON: {success: true, order_deleted: true}
+    path(
+        'api/delete/<int:order_id>/',
+        views.api_delete_web_order,
+        name='api_delete_web_order',
+    ),
 
 
     # POST /web-orders/api/reject/<id>/

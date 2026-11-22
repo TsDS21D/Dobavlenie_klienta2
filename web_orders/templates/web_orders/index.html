@@ -469,6 +469,13 @@
 
                                     {% endif %}
 
+                                    {% comment %} Удаление доступно для любой заявки: и для новой, и для
+                                       отклонённой, и для конвертированной — во всех случаях менеджеру
+                                       может понадобиться убрать заявку вместе с заказом. Для
+                                       оплаченного заказа сервер откажет (см. api_delete_web_order). {% endcomment %}
+                                    <button type="button"
+                                            class="web-orders-btn web-orders-btn--delete">Удалить</button>
+
                                     {% comment %} Подпись «получена …» показываем всегда — она не зависит от статуса. {% endcomment %}
                                     <span class="web-orders-created">
                                         получена {{ order.created_at|date:"d.m.Y H:i" }}

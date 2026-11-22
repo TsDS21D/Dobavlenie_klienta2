@@ -1134,14 +1134,24 @@ JavaScript секции «Список заказов» страницы /orders
                 'X-CSRFToken': getCsrfToken()
             }
         })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data.success) {
+        // Статус ответа тоже нужен: 409 — это «оплачен и удалить нельзя»,
+        // такое надо показать предупреждением, а не сухой ошибкой.
+        .then(function (r) {
+            return r.json().then(function (data) {
+                return { ok: r.ok, status: r.status, data: data };
+            });
+        })
+        .then(function (result) {
+            if (result.ok && result.data.success) {
                 showNotification('Заказ удалён', 'error');
                 return refreshTable();
             } else {
                 btn.disabled = false;
-                showNotification('Ошибка: ' + (data.error || 'неизвестная'), 'error');
+
+                var message = result.data.error || 'Неизвестная ошибка';
+                var tone = (result.status === 409) ? 'warning' : 'error';
+
+                showNotification(message, tone);
             }
         })
         .catch(function (err) {

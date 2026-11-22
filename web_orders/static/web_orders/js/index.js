@@ -64,6 +64,16 @@
             successText: function (data) {
                 return 'Создан заказ ' + data.order_number;
             }
+        },
+        delete: {
+            url: '/web-orders/api/delete/',
+            cssClass: 'web-orders-btn--delete',
+            // Удаление необратимо из интерфейса: восстановить заявку можно
+            // только в админке Django. Поэтому спрашиваем подтверждение
+            // и прямо говорим, что увидит клиент.
+            confirmText: 'Удалить заявку? Связанный заказ тоже будет удалён, '
+                + 'а клиент увидит статус «Отменён».',
+            successText: 'Заявка удалена'
         }
     };
 
@@ -421,6 +431,8 @@
             text = 'Новая заявка с сайта' + number;
         } else if (payload.event === 'converted') {
             text = 'Заявка' + number + ' конвертирована в заказ';
+        } else if (payload.event === 'deleted') {
+            text = 'Заявка' + number + ' удалена';
         } else if (payload.event === 'file_added') {
             // Клиент приложил макет из личного кабинета: менеджеру важно
             // узнать об этом сразу, иначе он начнёт печатать старый файл.

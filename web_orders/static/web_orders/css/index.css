@@ -444,6 +444,18 @@
     color: #c0392b;
 }
 
+/* Удаление — та же красная гамма, но с рамкой: действие необратимо
+   из интерфейса, поэтому визуально отличается от «Отклонить». */
+.web-orders-btn--delete {
+    background: #fff;
+    border-color: #e6b8b8;
+    color: #c0392b;
+}
+
+.web-orders-btn--delete:hover:not(:disabled) {
+    background: #fdf1f1;
+}
+
 .web-orders-btn:hover:not(:disabled) {
     filter: brightness(0.97);
 }

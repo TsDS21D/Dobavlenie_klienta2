@@ -1227,11 +1227,47 @@ def api_delete_order(request, order_id):
     """
     order = get_object_or_404(Order, pk=order_id, is_deleted=False)
 
-    order.is_deleted = True
-    order.save(update_fields=['is_deleted'])
+    # ===== Оплаченный заказ не удаляем =====
+    # Деньги уже получены, такой заказ — часть бухгалтерии. Снимать его
+    # кнопкой нельзя: сначала разбираемся с оплатой вручную.
+    if order.is_paid:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заказ уже оплачен — удалить нельзя',
+        }, status=409)
+
+    # ===== Удаляем заказ и связанную заявку =====
+    # Заказ с сайта живёт в двух местах: заявка (web_orders) и заказ (orders).
+    # Если убрать только заказ, заявка останется в /web-orders/ и будет
+    # выглядеть как рабочая, хотя производства уже нет. Поэтому удаляем
+    # обе записи в одной транзакции.
+    with transaction.atomic():
+        order.is_deleted = True
+        order.save(update_fields=['is_deleted'])
+
+        linked_web_order = None
+
+        if order.web_order_id:
+            from web_orders.models import WebOrder
+
+            linked_web_order = WebOrder.objects.filter(
+                pk=order.web_order_id,
+                is_deleted=False,
+            ).first()
+
+            if linked_web_order is not None:
+                linked_web_order.is_deleted = True
+                linked_web_order.save(update_fields=['is_deleted', 'updated_at'])
 
     # Отправляем WebSocket-событие «заказ удалён».
     _send_order_event('deleted', order, request)
+
+    # И второе событие — для открытых вкладок /web-orders/:
+    # заявка исчезла из их списка.
+    if linked_web_order is not None:
+        from web_orders.views import _send_web_order_event
+
+        _send_web_order_event('deleted', linked_web_order, request)
 
     return JsonResponse({
         'success': True,
