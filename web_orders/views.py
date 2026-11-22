@@ -881,6 +881,13 @@ def api_convert_web_order(request, order_id):
     # у них она тоже должна уехать в эту группу.
     _send_web_order_event('converted', web_order, request)
 
+    # И событие в группу ЗАКАЗОВ: страница /orders/ слушает другую группу
+    # ('orders_list'), поэтому без этого уведомления она не узнает о новом
+    # заказе и покажет его только после перезагрузки.
+    from orders.views import _send_order_event
+
+    _send_order_event('created', order, request)
+
     return JsonResponse({
         'success': True,
         'order_id': order.id,
