@@ -1356,3 +1356,21 @@
 .web-orders-delivery-status[hidden] {
     display: none;
 }
+
+/* Обёртка блока «Доставка» — визуально как .web-orders-billing. */
+.web-orders-delivery-block {
+    grid-column: 1 / -1;
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px dashed #dcebe4;
+    border-radius: 6px;
+    background: #fbfdfc;
+}
+
+.web-orders-delivery-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6d7d78;
+    margin-bottom: 0.45rem;
+}
