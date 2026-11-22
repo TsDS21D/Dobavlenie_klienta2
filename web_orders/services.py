@@ -785,4 +785,9 @@ def get_site_status_payload(web_order):
         'customer_type': web_order.customer_type or WebOrder.CUSTOMER_FIZ,
         'requisites': web_order.requisites or '',
         'company_name': web_order.company_name or '',
+        # Подтверждена ли стоимость доставки менеджером в /web-orders/.
+        # ЛК берёт это значение и убирает пометку «(предварительно, если
+        # доставка в пределах МКАД)». ИС — источник истины, поэтому писать
+        # что-либо в доп. поля Moguta больше не нужно.
+        'delivery_confirmed': bool(web_order.delivery_confirmed),
     }
