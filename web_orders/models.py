@@ -293,6 +293,18 @@ class WebOrder(models.Model):
         fio = self.fio or self.email or 'аноним'
         return f'Заявка #{self.id} от {fio}'
 
+    @property
+    def is_pickup(self):
+        """
+        Самовывоз — доставку не считаем и не подтверждаем.
+
+        Проверяем по названию способа получения: у самовывоза в нём всегда
+        есть слово «самовывоз». Стоимость 0 бывает и у бесплатной доставки,
+        поэтому ориентироваться только на неё нельзя.
+        """
+        return 'самовывоз' in (self.delivery_name or '').lower()
+
+
 
 class WebOrderItem(models.Model):
     """

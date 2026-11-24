@@ -327,13 +327,17 @@
                                     {% comment %} Блок доставки оформлен так же, как «Оплата и счёт для клиента».
                                        Внутри: способ, стоимость (с подтверждением), адрес и телефон. {% endcomment %}
                                     <div class="web-orders-delivery-block">
-                                        <div class="web-orders-billing-row">
-                                            <span class="web-orders-billing-label">Способ получения</span>
-                                            <span class="web-orders-meta-value">
-                                                {{ order.delivery_name|default:"—" }}
-                                            </span>
-                                        </div>
+                                        {% if order.delivery_name %}
+                                            <div class="web-orders-billing-row">
+                                                <span class="web-orders-billing-label">Способ получения</span>
+                                                <span class="web-orders-meta-value">{{ order.delivery_name }}</span>
+                                            </div>
+                                        {% endif %}
 
+                                        {% comment %} При самовывозе доставки нет: строка стоимости
+                                           и кнопка подтверждения только путают —
+                                           непонятно, что именно подтверждается. {% endcomment %}
+                                        {% if not order.is_pickup %}
                                         <div class="web-orders-billing-row">
                                             <span class="web-orders-billing-label">Стоимость доставки</span>
                                             <span class="web-orders-meta-value web-orders-delivery">
@@ -365,6 +369,7 @@
                                                 {% endif %}
                                             </span>
                                         </div>
+                                        {% endif %}
 
                                         {% if order.address %}
                                             <div class="web-orders-billing-row">
@@ -373,10 +378,20 @@
                                             </div>
                                         {% endif %}
 
+                                        {% comment %} Контакты клиента показываем те, что заполнены
+                                           в заявке: телефон и e-mail. Подписи без «для доставки» —
+                                           эти же данные нужны и при самовывозе. {% endcomment %}
                                         {% if order.phone %}
                                             <div class="web-orders-billing-row">
-                                                <span class="web-orders-billing-label">Телефон для доставки</span>
+                                                <span class="web-orders-billing-label">Телефон клиента</span>
                                                 <span class="web-orders-meta-value">{{ order.phone }}</span>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if order.email %}
+                                            <div class="web-orders-billing-row">
+                                                <span class="web-orders-billing-label">E-mail клиента</span>
+                                                <span class="web-orders-meta-value">{{ order.email }}</span>
                                             </div>
                                         {% endif %}
                                     </div>
@@ -408,9 +423,11 @@
                                             <span class="web-orders-chip web-orders-chip--type">
                                                 {% if order.customer_type == 'yur' %}юридическое лицо{% else %}физическое лицо{% endif %}
                                             </span>
-                                            <span class="web-orders-chip web-orders-chip--method">
-                                                {{ order.payment_name|default:"способ не выбран" }}
-                                            </span>
+                                            {% if order.payment_name %}
+                                                <span class="web-orders-chip web-orders-chip--method">
+                                                    {{ order.payment_name }}
+                                                </span>
+                                            {% endif %}
                                         </span>
                                     </div>
 
@@ -458,19 +475,17 @@
 
                                     {% comment %} Текущий счёт — то, что уже лежит в ИС
                                        и что видит клиент. {% endcomment %}
-                                    <div class="web-orders-billing-row">
-                                        <span class="web-orders-billing-label">Текущий счёт</span>
-                                        <span class="web-orders-billing-invoice-name">
-                                            {% if order.site_status.invoice_file %}
+                                    {% if order.site_status.invoice_file %}
+                                        <div class="web-orders-billing-row">
+                                            <span class="web-orders-billing-label">Текущий счёт</span>
+                                            <span class="web-orders-billing-invoice-name">
                                                 <a class="web-orders-billing-invoice-link"
                                                    href="{{ order.site_status.invoice_download_url }}"
                                                    target="_blank"
                                                    rel="noopener">{{ order.site_status.invoice_display_name }}</a>
-                                            {% else %}
-                                                не загружен
-                                            {% endif %}
-                                        </span>
-                                    </div>
+                                            </span>
+                                        </div>
+                                    {% endif %}
 
                                     <div class="web-orders-billing-actions">
                                         <button type="button" class="web-orders-billing-save">Сохранить</button>

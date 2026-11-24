@@ -186,12 +186,6 @@ urlpatterns = [
         name='api_delete_item_file',
     ),
 
-    path(
-        'files/<int:file_id>/delete/',
-        views.api_delete_item_file,
-        name='api_delete_item_file',
-    ),
-
     # POST /web-orders/api/site/upload-token/
     # Сайт получает короткоживущий токен для прямой загрузки файлов
     # клиентом (браузер грузит файл сразу в ИС, минуя сайт).
