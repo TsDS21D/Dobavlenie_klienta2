@@ -1090,15 +1090,6 @@
     flex: 0 0 auto;
 }
 
-.web-orders-billing-paylink {
-    flex: 1 1 260px;
-    min-width: 200px;
-    border: 1px solid #dfe9e5;
-    border-radius: 4px;
-    padding: 0.22rem 0.4rem;
-    font-size: 0.8rem;
-}
-
 .web-orders-billing-invoice {
     font-size: 0.78rem;
 }
@@ -1359,8 +1350,10 @@
     display: none;
 }
 
-/* Ссылка на оплату: поле, кнопка и отметка в одной строке,
-   как «Стоимость доставки — 600 ₽ — Подтверждено — цена подтверждена». */
+/* Ссылка на оплату: поле, кнопка и отметка в одной строке.
+   Ширины кнопки и подписи зафиксированы, а скрытая подпись занимает
+   место (visibility: hidden) — поэтому при вводе и отправке ничего
+   не прыгает. */
 .web-orders-paylink-cell {
     display: inline-flex;
     align-items: center;
@@ -1371,19 +1364,40 @@
 }
 
 .web-orders-billing-paylink {
-    flex: 1 1 260px;
-    min-width: 0;
+    flex: 0 1 300px;
+    min-width: 160px;
+    border: 1px solid #dfe9e5;
+    border-radius: 4px;
+    padding: 0.22rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Тонкая зелёная рамка вместо чёрной браузерной обводки. */
+.web-orders-billing-paylink:focus {
+    outline: none;
+    border-color: var(--brand-green);
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
+}
+
+.web-orders-btn--confirm-pay {
+    flex: 0 0 auto;
+    min-width: 6.6rem;
+    white-space: nowrap;
 }
 
 .web-orders-paylink-status {
     flex: 0 0 auto;
+    min-width: 8.6rem;
     white-space: nowrap;
     font-size: 0.76rem;
     color: var(--brand-green);
 }
 
+/* Скрытая подпись не исчезает из раскладки, а становится невидимой:
+   кнопка и поле остаются на своих местах. */
 .web-orders-paylink-status[hidden] {
-    display: none;
+    display: inline-block;
+    visibility: hidden;
 }
 
 .web-orders-btn--confirm-pay {
