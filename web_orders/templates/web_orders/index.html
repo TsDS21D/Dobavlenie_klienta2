@@ -449,21 +449,7 @@
                                         {% endif %}
                                     {% endif %}
 
-                                    {% if order.customer_type == 'yur' %}
-                                        {% comment %} Юрлицу ссылка не нужна — платит по счёту. {% endcomment %}
-                                    {% else %}
-                                        <div class="web-orders-billing-row">
-                                            <span class="web-orders-billing-label">Ссылка на оплату</span>
-                                            <input type="text"
-                                                   class="web-orders-billing-paylink"
-                                                   value="{{ order.site_status.pay_link|default:'' }}"
-                                                   placeholder="https://…">
-                                        </div>
-                                    {% endif %}
-
-                                    {% comment %} Счёт грузим только для юрлица: физлицу
-                                       отправляется ссылка на оплату. {% endcomment %}
-                                    {% if order.customer_type == 'yur' %}
+                                    {% if order.pays_by_invoice %}
                                         <div class="web-orders-billing-row">
                                             <span class="web-orders-billing-label">Счёт (PDF)</span>
                                             <input type="file"
@@ -471,25 +457,41 @@
                                                    accept=".pdf">
                                             <span class="web-orders-billing-hint">PDF, до 20 МБ</span>
                                         </div>
-                                    {% endif %}
 
-                                    {% comment %} Текущий счёт — то, что уже лежит в ИС
-                                       и что видит клиент. {% endcomment %}
-                                    {% comment %} Строка всегда в разметке, но скрыта, пока счёта нет:
-                                       после загрузки JS показывает её без перезагрузки страницы.
-                                       Если убрать строку совсем, JS не найдёт куда вставить ссылку. {% endcomment %}
-                                    <div class="web-orders-billing-row"
-                                         {% if not order.site_status.invoice_file %}hidden{% endif %}>
-                                        <span class="web-orders-billing-label">Текущий счёт</span>
-                                        <span class="web-orders-billing-invoice-name">
-                                            {% if order.site_status.invoice_file %}
-                                                <a class="web-orders-billing-invoice-link"
-                                                   href="{{ order.site_status.invoice_download_url }}"
-                                                   target="_blank"
-                                                   rel="noopener">{{ order.site_status.invoice_display_name }}</a>
-                                            {% endif %}
-                                        </span>
-                                    </div>
+                                        <div class="web-orders-billing-row"
+                                             {% if not order.site_status.invoice_file %}hidden{% endif %}>
+                                            <span class="web-orders-billing-label">Текущий счёт</span>
+                                            <span class="web-orders-billing-invoice-name">
+                                                {% if order.site_status.invoice_file %}
+                                                    <a class="web-orders-billing-invoice-link"
+                                                       href="{{ order.site_status.invoice_download_url }}"
+                                                       target="_blank"
+                                                       rel="noopener">{{ order.site_status.invoice_display_name }}</a>
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    {% else %}
+                                        <div class="web-orders-billing-row">
+                                            <span class="web-orders-billing-label">Ссылка на оплату</span>
+                                            <span class="web-orders-paylink-cell">
+                                                <input type="text"
+                                                       class="web-orders-billing-paylink"
+                                                       value="{{ order.site_status.pay_link|default:'' }}"
+                                                       data-saved-value="{{ order.site_status.pay_link|default:'' }}"
+                                                       placeholder="https://…">
+                                                <button type="button"
+                                                        class="web-orders-btn web-orders-btn--confirm-pay"
+                                                        data-url="{% url 'web_orders:api_update_site_status' order.id %}"
+                                                        {% if order.site_status.pay_link %}disabled{% endif %}>
+                                                    {% if order.site_status.pay_link %}Отправлено{% else %}Отправить{% endif %}
+                                                </button>
+                                                <span class="web-orders-paylink-status"
+                                                      {% if not order.site_status.pay_link %}hidden{% endif %}>
+                                                    ссылка отправлена
+                                                </span>
+                                            </span>
+                                        </div>
+                                    {% endif %}
 
                                     <div class="web-orders-billing-actions">
                                         <button type="button" class="web-orders-billing-save">Сохранить</button>

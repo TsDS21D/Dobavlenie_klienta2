@@ -294,6 +294,19 @@ class WebOrder(models.Model):
         return f'Заявка #{self.id} от {fio}'
 
     @property
+    def pays_by_invoice(self):
+        """
+        Клиент выбрал оплату по счёту.
+
+        Ориентируемся на название способа оплаты, а не на тип плательщика:
+        юрлицо тоже может выбрать «Оплата картой по ссылке». Учитываем оба
+        написания — «счёт» и «счет».
+        """
+        name = (self.payment_name or '').lower()
+        return 'счёт' in name or 'счет' in name
+
+
+    @property
     def is_pickup(self):
         """
         Самовывоз — доставку не считаем и не подтверждаем.

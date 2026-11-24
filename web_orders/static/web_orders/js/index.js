@@ -908,6 +908,83 @@
     // Стили и поведение те же, что у уведомлений от WebSocket.
     window.webOrdersToast = showToast;
 
+    // ===== ССЫЛКА НА ОПЛАТУ: кнопка «Отправить» =====
+    // Работает так же, как подтверждение доставки: после отправки кнопка
+    // гаснет и снова становится активной, когда ссылку изменили.
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('.web-orders-btn--confirm-pay');
+        if (!button) return;
+
+        var block = button.closest('.web-orders-billing');
+        if (!block) return;
+
+        var input = block.querySelector('.web-orders-billing-paylink');
+        var status = block.querySelector('.web-orders-paylink-status');
+        if (!input) return;
+
+        var link = input.value.trim();
+
+        if (!link) {
+            window.webOrdersToast('Сначала вставьте ссылку на оплату', 'error');
+            return;
+        }
+
+        button.disabled = true;
+
+        var formData = new FormData();
+        formData.append('pay_link', link);
+
+        fetch(button.getAttribute('data-url'), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: formData,
+            credentials: 'same-origin',
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    button.disabled = false;
+                    window.webOrdersToast(data.error || 'Не удалось отправить ссылку', 'error');
+                    return;
+                }
+
+                input.setAttribute('data-saved-value', link);
+                button.textContent = 'Отправлено';
+                button.disabled = true;
+
+                if (status) status.hidden = false;
+
+                window.webOrdersToast('Ссылка отправлена клиенту', 'success');
+            })
+            .catch(function () {
+                button.disabled = false;
+                window.webOrdersToast('Ошибка сети при отправке ссылки', 'error');
+            });
+    });
+
+    // Ссылку изменили — кнопка снова активна, отметка скрыта.
+    document.addEventListener('input', function (event) {
+        var input = event.target.closest('.web-orders-billing-paylink');
+        if (!input) return;
+
+        var block = input.closest('.web-orders-billing');
+        var button = block ? block.querySelector('.web-orders-btn--confirm-pay') : null;
+        var status = block ? block.querySelector('.web-orders-paylink-status') : null;
+
+        if (!button) return;
+
+        var saved = input.getAttribute('data-saved-value') || '';
+        var changed = input.value.trim() !== saved;
+
+        button.disabled = !changed;
+        button.textContent = changed ? 'Отправить' : 'Отправлено';
+
+        if (status) status.hidden = !(saved && !changed);
+    });
+
+
     // ========================================================================
     // ОПЛАТА И СЧЁТ ДЛЯ КЛИЕНТА
     // ========================================================================
