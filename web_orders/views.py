@@ -962,8 +962,10 @@ def api_confirm_delivery(request, order_id):
 
     web_order, order = apply_site_delivery_update(
         web_order,
-        delivery_name=web_order.delivery_name,
+        delivery_name=(data.get('delivery_name') or web_order.delivery_name or ''),
         delivery_cost=cost,
+        address=(data.get('address') or '').strip(),
+        phone=(data.get('phone') or '').strip(),
         confirmed=True,
     )
 
