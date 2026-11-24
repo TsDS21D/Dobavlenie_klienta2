@@ -1139,7 +1139,14 @@ JavaScript секции «Список заказов» страницы /orders
                         currentCell.innerHTML = '';
                         currentCell.appendChild(link);
                     } else {
-                        currentCell.textContent = 'не загружен';
+                        currentCell.textContent = '';
+                    }
+
+                    // Строка «Текущий счёт» видна только при наличии счёта.
+                    const invoiceRow = currentCell.closest('.list-orders-billing-row');
+
+                    if (invoiceRow) {
+                        invoiceRow.hidden = !result.data.invoice_url;
                     }
                 }
 

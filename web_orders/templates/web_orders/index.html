@@ -475,17 +475,21 @@
 
                                     {% comment %} Текущий счёт — то, что уже лежит в ИС
                                        и что видит клиент. {% endcomment %}
-                                    {% if order.site_status.invoice_file %}
-                                        <div class="web-orders-billing-row">
-                                            <span class="web-orders-billing-label">Текущий счёт</span>
-                                            <span class="web-orders-billing-invoice-name">
+                                    {% comment %} Строка всегда в разметке, но скрыта, пока счёта нет:
+                                       после загрузки JS показывает её без перезагрузки страницы.
+                                       Если убрать строку совсем, JS не найдёт куда вставить ссылку. {% endcomment %}
+                                    <div class="web-orders-billing-row"
+                                         {% if not order.site_status.invoice_file %}hidden{% endif %}>
+                                        <span class="web-orders-billing-label">Текущий счёт</span>
+                                        <span class="web-orders-billing-invoice-name">
+                                            {% if order.site_status.invoice_file %}
                                                 <a class="web-orders-billing-invoice-link"
                                                    href="{{ order.site_status.invoice_download_url }}"
                                                    target="_blank"
                                                    rel="noopener">{{ order.site_status.invoice_display_name }}</a>
-                                            </span>
-                                        </div>
-                                    {% endif %}
+                                            {% endif %}
+                                        </span>
+                                    </div>
 
                                     <div class="web-orders-billing-actions">
                                         <button type="button" class="web-orders-billing-save">Сохранить</button>

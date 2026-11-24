@@ -980,9 +980,19 @@
                     link.rel = 'noopener';
                     link.textContent = data.invoice_name || 'счёт';
                     currentCell.appendChild(link);
-                } else if (currentCell && !data.invoice_url) {
-                    // Файл не загружали и его нет — так и пишем.
-                    currentCell.textContent = 'не загружен';
+                }
+
+                // Показываем строку «Текущий счёт» только когда счёт есть.
+                if (currentCell) {
+                    var invoiceRow = currentCell.closest('.web-orders-billing-row');
+
+                    if (invoiceRow) {
+                        invoiceRow.hidden = !data.invoice_url;
+                    }
+
+                    if (!data.invoice_url) {
+                        currentCell.textContent = '';
+                    }
                 }
 
                 if (invoiceInput) invoiceInput.value = '';

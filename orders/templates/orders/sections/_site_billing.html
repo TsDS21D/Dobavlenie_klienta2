@@ -65,17 +65,18 @@
                 </div>
             {% endif %}
 
-            {% if st.invoice_file %}
-                <div class="list-orders-billing-row">
-                    <span class="list-orders-billing-label">Текущий счёт</span>
-                    <span class="list-orders-billing-invoice-name">
+            <div class="list-orders-billing-row"
+                 {% if not st.invoice_file %}hidden{% endif %}>
+                <span class="list-orders-billing-label">Текущий счёт</span>
+                <span class="list-orders-billing-invoice-name">
+                    {% if st.invoice_file %}
                         <a class="list-orders-billing-invoice-link"
                            href="{{ st.invoice_download_url }}"
                            target="_blank"
                            rel="noopener">{{ st.invoice_display_name }}</a>
-                    </span>
-                </div>
-            {% endif %}
+                    {% endif %}
+                </span>
+            </div>
 
             <div class="list-orders-billing-actions">
                 <button type="button" class="list-orders-billing-save">Сохранить</button>
