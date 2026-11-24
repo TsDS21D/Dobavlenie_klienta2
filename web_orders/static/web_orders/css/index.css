@@ -1379,6 +1379,19 @@
     box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
 }
 
+/* Такая же зелёная рамка для остальных полей страницы:
+   комментарий к файлу, ссылка на макет, комментарий к загрузке,
+   списки типа файла и статуса макета. */
+.web-orders-comment-input:focus,
+.web-orders-upload-link:focus,
+.web-orders-upload-comment:focus,
+.web-orders-item-status-select:focus,
+.web-orders-upload-kind:focus {
+    outline: none;
+    border-color: var(--brand-green);
+    box-shadow: 0 0 0 2px rgba(11, 134, 97, 0.15);
+}
+
 .web-orders-btn--confirm-pay {
     flex: 0 0 auto;
     min-width: 6.6rem;
