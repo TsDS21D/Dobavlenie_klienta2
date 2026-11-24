@@ -72,6 +72,16 @@ urlpatterns = [
         name='api_site_next_order_number',
     ),
 
+    # POST /web-orders/api/site/cancel-order/
+    # Клиент отменил заказ в ЛК — заявка уходит в «Отклонена» с пометкой
+    # и причиной отмены.
+    path(
+        'api/site/cancel-order/',
+        views.api_site_cancel_order,
+        name='api_site_cancel_order',
+    ),
+
+
 
     # POST /web-orders/api/site/customer-type/
     # Смена типа плательщика с сайта (физ/юр) — чтобы ИС не расходилась с ЛК.

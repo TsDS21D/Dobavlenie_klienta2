@@ -989,6 +989,129 @@ def api_confirm_delivery(request, order_id):
         'site_info': site_info,
     })
 
+@csrf_exempt  # запрос приходит с сайта bukva-a.ru, CSRF-токена у него нет
+@require_POST
+def api_site_cancel_order(request):
+    """
+    POST /web-orders/api/site/cancel-order/
+
+    Сайт сообщает ИС, что клиент отменил заказ в личном кабинете.
+
+    ЗАЧЕМ: без этого вызова в /web-orders/ ничего не менялось — заявка
+    оставалась «Новой», менеджер продолжал её обрабатывать, хотя клиент
+    уже отказался. Отмена клиентом — не то же самое, что отклонение
+    менеджером, поэтому она помечается отдельно.
+
+    ТЕЛО (JSON):
+        {
+            "moguta_order_id": 101,
+            "reason": "передумал"        (необязательно)
+        }
+
+    ОТВЕТ:
+        {"success": true, "status": "rejected", "status_display": "Отклонена",
+         "converted": false}
+    """
+    expected_secret = getattr(settings, 'BUKVA_API_SECRET', '')
+
+    if not expected_secret:
+        return JsonResponse({
+            'success': False,
+            'error': 'server_not_configured',
+            'message': 'Секретный ключ BUKVA_API_SECRET не задан в настройках',
+        }, status=500)
+
+    provided_secret = request.headers.get('X-Beauty-Secret', '')
+
+    if not hmac.compare_digest(str(provided_secret), str(expected_secret)):
+        return JsonResponse({
+            'success': False,
+            'error': 'unauthorized',
+            'message': 'Неверный секретный ключ',
+        }, status=401)
+
+    allowed_ips = getattr(settings, 'BUKVA_ALLOWED_IPS', [])
+
+    if allowed_ips:
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        client_ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+
+        if client_ip not in allowed_ips:
+            return JsonResponse({
+                'success': False,
+                'error': 'forbidden',
+                'message': 'IP не разрешён',
+            }, status=403)
+
+    try:
+        data = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Некорректный JSON',
+        }, status=400)
+
+    moguta_order_id = data.get('moguta_order_id')
+
+    if not moguta_order_id:
+        return JsonResponse({
+            'success': False,
+            'error': 'Не указан moguta_order_id',
+        }, status=400)
+
+    web_order = WebOrder.objects.filter(
+        moguta_order_id=moguta_order_id,
+        is_deleted=False,
+    ).order_by('-id').first()
+
+    if web_order is None:
+        return JsonResponse({
+            'success': False,
+            'error': 'Заявка не найдена',
+        }, status=404)
+
+    reason = (data.get('reason') or '').strip()[:1000]
+    was_converted = web_order.status == WebOrder.STATUS_CONVERTED
+
+    web_order.cancelled_by_client = True
+    web_order.cancel_reason = reason
+    web_order.cancelled_at = timezone.now()
+
+    # Конвертированную заявку в «Отклонена» не переводим: за ней уже
+    # стоит заказ в производстве, решение принимает менеджер. Но пометку
+    # и причину сохраняем — он увидит, что клиент отказался.
+    if not was_converted:
+        web_order.status = WebOrder.STATUS_REJECTED
+
+    web_order.save(update_fields=[
+        'cancelled_by_client',
+        'cancel_reason',
+        'cancelled_at',
+        'status',
+        'updated_at',
+    ])
+
+    _send_web_order_event('cancelled', web_order, request, actor_name='Клиент')
+
+    if was_converted and web_order.converted_order_id:
+        from orders.models import Order
+        from orders.views import _send_order_event
+
+        order = Order.objects.filter(
+            pk=web_order.converted_order_id,
+            is_deleted=False,
+        ).first()
+
+        if order is not None:
+            _send_order_event('cancelled', order, request)
+
+    return JsonResponse({
+        'success': True,
+        'status': web_order.status,
+        'status_display': web_order.get_status_display(),
+        'converted': was_converted,
+    })
+
 
 
 @csrf_exempt

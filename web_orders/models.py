@@ -131,6 +131,28 @@ class WebOrder(models.Model):
         blank=True,
         default='',
     )
+
+    # ===== ОТМЕНА КЛИЕНТОМ =====
+    # Клиент может отменить заказ в личном кабинете сайта. Это не то же
+    # самое, что «отклонил менеджер»: заявка уходит в группу «Отклонена»,
+    # но с пометкой, что отказ пришёл от клиента, и с причиной.
+    cancelled_by_client = models.BooleanField(
+        default=False,
+        verbose_name='Отменена клиентом',
+    )
+
+    cancel_reason = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Причина отмены',
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Когда отменена',
+    )
+
     # Подтверждена ли стоимость доставки менеджером.
     # False — в ЛК клиента цена показывается с пометкой «(предварительно,
     #         если доставка в пределах МКАД)»;

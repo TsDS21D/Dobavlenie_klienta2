@@ -404,6 +404,15 @@
                                         </div>
                                     {% endif %}
 
+                                    {% if order.cancelled_by_client %}
+                                        <div class="web-orders-cancel-note">
+                                            <span class="web-orders-cancel-badge">Отменена клиентом</span>
+                                            {% if order.cancel_reason %}
+                                                <span class="web-orders-cancel-reason">Причина: {{ order.cancel_reason }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
                                 </div>
 
                                 {% comment %} ===== ОПЛАТА И СЧЁТ ДЛЯ КЛИЕНТА =====

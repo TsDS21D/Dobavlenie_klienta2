@@ -1467,3 +1467,28 @@
     color: #0b8661;
     font-weight: 600;
 }
+
+/* ==================== ОТМЕНА КЛИЕНТОМ ==================== */
+/* Заявка в группе «Отклонена», но отказ пришёл от клиента:
+   менеджер должен видеть это отдельно от спама и решений менеджера. */
+.web-orders-cancel-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.35rem 0 0.2rem;
+}
+
+.web-orders-cancel-badge {
+    background: #fdecea;
+    color: #b3261e;
+    border-radius: 4px;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.web-orders-cancel-reason {
+    font-size: 0.78rem;
+    color: #6d7d78;
+}
