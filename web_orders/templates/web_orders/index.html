@@ -371,7 +371,7 @@
                                         </div>
                                         {% endif %}
 
-                                        {% if order.address %}
+                                        {% if order.address and not order.is_pickup %}
                                             <div class="web-orders-billing-row">
                                                 <span class="web-orders-billing-label">Адрес доставки</span>
                                                 <span class="web-orders-meta-value">{{ order.address|linebreaksbr }}</span>
