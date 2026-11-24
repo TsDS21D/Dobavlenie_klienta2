@@ -1359,26 +1359,36 @@
     display: none;
 }
 
-/* Ссылка на оплату: поле, кнопка и отметка в одной строке. */
+/* Ссылка на оплату: поле, кнопка и отметка в одной строке,
+   как «Стоимость доставки — 600 ₽ — Подтверждено — цена подтверждена». */
 .web-orders-paylink-cell {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 0.4rem;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .web-orders-billing-paylink {
-    flex: 1 1 320px;
-    min-width: 220px;
+    flex: 1 1 260px;
+    min-width: 0;
 }
 
 .web-orders-paylink-status {
+    flex: 0 0 auto;
+    white-space: nowrap;
     font-size: 0.76rem;
     color: var(--brand-green);
 }
 
 .web-orders-paylink-status[hidden] {
     display: none;
+}
+
+.web-orders-btn--confirm-pay {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 /* Обёртка блока «Доставка» — визуально как .web-orders-billing. */
