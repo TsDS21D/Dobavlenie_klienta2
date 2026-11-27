@@ -15,6 +15,7 @@
 """
 
 import hashlib
+import time
 import json
 import logging
 from typing import Any, Optional
@@ -129,17 +130,37 @@ class MogutaClient:
 
         logger.debug("Moguta API → method=%s param=%s", method, param_json)
 
-        try:
-            response = requests.post(
-                self.api_url,
-                data=post_data,
-                timeout=self.timeout,
-                headers={'X-Requested-With': 'XMLHttpRequest'},
-            )
-        except requests.RequestException as exc:
+        # Соединение с сайтом иногда «зависает» на TLS (после переезда
+        # хостинга такое случалось). Короткий connect-таймаут позволяет
+        # быстро понять, что связи нет, и повторить попытку.
+        # Три попытки с нарастающей паузой сглаживают разовые сбои.
+        response = None
+        last_exc = None
+
+        for attempt in range(1, 4):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    data=post_data,
+                    timeout=(3, self.timeout),
+                    headers={'X-Requested-With': 'XMLHttpRequest'},
+                )
+                break
+            except requests.RequestException as exc:
+                last_exc = exc
+
+                if attempt < 3:
+                    logger.warning(
+                        "Moguta API: попытка %s из 3 не удалась (%s), повторяем",
+                        attempt, exc,
+                    )
+                    time.sleep(0.5 * attempt)
+                    continue
+
+        if response is None:
             raise MogutaError(
-                f"Сетевая ошибка при обращении к Moguta API: {exc}"
-            ) from exc
+                f"Сетевая ошибка при обращении к Moguta API: {last_exc}"
+            ) from last_exc
 
         try:
             data = response.json()
