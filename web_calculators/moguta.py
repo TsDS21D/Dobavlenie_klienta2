@@ -18,12 +18,51 @@ import hashlib
 import time
 import json
 import logging
+import threading
 from typing import Any, Optional
 from urllib.parse import urlencode
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Переиспользование соединения (keep-alive) и пауза между запросами
+# ---------------------------------------------------------------------------
+# Хостинг сайта ограничивает частоту новых TLS-рукопожатий с одного IP:
+# при серии запросов подряд он на время перестаёт отвечать на HTTPS.
+# Держим по одному соединению на поток и не отправляем запросы чаще,
+# чем раз в MIN_REQUEST_INTERVAL секунд.
+_local = threading.local()
+_pace_lock = threading.Lock()
+_last_request_at = 0.0
+MIN_REQUEST_INTERVAL = 0.5
+
+
+def _get_session() -> requests.Session:
+    """Возвращает переиспользуемое HTTP-соединение для текущего потока."""
+    session = getattr(_local, 'session', None)
+
+    if session is None:
+        session = requests.Session()
+        session.headers.update({'X-Requested-With': 'XMLHttpRequest'})
+        _local.session = session
+
+    return session
+
+
+def _pace_request() -> None:
+    """Выдерживает паузу между запросами к Moguta API."""
+    global _last_request_at
+
+    with _pace_lock:
+        now = time.time()
+        delta = now - _last_request_at
+
+        if delta < MIN_REQUEST_INTERVAL:
+            time.sleep(MIN_REQUEST_INTERVAL - delta)
+
+        _last_request_at = time.time()
 
 
 # ============================================================================
@@ -130,31 +169,33 @@ class MogutaClient:
 
         logger.debug("Moguta API → method=%s param=%s", method, param_json)
 
-        # Соединение с сайтом иногда «зависает» на TLS (после переезда
-        # хостинга такое случалось). Короткий connect-таймаут позволяет
-        # быстро понять, что связи нет, и повторить попытку.
-        # Три попытки с нарастающей паузой сглаживают разовые сбои.
+        # Соединение с сайтом иногда «зависает» на TLS — похоже, хостинг
+        # ограничивает частоту новых TLS-рукопожатий с одного IP. Поэтому:
+        #   1) переиспользуем соединение (keep-alive) вместо нового на каждый
+        #      запрос — это резко сокращает число рукопожатий;
+        #   2) выдерживаем паузу между запросами, чтобы не бить очередью;
+        #   3) делаем не больше двух попыток.
         response = None
         last_exc = None
 
-        for attempt in range(1, 4):
+        for attempt in range(1, 3):
             try:
-                response = requests.post(
+                _pace_request()
+                response = _get_session().post(
                     self.api_url,
                     data=post_data,
-                    timeout=(3, self.timeout),
-                    headers={'X-Requested-With': 'XMLHttpRequest'},
+                    timeout=(5, self.timeout),
                 )
                 break
             except requests.RequestException as exc:
                 last_exc = exc
 
-                if attempt < 3:
+                if attempt < 2:
                     logger.warning(
-                        "Moguta API: попытка %s из 3 не удалась (%s), повторяем",
+                        "Moguta API: попытка %s из 2 не удалась (%s), повторяем через 2 с",
                         attempt, exc,
                     )
-                    time.sleep(0.5 * attempt)
+                    time.sleep(2)
                     continue
 
         if response is None:
